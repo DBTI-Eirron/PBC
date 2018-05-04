@@ -1,0 +1,31 @@
+
+<h2 class="text-center">{%= __("SSS Certificate") %}</h2>
+<hr>
+<table class="table table-bordered">
+		<div style="margin-bottom: 7px;" class="text-center">
+			<p>To Whom it May Concern,<p>
+			<p> </p>
+			<p>This is to certify that the following SSS Contributions where remitted in favor of</p>
+		</div>
+	<thead>
+		<tr>
+			<th style="width: 15%">{%= __("Month") %}</th>
+			<th style="width: 15%">{%= __("EE") %}</th>
+			<th style="width: 40%">{%= __("ER") %}</th>
+			<th style="width: 15%">{%= __("EC") %}</th>
+			<th style="width: 15%">{%= __("Date Paid") %}</th>
+		</tr>
+	</thead>
+	<tbody>
+
+		{% for(var i=0, l=data.length; i<l; i++) { %}
+			<tr>
+				<td>{%= data[i][__("EE")] %}</td>
+				<td>{%= data[i][__("ER")] %}</td>
+				<td>{%= data[i][__("EC")] %}</td>
+				<td>{%= data[i][__("Date Paid")] %}</td>
+			</tr>
+		{% } %}
+	</tbody>
+</table>
+

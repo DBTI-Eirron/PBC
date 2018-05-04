@@ -1,0 +1,46 @@
+// Copyright (c) 2017, Frappe Technologies Pvt. Ltd. and contributors
+// For license information, please see license.txt
+cur_frm.add_fetch('employee','full_name','full_name');
+cur_frm.add_fetch('employee','company','company');
+
+frappe.ui.form.on('Leave Application', {
+	onload: function(frm) {
+		if (!frm.doc.posting_date) {
+			frm.set_value("posting_date", get_today());
+		}
+	},
+
+	refresh: function(frm) {
+
+	},
+
+	employee: function(frm) {
+		frm.trigger("get_leaves_balances");
+	},
+
+	leave_type: function(frm) {
+		frm.trigger("get_leaves_balances");
+	},
+
+	from_date: function(frm) {
+		frm.trigger("get_leaves_balances");
+	},
+
+	to_date: function(frm) {
+		frm.trigger("get_leaves_balances");
+	},
+
+	get_leaves_balances: function(frm) {
+		if(frm.doc.employee && frm.doc.leave_type && frm.doc.from_date && frm.doc.to_date) {
+			return frappe.call({
+				method: "get_leaves_balances",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_field("leave_application_table");
+					frm.refresh_fields();
+				}
+			});
+		} 
+	},
+	
+});

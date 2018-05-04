@@ -1,0 +1,55 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2017, HDI Systech and contributors
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
+import frappe
+from frappe import throw, _, scrub
+from frappe.utils import getdate, validate_email_add, today, add_years
+from frappe.contacts.address_and_contact import load_address_and_contact, delete_contact_and_address
+from frappe.model.document import Document
+
+class Employee(Document):
+
+	def onload(self):
+		load_address_and_contact(self, "employee")
+
+	def validate(self):
+		self.update_fullname()
+		self.validate_date()
+		self.validate_spouse()
+		self.validate_salary()
+
+	def on_update(self):
+		if self.user_id:
+			self.update_user_permissions()
+
+	def update_user_permissions(self):
+		frappe.permissions.add_user_permission("Employee", self.name, self.user_id)
+		frappe.permissions.set_user_permission_if_allowed("Company", self.company, self.user_id)
+
+	def update_fullname(self):
+		if self.middle_name:
+			self.full_name = str(self.last_name) + ', ' + str(self.first_name) + ', ' + str(self.middle_name)
+		else:
+			self.full_name = str(self.last_name) + ', ' + str(self.first_name)
+
+	def validate_salary(self):
+		if self.payroll_schedule == "Monthly":
+			self.sss_freq = "2nd"
+			self.hdmf_freq = "2nd"
+			self.phic_freq = "2nd"
+			self.whtax_freq = "2nd"
+			frappe.msgprint("Government Settings Frequency Changed to ( 2nd ) because Schedule was set to Monthly")
+
+	def validate_date(self):
+		if self.birthday and getdate(self.birthday) > getdate(today()):
+			throw(_("Birthday cannot be greater than today."))	
+
+	def validate_spouse(self):
+		if self.civil_status == "Single":
+			self.spouse = ""
+
+		if self.civil_status == "Married": 
+			if not self.spouse:
+				throw(_("Spouse is required if Married"))

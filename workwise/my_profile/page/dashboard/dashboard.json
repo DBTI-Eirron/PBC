@@ -1,0 +1,24 @@
+{
+ "content": null, 
+ "creation": "2017-12-22 05:57:49.207137", 
+ "docstatus": 0, 
+ "doctype": "Page", 
+ "icon": "dashboard", 
+ "idx": 0, 
+ "modified": "2018-01-19 19:03:15.403512", 
+ "modified_by": "Administrator", 
+ "module": "My Profile", 
+ "name": "dashboard", 
+ "owner": "Administrator", 
+ "page_name": "dashboard", 
+ "roles": [
+  {
+   "role": "All"
+  }
+ ], 
+ "script": null, 
+ "standard": "Yes", 
+ "style": null, 
+ "system_page": 0, 
+ "title": "Dashboard"
+}

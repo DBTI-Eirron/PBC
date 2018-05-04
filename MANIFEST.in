@@ -1,0 +1,18 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include workwise *.css
+recursive-include workwise *.csv
+recursive-include workwise *.html
+recursive-include workwise *.ico
+recursive-include workwise *.js
+recursive-include workwise *.json
+recursive-include workwise *.md
+recursive-include workwise *.png
+recursive-include workwise *.py
+recursive-include workwise *.svg
+recursive-include workwise *.txt
+recursive-exclude workwise *.pyc

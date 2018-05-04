@@ -1,0 +1,158 @@
+/* the element that this class is applied to, should have a max width for this to work*/
+body[data-route=""] .navbar-default,
+body[data-route="desktop"] .navbar-default {
+  background-color: rgba(33, 33, 33, 0.9);
+  border-color: rgba(54, 65, 76, 0.1);
+}
+.dropdown-help .dropdown-menu .input-group {
+  width: 100%;
+  background-color: #666;
+  padding: 8px 12px;
+}
+.navbar-new-comments {
+  display: inline-block;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: #f2f2f2;
+  text-align: center;
+  padding: 2px 5px;
+  background-color: #e02222;
+}
+#navbar-search {
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.9);
+}
+#navbar-breadcrumbs > li > a:hover:before,
+#navbar-breadcrumbs > li > a:focus:before,
+#navbar-breadcrumbs > li > a:active:before,
+#navbar-breadcrumbs > li > a:hover,
+#navbar-breadcrumbs > li > a:focus,
+#navbar-breadcrumbs > li > a:active {
+  color: #4d90fe;
+}
+.navbar-default .navbar-nav > li > a,
+.navbar-default .navbar-brand {
+  color: #fff;
+}
+.navbar-default .navbar-nav > li > a:hover {
+  color: #4d90fe
+}
+.navbar-default .navbar-nav > .open > a,
+.navbar-default .navbar-nav > .open > a:hover,
+.navbar-default .navbar-nav > .open > a:focus {
+  color: #f2f2f2;
+  background-color: #e02222;
+}
+.navbar-brand {
+  float: left;
+  height: 40px;
+  padding: 6px 19px;
+  font-size: 18px;
+  line-height: 20px;
+}
+.btn-default {
+  color: inherit;
+  background-color: #f0f4f7;
+  border-color: transparent;
+}
+.dropdown-menu > li > a:hover,
+.dropdown-menu > li > a:focus {
+  color: #262626;
+  text-decoration: none;
+  background-color: #f0f4f7;
+}
+.nav-pills > li.active > a,
+.nav-pills > li.active > a:hover,
+.nav-pills > li.active > a:focus {
+  color: #fff;
+  background-color: #4d90fe;
+}
+.navbar-default {
+  background-color: #212121;
+  border-color: #212121;
+}
+.avatar-small .standard-image {
+  font-size: 14px;
+  color: #666666;
+}
+.indicator,
+.indicator-right {
+  background: none;
+  font-size: 12px;
+  vertical-align: middle;
+  font-weight: bold;
+  color: #212121;
+}
+.page-head {
+  border-bottom: 1px solid #666666;
+  height: 70px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 41px;
+  margin: auto;
+  background-color: #666666;
+  z-index: 101;
+}
+.btn-primary {
+  color: #fff;
+  background-color: #3cc051;
+  border-color: #3cc051;
+}
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary.focus,
+.btn-primary:active,
+.btn-primary.active,
+.open > .dropdown-toggle.btn-primary {
+  color: #fff;
+  background-color: #2b883a;
+  border-color: #2b883a;
+}
+.form-group-sm .form-control {
+  height: 30px;
+  padding: 5px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  border-radius: 3px; 
+}
+.dropdown-menu .divider {
+  height: 1px;
+  overflow: hidden;
+  background-color: #d8dfe5;
+}
+.case-label {
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 0.4px;
+  color: #666;
+  text-align: center;
+  margin-top: 10px;
+  transition: 0.2s;
+  -webkit-transition: 0.2s;
+  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.0), 0px 1px 5px rgba(0, 0, 0, 0.0);
+}
+.editable-title .title-text:hover {
+  background-color: #666;
+}
+
+.page-title .title-text {
+  margin-right: 7px;
+  max-width: 75%;
+  display: inline-block;
+  vertical-align: middle;
+  color: #FFFFFF;
+}
+
+.page-icon-group {
+  color: #FFFFFF;
+}
+
+.indicator .filterable  {
+  color: #000000;
+}
+
+.indicator  {
+  color: #8d99a6;;
+}
