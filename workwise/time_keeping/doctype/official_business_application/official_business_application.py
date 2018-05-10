@@ -110,9 +110,7 @@ class OfficialBusinessApplication(Document):
 
 		return holiday_tag 
 
-	def make_new_ob_app(self):
-		ob_list = frappe.db.sql("""SELECT * FROM `tabOfficial Business Application`""", as_dict=True)
-		for d in ob_list:
-			frappe.db.sql("""INSERT INTO `tabOfficial Business Application Table` 
-				( target_date, from_time, to_time, is_half_day, is_holiday, is_excluded, parent, parentfield, parenttype, modified_by, owner, creation, modified, `name`,docstatus) 
-				VALUES (%s,%s,%s,0,0,0,%s,"official_business_application_table","Official Business Application","Administrator","Administrator",NOW(),NOW(),%s,1)""", (d.from_date,d.from_time,d.to_time,d.name,d.name))
+	def set_missing_time(self):
+		for d in self.get('official_business_application_table'):
+			d.from_time = self.from_time
+			d.to_time = self.to_time
