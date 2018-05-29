@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe import _
-from frappe.utils import cint, flt, getdate, cstr, nowdate, get_datetime, add_days
+from frappe.utils import cint, flt, getdate, cstr, nowdate, get_datetime, add_days, get_time
 from frappe.model.document import Document
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, timediff_hrs
 
@@ -39,12 +39,12 @@ class OfficialBusinessApplication(Document):
 		total_ob_time = 0
 		for d in self.get('official_business_application_table'):
 			total_hrs = 0
-			if d.from_time > d.to_time:
-				from_date = d.target_date+" "+d.from_time
-				to_date = d.target_date+" "+d.to_time
-			else:
+			if get_time(d.from_time) > get_time(d.to_time):
 				from_date = d.target_date+" "+d.from_time
 				to_date = add_days(d.target_date, 1)+" "+d.to_time
+			else:
+				from_date = d.target_date+" "+d.from_time
+				to_date = d.target_date+" "+d.to_time
 
 			if not d.is_excluded == 1:
 				total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
@@ -80,9 +80,9 @@ class OfficialBusinessApplication(Document):
 			    
 			for i in dates:
 			    info = {
-			        "target_date": i,
-			        "from_time": "00:00:00",
-			        "to_time": "00:00:00",
+			        "target_date": cstr(i),
+			        "from_time": self.from_time,
+			        "to_time": self.to_time,
 			        "is_holiday": self.chk_holiday(i),
 			        "is_excluded": 0
 			    }
@@ -97,6 +97,7 @@ class OfficialBusinessApplication(Document):
 			for d in entries:
 				row = self.append('official_business_application_table', {})
 				row.update(d)
+			self.get_ob_hrs()
 
 	def chk_holiday(self, target_date):
 		holiday_tag  = 0
@@ -114,3 +115,4 @@ class OfficialBusinessApplication(Document):
 		for d in self.get('official_business_application_table'):
 			d.from_time = self.from_time
 			d.to_time = self.to_time
+		self.get_ob_hrs()

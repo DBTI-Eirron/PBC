@@ -299,7 +299,6 @@ class PayrollProcessing(Document):
 			elif emp['sss_freq'] == 'Both':
 				target_amt += flt(header.get('government_basis'), 8)
 
-
 			if mode != "None":
 				phic, phice = 0, 0
 				if target_amt < 10000:

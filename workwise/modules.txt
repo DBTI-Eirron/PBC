@@ -7,3 +7,4 @@ Notifications
 Talent Acquisition
 Performance Management
 Learning and Development
+Dashboard

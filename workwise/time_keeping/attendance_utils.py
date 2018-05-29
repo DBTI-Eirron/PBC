@@ -53,8 +53,9 @@ def get_attendance(entry, leaves, holidays):
 				entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 				entry['work'] -= entry['late']
 				# if Official Business with Late with no time_out
-				if entry.get("is_ob") and get_datetime(""+ cstr(entry.get('target_date'))+" "+ cstr(entry.get('ob_in'))+"" ) < entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+				if entry.get("is_ob") and not entry['card_out'] and get_datetime(""+ cstr(entry.get('target_date'))+" "+ cstr(entry.get('ob_in'))+"" ) > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 					entry['late'] = 0
+				
 
 		#break
 		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] :
@@ -87,6 +88,12 @@ def get_attendance(entry, leaves, holidays):
 	elif not entry.get('is_restday'):
 		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
 			entry["is_absent"] = 1
+
+	ob_in = get_datetime(""+ cstr(entry.get('target_date'))+" "+ cstr(entry.get('ob_in'))+"" )
+	if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_lwop'] :
+		if entry.get("is_ob") and  ob_in > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) and entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+			entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
+
 
 	# if Official Business with Late with no time_out
 	#if not entry.get('is_restday') and entry['card_in'] and entry['is_ob'] and not entry['card_out']:
