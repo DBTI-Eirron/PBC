@@ -18,7 +18,6 @@ frappe.ui.form.on('Loan Application', {
 		frm.add_fetch("employee", "company", "company");
 		frm.add_fetch("employee", "company", "company");
 		frm.add_fetch("loan_type", "title", "loan_name");
-		frm.add_fetch("loan_type", "loan_against", "loan_against");
 		//frm.add_fetch("payment_start", "from_date", "period_from");
 		//frm.add_fetch("payment_start", "to_date", "period_to");
 	},
