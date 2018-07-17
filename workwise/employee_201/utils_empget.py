@@ -16,6 +16,9 @@ def empget_employees(filter_type, filter_value, company):
 	if filter_type == 'Location':
 		conditions.append("`name`=%(filter_value)s")
 
+	if filter_type == 'Job Level':
+		conditions.append("job_level=%(filter_value)s")
+
 	build_conditions = "and {}".format(" and ".join(conditions)) if conditions else "" 
 
 	if filter_value:
