@@ -56,8 +56,6 @@ class ChangeScheduleApplication(Document):
 				"post_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 1),							
 				"break_start": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 0),
 				"break_end": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 1),
-				"half_in": self.get_date(target_date, ws.half_time_in, ws.half_time_out, ws.shift_type, 0),
-				"half_out": self.get_date(target_date, ws.half_time_in, ws.half_time_out, ws.shift_type, 1),
 				"nd_start": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 0),
 				"nd_end": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 1),	
 				"shift_type": ws.shift_type,
