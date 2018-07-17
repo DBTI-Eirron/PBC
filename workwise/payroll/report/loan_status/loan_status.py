@@ -77,16 +77,44 @@ def get_result(filters):
 	return result
 
 def get_loans(filters):
-	loans = frappe.db.sql("""SELECT employee, employee_name, posting_date, interest, loan_type, loan_amount, total_loan,
-			(SELECT sum(payment_amount) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID') as total_paid 
-		FROM `tabLoan Application`
-		WHERE company = %(company)s
-		AND docstatus = 1
-		ORDER BY employee_name ASC""",{
-			"company": filters.company,
-			"from_date": filters.from_date,
-			"to_date": filters.to_date,
-		}, as_dict=True)
+	cur_user = frappe.session.user
+	if not "Administrator" in frappe.get_roles(cur_user):
+		loans = frappe.db.sql("""SELECT LA.`name`, LA.employee, LA.employee_name, LA.posting_date, LA.interest, LA.loan_type, LA.loan_amount, LA.total_loan,
+				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
+			FROM
+				`tabLoan Application` AS LA
+				INNER JOIN `tabEmployee` AS TE ON TE.`name` = LA.employee 
+			WHERE
+				LA.company = %(company)s 
+				AND LA.docstatus = 1 
+				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
+						INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
+						WHERE SU.allow_user = %(cur_user)s)
+			ORDER BY
+				LA.employee_name ASC """,{
+						"company": filters.company,
+						"cur_user": frappe.session.user,
+						"from_date": filters.from_date,
+						"to_date": filters.to_date,
+			}, as_dict=True)
+	else:
+		loans = frappe.db.sql("""SELECT LA.`name`, LA.employee, LA.employee_name, LA.posting_date, LA.interest, LA.loan_type, LA.loan_amount, LA.total_loan,
+				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
+			FROM
+				`tabLoan Application` AS LA
+				INNER JOIN `tabEmployee` AS TE ON TE.`name` = LA.employee 
+			WHERE
+				LA.company = %(company)s 
+				AND LA.docstatus = 1 
+				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
+						INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+			ORDER BY
+				LA.employee_name ASC """,{
+						"company": filters.company,
+						"cur_user": frappe.session.user,
+						"from_date": filters.from_date,
+						"to_date": filters.to_date,
+			}, as_dict=True)
 
 	return loans
 

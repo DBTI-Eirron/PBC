@@ -8,8 +8,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
-from workwise.time_keeping.attendance_utils import get_timecard_list, get_schedule, \
-get_holiday_list, get_leave_list, get_shift_map, get_card_within, get_attendance
+from workwise.time_keeping.attendance_utils import get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, get_attendance
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
@@ -37,9 +36,9 @@ class AttendanceProcessing(Document):
 		if employees:
 			for emp in employees:
 				data = []
-				full_name, bio, company, worker_hrs, is_attendance_base, location = frappe.db.get_value("Employee", emp.name, ["full_name","biometrics_id", "company", "no_hours", "is_attendance_base", "location"])
+				full_name, bio, company, worker_hrs, is_attendance_base = frappe.db.get_value("Employee", emp.name, ["full_name","biometrics_id", "company", "no_hours", "is_attendance_base"])
 				worker_secs = (worker_hrs * 60) * 60
-				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.payroll_period, ["from_date", "to_date"])
+				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.payroll_period, ["attendance_from", "attendance_to"])
 				
 				exist = frappe.db.sql("""SELECT `name` FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s LIMIT 1""",(emp.name, pay_from, pay_to), as_dict=1)
 				if exist:
@@ -48,7 +47,7 @@ class AttendanceProcessing(Document):
 				shift_map = get_shift_map()
 				timecard_list = get_timecard_list(bio, pay_from, pay_to + datetime.timedelta(days=1))
 				schedule = get_schedule(emp.name, pay_from, pay_to)
-				holidays = get_holiday_list(company, location, pay_from, pay_to)
+				holidays = get_holiday_list(company, pay_from, pay_to)
 				leaves = get_leave_list(emp.name, pay_from, pay_to)
 
 				for sched in schedule:
@@ -59,7 +58,6 @@ class AttendanceProcessing(Document):
 						"worker_hrs": worker_hrs,
 						"worker_secs": worker_secs,
 						"is_attendance_base": is_attendance_base,
-						"location": location,
 						#schedule settings
 						"target_date": datetime.datetime.strftime(sched.datetime_in, '%Y-%m-%d'),
 						"work_shift": sched.work_shift,
@@ -93,7 +91,6 @@ class AttendanceProcessing(Document):
 						"nightdiff": 0.0,
 						"is_absent": 0,
 						"is_halfday": 0,
-						
 						#applications
 						#OT
 						"overtime": 0.0,
@@ -103,19 +100,19 @@ class AttendanceProcessing(Document):
 						"leave_name": "",
 						"is_lwop": 0,
 						"linked_leave": "",
+						#NIGHTDIFF
+						"nd_start": sched.nd_start,
+						"nd_end": sched.nd_end,
 						#OB
 						"is_ob": 0,
 						"ob": 0.0,
-						"ob_in": "",
-						"ob_out": "",
 						"linked_ob": "",
 						#holiday
 						"is_holiday": 0,
 						"is_sp_holiday": 0,
 						"holiday_name": "",
 						"linked_holiday": "",
-						"has_issue": 0,
-						"has_error": 0,
+						"has_issue": 0
 					}
 					
 					#ATTENDANCE
@@ -127,14 +124,15 @@ class AttendanceProcessing(Document):
 								entry['card_in'] = card['card_datetime']
 						elif card['card_type'] == 1:
 							entry['card_out'] = card['card_datetime']
-
 						elif card['card_type'] == 2:
 							if entry['break_out'] == "":
 								entry['break_out'] = card['card_datetime']
 						elif card['card_type'] == 3:
 							entry['break_in'] = card['card_datetime']
-							
+
+
 					get_attendance(entry, leaves, holidays)
+
 					entry['break'] = self.convert_secs(entry['break'])
 					entry['work'] = self.convert_secs(entry['work'])
 					entry['late'] = self.convert_secs(entry['late'])
@@ -162,5 +160,5 @@ class AttendanceProcessing(Document):
 
 	def convert_secs(self, secs):
 		# Converts to HR
-		con = flt((secs / 60) / 60, 2)
+		con = (secs / 60) / 60
 		return con

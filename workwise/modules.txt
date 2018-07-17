@@ -1,10 +1,9 @@
 Employee 201
-HR
 Time Keeping
 Payroll
 My Profile
 Notifications
-Talent Acquisition
-Performance Management
-Learning and Development
 Dashboard
+Learning And Development
+Performance Management
+Talent Acquisition

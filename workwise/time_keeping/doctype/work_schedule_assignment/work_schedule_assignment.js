@@ -3,7 +3,7 @@
 
 frappe.ui.form.on('Work Schedule Assignment', {
 	setup: function(frm){
-		frm.add_fetch("employee", "full_name", "full_name")
+		frm.add_fetch("employee", "full_name", "employee_name")
 	},
 
 	refresh: function(frm){

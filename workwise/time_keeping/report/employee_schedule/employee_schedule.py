@@ -85,7 +85,7 @@ def get_data(filters):
 	#Initialize
 	data = []
 
-	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["from_date", "to_date"])
+	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
 	schedule = get_schedule(filters, pay_from, pay_to)
 	for sched in schedule: 
 		entry = {

@@ -13,6 +13,7 @@ class LoanApplication(Document):
 		self.update_amounts()
 		self.update_paid_unpaid()
 		self.validate_date()
+		self.validate_user_sensitivity_level()
 
 	def validate_date(self):
 		if self.release_date > self.payment_start:
@@ -76,3 +77,18 @@ class LoanApplication(Document):
 			self.total_loan = flt(self.loan_amount + interest, 2)
 
 		return total_loan
+
+	def validate_user_sensitivity_level(self):
+		cur_user = frappe.session.user
+		if not "Administrator" in frappe.get_roles(cur_user):
+			employeee_list = []
+
+			employees = frappe.db.sql("""SELECT `parent` FROM `tabSensitivity Users` WHERE `allow_user` = %(user)s GROUP BY `parent`""",{ 
+				"user": frappe.session.user,
+			}, as_dict=True)
+			for emp in employees:
+				employeee_list.append(emp.parent)
+
+			emp_sensitivity = frappe.db.get_value("Employee", self.employee, "sensitivity")
+			if emp_sensitivity not in employeee_list:
+				frappe.throw(_(" You dont have access to this employee "))

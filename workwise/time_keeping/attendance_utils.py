@@ -1,18 +1,17 @@
 from __future__ import unicode_literals
 import frappe, datetime
-from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, cstr, get_datetime
+from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, get_datetime
 from frappe import _
 
 def get_attendance(entry, leaves, holidays):
 	#official business
-	ob_apps = frappe.db.sql("""SELECT `name`, from_time, to_time FROM `tabOfficial Business Application`  
-		WHERE workflow_state = 'Approved' AND %s BETWEEN from_date AND to_date 
-		AND employee = %s LIMIT 1 """,( entry.get('target_date'), entry.get('employee') ), as_dict=1)
+	ob_apps = frappe.db.sql("""SELECT OBA.`name` FROM `tabOfficial Business Application Table` OBAT
+		INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
+		WHERE OBA.workflow_state = 'Approved' AND %s BETWEEN OBA.from_date AND OBA.to_date 
+		AND OBA.employee = %s LIMIT 1""",( entry.get('target_date'), entry.get('employee') ), as_dict=1)
 
 	for ob in ob_apps:
 		entry['is_ob'] = 1
-		entry['ob_in'] = ob.from_time
-		entry['ob_out'] = ob.to_time
 		entry['linked_ob'] = ob.name
 		entry["is_absent"] = 0
 		entry['is_lwop'] = 0
@@ -28,34 +27,46 @@ def get_attendance(entry, leaves, holidays):
 				entry['is_holiday'] = 1
 				if h['is_special'] == 1:
 					entry['is_sp_holiday'] = 1
-					
+
+				if not entry['card_in'] or not entry['card_out']:
+					entry['work'] = (entry.get('work_hours') * 60) * 60
+
 	#leaves	
 	for l in leaves:
 		if  datetime.datetime.strftime(l['leave_date'], '%Y-%m-%d') == entry['target_date']:
 			if l['is_excluded'] != 1:
-				entry["leave_name"] = l['leave_type'] 
+				entry['leave_name'] = l['leave_type']
 				entry["is_absent"] = 0
 				entry["undertime"] = 0
 				entry["late"] = 0
 				entry['is_leave'] = 1
-				
+				if not entry['card_in'] or not entry['card_out']:
+					entry['work'] = (entry.get('work_hours') * 60) * 60
+
 				if l['is_lwop'] == 1:
 					entry['is_lwop'] = 1
+					entry['is_leave'] = 0
+					entry['work'] = 0
 				
 				if l['is_half_day'] == 1:
 					entry["is_halfday"] = 1
 
-	if not entry.get('is_restday') and entry['card_in'] and entry['card_out'] and not entry['is_ob'] :
+	if not entry.get('is_restday') and entry['card_in'] and entry['card_out']:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
+		if entry["is_halfday"] == 1:
+			entry['work'] = entry['work'] / 2
+
 		#late
-		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_lwop'] :
+		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
 			if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-				entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
+				if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
+					entry['late'] += ( entry.get('card_in') - (entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')))  ).total_seconds()
+				else:
+					entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
+
 				entry['work'] -= entry['late']
-				# if Official Business with Late with no time_out
-				if entry.get("is_ob") and not entry['card_out'] and get_datetime(""+ cstr(entry.get('target_date'))+" "+ cstr(entry.get('ob_in'))+"" ) > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+				if entry.get("is_processed") and entry.get("ignore_late"):
 					entry['late'] = 0
-				
 
 		#break
 		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] :
@@ -76,50 +87,66 @@ def get_attendance(entry, leaves, holidays):
 
 		#undertime
 		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
-			if entry.get('is_flexible'):
-				if entry.get('work') < entry.get('worker_secs'):
-					entry['undertime'] += entry.get('work') - entry.get('worker_secs')
-					entry['work'] -= entry['undertime']
-			else:
-				if entry['card_out'] < entry['time_out']:
-					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
-					entry['work'] -= entry['undertime']
-	#overtime
-	elif not entry.get('is_restday'):
-		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
-			entry["is_absent"] = 1
+			#if entry.get('is_flexible'):
+				#if entry.get('work') < (entry.get('worker_secs') + entry.get('late') ):
+				#	entry['undertime'] += entry.get('work') - entry.get('worker_secs')
+				#	entry['work'] -= entry['undertime']
+		
+			if entry['card_out'] < entry['time_out']:
+				entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+				entry['work'] -= entry['undertime']
 
-	ob_in = get_datetime(""+ cstr(entry.get('target_date'))+" "+ cstr(entry.get('ob_in'))+"" )
-	if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_lwop'] :
-		if entry.get("is_ob") and  ob_in > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) and entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-			entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
+		#overtime
+		if not entry.get('approved_ot_only'):
+			if entry.get('card_in') and entry.get('card_out'):
+				if entry.get('card_out') > entry.get('time_out'):
+					entry['overtime'] = (entry.get('card_out') - entry.get('time_out')).total_seconds()
+		else:
+			ot_apps = frappe.db.sql("""SELECT `name`, total_hrs FROM `tabOvertime Application` 
+				WHERE workflow_state = 'Approved' AND target_date = %s 
+				AND employee = %s """, ( entry.get('target_date'), entry.get('employee') ), as_dict=1)
 
-
-	# if Official Business with Late with no time_out
-	#if not entry.get('is_restday') and entry['card_in'] and entry['is_ob'] and not entry['card_out']:
-	#	if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_lwop'] :
-	#		if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-	#			entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
-	#			if entry.get("is_processed") and entry.get("ignore_late"):
-	#				entry['late'] = 0
-
-	if not entry.get('approved_ot_only'):
-		if entry.get('card_in') and entry.get('card_out'):
-			if entry.get('card_out') > entry.get('time_out'):
-				entry['overtime'] = (entry.get('card_out') - entry.get('time_out')).total_seconds()
-	else:
+			for ot in ot_apps:
+				entry['overtime'] += (ot.total_hrs * 60) * 60
+				entry['linked_ot'] = ot.name
+	elif entry.get('is_restday'):
+		#overtime
 		ot_apps = frappe.db.sql("""SELECT `name`, total_hrs FROM `tabOvertime Application` 
 			WHERE workflow_state = 'Approved' AND target_date = %s 
 			AND employee = %s """, ( entry.get('target_date'), entry.get('employee') ), as_dict=1)
 
 		for ot in ot_apps:
 			entry['overtime'] += (ot.total_hrs * 60) * 60
-			entry['linked_ot'] = ot.name
-			entry['is_absent'] = 0
+			entry['linked_ot'] = ot.name	
+	else:
+		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
+			entry["is_absent"] = 1
 
-	if entry.get("is_processed") and entry.get("ignore_late"):
-		entry['late'] = 0
-	
+	#if flexible
+	if entry.get('is_flexible'):
+		if entry.get('work') < (entry.get('worker_secs')):
+			entry['undertime'] += abs(entry.get('work') - entry.get('worker_secs'))
+			entry['work'] += entry['late']
+			entry['late'] = 0
+			entry['work'] -= entry['undertime']
+
+	#nightdiff
+	#if get_datetime(entry.get('card_out')) > get_datetime(entry.get('nd_start')):
+	#	frappe.throw("nightdiff")
+
+
+	if entry["late"] > frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') and frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') > 0:
+		entry["is_halfday"] = 1
+	#is_attendance_base
+	if not entry.get('is_attendance_base'):
+		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
+		entry["is_absent"] = 0
+		entry["break"] = 0
+		entry["late"] = 0
+		entry["nightdiff"] = 0
+		entry["overtime"] = 0
+		entry["undertime"] = 0
+
 def get_holidays(d, holidays):
 	if holidays:
 		is_holiday = 0
@@ -177,10 +204,10 @@ def get_shift_map():
 
 	return shift_map
 
-def get_holiday_list(company, location, from_date, to_date):
+def get_holiday_list(company, from_date, to_date):
 	holidays = frappe.db.sql("""SELECT holiday_name, holiday_date, is_special FROM `tabHoliday` 
-		WHERE company = %s AND location = %s AND holiday_date >= %s AND holiday_date <= %s
-		ORDER BY holiday_date ASC""",(company, location, from_date, to_date), as_dict=True)
+		WHERE company = %s AND holiday_date >= %s AND holiday_date <= %s
+		ORDER BY holiday_date ASC""",(company, from_date, to_date), as_dict=True)
 
 	return holidays
 

@@ -21,6 +21,21 @@ frappe.ui.form.on('Employee', {
 		} else {
 			frappe.contacts.clear_address_and_contact(frm);
 		}
+		
+		frappe.call({
+			method: "get_user_sensitivity_level",
+			doc: frm.doc,
+			callback: function(r) {
+				if (r.message == "access_denied"){
+					cur_frm.toggle_display('section_break_29',false);
+					cur_frm.toggle_display('section_break_16',false);
+				}
+				else{
+					cur_frm.toggle_display('section_break_29',true);
+					cur_frm.toggle_display('section_break_16',true);
+				}
+			}
+		});
 	}
 	
 });

@@ -20,10 +20,6 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Work Schedule",
-				},
-				{
-					"type": "doctype",
 					"name": "Time Card",
 				},
 				{
@@ -57,38 +53,21 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Work Suspension",
-				},
-				{
-					"type": "doctype",
 					"name": "Blanket",
 				},
 			]
 		},
 		{
-			"label": _("Blanket Applications"),
+			"label": _("Setup"),
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Leave Blanket",
-				},
+					"name": "Timekeeping Settings",
+				},		
 				{
 					"type": "doctype",
-					"name": "Overtime Blanket",
-				},
-				{
-					"type": "doctype",
-					"name": "Official Business Blanket",
-				},
-				{
-					"type": "doctype",
-					"name": "Change Schedule Blanket",
-				},
-			]
-		},
-		{
-			"label": _("Setup"),
-			"items": [		
+					"name": "Biometrics Upload",
+				},			
 				{
 					"type": "doctype",
 					"name": "Leave Balance",
@@ -104,10 +83,6 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Holiday",
-				},
-				{
-					"type": "doctype",
-					"name": "Timekeeping Settings",
 				},
 			]
 		},
@@ -138,19 +113,24 @@ def get_data():
 					"doctype": "Leave Balance Report",	
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "Employee Tardiness Report",
+					"doctype": "Attendance Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Tardiness Frequency Report",
+					"doctype": "Attendance Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Tardiness Summary Report",
+					"doctype": "Attendance Register",	
+					"is_query_report": True
+				},
 			],
-		},
-		{
-			"label": _("Biometrics"),
-			"items": [
-				{
-					"type": "doctype",
-					"name": "Biometrics Upload",
-				},			
-				{
-					"type": "doctype",
-					"name": "Biometrics Device",
-				},			
-			]
-		},
+		},	
 	]

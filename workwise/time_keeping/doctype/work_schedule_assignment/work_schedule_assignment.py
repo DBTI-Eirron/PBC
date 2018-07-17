@@ -7,7 +7,7 @@ import frappe, datetime
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_to_date, cstr
 from frappe import _
 from frappe.model.document import Document
-from workwise.employee_201.utils_empget import empget_employees, empget_subordinates, empget_company
+from workwise.employee_201.emp_filters_utils import empget_employees, empget_subordinates, empget_company
 
 class WorkScheduleAssignment(Document):
 	def assign_schedule(self):
@@ -17,12 +17,66 @@ class WorkScheduleAssignment(Document):
 		if not self.from_date or not self.to_date:
 			frappe.throw(_("From Date and To Date Required"))
 
-		if self.apply_template:
-			ss_list = self.assign_schedule_template()
-		else:
-			frappe.throw(_("Select Template"))
+		if self.apply_type == 'Range':
+			ss_list = self.assign_schedule_range()
+		elif self.apply_type == 'Template':
+			if self.apply_template:
+				ss_list = self.assign_schedule_template()
+			else:
+				frappe.throw(_("Select Template"))
 
 		return self.create_log(ss_list)
+
+	def assign_schedule_range(self):
+		dates = []
+		date_list = []
+		ss_list = []
+		start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
+		end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
+		step = datetime.timedelta(days=1)
+		while start <= end:
+			date_list.append(start.date())
+			start += step
+
+		if self.get('employees'):
+			for d in self.get('employees'):
+				if d.new_shift:
+					shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(d.new_shift), as_dict=True)
+					company = frappe.db.get_value("Employee", d.employee, "company")
+					
+					for i in date_list:
+						exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (d.employee, i), as_dict=True)
+						if exist:
+							exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (d.employee, i), as_dict=True)
+
+						work_sched = frappe.new_doc("Work Schedule")
+						work_sched.update({
+							"employee": d.employee,
+							"company": company,
+							"target_date": i,
+							"work_shift": shift[0]['name'],
+							"shift_type": shift[0]['work_shift_type'],
+							"work_hours": shift[0]['work_hours'],
+							"break_mins": shift[0]['break_mins'],
+							"datetime_in": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 0), 
+							"datetime_out": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 1),
+							"pre_shift": self.get_date(i, shift[0]["pre_shift"], shift[0]["post_shift"], shift[0]['work_shift_type'], 0), 
+							"post_shift": self.get_date(i, shift[0]["pre_shift"], shift[0]["post_shift"], shift[0]['work_shift_type'], 1),						
+							"break_start": self.get_date(i, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 0),
+							"break_end": self.get_date(i, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 1),
+							"nd_start": self.get_date(i, shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 0),
+							"nd_end": self.get_date(i, shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 1),
+						})	
+						work_sched.insert()
+						if exist:
+							label = "Changed Schedule " + d.employee_name +""
+						else:
+							label = "Assigned Schedule " + d.employee_name +""
+							
+						ss_list.append(label)
+		else:
+			frappe.throw(_("No Employee Found"))
+		return ss_list
 
 	def assign_schedule_template(self):
 		sched_map = self.get_sched_template()
@@ -37,6 +91,7 @@ class WorkScheduleAssignment(Document):
 			date_list.append(start.date())
 			start += step
 
+		#for i in range(1, 500):
 		for i in date_list:
 			day = datetime.datetime.strptime(str(i), '%Y-%m-%d').strftime('%A').lower()
 			info = {
@@ -61,11 +116,11 @@ class WorkScheduleAssignment(Document):
 		if self.get('employees'):
 			for emp in self.get('employees'):
 				company = frappe.db.get_value("Employee", emp.employee, "company")
-				exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s LIMIT 1""", (emp.employee, self.from_date, self.to_date), as_dict=True)
+				exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (emp.employee, self.from_date, self.to_date), as_dict=True)
 				if exist:
 					exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (emp.employee, self.from_date, self.to_date), as_dict=True)
-
-				for d in dates:
+									
+				for d in dates:			
 					work_sched = frappe.new_doc("Work Schedule")
 					work_sched.update({
 						"employee": emp.employee,
@@ -91,6 +146,8 @@ class WorkScheduleAssignment(Document):
 			frappe.throw(_("No Employee Found"))
 		
 		return ss_list
+
+	
 
 	def create_log(self, ss_list):
 		log = "<p>" + _("No Employee for the above selected criteria Created") + "</p>"

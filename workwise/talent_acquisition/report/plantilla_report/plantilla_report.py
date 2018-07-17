@@ -47,7 +47,6 @@ def execute(filters=None):
 
 def get_position_list(filters):
 	positions = frappe.db.sql(""" SELECT `name` as `key`, `name` as `label` FROM `tabJob Level` """, as_dict=True)
-	
 	positions.append(frappe._dict({
 		"key": "Target",
 		"label": "Target",
@@ -102,6 +101,7 @@ def set_emp_entries_by_department(company, as_of_date, root_lft, root_rgt, filte
 	emp_entries += frappe.db.sql("""select department, "Target" as position_title, SUM(quantity) as qty from `tabPersonnel Requisition`
 		where company=%(company)s
 		and department in (select name from `tabDepartment` where lft >= %(lft)s and rgt <= %(rgt)s)
+		and docstatus = 1
 		group by department
 		order by department """,
 		{

@@ -30,8 +30,8 @@ class Department(NestedSet):
 
 @frappe.whitelist()
 def create_root():
-	frappe.db.sql("""INSERT INTO `tabDepartment` (department_name, modified_by, owner, creation, modified, `name`, parent_department) 
-		VALUES ('Organization Structure','Administrator','Administrator',NOW(),NOW(),'Organization Structure','') """)
+	frappe.db.sql("""INSERT INTO `tabDepartment` (department_name, modified_by, owner, creation, modified, `name`, parent_department, lft, rgt) 
+		VALUES ('Organization Structure','Administrator','Administrator',NOW(),NOW(),'Organization Structure','', 1, 2) """)
 
 @frappe.whitelist()
 def rebuild_department_tree():
@@ -41,8 +41,6 @@ def rebuild_department_tree():
 
 @frappe.whitelist()
 def get_children(doctype, parent=None, is_root=False):
-	condition = ''
-
 	if is_root:
 		parent = ""
 
@@ -54,8 +52,7 @@ def get_children(doctype, parent=None, is_root=False):
 		from
 			`tabDepartment` emp
 		where 
-		ifnull(`parent_department`,'') = %s {condition} order by name"""
-		.format(condition=condition), parent, as_dict=1)
+		ifnull(`parent_department`,'') = %s order by name""", parent, as_dict=1)
 
 	return departments
 

@@ -18,6 +18,7 @@ def get_data():
 					"type": "doctype",
 					"name": "Recurring Entry",
 				},
+
 				{
 					"type": "doctype",
 					"name": "Batch Entry",
@@ -42,6 +43,10 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Overtime Rates",
+				},
+				{
+					"type": "doctype",
+					"name": "Alphalist Consideration",
 				},
 				{
 					"type": "doctype",
@@ -86,11 +91,32 @@ def get_data():
 					"doctype": "Payroll Register",	
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "Bank Remittance - EastWest Bank",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},
 			],
 		},
 		{
 			"label": _("Government Reports"),
 			"items": [
+				{
+					"type": "report",
+					"name": "Alphalist With No Previous",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Alphalist Terminated",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Alphalist Minimum Wage",	
+					"is_query_report": True
+				},		
 				{
 					"type": "report",
 					"name": "PagIbig Premium Contribution",	

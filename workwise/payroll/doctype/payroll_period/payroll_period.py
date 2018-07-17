@@ -12,15 +12,12 @@ from frappe.model.document import Document
 class PayrollPeriod(Document):
 	def autoname(self):
 		pay_year = getdate(self.payroll_date).strftime("%Y")
-
 		from_year = getdate(self.from_date).strftime("%Y")
 		from_month = getdate(self.from_date).strftime("%b")
 		from_day = getdate(self.from_date).strftime("%d")
-
 		to_year = getdate(self.to_date).strftime("%Y")
 		to_month = getdate(self.to_date).strftime("%b")
 		to_day = getdate(self.to_date).strftime("%d")
-
 		abbr = frappe.get_value("Company", self.company, "abbr")
 		self.name = from_month+""+from_day+" "+to_month+""+to_day+" - "+abbr+pay_year
 
@@ -40,3 +37,62 @@ class PayrollPeriod(Document):
 				frappe.throw(_("Monthly Schedule Should be Greater than {0} days ").format(difference))
 		if difference > 31:
 			frappe.throw("Days Should not be Greater than 31 days ")
+	
+	def remove_payslips(self):
+		frappe.db.sql(""" DELETE FROM `tabMy Payslip` WHERE payroll_period = %(period)s """,{ 
+				"period": self.name,
+			}, as_dict=True)
+		frappe.db.commit()
+		msgprint("Payslips DELETED")
+
+
+	def make_payslips(self):
+		if self.status == "Open":
+			frappe.throw("Please Close Period Before Creating Payslips")
+
+		self.remove_payslips()
+		employees = frappe.db.sql(""" SELECT `name`, full_name, location, company, sss_no, phic_no, hdmf_no, tin, user_id
+		FROM tabEmployee WHERE `name` IN (SELECT employee FROM `tabPayroll Register` WHERE period = %s ) ORDER BY last_name, first_name  """, self.name,as_dict=1)
+
+		for emp in employees:
+			payroll_date, net_payroll, total_incomes, total_deductions = "", 0, 0, 0
+			register = frappe.db.sql(""" SELECT PRE.*, PR.posting_date, PR.net_payroll, PR.total_deduction, PR.total_income FROM `tabPayroll Register`  PR
+				INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
+ 				WHERE period = %(period)s and employee = %(employee)s""",{ 
+					"period": self.name,
+					"employee": emp.name,
+				}, as_dict=True)
+
+			ps = frappe.new_doc("My Payslip")
+			ps.update({
+				"owner": emp.user_id, "employee": emp.name, "payroll_period": self.name, 
+				"employee_name": emp.full_name, "company": emp.company,
+				"sss_no": emp.sss_no, "phic_no": emp.phic_no, "hdmf_no": emp.hdmf_no, "tin": emp.tin,
+			});			
+
+			for d in register:
+				if d.pay_type == "Income":
+					ps.append("payslip_incomes", {
+						"description": d.pay_description,
+						"amount": d.amount,
+					})
+				else:
+					ps.append("payslip_deductions", {
+						"description": d.pay_description,
+						"amount": d.amount,
+					})
+
+				payroll_date = d.posting_date
+				net_payroll = d.net_payroll
+				total_incomes = d.total_income
+				total_deductions = d.total_deduction
+
+			ps.update({
+				"payroll_date": payroll_date,
+				"net_payroll": net_payroll,
+				"total_income": total_incomes,
+				"total_deduction": total_deductions
+			});
+			ps.insert()
+		
+		msgprint("Payslips Created")

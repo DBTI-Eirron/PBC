@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from workwise.utils.employee_utils import set_employee_name
+#from workwise.utils.employee_utils import set_employee_name
 from frappe import throw
 from frappe.utils import getdate, today, cstr
 from frappe.model.document import Document
@@ -71,12 +71,16 @@ class EmployeeMovement(Document):
 
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
-			emp.update({
-					"employment_status": "Retired",
-					"is_active": 0,
-					"date_retired": getdate(self.effective_on),
-				})
+
+			
 			self.save_employee(emp)
+			
+			#disable user id
+			us = frappe.get_doc("User", emp.user_id)
+			us.update({
+					"new_password": us.frappe_userid,
+				})
+			us.save()
 
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)

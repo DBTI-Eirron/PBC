@@ -111,24 +111,17 @@ def get_result(filters):
 def get_data(filters):
 	#Initialize
 	data = []
-	bio, company, worker_hrs, is_attendance_base, location = frappe.db.get_value("Employee", filters.employee, ["biometrics_id", "company", "no_hours", "is_attendance_base", "location"])
+
+	
+	bio, company, worker_hrs, is_attendance_base = frappe.db.get_value("Employee", filters.employee, ["biometrics_id", "company", "no_hours", "is_attendance_base"])
 	worker_secs = (worker_hrs * 60) * 60
-	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["from_date", "to_date"])
+	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
 
 	shift_map = get_shift_map()
 	timecard_list = get_timecard_list(bio, pay_from, pay_to + datetime.timedelta(days=1))
 	schedule = get_schedule(filters.employee, pay_from, pay_to)
-	holidays = get_holiday_list(company, location, pay_from, pay_to)
+	holidays = get_holiday_list(company, pay_from, pay_to)
 	leaves = get_leave_list(filters.employee, pay_from, pay_to)
-
-	total_row = {
-		"work": 0.0,
-		"late": 0.0,
-		"break": 0.0,
-		"overtime": 0.0,
-		"undertime": 0.0,
-		"card_out": _("Total"),
-	}
 
 	for sched in schedule:
 		#set default entries
@@ -138,7 +131,6 @@ def get_data(filters):
 			"worker_hrs": worker_hrs,
 			"worker_secs": worker_secs,
 			"is_attendance_base": is_attendance_base,
-			"location": location,
 			#schedule settings
 			"target_date": datetime.datetime.strftime(sched.datetime_in, '%Y-%m-%d'),
 			"work_shift": sched.work_shift,
@@ -181,10 +173,11 @@ def get_data(filters):
 			"leave_name": "",
 			"is_lwop": 0,
 			"linked_leave": "",
+			#NIGHTDIFF
+			"nd_start": sched.nd_start,
+			"nd_end": sched.nd_end,
 			#OB
 			"is_ob": 0,
-			"ob_in": "",
-			"ob_out": "",
 			"ob": 0.0,
 			"linked_ob": "",
 			#holiday
@@ -234,16 +227,8 @@ def get_data(filters):
 		entry['late'] = convert_secs(filters, entry['late'])
 		entry['undertime'] = convert_secs(filters, entry['undertime'])
 		entry['overtime'] = convert_secs(filters, entry['overtime'])
-
-		total_row['break'] += entry['break']
-		total_row['work'] += entry['work']
-		total_row['late'] += entry['late']
-		total_row['overtime'] += entry['overtime']
-		total_row['undertime'] += entry['undertime']
-
 		data.append(entry)
 
-	data.append(total_row)
 	return data
  
 def get_result_as_list(data, filters):

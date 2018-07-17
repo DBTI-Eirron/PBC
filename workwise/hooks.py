@@ -9,7 +9,7 @@ app_description = "Workwise HRIS"
 app_icon = "octicon octicon-book"
 app_color = "#589494"
 app_email = "krefin.fagara@gmail.com"
-app_license = "License"
+app_license = "GNU General Public License"
 
 # Includes in <head>
 # ------------------
@@ -17,10 +17,10 @@ app_license = "License"
 # include js, css files in header of desk.html
 app_include_css = "/assets/workwise/css/workwise.css"
 app_include_js = "/assets/js/workwise.min.js"
-#website_context = {
-#	"favicon": 	"/assets/workwise/images/workwise.png",
-#	"splash_image": "/assets/workwise/images/workwise.png"
-#}
+website_context = {
+	"favicon": 	"/assets/workwise/images/workwise.png",
+	"splash_image": "/assets/workwise/images/workwise.png"
+}
 # include js, css files in header of web template
 web_include_css = "/assets/workwise/css/web_workwise.css"
 # web_include_js = "/assets/workwise/js/workwise.js"
@@ -32,7 +32,7 @@ web_include_css = "/assets/workwise/css/web_workwise.css"
 # doctype_js = {"doctype" : "public/js/doctype.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
-treeviews = ['Department']
+
 # Home Pages
 # ----------
 
@@ -43,6 +43,8 @@ treeviews = ['Department']
 # role_home_page = {
 #	"Role": "home_page"
 # }
+
+calendars = ["Work Calendar"]
 
 # Website user home page (by function)
 # get_website_user_home_page = "workwise.utils.get_home_page"
@@ -62,7 +64,6 @@ treeviews = ['Department']
 # Desk Notifications
 # ------------------
 notification_config = "workwise.notifications.notifications.get_notification_config"
-calendars = ["Work Schedule"]
 # notification_config = "workwise.notification.notifications.get_notification_config"
 
 # See frappe.core.notifications.get_notification_config

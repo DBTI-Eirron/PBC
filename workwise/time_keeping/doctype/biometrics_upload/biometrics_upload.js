@@ -19,7 +19,6 @@ erpnext.hr.Coriolis = frappe.ui.form.Controller.extend({
 				method: 'workwise.time_keeping.doctype.biometrics_upload.biometrics_upload.upload'
 			},
 			sample_url: "e.g. http://example.com/somefile.csv",
-			no_socketio: true,
 			callback: function(attachment, r) {
 				var $log_wrapper = $(cur_frm.fields_dict.import_log.wrapper).empty();
 

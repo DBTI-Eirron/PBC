@@ -53,3 +53,13 @@ class Employee(Document):
 		if self.civil_status == "Married": 
 			if not self.spouse:
 				throw(_("Spouse is required if Married"))
+
+	def get_user_sensitivity_level(self):
+		cur_user = frappe.session.user
+		if not "Administrator" in frappe.get_roles(cur_user):
+			sensitivy_user = frappe.db.sql(""" SELECT count(*) as `result` FROM `tabSensitivity Users` WHERE `allow_user` = %s AND `parent` = %s """,( cur_user, self.sensitivity ), as_dict=1)
+			for user in sensitivy_user:
+				if user.result != 0:
+					return "access_granted"
+				else:
+					return "access_denied"

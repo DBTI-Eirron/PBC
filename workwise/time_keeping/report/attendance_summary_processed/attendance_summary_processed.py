@@ -104,7 +104,7 @@ def get_register(emp, pay_from, pay_to):
 def get_data(filters):
 	#Initialize
 	data = []
-	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["from_date", "to_date"])
+	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
 	employees = get_employees(filters)
 	data.append({
 		"target_date":"<b>Company: </b>"+filters.company+"",

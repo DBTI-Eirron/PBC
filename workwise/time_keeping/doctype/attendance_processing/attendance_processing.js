@@ -2,6 +2,16 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('Attendance Processing', {
+	onload: function(frm){
+		cur_frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
+	},
+
 	setup: function(frm) {
 		frm.add_fetch("payroll_period", "from_date", "period_from");
 		frm.add_fetch("payroll_period", "to_date", "period_to");

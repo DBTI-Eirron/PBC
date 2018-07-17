@@ -12,10 +12,6 @@ def get_notification_config():
 			"Memo": {"involvement": "Complainant"},
 			"Job Applicant": {"status": "Open"},
 			"Appraisal": {"appraisal_type": "360-Degree"},
-			"Leave Application": {"workflow_state": "Pending"},
-			"Overtime Application": {"workflow_state": "Pending"},
-			"Official Business Application": {"workflow_state": "Pending"},
-			"Change Schedule Application": {"workflow_state": "Pending"},
 		}
 	}
 

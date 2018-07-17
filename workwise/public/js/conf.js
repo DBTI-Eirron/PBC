@@ -1,14 +1,25 @@
 frappe.provide('workwise');
-
-// add toolbar icon
 $(document).bind('toolbar_setup', function() {
 	frappe.app.name = "workwise";
+	$('.navbar-home').html('<img class="" src="'+frappe.urllib.get_base_url()+'/assets/workwise/images/workwise2.png" />');
 
+	//frappe.call({
+	//	method: "workwise.employee_201.doctype.company.company.get_company_logo",
+	//	args: {
+	//		user: frappe.session.user
+	//	},
+	//	callback: function(r) {
+	//		if(!r.exc) {
+	//			if(r.message) {
+	//				$('.navbar-home').html('<img class="" src="'+frappe.urllib.get_base_url()+'/assets/workwise/images/'+r.message+'" />');
+	//			} else {
+	//				$('.navbar-home').html('<img class="" src="'+frappe.urllib.get_base_url()+'/assets/workwise/images/workwise2.png" />');
+	//			}
+	//		}
+	//	}
+	//});
 
-	//$('.navbar-home').html('<img class="" src="'+
-	//		frappe.urllib.get_base_url()+'/assets/workwise/images/workwise2.png" />');
 });
-
 frappe.ui.set_user_background = function(src, selector, style) {
 	if(!selector) selector = "#page-desktop";
 	if(!style) style = "Fill Screen";
@@ -31,7 +42,3 @@ frappe.ui.set_user_background = function(src, selector, style) {
 		style: style==="Fill Screen" ? "background-size: cover;" : ""
 	}));
 }
-
-$.extend(frappe.create_routes, {
-	"Department": "Tree/Department",
-});

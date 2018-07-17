@@ -6,11 +6,6 @@ def get_data():
 		{
 			"label": _("Employee Info"),
 			"items": [
-							{
-					"type": "page",
-					"name": "dashboard",
-					"label": _("Dashboard")
-				},
 				{
 					"type": "doctype",
 					"name": "Employee",
@@ -18,15 +13,8 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Employee Subordinates",
-					"description": _("Employee Subordinates"),
-				},
-				{
-					"type": "doctype",
-					"name": "Department",
-					"icon": "fa fa-sitemap",
-					"label": _("Organization Structure"),
-					"route": "Tree/Department",
+					"name": "Employee Medical Record",
+					"description": _("Location"),
 				},
 			]
 		},
@@ -37,6 +25,19 @@ def get_data():
 					"type": "doctype",
 					"name": "Company",
 					"description": _("Company"),
+				},
+				{
+					"type": "doctype",
+					"name": "Department",
+					"icon": "fa fa-sitemap",
+					"label": _("Department"),
+					"route": "Tree/Department",
+					"description": _("Tree of Organization Structure."),
+				},
+				{
+					"type": "doctype",
+					"name": "Location",
+					"description": _("Location"),
 				},
 				{
 					"type": "doctype",
@@ -61,26 +62,84 @@ def get_data():
 			]
 		},
 		{
-			"label": _("Location"),
+			"label": _("Code of Conduct"),
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Location",
-					"description": _("Location"),
-				}
+					"name": "Incident Report",
+					"description": _("Incident Report"),
+				},
+				{
+					"type": "doctype",
+					"name": "Disciplinary Action",
+					"description": _("Disciplinary Action"),
+				},
+				{
+					"type": "doctype",
+					"name": "Memo",
+					"description": _("Memo"),
+				},
+			]
+		},
+		{
+			"label": _("Movement"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Employee Movement",
+					"description": _("Employee Movement"),
+				},
+				{
+					"type": "doctype",
+					"name": "Exit Interview",
+					"description": _("Exit Interview"),
+				},
 			]
 		},
 		{
 			"label": _("Employee Medical"),
 			"items": [
+
+			]
+		},
+		{
+			"label": _("Setup"),
+			"items": [
 				{
 					"type": "doctype",
-					"name": "Employee Medical Record",
-					"description": _("Location"),
+					"name": "Employee Subordinates",
+					"description": _("Employee Subordinates"),
+				},
+				{
+					"type": "doctype",
+					"name": "Sensitivity Level",
 				},
 				{
 					"type": "doctype",
 					"name": "Medication Type",	
+				},
+			]
+		},
+		{
+			"label": _("Reports"),
+			"items": [
+				{
+					"type": "report",
+					"name": "Plantilla Report",
+					"doctype": "Employee",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Manpower Count",
+					"doctype": "Employee",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Employee Listing",
+					"doctype": "Employee",	
+					"is_query_report": True
 				},
 			]
 		},

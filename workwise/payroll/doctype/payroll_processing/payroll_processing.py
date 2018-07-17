@@ -19,7 +19,9 @@ class PayrollProcessing(Document):
 				AND `name` = %(employee)s
 				AND payroll_schedule = %(pay_sched)s 
 				AND on_hold = 0
-				AND is_active = 1 ORDER BY last_name, first_name""",{ 
+				AND is_active = 1 
+				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+				ORDER BY last_name, first_name""",{ 
 					"company": self.company,
 					"pay_sched": self.schedule,
 					"employee": self.employee
@@ -31,7 +33,9 @@ class PayrollProcessing(Document):
 					WHERE company = %(company)s
 				AND payroll_schedule = %(pay_sched)s 
 				AND on_hold = 0
-				AND is_active = 1 ORDER BY last_name, first_name""",{ 
+				AND is_active = 1 
+				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+				ORDER BY last_name, first_name""",{ 
 					"company": self.company,
 					"pay_sched": self.schedule
 				}, as_dict=True)
@@ -70,7 +74,6 @@ class PayrollProcessing(Document):
 					'process_date': nowdate(),
 					'period': self.period,
 					'schedule': self.schedule,
-					'process_type': self.process_type,
 					'frequency': self.frequency,
 					'previous_period': previous_period,
 					'previous_taxable_income': 0.0,
@@ -102,7 +105,7 @@ class PayrollProcessing(Document):
 				self.get_attendance(emp, rates, header, register, ot_map)
 				self.get_basic(emp, rates, header, register)
 				self.get_recurring(emp, rates, header, register)
-				self.get_batch(emp, rates, register)
+				self.get_batch(emp, rates, header, register)
 				self.get_loans(emp, rates, register)
 
 				#Calculate Basic Entries to Header
@@ -267,7 +270,7 @@ class PayrollProcessing(Document):
 
 				if emp['sss_freq'] == '2nd':
 					target_amt += flt(header.get('previous_government_basis'), 8)
-				elif emp['sss_freq'] == 'Both':
+				elif emp['sss_freq'] == 'Both' or emp['sss_freq'] == '1st':
 					target_amt += header.get('government_basis')
 
 				table = frappe.db.sql("""SELECT employee, employer, ec FROM `tabSSS Table`
@@ -296,7 +299,7 @@ class PayrollProcessing(Document):
 
 			if emp['phic_freq'] == '2nd':
 				target_amt += flt(header.get('previous_government_basis'), 8)
-			elif emp['sss_freq'] == 'Both':
+			elif emp['sss_freq'] == 'Both' or emp['phic_freq'] == '1st':
 				target_amt += flt(header.get('government_basis'), 8)
 
 			if mode != "None":
@@ -329,7 +332,7 @@ class PayrollProcessing(Document):
 				hdmf, hdmfe = 0, 0
 
 				target_amt = flt(header.get('government_basis'), 8)
-				if emp['phic_freq'] == '2nd':
+				if emp['hdmf_freq'] == '2nd':
 					target_amt += flt(header.get('previous_government_basis'), 8)
 
 				table = frappe.db.sql("""SELECT employee, employer FROM `tabHDMF Table` 
@@ -363,7 +366,7 @@ class PayrollProcessing(Document):
 					if t.prescribed > 0:
 						tax_amt += flt(t.prescribed, 8)
 			else:	
-				if emp['whtax_freq'] == '2nd':
+				if emp['whtax_freq'] == '2nd' and self.frequency == '2nd' :
 					if emp['payroll_schedule'] == "Semi-Monthly":
 						taxable += flt(header.get('previous_gross_payroll'), 8)
 
@@ -383,14 +386,20 @@ class PayrollProcessing(Document):
 		recurring = frappe.db.sql("""SELECT RE.`name`, RE.method, REE.amount, RE.transaction_type, RE.frequency FROM `tabRecurring Entry` RE
 			INNER JOIN `tabRecurring Entry Employees` REE ON RE.`name` = REE.parent WHERE REE.employee = %s 
 			AND RE.status = 'Enabled' AND RE.company = %s AND RE.docstatus < 2 """,(emp['name'], self.company), as_dict=True )
+		
 		for rec in recurring :
 			if self.frequency == rec.frequency or rec.frequency == 'Both':
-				amt = rec.amount
 				if rec.frequency == 'Both':
 					amt = flt(rec.amount, 8) / 2
+				else:
+					amt = rec.amount
 				
 				if rec.method == "Present Days":
 					amt = flt(amt * header['present_days'], 8)
+				
+				if rec.method == 'Deduct Absent':
+					hourly_rate = self.get_hourly_rate_base(amt, emp)
+					amt = (amt - (( header.get('absent_days') * 8) * hourly_rate * 2))
 
 				recurring_register.append({
 						"linked_document": rec.name,
@@ -398,17 +407,27 @@ class PayrollProcessing(Document):
 						"pay_code": rec.transaction_type,
 						"amount": flt(amt, 8),
 					})
+
 		for d in recurring_register:
 			register.append(d)
 
-	def get_batch(self, emp, rates, register):
+	def get_batch(self, emp, rates, header, register):
 		batch_register = []
-		batch = frappe.db.sql("""SELECT BE.`name`, BEE.amount, BE.transaction_type, BE.period
+		batch = frappe.db.sql("""SELECT BE.`name`, BEE.amount, BE.transaction_type, BE.period, BE.method
 			FROM `tabBatch Entry` BE
 			INNER JOIN `tabBatch Entry Employees` BEE ON BE.`name` = BEE.parent
 			WHERE BEE.employee = %s AND BE.company = %s AND BE.period = %s
 			AND BE.docstatus = 1 """,(emp['name'], self.company, self.period), as_dict=True )
+
 		for d in batch :
+			amt = d.amount	
+			if d.method == "Present Days":
+				amt = flt(amt * header['present_days'], 8)
+			
+			if d.method == 'Deduct Absent':
+				hourly_rate = self.get_hourly_rate_base(amt, emp)
+				amt = (amt - (( header.get('absent_days') * 8) * hourly_rate * 2))
+
 			batch_register.append({
 					"linked_document": d.name,
 					"linked_doctype": "Batch Entry",
@@ -419,6 +438,19 @@ class PayrollProcessing(Document):
 		for d in batch_register:
 			register.append(d)
 
+	def get_hourly_rate_base(self, amt, emp):
+		hourly_rate = 0
+		if amt > 0 and  emp.get('total_yr_days') > 0 and emp.get('no_hours') > 0:
+			month_days = (flt( emp.get('total_yr_days') , 8) / 12)
+			if emp.get('rate_type') == "Monthly Rate":
+				hourly_rate = ( flt(amt , 8) / month_days ) / emp.get('no_hours')
+			elif emp.get('rate_type') == "Hourly Rate":
+				hourly_rate = flt(amt , 8)
+			elif emp.get('rate_type') == "Daily Rate":
+				hourly_rate = flt(amt , 8) / emp.get('no_hours')
+
+		return hourly_rate
+
 	def get_loans(self, emp, rates, register):
 		loans_register = []
 		frappe.db.sql("""UPDATE `tabLoan Application Payments` LAP INNER JOIN `tabLoan Application` LA ON LAP.parent = LA.name
@@ -427,7 +459,7 @@ class PayrollProcessing(Document):
 
 		loans = frappe.db.sql("""SELECT LA.`name`, LA.release_date, LA.loan_type, LA.loan_amount, MAX(LAP.payment_amount) as payment_amount, LA.payment_frequency
 			FROM `tabLoan Application` LA INNER JOIN `tabLoan Application Payments` LAP ON LA.`name` = LAP.parent
-			WHERE LA.employee = %s AND LA.payment_start <= %s AND LAP.payment_status = 'Unpaid' AND LA.docstatus = 1
+			WHERE LA.employee = %s AND LA.payment_start <= %s AND LAP.payment_status = 'Unpaid' AND LA.docstatus = 1 AND on_hold = 1 
 			GROUP BY LA.`name` """,(emp['name'], self.payroll_date), as_dict=True )
 
 		for l in loans:
@@ -469,13 +501,12 @@ class PayrollProcessing(Document):
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0
 			unpaid_holiday, prev_lwop, prev_absent  =  0, 0 ,0
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
-				WHERE employee = %s AND target_date >= %s AND target_date <= %s""",(emp['name'], add_days(self.period_from, -1), self.period_to), as_dict=1)
+				WHERE employee = %s AND target_date >= %s AND target_date <= %s""",(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
 
 			for at in attendance:
 				if at.target_date == add_days(self.period_from, -1):
 					prev_lwop = 1 if at.is_lwop else 0
 					prev_absent = 1 if at.is_absent else 0
-
 
 				if at.target_date != add_days(self.period_from, -1): 
 					if (emp.get("rate_type") == "Daily Rate" and at.is_holiday == 1 and at.is_absent != 1):
@@ -493,10 +524,11 @@ class PayrollProcessing(Document):
 						is_saturday = 1 if getdate(at.target_date).weekday() == 5 else 0
 						is_sunday = 1 if getdate(at.target_date).weekday() == 6 else 0
 						is_excess = 1 if at.overtime > 8 else 0
+						is_ndiff = 1 if at.ndiff > 8 else 0
 						is_db_holiday = 0
 
-						#[RD][HO][SHO][DHO][SUN][SAT][EX]
-						overtime_type = [at.is_restday, at.is_holiday, at.is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess]
+						#[RD][HO][SHO][DHO][SUN][SAT][EX][ND]
+						overtime_type = [at.is_restday, at.is_holiday, at.is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess, is_ndiff]
 						overtime_type = ''.join(str(x) for x in overtime_type)
 
 						if overtime_type in ot_map:
@@ -524,7 +556,8 @@ class PayrollProcessing(Document):
 			attendance_register.append({"pay_code": "OT", "amount": flt(overtime, 8) })
 			attendance_register.append({"pay_code": "LT", "amount": flt(late, 8) })
 			attendance_register.append({"pay_code": "UT", "amount": flt(undertime, 8) })
-		
+			
+			#frappe.throw(_(flt(late, 8)))
 			for d in attendance_register:
 				register.append(d)
 

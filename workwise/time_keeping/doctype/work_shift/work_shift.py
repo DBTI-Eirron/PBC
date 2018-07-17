@@ -17,10 +17,6 @@ class WorkShift(Document):
 		#self.validate_pre_post()
 		self.make_filter_name()
 
-	def autoname(self):
-		abbr = frappe.get_value("Company", self.company, "abbr")
-		self.name = self.work_shift_name + " - " + abbr
-
 	def make_filter_name(self):
 		self.filter_name = self.work_shift_type+" "+self.time_in+" - "+self.time_out
 		if self.is_restday:

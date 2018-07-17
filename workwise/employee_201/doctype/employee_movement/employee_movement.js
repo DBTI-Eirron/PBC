@@ -12,8 +12,6 @@ cur_frm.add_fetch('employee', 'rate_type', 'current_rate_type');
 cur_frm.add_fetch('employee', 'rate', 'current_rate');
 cur_frm.add_fetch('employee', 'min_take_home', 'current_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'current_attendance_base');
-cur_frm.add_fetch('employee', 'is_fixed_rate', 'current_fixed_rate');
-cur_frm.add_fetch('employee', 'zero_exemption', 'current_zero_exemption');
 
 cur_frm.add_fetch('employee', 'position_title', 'new_position');
 cur_frm.add_fetch('employee', 'job_level', 'new_job_level');
@@ -25,8 +23,6 @@ cur_frm.add_fetch('employee', 'rate_type', 'new_rate_type');
 cur_frm.add_fetch('employee', 'rate', 'new_rate');
 cur_frm.add_fetch('employee', 'min_take_home', 'new_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'new_attendance_base');
-cur_frm.add_fetch('employee', 'is_fixed_rate', 'new_fixed_rate');
-cur_frm.add_fetch('employee', 'zero_exemption', 'new_zero_exemption');
 
 frappe.ui.form.on('Employee Movement', {
 	refresh: function(frm) {

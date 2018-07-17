@@ -3,27 +3,26 @@
 
 frappe.ui.form.on('Payroll Period', {
 	refresh: function(frm) {
+		if(frm.doc.status == 'Closed') {
+			frm.add_custom_button(__('Remove Payslips'), function () {
+				return frappe.call({
+					doc: frm.doc,
+					method: 'remove_payslips',
+					callback: function() {
+						frm.refresh();
+					}
+				});
+			});
 
-	}
+			frm.add_custom_button(__('Make Payslips'), function () {
+				return frappe.call({
+					doc: frm.doc,
+					method: 'make_payslips',
+					callback: function() {
+						frm.refresh();
+					}
+				});
+			});
+		}
+	},	
 });
-
-cur_frm.cscript.display_activity_log = function(msg) {
-	if(!cur_frm.ss_html)
-		cur_frm.ss_html = $a(cur_frm.fields_dict['activity_log'].wrapper,'div');
-	if(msg) {
-		cur_frm.ss_html.innerHTML =
-			'<div class="padding"><h4>'+__("Activity Log:")+'</h4>'+msg+'</div>';
-	} else {
-		cur_frm.ss_html.innerHTML = "";
-	}
-}
-
-cur_frm.cscript.process_payroll = function(doc, cdt, cdn) {
-	cur_frm.cscript.display_activity_log("");
-	var callback = function(r, rt){
-		if (r.message)
-			cur_frm.cscript.display_activity_log(r.message);
-	}
-	return $c('runserverobj', args={'method':'process_payroll','docs':doc},callback);
-}
-

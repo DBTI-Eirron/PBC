@@ -4,8 +4,9 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
+from datetime import datetime
 from frappe import msgprint, _
-from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_link_to_form, comma_or, get_fullname, nowdate, data
+from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_link_to_form, comma_or, get_fullname, nowdate, data, add_days
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, timediff_hrs
 from frappe.model.document import Document
@@ -73,12 +74,11 @@ class Blanket(Document):
 		entries = [];
 		dates = [];
 
-		start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
-		end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
-		step = datetime.timedelta(days=1)
+		start = getdate(self.from_date)
+		end = getdate(self.to_date)
 		while start <= end:
-			dates.append(start.date());
-			start += step
+			dates.append(start);
+			start = add_days(start, 1)
 
 		for i in dates:
 			info = { 
@@ -164,7 +164,7 @@ class Blanket(Document):
 				"total_leave_days": self.total_leave_days,
 				"leave_balance": d.cur_leave_balance,
 				"from_balance": d.from_balance,
-				"reason": self.reason,
+				"remarks": self.reason,
 				"company": self.company,
 				"posting_date": self.posting_date,
 				"workflow_state": "Approved",
@@ -184,15 +184,19 @@ class Blanket(Document):
 
 	#Overtime Applications
 	def make_overtimes(self):
+		total_hrs = datetimediff_hrs(self.from_datetime, self.to_datetime, "%Y-%m-%d %H:%M:%S")
+		new_total_hrs = str(total_hrs)
 		for d in self.get("employee_table"):
 			new_ot_app = frappe.new_doc("Overtime Application")
 			new_ot_app.update({
 				"employee": d.employee,
 				"full_name": d.full_name,
-				"from_date": data.format_datetime(self.from_datetime, "yyyy-mm-dd"),
-				"to_date": data.format_datetime(self.to_datetime, "yyyy-mm-dd"),
-				"from_time": data.format_datetime(self.from_datetime, "HH:mm:ss"),
-				"to_time": data.format_datetime(self.to_datetime, "HH:mm:ss"),
+				"from_date": data.format_datetime(self.from_datetime, "Y-MM-dd"),
+				"to_date": data.format_datetime(self.to_datetime, "Y-MM-dd"),
+				"from_time": data.format_datetime(self.from_datetime, "H:mm:ss"),
+				"to_time": data.format_datetime(self.to_datetime, "H:mm:ss"),
+				"total_hrs": new_total_hrs,
+				"break_hrs": '0',
 				"reason": self.reason,
 				"company": self.company,
 				"workflow_state": "Approved",
@@ -235,13 +239,12 @@ class Blanket(Document):
 			entries = [];
 			dates = [];
 			official_business_application_table = [];
-			start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
-			end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
-			step = datetime.timedelta(days=1)
-			
+
+			start = getdate(self.from_date)
+			end = getdate(self.to_date)
 			while start <= end:
-			    dates.append(start.date());
-			    start += step
+				dates.append(start);
+				start = add_days(start, 1)
 			    
 			for i in dates:
 			    info = {

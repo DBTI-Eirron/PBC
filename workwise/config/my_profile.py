@@ -9,7 +9,7 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "My Payslip",
-					"description": _("My Payslip"),
+					"description": _("Payslip List"),
 				},
 			]
 		},

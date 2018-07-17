@@ -38,6 +38,7 @@ class BatchEntry(Document):
 			row.update(ue)
 
 	def filter_add(self):
+		cur_user = frappe.session.user
 		if not self.company:
 			frappe.throw(_("Company is Required"))
 
@@ -45,20 +46,47 @@ class BatchEntry(Document):
 			entries = []
 			employees = ""
 			if self.filter_type == 'Employee':
-				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND `name` = %(filter_value)s ORDER BY last_name, first_name""",{ 
-					"company": self.company,
-					"filter_value": self.filter_value,
-				}, as_dict=True)
+				if not "Administrator" in frappe.get_roles(cur_user):
+					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND `name` = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
+												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
+						"company": self.company,
+						"filter_value": self.filter_value,
+						"user": frappe.session.user,
+					}, as_dict=True)
+				else:
+					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND `name` = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
+												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
+						"company": self.company,
+						"filter_value": self.filter_value,
+					}, as_dict=True)
 			elif self.filter_type == 'Department':
-				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND department = %(filter_value)s ORDER BY last_name, first_name""",{ 
-					"company": self.company,
-					"filter_value": self.filter_value,
-				}, as_dict=True)
+				if not "Administrator" in frappe.get_roles(cur_user):
+					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND department = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
+												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
+						"company": self.company,
+						"filter_value": self.filter_value,
+						"user": frappe.session.user,
+					}, as_dict=True)
+				else:
+					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND department = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
+												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
+						"company": self.company,
+						"filter_value": self.filter_value,
+					}, as_dict=True)
 			elif self.filter_type == 'Location':
-				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND location = %(filter_value)s ORDER BY last_name, first_name""",{ 
-					"company": self.company,
-					"filter_value": self.filter_value,
-				}, as_dict=True)
+				if not "Administrator" in frappe.get_roles(cur_user):
+					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND location = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
+												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
+						"company": self.company,
+						"filter_value": self.filter_value,
+					}, as_dict=True)
+				else:
+					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND location = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
+												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
+						"company": self.company,
+						"filter_value": self.filter_value,
+						"user": frappe.session.user,
+					}, as_dict=True)
 			
 			if employees:
 				for d in employees:
@@ -73,6 +101,8 @@ class BatchEntry(Document):
 				for d in entries:
 					row = self.append('employees', {})
 					row.update(d)
+			else:
+				frappe.throw(_(" You dont have access to this employee "))
 		else:
 			frappe.throw(_(" Input Filter Value and Filter Type "))
 
