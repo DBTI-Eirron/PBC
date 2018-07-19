@@ -328,8 +328,8 @@ class PayrollProcessing(Document):
 		if self.frequency == emp['hdmf_freq'] or emp.get('phic_freq') == 'Both':
 			if emp['hdmf_mode'] != "None":
 				hdmf_register = []
-				hdmf_list = ["hdmf","hdmfe"]
-				hdmf, hdmfe = 0, 0
+				hdmf_list = ["hdmf","hdmfe","hdmfm"]
+				hdmf, hdmfe, hdmfm = 0, 0, 0
 
 				target_amt = flt(header.get('government_basis'), 8)
 				if emp['hdmf_freq'] == '2nd':
@@ -339,8 +339,10 @@ class PayrollProcessing(Document):
 					WHERE %s >= beginning AND %s <= ending LIMIT 1 """,(target_amt, target_amt), as_dict=True )
 
 				for t in table:
-					hdmf = flt(emp["hdmf_manual"], 8) if emp['hdmf_mode'] == "Manual" and flt(emp["hdmf_manual"], 8) > t.employee else t.employee
+					hdmf = t.employee
 					hdmfe = t.employer
+					if emp['hdmf_mode'] == "Manual":
+						hdmfm = flt(emp["hdmf_manual"], 8) - hdmf
 
 				for l in hdmf_list:
 					amt = flt(eval(l), 8) / 2 if emp['hdmf_freq'] == "Both" else flt(eval(l), 8)
@@ -504,11 +506,10 @@ class PayrollProcessing(Document):
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s""",(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
 
 			for at in attendance:
-				if at.target_date == add_days(self.period_from, -1):
+				if at.target_date == add_days(self.attendance_from, -1):
 					prev_lwop = 1 if at.is_lwop else 0
 					prev_absent = 1 if at.is_absent else 0
-
-				if at.target_date != add_days(self.period_from, -1): 
+				else: 
 					if (emp.get("rate_type") == "Daily Rate" and at.is_holiday == 1 and at.is_absent != 1):
 						work_days += 0
 					elif not at.is_restday:
