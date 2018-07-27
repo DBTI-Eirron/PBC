@@ -46,7 +46,15 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Bank",
+				},
+				{
+					"type": "doctype",
 					"name": "Alphalist Consideration",
+				},
+				{
+					"type": "doctype",
+					"name": "System Policy",
 				},
 				{
 					"type": "doctype",

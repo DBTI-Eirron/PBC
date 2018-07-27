@@ -10,6 +10,10 @@ frappe.ui.form.on('Work Schedule Assignment', {
 		frm.disable_save();
 	},
 
+	onload_post_render: function() {
+		cur_frm.get_field("employees").grid.set_multiple_add("employee");
+	},
+
 	filter_subordinates: function(frm){
 		return frappe.call({
 			method: "filter_subordinates",

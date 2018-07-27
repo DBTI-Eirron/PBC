@@ -2,7 +2,7 @@
 // For license information, please see license.txt
 /* eslint-disable */
 
-frappe.query_reports["Alphalist With No Previous"] = {
+frappe.query_reports["Alphalist Minimum Wage"] = {
 	"filters": [
 		{
 			"fieldname": "company",

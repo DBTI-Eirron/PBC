@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import nowdate
+from frappe.utils import nowdate, cstr
 from frappe.model.document import Document
 
 class DTRProblemApplication(Document):
@@ -25,20 +25,26 @@ class DTRProblemApplication(Document):
 			timecard_sel = self.get_timecard(card)
 			for a in timecard_sel:
 				req.current = frappe.db.get_value("Time Card", a.name, "time")
+				req.time_card = frappe.db.get_value("Time Card", a.name)
 
 	def approve_request(self):
 		for req in self.get("time_record_request"):
-			if req.action == "Approved":
+			if req.action == "Approved" and req.current:
 				card = self.get_card_type(req)
 				timecard_sel = self.get_timecard(card)
 				frappe.client.set_value("Time Card", timecard_sel[0].name, "time", req.request)
+			if req.action == "Approved" and not req.current:
+				self.make_timecard()
 
 	def revert_request(self):
 		for req in self.get("time_record_request"):
-			if req.action == "Approved":
+			if req.action == "Approved" and req.current:
 				card = self.get_card_type(req)
 				timecard_sel = self.get_timecard(card)
 				frappe.client.set_value("Time Card", timecard_sel[0].name, "time", req.current)
+			if req.action == "Approved" and not req.current:
+				if frappe.db.exists("Time Card", req.time_card):
+					frappe.delete_doc("Time Card", req.time_card)
 
 	def get_card_type(self, req):
 		if req.type == "Time In":
@@ -59,4 +65,19 @@ class DTRProblemApplication(Document):
 
 	def get_approver_and_date(self):
 		self.approved_by = frappe.session.user
-		self.date_approved = nowdate()
+		self.approved_on = nowdate()
+
+	def make_timecard(self):
+		bio = frappe.db.get_value("Employee", self.employee, "biometrics_id")
+		for req in self.get("time_record_request"):
+			card_type = self.get_card_type(req)
+			new_timecard = frappe.new_doc("Time Card")
+			new_timecard.update({
+				"biometrics_id": bio,
+				"card_type": card_type,
+				"date": self.target_date,
+				"time": req.request
+			})
+
+			new_timecard.insert()
+			new_timecard.save()

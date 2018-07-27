@@ -31,26 +31,19 @@ class EmployeeSubordinates(Document):
 	def remove_duplicates(self):
 		unique_emp = []
 		unique_entries = []
-		for d in self.employees:
-			if d.employee not in unique_emp:
-				unique_emp.append(d.employee);
-				amt = 0
-
-				if not d.amount:
-					amt = self.rate
-				else:
-					amt = d.amount
+		for d in self.subordinates:
+			if d.subordinate not in unique_emp:
+				unique_emp.append(d.subordinate);
 
 				i = {
-					"employee": d.employee,
-					"employee_name": d.employee_name,
-					"amount": amt
+					"subordinate": d.subordinate,
+					"subordinate_name": d.subordinate_name,
 				}	
 				unique_entries.append(i);
 
-		self.set('employees', [])
+		self.set('subordinates', [])
 		for ue in unique_entries:
-			row = self.append('employees', {})
+			row = self.append('subordinates', {})
 			row.update(ue)
 
 	def filter_add(self):

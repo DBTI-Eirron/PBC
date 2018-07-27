@@ -8,23 +8,24 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
-from workwise.time_keeping.attendance_utils import get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, get_attendance
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
+get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list)
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
-		if self.employee:
-			employees = frappe.db.sql("""SELECT `name` FROM tabEmployee WHERE company = %(company)s AND `name` = %(employee)s 
-				AND on_hold = 0 AND is_active = 1 """,{ 
-					"company": self.company,
-					"employee": self.employee
-				}, as_dict=True)
-		else:
-			employees = frappe.db.sql("""SELECT `name` FROM tabEmployee WHERE company = %(company)s 
-				AND on_hold = 0 AND is_active = 1 """,{ 
-					"company": self.company
-				}, as_dict=True)
+		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, is_attendance_base, no_hours FROM tabEmployee WHERE company = %(company)s {conditions}
+			AND on_hold = 0 AND is_active = 1 """.format(conditions=self.get_employee_conditions()),{ 
+				"company": self.company,
+				"employee": self.employee
+			}, as_dict=True)
 
 		return employees
+
+	def get_employee_conditions(self):
+		conditions = []
+		if self.employee:
+			conditions.append("`name`=%(employee)s")
+		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
 	def process_attendance(self):
 		if not self.payroll_period:
@@ -36,86 +37,23 @@ class AttendanceProcessing(Document):
 		if employees:
 			for emp in employees:
 				data = []
-				full_name, bio, company, worker_hrs, is_attendance_base = frappe.db.get_value("Employee", emp.name, ["full_name","biometrics_id", "company", "no_hours", "is_attendance_base"])
-				worker_secs = (worker_hrs * 60) * 60
 				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.payroll_period, ["attendance_from", "attendance_to"])
-				
 				exist = frappe.db.sql("""SELECT `name` FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s LIMIT 1""",(emp.name, pay_from, pay_to), as_dict=1)
 				if exist:
 					frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
 
 				shift_map = get_shift_map()
-				timecard_list = get_timecard_list(bio, pay_from, pay_to + datetime.timedelta(days=1))
+				timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
 				schedule = get_schedule(emp.name, pay_from, pay_to)
-				holidays = get_holiday_list(company, pay_from, pay_to)
+				holidays = get_holiday_list(emp.company, pay_from, pay_to)
 				leaves = get_leave_list(emp.name, pay_from, pay_to)
+				ots = get_ot_list(emp.name, pay_from, pay_to)
+				obs = get_ob_list(emp.name, pay_from, pay_to)
+				uts = get_ut_list(emp.name, pay_from, pay_to)
+				ext = get_ext_list(emp.name, pay_from, pay_to)
 
 				for sched in schedule:
-					entry = {
-						#employee settings
-						"employee": emp.name,
-						"employee_name": full_name,
-						"worker_hrs": worker_hrs,
-						"worker_secs": worker_secs,
-						"is_attendance_base": is_attendance_base,
-						#schedule settings
-						"target_date": datetime.datetime.strftime(sched.datetime_in, '%Y-%m-%d'),
-						"work_shift": sched.work_shift,
-						"pre_shift": add_to_date(sched.datetime_in, hours= (0 - shift_map[sched.work_shift]['setup_preshift']) ),
-						"post_shift": add_to_date(sched.datetime_out, hours=shift_map[sched.work_shift]['setup_postshift']),
-						"time_in": sched.datetime_in,
-						"time_out": sched.datetime_out,
-						"break_start": sched.break_start,
-						"break_end": sched.break_end,
-						#shift policy
-						"work_hours": sched.work_hours,
-						"break_mins": sched.break_mins,
-						"grace": shift_map[sched.work_shift]['grace_period'],
-						"b_grace": shift_map[sched.work_shift]['b_grace_period'],
-						"is_flexible": shift_map[sched.work_shift]['is_flexible'],		
-						"is_restday": shift_map[sched.work_shift]['is_restday'],
-						"ignore_late": shift_map[sched.work_shift]['ignore_late'],
-						#general policy
-						"approved_ot_only": 1,
-						"is_processed": 1,
-						#timecard data
-						"card_in": "",
-						"card_out": "",			
-						"break_out": "",
-						"break_in": "",
-						#basic attendance
-						"work": 0.0,
-						"late": 0.0,
-						"break": 0.0,
-						"undertime": 0.0,
-						"nightdiff": 0.0,
-						"is_absent": 0,
-						"is_halfday": 0,
-						#applications
-						#OT
-						"overtime": 0.0,
-						"linked_ot": "",
-						#LEAVE
-						"is_leave": 0,
-						"leave_name": "",
-						"is_lwop": 0,
-						"linked_leave": "",
-						#NIGHTDIFF
-						"nd_start": sched.nd_start,
-						"nd_end": sched.nd_end,
-						#OB
-						"is_ob": 0,
-						"ob": 0.0,
-						"linked_ob": "",
-						#holiday
-						"is_holiday": 0,
-						"is_sp_holiday": 0,
-						"holiday_name": "",
-						"linked_holiday": "",
-						"has_issue": 0
-					}
-					
-					#ATTENDANCE
+					entry = get_defaults(emp, sched, shift_map)
 					card_list = get_card_within(entry.get('pre_shift'), entry.get('post_shift'), timecard_list)		
 					sorted_card_list = sorted(card_list, key=lambda k: k['card_datetime'])
 					for card in sorted_card_list:
@@ -130,9 +68,7 @@ class AttendanceProcessing(Document):
 						elif card['card_type'] == 3:
 							entry['break_in'] = card['card_datetime']
 
-
-					get_attendance(entry, leaves, holidays)
-
+					get_attendance(entry, leaves, holidays, obs, ots, uts, ext)
 					entry['break'] = self.convert_secs(entry['break'])
 					entry['work'] = self.convert_secs(entry['work'])
 					entry['late'] = self.convert_secs(entry['late'])
@@ -141,7 +77,7 @@ class AttendanceProcessing(Document):
 					register = frappe.new_doc("Attendance Register")
 					register.update(entry)
 					register.insert()
-				payslip_label = "Created for "+ cstr(full_name) +""
+				payslip_label = "Created for "+ cstr(emp.full_name) +""
 				ss_list.append(payslip_label)
 		else:
 			frappe.throw(_("No Employee Found"))

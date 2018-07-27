@@ -29,12 +29,7 @@ frappe.query_reports["Attendance Summary"] = {
 			"fieldname": "show_break",
 			"label": __("Show Break Time"),
 			"fieldtype": "Check",
-		},
-		{
-			"fieldname": "approved_ot_only",
-			"label": __("Show only Approved OT"),
-			"fieldtype": "Check",
-		},
+		}
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {
 		if (columnDef.df.fieldname=="account") {

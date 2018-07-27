@@ -30,8 +30,6 @@ def execute(filters=None):
 		tax_due = 0
 
 		row = [emp.tin, emp.name, emp.full_name]
-
-		
 		for plus in plus_types:
 			plus_amount = flt(plus_map.get(emp.name, {}).get(plus), 2)
 			total_plus += flt(plus_amount, 2)
@@ -176,7 +174,7 @@ def get_columns(employee_list):
 
 def get_employees(filters):
 	employees = frappe.db.sql("""SELECT `name`, full_name, first_name, middle_name, last_name, tin	FROM tabEmployee
-		WHERE company = %(company)s {conditions} WHERE %s
+		WHERE company = %(company)s {conditions}
 		AND on_hold = 0 AND is_active = 1 ORDER BY last_name, first_name""".format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	return employees

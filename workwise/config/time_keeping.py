@@ -55,6 +55,22 @@ def get_data():
 					"type": "doctype",
 					"name": "Blanket",
 				},
+				{
+					"type": "doctype",
+					"name": "Excuse Tardiness Application",
+				},
+				{
+					"type": "doctype",
+					"name": "Undertime Application",
+				},
+				{
+					"type": "doctype",
+					"name": "DTR Problem Application",
+				},
+				{
+					"type": "doctype",
+					"name": "Batch Approval",
+				},
 			]
 		},
 		{
@@ -83,6 +99,10 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Holiday",
+				},
+				{
+					"type": "doctype",
+					"name": "Timelogs Override",
 				},
 			]
 		},
@@ -128,6 +148,30 @@ def get_data():
 				{
 					"type": "report",
 					"name": "Tardiness Summary Report",
+					"doctype": "Attendance Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Overtime Summary Report",
+					"doctype": "Attendance Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Official Business Summary Report",
+					"doctype": "Attendance Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Leave Summary Report",
+					"doctype": "Attendance Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Incomplete Attendance",
 					"doctype": "Attendance Register",	
 					"is_query_report": True
 				},

@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2018-04-30 14:13:51.735441", 
+ "modified": "2018-07-25 15:26:37.343870", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Leave Balance Report", 
@@ -18,6 +18,21 @@
  "roles": [
   {
    "role": "System Manager"
+  }, 
+  {
+   "role": "Rank and File"
+  }, 
+  {
+   "role": "HR Manager"
+  }, 
+  {
+   "role": "Time Keeping Manager"
+  }, 
+  {
+   "role": "Leave Approver"
+  }, 
+  {
+   "role": "Leave Approver 2"
   }
  ]
 }

@@ -39,6 +39,11 @@ frappe.query_reports["Attendance Summary Processed"] = {
 			],
 			"default": "Hrs",
 			"reqd": 1
+		},
+		{
+			"fieldname": "show_break",
+			"label": __("Show Break Time"),
+			"fieldtype": "Check",
 		}
 	]
 };

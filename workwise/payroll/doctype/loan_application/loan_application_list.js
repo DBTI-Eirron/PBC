@@ -1,16 +1,14 @@
-// Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-// License: GNU General Public License v3. See license.txt
-
-// render
 frappe.listview_settings['Loan Application'] = {
-	add_fields: ["unpaid_amount"],
+	add_fields: ["on_hold", "paid_amount","unpaid_amount"],
 	get_indicator: function(doc) {
-		if (flt(doc.unpaid_amount)==0)  {
-			return [__("On Hold"), "yellow", "on_hold,=,1"]
-		} else if (flt(doc.unpaid_amount)==0) {
-			return [__("Paid"), "green", "unpaid_amount,=,0"]
-		} else if (flt(doc.unpaid_amount) > 0 ) {
-			return [__("Unpaid"), "orange", "unpaid_amount,>,0"]
+		if (cint(doc.on_hold) == 1)  {
+			return [__("On Hold"), "red"]
+		} else if (flt(doc.paid_amount) < 1 && cint(doc.on_hold) != 1)  {
+			return [__("Entered"), "blue"]
+		} else if (flt(doc.paid_amount) > 0 && cint(doc.on_hold != 1) )  {
+			return [__("Active"), "orange"]
+		} else if (flt(doc.paid_amount) == flt(doc.unpaid_amount) && cint(doc.on_hold != 1) )  {
+			return [__("Fully Paid"), "green"]
 		} 
 	}
 };

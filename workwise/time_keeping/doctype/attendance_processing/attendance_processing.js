@@ -36,9 +36,11 @@ cur_frm.cscript.display_activity_log = function(msg) {
 }
 
 cur_frm.cscript.process_attendance = function(doc, cdt, cdn) {
+	frappe.show_progress("Processing", 87, 100, "Processing Payroll");
 	cur_frm.cscript.display_activity_log("");
 	var callback = function(r, rt){
 		if (r.message)
+			frappe.hide_progress();
 			cur_frm.cscript.display_activity_log(r.message);
 	}
 	return $c('runserverobj', args={'method':'process_attendance','docs':doc},callback);

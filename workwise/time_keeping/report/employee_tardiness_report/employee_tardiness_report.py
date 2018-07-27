@@ -22,7 +22,7 @@ def get_columns(filters):
 			"fieldname": "target_date",
 			"label": _("Data"),
 			"fieldtype": "Data",
-			"width": 200
+			"width": 300
 		},
 		{
 			"fieldname": "work_shift",
@@ -44,6 +44,12 @@ def get_columns(filters):
 			"width": 130
 		},
 		{
+			"fieldname": "late",
+			"label": _("Late"),
+			"fieldtype": "Float",
+			"width": 60
+		},
+		{
 			"fieldname": "work",
 			"label": _("Work"),
 			"fieldtype": "Float",
@@ -55,8 +61,11 @@ def get_columns(filters):
 
 def get_result(filters):
 
-	data = get_data(filters)
-	result = get_result_as_list(data, filters)
+	if filters.from_date > filters.to_date:
+		frappe.throw(_("From Date must be less than To Date"))
+	else:
+		data = get_data(filters)
+		result = get_result_as_list(data, filters)
 
 	return result
 
@@ -78,7 +87,7 @@ def get_register(emp, pay_from, pay_to):
 def get_data(filters):
 	#Initialize
 	data = []
-	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
+	pay_from, pay_to = filters.from_date, filters.to_date
 	employees = get_employees(filters)
 	data.append({
 		"target_date":"<b>Company: </b>"+filters.company+"",
@@ -88,7 +97,7 @@ def get_data(filters):
 			"target_date":"<b>Department: </b>"+filters.department+"</b>",
 		})
 	data.append({
-		"target_date":"<b>Period: </b>"+cstr(filters.payroll_period)+"</b>",
+		"target_date":"<b>Period: </b>"+cstr(filters.from_date)+" - "+cstr(filters.to_date)+"</b>",
 	})
 
 	data.append({})

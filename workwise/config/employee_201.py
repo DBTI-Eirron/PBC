@@ -16,6 +16,11 @@ def get_data():
 					"name": "Employee Medical Record",
 					"description": _("Location"),
 				},
+				{
+					"type": "doctype",
+					"name": "Change Request Application",
+					"description": _("Change Request Application"),
+				},
 			]
 		},
 		{
@@ -137,8 +142,26 @@ def get_data():
 				},
 				{
 					"type": "report",
+					"name": "Manpower Movement",
+					"doctype": "Employee Movement",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "Employee Listing",
 					"doctype": "Employee",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "APE Compliance Report",
+					"doctype": "Employee Medical Record",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Retireable Employees",
+					"doctype": "Employee Movement",	
 					"is_query_report": True
 				},
 			]

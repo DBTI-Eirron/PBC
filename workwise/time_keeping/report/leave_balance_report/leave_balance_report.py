@@ -68,8 +68,8 @@ def get_data(filters):
 	#Initialize
 	data = []
 
-	if filters.year:
-		from_date, to_date = frappe.db.get_value("Payroll Year", filters.year, ["attendance_from", "attendance_to"])
+	if filters.year and not filters.from_date and not filters.to_date:
+		from_date, to_date = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 		employees = get_employees(filters)
 		for emp in employees:
 			leave_balance = frappe.db.sql(""" SELECT `employee_name`,`from_date`,`name`,`leave_type`,`credits`,`used_credits`,`credits`-`used_credits` as balance FROM `tabLeave Balance` WHERE `employee`=%s AND `to_date` <= %s AND `from_date` >= %s """, (emp.name, to_date, from_date),as_dict=True)

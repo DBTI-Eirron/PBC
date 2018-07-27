@@ -5,6 +5,7 @@ from frappe import msgprint, _
 from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_link_to_form, comma_or, get_fullname, nowdate
 from frappe.email import queue
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
+from workwise.payroll.policy_utils import get_policy
 from frappe.model.document import Document
 
 class LeaveApplication(Document):
@@ -14,6 +15,7 @@ class LeaveApplication(Document):
 		self.validate_date()
 		self.validate_employee()
 		self.validate_balance()
+		self.validate_medical()
 		self.set_lwop()
 		self.change_owner()
 		self.get_recipients()
@@ -137,8 +139,8 @@ class LeaveApplication(Document):
 		entries = [];
 		dates = [];
 
-		start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
-		end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
+		start = datetime.datetime.strptime(str(self.from_date), '%Y-%m-%d')
+		end = datetime.datetime.strptime(str(self.to_date), '%Y-%m-%d')
 		step = datetime.timedelta(days=1)
 
 		while start <= end:
@@ -148,13 +150,13 @@ class LeaveApplication(Document):
 		for d in self.get('leave_application_table'):
 			entries.append(d.leave_date)
 
-		for d in dates:
-			if d not in entries:
-				frappe.throw(_("Missing Data For {0}").format(d))
+		#for d in dates:
+		#	if getdate(d) not in entries:
+		#		frappe.throw(_("Missing Data For {0}, For Leave {1}").format(d, self.name))
 
-		for en in entries:
-			if en not in dates:
-				frappe.throw(_("{0} is not within {1} to {2}").format(en, self.from_date, self.to_date))
+		#for en in entries:
+		#	if getdate(en) not in dates:
+		#		frappe.throw(_("{0} is not within {1} to {2}").format(en, self.from_date, self.to_date))
 
 	def validate_balance(self):
 		allow_negative = frappe.get_value("Leave Type", self.leave_type, "is_allow_negative")
@@ -179,7 +181,8 @@ class LeaveApplication(Document):
 
 	def validate_medical(self):
 		if self.leave_type == "Sick Leave":
-			valid_day = frappe.db.get_single_value('Timekeeping Settings', 'require_medical')
+			#valid_day = frappe.db.get_single_value('Timekeeping Settings', 'require_medical')
+			valid_day = get_policy("TK-REQMED" ,self.company)
 			if valid_day:
 				if flt(self.total_leave_days, 2) >= flt(valid_day, 2) and not self.medical_cert:
 					frappe.throw(_("Medical Certificate Required"))

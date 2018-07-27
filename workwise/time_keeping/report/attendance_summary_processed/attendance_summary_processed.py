@@ -37,6 +37,26 @@ def get_columns(filters):
 			"fieldtype": "Date",
 			"width": 130
 		},
+	]
+
+
+	if filters.show_break:
+		columns += [
+			{
+				"fieldname": "break_out",
+				"label": _("Break OUT"),
+				"fieldtype": "Data",
+				"width": 140
+			},
+			{
+				"fieldname": "break_in",
+				"label": _("Break IN"),
+				"fieldtype": "Data",
+				"width": 140
+			},
+		]
+
+	columns += [
 		{
 			"fieldname": "card_out",
 			"label": _("Time OUT"),
@@ -137,40 +157,6 @@ def get_data(filters):
 				total_late += r['late']
 				total_ot += r['overtime']
 				total_ut += r['undertime']
-				tags += " <span class='label label-danger'> Late </span> " if r['late'] > 0 else ""
-				tags += " <span class='label label-success'> Overtime </span> " if 	r['overtime'] > 0 else ""
-				tags += " <span class='label label-danger'> Undertime </span> " if 	r['undertime'] > 0 else ""
-				if 	r['is_leave'] == 1:
-					tags += " <span class='label label-success'>"+ cstr(r['leave_name']) +" </span> "
-
-
-				if 	r['is_halfday'] == 1:
-					tags += " <span class='label label-info'> Halfday </span> "
-
-				tags += " <span class='label label-success'> Official Business </span> " if r['is_ob'] else ""
-				
-				if 	r['is_absent'] == 1:
-					tags += " <span class='label label-danger'> Absent </span> "
-
-				if 	r['is_lwop'] == 1:
-					tags += " <span class='label label-danger'> LWOP </span> "
-				
-				if 	r['is_flexible'] == 1:
-					tags += " <span class='label label-info'> Flexible </span> "
-
-				if 	r['is_restday'] == 1:
-					tags += " <span class='label label-info'> Rest Day </span> "		
-				
-				if 	r['is_holiday'] == 1:
-					tags += " <span class='label label-info'> Holiday </span> "
-
-				if 	r['is_sp_holiday'] == 1:
-					tags += " <span class='label label-info'> Special Holiday </span> "
-
-				if 	r['has_issue'] == 1:
-					tags += " <span class='label label-warning'> ! Attendance Has Issue ! </span> "
-
-				r["tags"] = tags
 				data.append(r)
 
 			data.append({

@@ -1028,7 +1028,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2018-07-04 15:57:26.850919", 
+ "modified": "2018-07-25 18:49:00.286965", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Work Shift", 
@@ -1056,7 +1056,7 @@
    "write": 1
   }
  ], 
- "quick_entry": 0, 
+ "quick_entry": 1, 
  "read_only": 0, 
  "read_only_onload": 0, 
  "search_fields": "", 

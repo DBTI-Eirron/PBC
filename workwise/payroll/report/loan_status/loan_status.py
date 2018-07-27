@@ -79,7 +79,15 @@ def get_result(filters):
 def get_loans(filters):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		loans = frappe.db.sql("""SELECT LA.`name`, LA.employee, LA.employee_name, LA.posting_date, LA.interest, LA.loan_type, LA.loan_amount, LA.total_loan,
+		loans = frappe.db.sql("""SELECT
+				LA.`name`,
+				LA.employee,
+				LA.employee_name,
+				LA.posting_date,
+				LA.interest,
+				LA.loan_type,
+				LA.loan_amount,
+				LA.total_loan,
 				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
 			FROM
 				`tabLoan Application` AS LA
@@ -98,7 +106,15 @@ def get_loans(filters):
 						"to_date": filters.to_date,
 			}, as_dict=True)
 	else:
-		loans = frappe.db.sql("""SELECT LA.`name`, LA.employee, LA.employee_name, LA.posting_date, LA.interest, LA.loan_type, LA.loan_amount, LA.total_loan,
+		loans = frappe.db.sql("""SELECT
+				LA.`name`,
+				LA.employee,
+				LA.employee_name,
+				LA.posting_date,
+				LA.interest,
+				LA.loan_type,
+				LA.loan_amount,
+				LA.total_loan,
 				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
 			FROM
 				`tabLoan Application` AS LA
@@ -142,4 +158,5 @@ def get_result_as_list(data, filters):
 		}
 		
 		result.append(row)
+		
 	return result

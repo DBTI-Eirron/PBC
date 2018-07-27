@@ -106,8 +106,11 @@ class OfficialBusinessApplication(Document):
 
 	def change_time(self):
 		for d in self.get('official_business_application_table'):
-			d.from_time = self.from_time
-			d.to_time = self.to_time
+			if d.from_time == "0:00:00" or d.from_time ==  "00:00:00":
+				d.from_time = self.from_time
+			
+			if d.to_time == "0:00:00" or d.to_time == "00:00:00":
+				d.to_time = self.to_time
 				
 	def chk_holiday(self, target_date):
 		holiday_tag  = 0

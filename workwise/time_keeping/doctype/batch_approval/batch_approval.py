@@ -1,0 +1,50 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2018, HDI Systech and contributors
+# For license information, please see license.txt
+
+from __future__ import unicode_literals
+import frappe
+from frappe import _
+from frappe.utils import getdate
+from frappe.model.document import Document
+
+class BatchApproval(Document):
+	def validate(self):
+		pass
+
+	def on_submit(self):
+		self.approve_applications()
+
+	def map_applications_on_table(self):
+		table = "`tab"+self.application_type+"`"
+		table = str(table)
+		record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) """, (getdate(self.from_date), getdate(self.to_date)), as_dict=True)
+
+		entries = []
+		for a in record:
+		#if record:
+			#for d in self.get("batch_table"):
+				#self.append('batch_table', {})
+			row = {
+				"application": a.name,
+				"date": a.posting_date,
+				"employee": a.employee,
+				"employee_name": a.full_name,
+				"action": "Approved"
+			}
+			entries.append(row);
+
+		for d in entries:
+			row = self.append('batch_table', {})
+			row.update(d)
+
+		#frappe.throw(_(record))
+
+	def approve_applications(self):
+		for b in self.get("batch_table"):
+			if b.action == "Approved":
+				application = frappe.get_doc(self.application_type, b.application)
+				application.update({
+					"workflow_state": "Approved",
+				})
+				application.submit()

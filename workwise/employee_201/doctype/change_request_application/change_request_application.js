@@ -1,0 +1,29 @@
+// Copyright (c) 2018, HDI Systech and contributors
+// For license information, please see license.txt
+cur_frm.add_fetch('employee','full_name','full_name');
+cur_frm.add_fetch('employee','company','company');
+cur_frm.add_fetch('employee','department','department');
+
+frappe.ui.form.on('Change Request Application', {
+	refresh: function(frm) {
+
+	},
+
+	onload: function(frm) {
+		if (!frm.doc.posting_date) {
+			frm.set_value("date_submitted", get_today());
+		}
+	},
+
+	change_request: function(frm) {
+		frappe.call({
+			method: "get_request",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("change_request");
+				frm.refresh_fields();
+			}
+		});
+	},
+	
+});

@@ -59,7 +59,10 @@ class PayrollProcessing(Document):
 		previous_period = self.get_previous_period()
 
 		if employees:
+			no_emp = len(employees)
+			proc_emp = 0
 			for emp in employees:
+				proc_emp += 1
 				exist =  frappe.db.sql("""SELECT `name` FROM `tabPayroll Register` WHERE employee = %s AND period = %s """,(emp.name, self.period ), as_dict=1)
 				if exist:
 					for ex in exist:

@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from frappe import _, msgprint
+from frappe import _
 
 def execute(filters=None):
 	if not filters: filters = frappe._dict({})
@@ -113,36 +113,19 @@ def get_columns(employee_list):
 	return columns, income_types, deduction_types
 
 def get_employees(filters):
-	cur_user = frappe.session.user
-	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT `name`, full_name, first_name, middle_name, last_name, sensitivity
-		 	FROM tabEmployee
-			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
-				WHERE SU.allow_user = %(user)s)
-			AND company = %(company)s
-			AND on_hold = 0
-			AND is_active = 1 ORDER BY last_name, first_name""",{ 
-				"company": filters.company,
-				"user": frappe.session.user
-			}, as_dict=True)
-	else:
-		employees = frappe.db.sql("""SELECT `name`, full_name, first_name, middle_name, last_name, sensitivity
-		 	FROM tabEmployee
-			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-			AND company = %(company)s
-			AND on_hold = 0
-			AND is_active = 1 ORDER BY last_name, first_name""",{ 
-				"company": filters.company
-			}, as_dict=True)
-		
-	return employees 
+	employees = frappe.db.sql("""SELECT `name`, full_name, first_name, middle_name, last_name, department	FROM tabEmployee
+		WHERE company = %(company)s {conditions}
+		AND on_hold = 0 AND is_active = 1 ORDER BY last_name, first_name""".format(conditions=get_conditions(filters)), filters, as_dict=1)
+
+	return employees
 
 def get_conditions(filters):
 	conditions = []
 	if filters.get("employee"):
 		conditions.append("`name`=%(employee)s")
+		
+	if filters.get("department"):
+		conditions.append("department=%(department)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 
