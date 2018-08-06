@@ -143,13 +143,13 @@ def get_late(entry):
 			if entry['break_out'] and entry['break_in']:
 				entry['break'] = (d.get('break_mins') * 60)
 				if entry['break_out'] < entry['break_start']:
-					b_diff = d['break_start'] - d['break_out']
+					b_diff = entry['break_start'] - entry['break_out']
 					entry['undertime'] += b_diff.total_seconds()
 					entry['work'] -= b_diff.total_seconds()
 					entry['break'] -= b_diff.total_seconds()
 
-				if entry['break_in'] > entry['break_end'] + datetime.timedelta(minutes=d['b_grace']):
-					b_diff = d['break_in'] - d['break_end']
+				if entry['break_in'] > entry['break_end'] + datetime.timedelta(minutes=entry.get('b_grace')):
+					b_diff = entry['break_in'] - entry['break_end']
 					entry['late'] += b_diff.total_seconds()
 					entry['work'] -= b_diff.total_seconds()
 					entry['break'] -= b_diff.total_seconds()
