@@ -12,6 +12,14 @@ frappe.query_reports["Payroll Register Report"] = {
 			"label": __("Period"),
 			"fieldtype": "Link",
 			"options": "Payroll Period",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company
+					}
+				};
+			},
 			"reqd": 1
 		},
 		{
@@ -19,6 +27,14 @@ frappe.query_reports["Payroll Register Report"] = {
 			"label": __("Employee"),
 			"fieldtype": "Link",
 			"options": "Employee",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company
+					}
+				};
+			}
 		},	
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {

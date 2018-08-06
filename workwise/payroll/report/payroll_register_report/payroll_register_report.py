@@ -44,8 +44,15 @@ def execute(filters=None):
 	return columns, data
 
 def validate_filters(filters):
-	if filters.from_date > filters.to_date:
-		frappe.throw(_("From Date must be before To Date"))
+	if filters.period:
+		period_company = frappe.db.get_value("Payroll Period", filters.period, 'company')
+		if period_company != filters.company:
+			frappe.throw(_("Period {0} Does not belong to company {1}").format(filters.period, filters.company))
+
+	if filters.employee:
+		emp_company = frappe.db.get_value("Employee", filters.employee, 'company')
+		if emp_company != filters.company:
+			frappe.throw(_("Employee {0} Does not belong to company {1}").format(filters.employee, filters.company))
 
 def get_columns(employee_list):
 	columns = [
