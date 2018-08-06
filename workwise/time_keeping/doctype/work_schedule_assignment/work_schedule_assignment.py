@@ -31,6 +31,7 @@ class WorkScheduleAssignment(Document):
 		dates = []
 		date_list = []
 		ss_list = []
+		label = ""
 		start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
 		end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
 		step = datetime.timedelta(days=1)
@@ -83,6 +84,7 @@ class WorkScheduleAssignment(Document):
 		dates = []
 		date_list = []
 		ss_list = []
+		label = ""
 		start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
 		end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
 		step = datetime.timedelta(days=1)

@@ -162,39 +162,6 @@ class Account(Document):
 		if not self.report_type:
 			throw(_("Report Type is mandatory"))
 
-	def validate_warehouse_account(self):
-		'''If perpetual inventory is set, and warehouse is linked,
-		the account balance and stock balance as of now must always match.
-		'''
-		from erpnext.accounts.utils import get_balance_on
-		from erpnext.stock.utils import get_stock_value_on
-		if not cint(frappe.defaults.get_global_default("auto_accounting_for_stock")):
-			return
-
-		if self.account_type == "Stock":
-			if self.is_group == 0 and not self.warehouse:
-				frappe.throw(_("Warehouse is mandatory for non group Accounts of type Stock"))
-
-			if self.warehouse:
-				# company must be same
-				if frappe.get_value('Warehouse', self.warehouse, 'company') != self.company:
-					frappe.throw(_("Warehouse company must be same as Account company"))
-
-				# balance must be same
-				stock_balance = get_stock_value_on(self.warehouse)
-				if self.is_new():
-					account_balance = 0.0
-				else:
-					account_balance = get_balance_on(self.name)
-
-				if account_balance != stock_balance:
-					frappe.throw(_('Account balance ({0}) for {1} and stock value ({2}) for warehouse {3} must be same')
-						.format(fmt_money(account_balance, currency=self.account_currency), self.name, 
-							fmt_money(stock_balance, currency=self.account_currency), self.warehouse))
-
-		elif self.warehouse:
-			self.warehouse = None
-
 	def validate_warehouse(self, warehouse):
 		lft, rgt = frappe.db.get_value("Warehouse", warehouse, ["lft", "rgt"])
 
@@ -222,28 +189,6 @@ class Account(Document):
 	def on_trash(self):
 		self.validate_trash()
 		self.update_nsm_model()
-
-	def before_rename(self, old, new, merge=False):
-		# Add company abbr if not provided
-		from erpnext.setup.doctype.company.company import get_name_with_abbr
-		new_account = get_name_with_abbr(new, self.company)
-
-		# Validate properties before merging
-		if merge:
-			if not frappe.db.exists("Account", new):
-				throw(_("Account {0} does not exist").format(new))
-
-			val = list(frappe.db.get_value("Account", new_account,
-				["is_group", "root_type", "company"]))
-
-			if val != [self.is_group, self.root_type, self.company]:
-				throw(_("""Merging is only possible if following properties are same in both records. Is Group, Root Type, Company"""))
-
-			if self.is_group and frappe.db.get_value("Account", new, "parent_account") == old:
-				frappe.db.set_value("Account", new, "parent_account",
-					frappe.db.get_value("Account", old, "parent_account"))
-
-		return new_account
 
 	def after_rename(self, old, new, merge=False):
 		if not merge:

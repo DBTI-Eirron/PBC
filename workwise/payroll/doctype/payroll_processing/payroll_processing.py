@@ -364,16 +364,15 @@ class PayrollProcessing(Document):
 			if emp['whtax_freq'] == 'Both':
 				taxable += taxable
 				table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
-					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
+					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Semi-Monthly'), as_dict=True )
 
 				for t in table:
 					tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8) / 2
 					if t.prescribed > 0:
-						tax_amt += flt(t.prescribed, 8)
-			else:	
-				if emp['whtax_freq'] == '2nd' and self.frequency == '2nd' :
-					if emp['payroll_schedule'] == "Semi-Monthly":
-						taxable += flt(header.get('previous_gross_payroll'), 8)
+						tax_amt += flt(t.prescribed, 8) / 2
+			elif emp['whtax_freq'] == '2nd' and self.frequency == '2nd' :
+				if emp['payroll_schedule'] == "Semi-Monthly":
+					taxable += flt(header.get('previous_gross_payroll'), 8)
 
 				table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table` 
 					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
@@ -464,7 +463,7 @@ class PayrollProcessing(Document):
 
 		loans = frappe.db.sql("""SELECT LA.`name`, LA.release_date, LA.loan_type, LA.loan_amount, MAX(LAP.payment_amount) as payment_amount, LA.payment_frequency
 			FROM `tabLoan Application` LA INNER JOIN `tabLoan Application Payments` LAP ON LA.`name` = LAP.parent
-			WHERE LA.employee = %s AND LA.payment_start <= %s AND LAP.payment_status = 'Unpaid' AND LA.docstatus = 1 AND on_hold = 1 
+			WHERE LA.employee = %s AND LA.payment_start <= %s AND LAP.payment_status = 'Unpaid' AND LA.docstatus = 1 AND on_hold != 1 
 			GROUP BY LA.`name` """,(emp['name'], self.payroll_date), as_dict=True )
 
 		for l in loans:

@@ -1,0 +1,26 @@
+{
+ "add_total_row": 0, 
+ "apply_user_permissions": 1, 
+ "creation": "2018-07-31 14:08:34.274256", 
+ "disabled": 0, 
+ "docstatus": 0, 
+ "doctype": "Report", 
+ "idx": 0, 
+ "is_standard": "Yes", 
+ "modified": "2018-07-31 17:06:02.007237", 
+ "modified_by": "Administrator", 
+ "module": "My Profile", 
+ "name": "My Daily Time Record", 
+ "owner": "Administrator", 
+ "ref_doctype": "Time Card", 
+ "report_name": "My Daily Time Record", 
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "Time Keeping Manager"
+  }, 
+  {
+   "role": "All"
+  }
+ ]
+}

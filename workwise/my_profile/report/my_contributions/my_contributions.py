@@ -1,5 +1,5 @@
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
-# License: GNU General Public License v3. See license.txt
+# Copyright (c) 2013, HDI Systech and contributors
+# For license information, please see license.txt
 
 from __future__ import unicode_literals
 import frappe, datetime
@@ -7,33 +7,9 @@ from frappe.utils import cint, flt, getdate, cstr
 from frappe import _
 
 def execute(filters=None):
-	if not filters: filters = frappe._dict({})
-	validate_filters(filters)
-
-	employee_list = get_employees(filters)
-	HDMF_types = ["HDMF", "PHIC", "SSS"]
-	columns = get_columns(employee_list)
-
-	if not employee_list:
-		frappe.throw(_("No record found"))
-		return columns, employee_list
-
-	HDMF_map = get_HDMF_map(filters, employee_list)
-
-	data = []
-	for emp in employee_list:
-		row = [emp.name, emp.full_name]
-
-		total_HDMF = 0
-		for HDMF in HDMF_types:
-			HDMF_amount = flt(HDMF_map.get(emp.name, {}).get(HDMF))
-			total_HDMF += HDMF_amount
-			row.append(HDMF_amount)
-
-		row += [total_HDMF]
-
-		data.append(row)
-
+	columns, data = [], []
+	columns = get_columns(filters)
+	data = get_data(filters)
 	return columns, data
 
 def validate_filters(filters):
@@ -43,33 +19,26 @@ def validate_filters(filters):
 def get_columns(employee_list):
 	columns = [
 		{
-			"fieldname": "employee",
-			"label": _("Employee ID"),
-			"fieldtype": "Link",
-			"options": "Employee",
-			"width": 100
-		},
-		{
-			"fieldname": "employee_name",
-			"label": _("Employee Name"),
-			"fieldtype": "Data",
-			"width": 220
-		},
-		{
 			"fieldname": "HDMF",
-			"label": _("Employee"),
+			"label": _("Pag-IBIG"),
 			"fieldtype": "Float",
 			"width": 120
 		},
 		{
 			"fieldname": "PHIC",
-			"label": _("Employee"),
+			"label": _("PhilHealth"),
 			"fieldtype": "Float",
 			"width": 120
 		},
 		{
 			"fieldname": "SSS",
-			"label": _("Employee"),
+			"label": _("SSS"),
+			"fieldtype": "Float",
+			"width": 120
+		},
+		{
+			"fieldname": "total",
+			"label": _("Total"),
 			"fieldtype": "Float",
 			"width": 120
 		},
@@ -77,29 +46,54 @@ def get_columns(employee_list):
 
 	return columns
 
+def get_data(filters):
+	data = []
+	posting_date = ""
+	employee_list = get_employees(filters)
+	contribution_types = ["HDMF", "PHIC", "SSS"]
+
+	if not employee_list:
+		return data
+
+	contribution_map = get_contributions_record(filters)
+	if contribution_map:
+		for emp in employee_list:
+			date = contribution_map.get(emp.name, {}).get(posting_date)
+			row = [emp.name, date]
+
+			total = 0
+			for con in contribution_types:
+				contribution_amount = flt(contribution_map.get(emp.name, {}).get(con))
+				total += contribution_amount
+				row.append(contribution_amount)
+
+			row += [total]
+
+			data.append(row)
+
+	return data
+
 def get_employees(filters):
-	employees = frappe.db.sql("""SELECT *
-	 	FROM `tabEmployee`
-		WHERE user_id  = %(user)s """,{
-			"user": frappe.session.user
-		}, as_dict=True)
+	employees = frappe.db.sql("""SELECT * FROM `tabEmployee` WHERE user_id  = %(user)s """,{ "user": frappe.session.user }, as_dict=True)
 
 	return employees
 
-def get_HDMF_map(filters, employee_list):
-	HDMF_details = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
+def get_contributions_record(filters):
+	employee_list = get_employees(filters)
+
+	contribution_details = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
 		WHERE employee in (%s) GROUP BY PRE.`name` """ %
 		', '.join(['%s']*len(employee_list)), tuple([emp.name for emp in employee_list]), as_dict=1)
 
-	HDMF_map = {}
-	for d in HDMF_details:
+	contribution_map = {}
+	for d in contribution_details:
 		if getdate(filters.from_date) <= getdate(d.posting_date) <= getdate(filters.to_date):
-			HDMF_map.setdefault(d.employee, frappe._dict()).setdefault(d.pay_code, [])
-			if HDMF_map[d.employee][d.pay_code]:
-				HDMF_map[d.employee][d.pay_code] += flt(d.amount, 2)
+			contribution_map.setdefault(d.employee, frappe._dict()).setdefault(d.pay_code, [])
+			if contribution_map[d.employee][d.pay_code]:
+				contribution_map[d.employee][d.pay_code] += flt(d.amount, 2)
 			else:
-				HDMF_map[d.employee][d.pay_code] = flt(d.amount, 2)
+				contribution_map[d.employee][d.pay_code] = flt(d.amount, 2)
 
-	return HDMF_map
+	return contribution_map

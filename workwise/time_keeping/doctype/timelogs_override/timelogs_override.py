@@ -11,54 +11,110 @@ from workwise.time_keeping.attendance_utils import get_timecard_list, get_schedu
 class TimelogsOverride(Document):
 
 	def override(self):
+		bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
 		for d in self.get("timelogs_override"):
-			schedule_in = frappe.get_value('Work Shift',d.work_shift,'time_in')
-			if d.time_in:
-				if d.log_time_in:
-					frappe.set_value('Time Card',d.log_time_in,'time',d.time_in)
-				else:
-					self.new_time_card(bio_id,0,d.target_date,d.time_in)
-			else:
-				if d.time_in:
-					frappe.delete_doc("Time Card", d.log_time_in)
-			if d.break_in:
-				if d.log_break_in:
-					frappe.set_value('Time Card',d.log_break_in,'time',d.break_in)
-				else:
-					self.new_time_card(bio_id,2,d.target_date,d.break_in)
-			else:
-				if d.log_break_in:
-					frappe.delete_doc("Time Card", d.log_break_in)
-			if d.break_out:
-				if d.log_break_out:
-					frappe.set_value('Time Card',d.log_break_out,'time',d.break_out)
-				else:
-					self.new_time_card(bio_id,3,d.target_date,d.break_out)
-			else:
-				if d.log_break_out:
-					frappe.delete_doc("Time Card", d.log_break_out)
-			if d.time_out:
-				if d.log_time_out:
-					frappe.set_value('Time Card',d.log_time_out,'time',d.time_out)
-				else:
-					bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
-					shift_map = get_shift_map()
-					time_in = frappe.get_value('Work Shift',d.work_shift,'time_in')
-					date_time_in = str(d.target_date) + " " + str(time_in)
-					pre_shift = add_to_date(get_datetime(date_time_in), hours= (0 - shift_map[d.work_shift]['setup_preshift']) )
-					time_out = datetime.datetime.strptime(d.time_out, '%H:%M:%S').time()
-					str_pre_shift = str(pre_shift)[11:]
-					final_pre_shift = datetime.datetime.strptime(str_pre_shift, '%H:%M:%S').time()
-					if time_out < final_pre_shift:
-						date = getdate(d.target_date) + datetime.timedelta(days=1) 
-						self.new_time_card(bio_id,1,str(date),d.time_out)
-					else:
-						self.new_time_card(bio_id,1,d.target_date,d.time_out)
-			else:
-				if d.log_time_out:
-					frappe.delete_doc("Time Card", d.log_time_out)
-
+			self.save_work_shift(d,bio_id)
+			self.save_time_logs(d,bio_id)
 		frappe.msgprint(_("Time Logs Override Successful"),alert=True)
+
+	def save_work_shift(self,d,bio_id):
+		if d.old_shift != d.work_shift:		
+			self.change_sched(d) 
+
+	def save_time_logs(self,d,bio_id):	
+		schedule_in = frappe.get_value('Work Shift',d.work_shift,'time_in')
+		if d.time_in:
+			if d.log_time_in:
+				frappe.set_value('Time Card',d.log_time_in,'time',d.time_in)
+			else:
+				self.new_time_card(bio_id,0,d.target_date,d.time_in)
+		else:
+			if d.time_in:
+				frappe.delete_doc("Time Card", d.log_time_in)
+		if d.break_in:
+			if d.log_break_in:
+				frappe.set_value('Time Card',d.log_break_in,'time',d.break_in)
+			else:
+				self.new_time_card(bio_id,2,d.target_date,d.break_in)
+		else:
+			if d.log_break_in:
+				frappe.delete_doc("Time Card", d.log_break_in)
+		if d.break_out:
+			if d.log_break_out:
+				frappe.set_value('Time Card',d.log_break_out,'time',d.break_out)
+			else:
+				self.new_time_card(bio_id,3,d.target_date,d.break_out)
+		else:
+			if d.log_break_out:
+				frappe.delete_doc("Time Card", d.log_break_out)
+		if d.time_out:
+			shift_map = get_shift_map()
+			time_in = frappe.get_value('Work Shift',d.work_shift,'time_in')
+			date_time_in = str(d.target_date) + " " + str(time_in)
+			pre_shift = add_to_date(get_datetime(date_time_in), hours= (0 - shift_map[d.work_shift]['setup_preshift']) )
+			time_out = datetime.datetime.strptime(d.time_out, '%H:%M:%S').time()
+			str_pre_shift = str(pre_shift)[11:]
+			final_pre_shift = datetime.datetime.strptime(str_pre_shift, '%H:%M:%S').time()
+			date = getdate(d.target_date) + datetime.timedelta(days=1) 
+			if d.log_time_out:
+				if time_out < final_pre_shift:
+					frappe.set_value('Time Card',d.log_time_out,'time',d.time_out)
+					frappe.set_value('Time Card',d.log_time_out,'date',date)
+				else:
+					frappe.set_value('Time Card',d.log_time_out,'time',d.time_out)
+			else:
+				if time_out < final_pre_shift:
+					self.new_time_card(bio_id,1,str(date),d.time_out)
+				else:
+					self.new_time_card(bio_id,1,d.target_date,d.time_out)
+		else:
+			if d.log_time_out:
+				frappe.delete_doc("Time Card", d.log_time_out)
+	
+	def change_sched(self,d):
+		work_shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(d.work_shift), as_dict=True)
+		exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, d.target_date), as_dict=True)
+		if exist:
+			frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, d.target_date), as_dict=True)
+		target_date = getdate(d.target_date)		
+
+		for ws in work_shift:
+			work_sched = frappe.new_doc("Work Schedule")
+			work_sched.update({
+				"work_hours":ws.work_hours,
+				"break_mins":ws.break_mins,
+				"employee": self.employee,
+				"company": self.company,
+				"target_date": target_date,
+				"work_shift": d.work_shift,
+				"datetime_in": self.get_date(target_date, ws.time_in, ws.time_out, ws.shift_type, 0),
+				"datetime_out": self.get_date(target_date, ws.time_out, ws.time_out, ws.shift_type, 1),
+				"pre_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 0),
+				"post_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 1),							
+				"break_start": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 0),
+				"break_end": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 1),
+				"nd_start": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 0),
+				"nd_end": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 1),	
+				"shift_type": ws.shift_type
+			})
+			work_sched.insert()
+			work_sched.save()
+
+			d.old_shift = d.work_shift
+
+	def get_date(self, date, start, end, type, is_end):
+		if is_end == 1:
+			if self.delta_to_time(start) > self.delta_to_time(end):
+				dt = (datetime.datetime.combine( date, self.delta_to_time(end) ) + datetime.timedelta(days=1) ).strftime('%Y-%m-%d %H:%M:%S')
+			else:
+				dt = datetime.datetime.combine( date, self.delta_to_time(end) ).strftime('%Y-%m-%d %H:%M:%S') 
+		else:
+			dt = datetime.datetime.combine( date, self.delta_to_time(start) ).strftime('%Y-%m-%d %H:%M:%S') 
+	
+		return dt
+
+	def delta_to_time(self, delta_obj):
+		return (datetime.datetime.min + delta_obj).time()
 
 	def new_time_card(self,bio_id,card_type,date,time):
 		new_timecard = frappe.new_doc("Time Card")
@@ -74,14 +130,17 @@ class TimelogsOverride(Document):
 	def load_work_schedule(self):
 		schedule = []
 		bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
-		pay_from, pay_to = frappe.db.get_value("Payroll Period", self.payroll_period, ["from_date", "to_date"])
+		pay_from, pay_to = frappe.db.get_value("Payroll Period", self.payroll_period, ["attendance_from", "attendance_to"])
 		schedule = get_schedule(self.employee, pay_from, pay_to)
 		if schedule:
 			entries = []
 			for d in schedule:
 				row = {
+					"schedule_name": d.name,
 					"work_shift": d.work_shift,
+					"old_shift": d.work_shift,
 					"target_date": d.target_date
+
 				}
 				entries.append(row);
 
@@ -97,15 +156,6 @@ class TimelogsOverride(Document):
 		entries = []
 		bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
 		tc_entries = frappe.db.sql("""SELECT `name`,`card_type`, `time`, `date` FROM `tabTime Card` WHERE `biometrics_id`=%s AND `date` >= %s and `date`<=%s""", (bio_id,pay_from,pay_to),as_dict=True)
-		#for d in tc_entries:
-		#	row = {
-		#		'name': d.name,
-		#		'card_type': d.card_type,
-		#		'time': d.time,
-		#		'date': d.date,
-		#		'date_time': str(d.date)+ " " +str(d.time)
-		#	}
-		#	entries.append(row);
 
 		return tc_entries
 

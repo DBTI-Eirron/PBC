@@ -3,14 +3,16 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, datetime
+from datetime import datetime
 from frappe import _
-from frappe.utils import nowdate, get_time
+from frappe.utils import nowdate, get_time, flt
 from frappe.model.document import Document
 
 class UndertimeApplication(Document):
 	def validate(self):
-		pass
+		total_hrs = datetime.strptime(self.to_time, '%H:%M:%S') - datetime.strptime(self.from_time, '%H:%M:%S')
+		self.total_hrs = flt((total_hrs.total_seconds() / 60.0 / 60.0),2)
 
 	def on_submit(self):
 		self.get_approver_and_date()

@@ -18,8 +18,8 @@ app_license = "GNU General Public License"
 app_include_css = "/assets/workwise/css/workwise.css"
 app_include_js = "/assets/js/workwise.min.js"
 website_context = {
-	"favicon": 	"/assets/workwise/images/workwise.png",
-	"splash_image": "/assets/workwise/images/workwise.png"
+	"favicon": 	"/assets/workwise/images/favicon.png",
+	"splash_image": "/assets/workwise/images/favicon.png"
 }
 # include js, css files in header of web template
 web_include_css = "/assets/workwise/css/web_workwise.css"

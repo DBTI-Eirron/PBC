@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 1, 
  "is_standard": "Yes", 
- "modified": "2018-07-24 18:09:10.753990", 
+ "modified": "2018-08-02 16:52:36.489445", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Attendance Summary", 
@@ -20,10 +20,10 @@
    "role": "Time Keeping Manager"
   }, 
   {
-   "role": "Rank and File"
+   "role": "HR Manager"
   }, 
   {
-   "role": "All"
+   "role": "Payroll Manager"
   }
  ]
 }

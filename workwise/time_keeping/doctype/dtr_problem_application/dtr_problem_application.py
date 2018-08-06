@@ -11,10 +11,10 @@ from frappe.model.document import Document
 class DTRProblemApplication(Document):
 	def validate(self):
 		self.get_request()
+		self.get_approver_details()
 
 	def on_submit(self):
 		self.approve_request()
-		self.get_approver_and_date()
 
 	def on_cancel(self):
 		self.revert_request()
@@ -55,15 +55,14 @@ class DTRProblemApplication(Document):
 			card_type = 2
 		if req.type == "Break Out":
 			card_type = 3
-
+			
 		return card_type
 
 	def get_timecard(self, card):
 		timecard_sel = frappe.db.sql("""SELECT TC.`name` FROM `tabTime Card` TC JOIN `tabEmployee` TE WHERE TC.biometrics_id = TE.biometrics_id  AND TC.`date` = %s AND TC.`card_type` = %s AND TE.`name` = %s LIMIT 1 """, (self.target_date, card, self.employee), as_dict=True)
-
 		return timecard_sel
 
-	def get_approver_and_date(self):
+	def get_approver_details(self):
 		self.approved_by = frappe.session.user
 		self.approved_on = nowdate()
 

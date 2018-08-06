@@ -9,6 +9,18 @@ frappe.ui.form.on('Excuse Tardiness Application', {
 			frm.set_value("posting_date", get_today());
 		}
 	},
+	
+	date: function(frm) {
+		if(frm.doc.employee && frm.doc.date) {
+			return frappe.call({
+				method: "load_timecard",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		} 
+	},
 
 	refresh: function(frm) {
 

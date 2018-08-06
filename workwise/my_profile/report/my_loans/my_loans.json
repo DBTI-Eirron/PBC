@@ -1,0 +1,26 @@
+{
+ "add_total_row": 0, 
+ "apply_user_permissions": 1, 
+ "creation": "2018-07-27 16:40:17.989413", 
+ "disabled": 0, 
+ "docstatus": 0, 
+ "doctype": "Report", 
+ "idx": 0, 
+ "is_standard": "Yes", 
+ "modified": "2018-07-31 17:06:22.770857", 
+ "modified_by": "Administrator", 
+ "module": "My Profile", 
+ "name": "My Loans", 
+ "owner": "Administrator", 
+ "ref_doctype": "Loan Application", 
+ "report_name": "My Loans", 
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "Payroll Manager"
+  }, 
+  {
+   "role": "All"
+  }
+ ]
+}

@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2018-07-27 11:28:24.395213", 
+ "modified": "2018-07-31 17:06:18.149300", 
  "modified_by": "Administrator", 
  "module": "My Profile", 
  "name": "My Contributions", 
@@ -18,6 +18,9 @@
  "roles": [
   {
    "role": "Payroll Manager"
+  }, 
+  {
+   "role": "All"
   }
  ]
 }
