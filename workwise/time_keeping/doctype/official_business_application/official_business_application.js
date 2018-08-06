@@ -3,9 +3,9 @@ cur_frm.add_fetch('employee','company','company');
 
 frappe.ui.form.on('Official Business Application', {
 	onload: function(frm) {
-		if (!frm.doc.posting_date) {
-			frm.set_value("posting_date", get_today());
-		}
+		//if (!frm.doc.posting_date) {
+		//	frm.set_value("posting_date", get_today());
+		//}
 	},
 
 	refresh: function(frm) {
