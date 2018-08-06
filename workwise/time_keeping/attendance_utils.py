@@ -141,7 +141,7 @@ def get_late(entry):
 		#break_out
 		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
 			if entry['break_out'] and entry['break_in']:
-				entry['break'] = (d.get('break_mins') * 60)
+				entry['break'] = (entry.get('break_mins') * 60)
 				if entry['break_out'] < entry['break_start']:
 					b_diff = entry['break_start'] - entry['break_out']
 					entry['undertime'] += b_diff.total_seconds()
