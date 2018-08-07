@@ -34,7 +34,7 @@ class OvertimeApplication(Document):
 	def validate_time_format(self):
 		time_fds = ['from_time', 'to_time']
 		for fd in time_fds:
-			chk_time_format(self.get(fd), "%H:%M:%S")
+			chk_time_format(str(self.get(fd)), "%H:%M:%S")
 
 	def get_recipients(self):
 		recipients = []
