@@ -101,10 +101,21 @@ def get_columns(filters):
 	return columns
 
 def get_result(filters):
+	validate_filters(filters)
 	data = get_data(filters)
 	result = get_result_as_list(data, filters)
 
 	return result
+
+def validate_filters(filters):
+	if not filters.payroll_period:
+		frappe.throw("Filter Payroll Period is Required")
+
+	if not filters.employee:
+		frappe.throw("Filter Employee is Required")
+
+	if not filters.time_options:
+		frappe.throw("Filter Time Options is Required")
 
 def get_employees(filters):
 	employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, is_attendance_base, no_hours FROM tabEmployee WHERE `name` = %(employee)s
