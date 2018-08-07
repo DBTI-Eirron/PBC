@@ -47,11 +47,11 @@ class OfficialBusinessApplication(Document):
 		for d in self.get('official_business_application_table'):
 			total_hrs = 0
 			if get_time(d.from_time) > get_time(d.to_time):
-				from_date = get_datetime(str(d.target_date)+" "+d.from_time)
-				to_date = get_datetime(str(add_days(d.target_date, 1))+" "+d.to_time)
+				from_date = get_datetime(str(d.target_date)+" "+str(d.from_time))
+				to_date = get_datetime(str(add_days(d.target_date, 1))+" "+str(d.from_time))
 			else:
-				from_date = get_datetime(str(d.target_date)+" "+d.from_time)
-				to_date = get_datetime(str(d.target_date)+" "+d.to_time)
+				from_date = get_datetime(str(d.target_date)+" "+str(d.from_time))
+				to_date = get_datetime(str(d.target_date)+" "+str(d.to_time))
 				
 			if not d.is_excluded == 1:
 				total_hrs = abs(((from_date - to_date).total_seconds()) / 60 /60)
