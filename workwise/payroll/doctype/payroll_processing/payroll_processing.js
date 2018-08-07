@@ -3,6 +3,14 @@
 
 frappe.ui.form.on('Payroll Processing', {
 	onload: function(frm){
+		frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
+
 		frm.set_query('period', function(doc) {
 			return {
 				filters: {

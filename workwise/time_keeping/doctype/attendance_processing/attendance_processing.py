@@ -28,7 +28,7 @@ class AttendanceProcessing(Document):
 		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
 	def process_attendance(self):
-		if not self.payroll_period:
+		if not self.period:
 			frappe.throw(_("Please Select Payroll Period"))
 		
 		employees = self.get_employees()
@@ -37,7 +37,7 @@ class AttendanceProcessing(Document):
 		if employees:
 			for emp in employees:
 				data = []
-				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.payroll_period, ["attendance_from", "attendance_to"])
+				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to"])
 				exist = frappe.db.sql("""SELECT `name` FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s LIMIT 1""",(emp.name, pay_from, pay_to), as_dict=1)
 				if exist:
 					frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)

@@ -20,8 +20,6 @@ def get_company_logo(user):
 	emp = frappe.db.sql(""" SELECT `name`, `user_id` FROM `tabEmployee` WHERE user_id = %s AND user_id != "" AND user_id is not null LIMIT 1""",(user))
 	if emp:
 		emp = emp[0][0]
-
-	if emp:
 		company = frappe.db.get_value("Employee", emp, "company")
 		new_logo = frappe.db.get_value("Company", company, "company_logo")
 		if new_logo:

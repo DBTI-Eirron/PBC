@@ -3,18 +3,27 @@
 
 frappe.ui.form.on('Attendance Processing', {
 	onload: function(frm){
-		cur_frm.set_query("employee", function() {
+		frm.set_query("employee", function() {
 			return {
 				"filters": {
 					"company": frm.doc.company,
 				}
 			};
 		});
+
+		frm.set_query('period', function(doc) {
+			return {
+				filters: {
+					"status": "Open",
+					"company": doc.company
+				}
+			};
+		});
 	},
 
 	setup: function(frm) {
-		frm.add_fetch("payroll_period", "from_date", "period_from");
-		frm.add_fetch("payroll_period", "to_date", "period_to");
+		frm.add_fetch("period", "from_date", "period_from");
+		frm.add_fetch("period", "to_date", "period_to");
 	},
 	refresh: function(frm) {
 		frm.disable_save();
@@ -22,6 +31,12 @@ frappe.ui.form.on('Attendance Processing', {
 	onload_post_render: function() {
 
 	},
+
+	company: function(frm){
+		frm.set_value("period", null);
+		frm.set_value("period_from", null);
+		frm.set_value("period_to", null);
+	}
 });
 
 cur_frm.cscript.display_activity_log = function(msg) {

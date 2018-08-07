@@ -45,4 +45,5 @@ class BatchApproval(Document):
 				application.update({
 					"workflow_state": "Approved",
 				})
+				application.save()
 				application.submit()

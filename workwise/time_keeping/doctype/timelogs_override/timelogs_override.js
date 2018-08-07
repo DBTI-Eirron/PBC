@@ -38,3 +38,10 @@ frappe.ui.form.on('Timelogs Override', {
 	},
 });
 
+cur_frm.fields_dict['payroll_period'].get_query = function(doc) {
+	return {
+		filters: {
+			"status": 'Open'
+		}
+	}
+}

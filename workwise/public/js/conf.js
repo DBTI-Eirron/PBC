@@ -1,7 +1,6 @@
 frappe.provide('workwise');
 
 $(document).bind('toolbar_setup', function() {
-	frappe.app.name = "workwise";
 	frappe.call({
 		method: "workwise.employee_201.doctype.company.company.get_company_logo",
 		args: {
@@ -10,7 +9,7 @@ $(document).bind('toolbar_setup', function() {
 		callback: function(r) {
 			if(!r.exc) {
 				if(r.message) {
-					$('.navbar-home').html('<img class="" src="'+frappe.urllib.get_base_url()+'/assets/workwise/images/'+r.message+'" />');
+					$('.navbar-home').html('<img style="max-height:25px;" class="" src="'+frappe.urllib.get_base_url()+''+r.message+'" />');
 				}
 			}
 		}

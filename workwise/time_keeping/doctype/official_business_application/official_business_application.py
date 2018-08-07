@@ -47,11 +47,11 @@ class OfficialBusinessApplication(Document):
 		for d in self.get('official_business_application_table'):
 			total_hrs = 0
 			if get_time(d.from_time) > get_time(d.to_time):
-				from_date = get_datetime(d.target_date+" "+d.from_time)
-				to_date = get_datetime(add_days(d.target_date, 1)+" "+d.to_time)
+				from_date = get_datetime(str(d.target_date)+" "+d.from_time)
+				to_date = get_datetime(str(add_days(d.target_date, 1))+" "+d.to_time)
 			else:
-				from_date = get_datetime(d.target_date+" "+d.from_time)
-				to_date = get_datetime(d.target_date+" "+d.to_time)
+				from_date = get_datetime(str(d.target_date)+" "+d.from_time)
+				to_date = get_datetime(str(d.target_date)+" "+d.to_time)
 				
 			if not d.is_excluded == 1:
 				total_hrs = abs(((from_date - to_date).total_seconds()) / 60 /60)
@@ -76,8 +76,8 @@ class OfficialBusinessApplication(Document):
 			dates = [];
 			official_business_application_table = [];
 
-			start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
-			end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
+			start = datetime.datetime.strptime(str(self.from_date), '%Y-%m-%d')
+			end = datetime.datetime.strptime(str(self.to_date), '%Y-%m-%d')
 			step = datetime.timedelta(days=1)
 			
 			while start <= end:
