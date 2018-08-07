@@ -26,6 +26,7 @@ class BatchApproval(Document):
 		entries = []
 		for a in record:
 			row = {
+				"apptype": self.application_type,
 				"application": a.name,
 				"date": a.posting_date,
 				"employee": a.employee,

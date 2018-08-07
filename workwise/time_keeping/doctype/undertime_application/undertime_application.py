@@ -11,7 +11,7 @@ from frappe.model.document import Document
 
 class UndertimeApplication(Document):
 	def validate(self):
-		total_hrs = datetime.strptime(self.to_time, '%H:%M:%S') - datetime.strptime(self.from_time, '%H:%M:%S')
+		total_hrs = datetime.strptime(str(self.to_time), '%H:%M:%S') - datetime.strptime(str(self.from_time), '%H:%M:%S')
 		self.total_hrs = flt((total_hrs.total_seconds() / 60.0 / 60.0),2)
 
 	def on_submit(self):
