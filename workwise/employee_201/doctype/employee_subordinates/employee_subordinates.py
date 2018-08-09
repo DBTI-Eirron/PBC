@@ -8,8 +8,8 @@ from frappe import throw, _, scrub
 from frappe.model.document import Document
 
 class EmployeeSubordinates(Document):
-
 	def validate(self):
+		self.remove_duplicates()	
 		if self.employee:
 			user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 			if user_id and self.get("subordinates"):
@@ -24,9 +24,6 @@ class EmployeeSubordinates(Document):
 		user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 		if user_id:
 			frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE allow = 'Employee' AND user = %s AND for_value != %s """, (user_id, self.employee), as_dict=1)
-
-	def validate(self):
-		self.remove_duplicates()	
 
 	def remove_duplicates(self):
 		unique_emp = []
