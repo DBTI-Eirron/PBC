@@ -157,6 +157,7 @@ class Blanket(Document):
 			new_l_app = frappe.new_doc("Leave Application")
 			new_l_app.update({
 				"employee": d.employee,
+				"posting_date": self.posting_date,
 				"full_name": d.full_name,
 				"from_date": self.from_date,
 				"to_date": self.to_date,
@@ -191,6 +192,7 @@ class Blanket(Document):
 			new_ot_app.update({
 				"employee": d.employee,
 				"full_name": d.full_name,
+				"posting_date": self.posting_date,
 				"from_date": data.format_datetime(self.from_datetime, "Y-MM-dd"),
 				"to_date": data.format_datetime(self.to_datetime, "Y-MM-dd"),
 				"from_time": data.format_datetime(self.from_datetime, "H:mm:ss"),
@@ -271,6 +273,7 @@ class Blanket(Document):
 			new_ob_app = frappe.new_doc("Official Business Application")
 			new_ob_app.update({
 				"employee": d.employee,
+				"posting_date": self.posting_date,
 				"full_name": d.full_name,
 				"from_date": self.from_date,
 				"to_date": self.to_date,
