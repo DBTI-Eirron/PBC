@@ -134,7 +134,6 @@ def get_late(entry):
 					entry['late'] += ( entry.get('card_in') - (entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')))  ).total_seconds()
 				else:
 					entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
-
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_in') > entry.get('break_end'):
 					entry['ob_status'] = 3 # ob is in 2nd half
@@ -175,8 +174,9 @@ def get_undertime(entry):
 				entry['work'] -= entry['undertime']
 		else:
 			if entry.get('ob_status') == 1:
-				entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
-				entry['work'] -= entry['undertime']
+				if entry.get('ob_out') < entry.get('time_out'):
+					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
+					entry['work'] -= entry['undertime']
 
 	return entry
 
