@@ -102,19 +102,19 @@ def get_columns(employee_list):
 		{
 			"fieldname": "total_income",
 			"label": _("Total Income"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		},
 		{
 			"fieldname": "total_deduction",
 			"label": _("Total Deduction"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		},
 		{
 			"fieldname": "total_payroll",
 			"label": _("Total Payroll"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		},
 	]

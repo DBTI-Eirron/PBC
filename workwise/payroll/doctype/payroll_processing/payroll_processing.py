@@ -311,7 +311,7 @@ class PayrollProcessing(Document):
 					phic = manual if mode == "Manual" and manual > 550.00 else 550.00
 					phice = 550.00
 				else:
-					percent_rate = ( target_amt * (flt(2.75, 2) / 100) / 2)
+					percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
 					phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
 					phice = percent_rate 
 				
@@ -470,7 +470,7 @@ class PayrollProcessing(Document):
 						"linked_document": l.name,
 						"linked_doctype": "Loan Application",
 						"pay_code": l.loan_type,
-						"amount": flt(l.payment_amount, 2),
+						"amount": flt(l.payment_amount, 8),
 					})
 
 		for d in loans_register:
