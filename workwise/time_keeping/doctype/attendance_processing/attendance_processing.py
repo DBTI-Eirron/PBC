@@ -38,10 +38,8 @@ class AttendanceProcessing(Document):
 			for emp in employees:
 				data = []
 				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to"])
-				exist = frappe.db.sql("""SELECT `name` FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s LIMIT 1""",(emp.name, pay_from, pay_to), as_dict=1)
-				if exist:
-					frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
-
+				frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
+				
 				shift_map = get_shift_map()
 				timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
 				schedule = get_schedule(emp.name, pay_from, pay_to)

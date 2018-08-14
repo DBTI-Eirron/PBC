@@ -139,10 +139,7 @@ def get_late(entry):
 				if entry.get('ob_in') > entry.get('break_end'):
 					entry['ob_status'] = 3 # ob is in 2nd half
 					entry['late'] += (entry.get('ob_in') - entry.get('break_end')).total_seconds()
-				else:
-					entry['ob_status'] = 2 # ob is in 1st half
-					entry['late'] += (entry.get('ob_in') - entry.get('time_in')).total_seconds()
-					
+
 		#break_out
 		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
 			if entry['break_out'] and entry['break_in']:
@@ -169,15 +166,23 @@ def get_undertime(entry):
 				if entry.get('work') < (entry.get('worker_secs') + entry.get('late') ):
 					entry['undertime'] += entry.get('work') - entry.get('worker_secs')
 					entry['work'] -= entry['undertime']
-		
-			if entry['card_out'] < entry['time_out']:
-				entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
-				entry['work'] -= entry['undertime']
+
+			if entry.get('ob_status') == 1:
+				if entry.get('card_out') > entry.get('ob_out'):
+					if entry.get('card_out') < entry.get('time_out'):
+						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+						entry['work'] -= entry['undertime']
+				else:
+					if entry.get('ob_out') < entry.get('time_out'):
+						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
+						entry['work'] -= entry['undertime']
 		else:
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('time_out'):
 					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 					entry['work'] -= entry['undertime']
+
+	return entry
 
 	return entry
 
