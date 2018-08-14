@@ -76,7 +76,7 @@ class PayrollPeriod(Document):
 						"description": d.pay_description,
 						"amount": d.amount,
 					})
-				else:
+				elif d.pay_type == "Deduction":
 					ps.append("payslip_deductions", {
 						"description": d.pay_description,
 						"amount": d.amount,
