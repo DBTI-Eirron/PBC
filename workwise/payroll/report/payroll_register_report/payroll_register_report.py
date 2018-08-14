@@ -37,6 +37,8 @@ def execute(filters=None):
 			row.append(deduction_amount)
 
 		total_payroll = flt(total_income, 2) - flt(total_deduction, 2)
+		if total_payroll < 0:
+			total_payroll = 0
 		row += [total_income, total_deduction, total_payroll]
 
 		data.append(row)
