@@ -136,8 +136,13 @@ def get_late(entry):
 					entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 
 			if entry.get('ob_status') == 1:
-				entry['late'] += (entry.get('ob_in') - entry.get('time_in')).total_seconds()
-
+				if entry.get('ob_in') > entry.get('break_end'):
+					entry['ob_status'] = 3 # ob is in 2nd half
+					entry['late'] += (entry.get('ob_in') - entry.get('break_end')).total_seconds()
+				else:
+					entry['ob_status'] = 2 # ob is in 1st half
+					entry['late'] += (entry.get('ob_in') - entry.get('time_in')).total_seconds()
+					
 		#break_out
 		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
 			if entry['break_out'] and entry['break_in']:
