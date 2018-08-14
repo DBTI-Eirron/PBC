@@ -118,7 +118,7 @@ def validate_filters(filters):
 		frappe.throw("Filter Time Options is Required")
 
 def get_employees(filters):
-	employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, is_attendance_base, no_hours FROM tabEmployee WHERE `name` = %(employee)s
+	employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location, is_attendance_base, no_hours FROM tabEmployee WHERE `name` = %(employee)s
 		AND on_hold = 0 AND is_active = 1 LIMIT 1 """,{ 
 			"employee": filters.employee
 		}, as_dict=True)
@@ -133,7 +133,7 @@ def get_data(filters):
 	shift_map = get_shift_map()
 	for emp in employees:
 		timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
-		holidays = get_holiday_list(emp.company, pay_from, pay_to)
+		holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
 		schedule = get_schedule(emp.name, pay_from, pay_to)
 		leaves = get_leave_list(emp.name, pay_from, pay_to)
 		ots = get_ot_list(emp.name, pay_from, pay_to)

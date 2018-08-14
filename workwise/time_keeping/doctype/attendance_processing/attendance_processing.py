@@ -13,7 +13,7 @@ get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_lis
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, is_attendance_base, no_hours FROM tabEmployee WHERE company = %(company)s {conditions}
+		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location,is_attendance_base, no_hours FROM tabEmployee WHERE company = %(company)s {conditions}
 			AND on_hold = 0 AND is_active = 1 """.format(conditions=self.get_employee_conditions()),{ 
 				"company": self.company,
 				"employee": self.employee
@@ -45,7 +45,7 @@ class AttendanceProcessing(Document):
 				shift_map = get_shift_map()
 				timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
 				schedule = get_schedule(emp.name, pay_from, pay_to)
-				holidays = get_holiday_list(emp.company, pay_from, pay_to)
+				holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
 				leaves = get_leave_list(emp.name, pay_from, pay_to)
 				ots = get_ot_list(emp.name, pay_from, pay_to)
 				obs = get_ob_list(emp.name, pay_from, pay_to)

@@ -38,6 +38,22 @@ frappe.ui.form.on('My Payslip', {
 		});
 		frm.pass_dialog.show();
 		
+		var host_link = window.location.hostname;
+		var jasper_link = "178.128.220.33";
+
+		if (frm.doc.docstatus===1 || frm.doc.docstatus===0) {
+			frm.add_custom_button(__('Check Voucher'),
+				function() {
+					window.open("http://"+jasper_link+":8080/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2Freports&reportUnit=%2Freports%2Fje_check_voucher&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+				});
+		}
+		if (frm.doc.docstatus===1 || frm.doc.docstatus===0) {
+			frm.add_custom_button(__('Print Check'),
+				function() {
+					window.open("http://"+jasper_link+":8080/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2Freports&reportUnit=%2Freports%2Fje_print_check&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+				});
+		}
+	},
 		cur_frm.set_query("payroll_period", function() {
 			return {
 				"filters": {

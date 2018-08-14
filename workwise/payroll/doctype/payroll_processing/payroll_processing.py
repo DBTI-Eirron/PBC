@@ -63,11 +63,7 @@ class PayrollProcessing(Document):
 			proc_emp = 0
 			for emp in employees:
 				proc_emp += 1
-				exist =  frappe.db.sql("""SELECT `name` FROM `tabPayroll Register` WHERE employee = %s AND period = %s """,(emp.name, self.period ), as_dict=1)
-				if exist:
-					for ex in exist:
-						frappe.delete_doc("Payroll Register", ex.name)
-			
+				frappe.db.sql("""DELETE FROM `tabPayroll Register` WHERE employee = %s AND period = %s """,(emp.name, self.period ), as_dict=1)
 				register = []
 				header = {
 					'employee': emp.name,
@@ -151,6 +147,7 @@ class PayrollProcessing(Document):
 
 				payslip_label = " " + emp.full_name +""
 				ss_list.append(payslip_label)
+			ss_list.append("<b>Processed "+ str(proc_emp) +" Employees</b>")
 		else:
 			frappe.throw(_("No Employee Found"))
 		
@@ -612,4 +609,4 @@ class PayrollProcessing(Document):
 		return log
 
 	def format_as_links(self, ss_list):
-		return ['<a href="#Form/Salary Slip/{0}">{0}</a>'.format(s) for s in ss_list]
+		return ['{0}'.format(s) for s in ss_list]

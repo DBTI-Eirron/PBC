@@ -270,10 +270,10 @@ def get_shift_map():
 
 	return shift_map
 
-def get_holiday_list(company, from_date, to_date):
+def get_holiday_list(company, location, from_date, to_date):
 	holidays = frappe.db.sql("""SELECT holiday_name, holiday_date, is_special FROM `tabHoliday` 
-		WHERE company = %s AND holiday_date >= %s AND holiday_date <= %s
-		ORDER BY holiday_date ASC""",(company, from_date, to_date), as_dict=True)
+		WHERE company = %s AND location = %s AND holiday_date >= %s AND holiday_date <= %s
+		ORDER BY holiday_date ASC""",(company, location, from_date, to_date), as_dict=True)
 
 	return holidays
 
