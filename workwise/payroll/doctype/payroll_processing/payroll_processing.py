@@ -62,7 +62,6 @@ class PayrollProcessing(Document):
 			no_emp = len(employees)
 			proc_emp = 0
 			for emp in employees:
-				proc_emp += 1
 				frappe.db.sql("""DELETE FROM `tabPayroll Register` WHERE employee = %s AND period = %s """,(emp.name, self.period ), as_dict=1)
 				register = []
 				header = {
@@ -141,13 +140,14 @@ class PayrollProcessing(Document):
 
 				if pr.insert():
 					#update other entries like loans
+					proc_emp += 1
 					for d in register:
 						if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
 							self.update_loans(d.get('linked_document'))
-
 				payslip_label = " " + emp.full_name +""
 				ss_list.append(payslip_label)
-			ss_list.append("<b>Processed "+ str(proc_emp) +" Employees</b>")
+
+			ss_list.append("<b>Processed "+ str(proc_emp)+" / "+str(no_emp)+" Employees</b>")
 		else:
 			frappe.throw(_("No Employee Found"))
 		
