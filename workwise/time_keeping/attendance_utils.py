@@ -134,6 +134,7 @@ def get_late(entry):
 					entry['late'] += ( entry.get('card_in') - (entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')))  ).total_seconds()
 				else:
 					entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
+
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_in') > entry.get('break_end'):
 					entry['ob_status'] = 3 # ob is in 2nd half
@@ -183,7 +184,7 @@ def get_undertime(entry):
 def get_absent(entry):
 	if not entry.get('is_restday'):
 		if not entry.get('card_in') and not entry.get('card_out'):
-			entry['is_absent'] == 1
+			entry['is_absent'] = 1
 	
 	#if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
 	#	entry["is_absent"] = 1
