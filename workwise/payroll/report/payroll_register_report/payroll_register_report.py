@@ -21,9 +21,16 @@ def execute(filters=None):
 	deduction_map = get_deduction_map(filters, employee_list)
 
 	data = []
+	grand_total = 0
+	total_row= ["",""]
+	for income in income_types:
+		total_row.append("")
+
+	for deduction in deduction_types:
+		total_row.append("")
+
 	for emp in employee_list:
 		row = [emp.name, emp.full_name]
-
 		total_income = 0
 		for income in income_types:
 			income_amount = flt(income_map.get(emp.name, {}).get(income), 2)
@@ -40,8 +47,11 @@ def execute(filters=None):
 		if total_payroll < 0:
 			total_payroll = 0
 		row += [total_income, total_deduction, total_payroll]
-
+		grand_total += total_payroll
+		
 		data.append(row)
+	total_row += ["", "", grand_total]
+	data.append(total_row)
 
 	return columns, data
 
