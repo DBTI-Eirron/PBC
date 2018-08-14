@@ -31,7 +31,7 @@ class Employee(Document):
 
 	def update_fullname(self):
 		if self.middle_name:
-			self.full_name = str(self.last_name) + ', ' + str(self.first_name) + ', ' + str(self.middle_name)
+			self.full_name = str(self.last_name) + ', ' + str(self.first_name) + ' ' + str(self.middle_name)
 		else:
 			self.full_name = str(self.last_name) + ', ' + str(self.first_name)
 
