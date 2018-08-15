@@ -205,7 +205,7 @@ def get_undertime(entry):
 	return entry
 
 def get_absent(entry):
-	if not entry.get('is_restday'):
+	if not entry.get('is_restday') and entry.get('leave_status') and not entry['is_holiday'] and not entry.get('ob_status') and not entry['is_lwop']:
 		if not entry.get('card_in') and not entry.get('card_out'):
 			entry['is_absent'] = 1
 	
