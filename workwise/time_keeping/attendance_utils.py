@@ -403,7 +403,7 @@ def get_defaults(emp, sched, shift_map):
 		"nd_start": sched.nd_start,
 		"nd_end": sched.nd_end,
 		#shift policy
-		"work_hours": sched.work_hours,
+		"work_hours": shift_map[sched.work_shift]['work_hours'],
 		"break_mins": sched.break_mins,
 		"grace": shift_map[sched.work_shift]['grace_period'],
 		"b_grace": shift_map[sched.work_shift]['b_grace_period'],
