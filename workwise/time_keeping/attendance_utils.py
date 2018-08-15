@@ -177,9 +177,9 @@ def get_late(entry):
 					entry['work'] -= b_diff.total_seconds()
 					entry['break'] -= b_diff.total_seconds()
 		
-		if entry["late"] > frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') and frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') > 0:
-			entry["is_halfday"] = 1
-			entry['work'] = entry['work'] / 2
+	if entry["late"] > frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') and frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') > 0:
+		entry["is_halfday"] = 1
+		entry['work'] = entry['work'] / 2
 
 	return entry
 
@@ -199,8 +199,8 @@ def get_undertime(entry):
 						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 			else:
 				if entry.get('lv_status') == 2:
-					if entry.get('card_out') < entry.get('break_in'):
-						entry['undertime'] += abs((entry.get('card_out') - entry.get('break_in')).total_seconds())
+					if entry.get('card_out') < entry.get('break_start'):
+						entry['undertime'] += abs((entry.get('card_out') - entry.get('break_start')).total_seconds())
 				elif entry.get('lv_status') == 3:
 					if entry.get('card_out') < entry.get('time_out'):
 						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())					
