@@ -136,15 +136,27 @@ def get_late(entry):
 				entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 
 		else: #get normal late if no leave
-			if entry.get('card_in') and entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-				if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
-					entry['late'] += ( entry.get('card_in') - (entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')))  ).total_seconds()
-				else:
-					entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
-			#if entry.get('ob_status') == 1:
-			#	if entry.get('ob_in') > entry.get('break_end'):
-			#		entry['ob_status'] = 3 # ob is in 2nd half
-			#		entry['late'] += (entry.get('ob_in') - entry.get('break_end')).total_seconds()
+			if entry.get('card_in'):
+				if entry.get('ob_status') == 1 and entry.get('ob_in') < entry.get('card_in'): #if has OB and is lesser than card in
+					if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
+						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
+					else:
+						if entry.get('ob_in') > entry.get('time_in'):
+							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+				else: 
+					if entry.get('card_in') and entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+						if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
+							entry['late'] += ( entry.get('card_in') - (entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')))  ).total_seconds()
+						else:
+							entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
+			
+			else: #if no card in check for OB
+				if entry.get('ob_status') == 1:
+					if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
+						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
+					else:
+						if entry.get('ob_in') > entry.get('time_in'):
+							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 
 		#break_out
 		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
