@@ -14,6 +14,13 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 				entry['ob_status'] = 1
 				entry["is_absent"] = 0
 				entry['is_lwop'] = 0
+				if entry['ob_out']  < entry['ob_in']:
+					ob_date = add_days(entry.get('target_date'), 1)
+					entry['ob_out'] = get_datetime( str(ob_date)+" "+ str(ob.to_time) )
+
+				#if getdate(entry.get('target_date')) == getdate('2018-06-29'):
+				#	frappe.throw(_("{0} {1}").format(entry['ob_in'], entry['ob_out']))
+			
 	if ots:
 		for ot in ots:
 			if ot['from_date'] == entry['target_date']:
@@ -134,7 +141,6 @@ def get_late(entry):
 					entry['late'] += ( entry.get('card_in') - (entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')))  ).total_seconds()
 				else:
 					entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
-
 			#if entry.get('ob_status') == 1:
 			#	if entry.get('ob_in') > entry.get('break_end'):
 			#		entry['ob_status'] = 3 # ob is in 2nd half
