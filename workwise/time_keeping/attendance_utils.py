@@ -89,9 +89,6 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 	#if get_datetime(entry.get('card_out')) > get_datetime(entry.get('nd_start')):
 	#	frappe.throw("nightdiff")
 
-	if entry["late"] > frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') and frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') > 0:
-		entry["is_halfday"] = 1
-
 	#is_attendance_base
 	if not entry.get('is_attendance_base'):
 		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
@@ -103,6 +100,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 		entry["undertime"] = 0
 
 	entry = get_absent(entry)
+	entry = get_final_processing(entry)
 	entry = get_tags(entry)
 
 def get_work(entry):
@@ -174,8 +172,10 @@ def get_late(entry):
 					entry['late'] += b_diff.total_seconds()
 					entry['work'] -= b_diff.total_seconds()
 					entry['break'] -= b_diff.total_seconds()
+		
+		if entry["late"] > frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') and frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') > 0:
+			entry["is_halfday"] = 1
 
-		entry['work'] -= entry['late']
 	return entry
 
 def get_undertime(entry):
@@ -184,26 +184,21 @@ def get_undertime(entry):
 			if entry.get('is_flexible'):
 				if entry.get('work') < (entry.get('worker_secs') + entry.get('late') ):
 					entry['undertime'] += entry.get('work') - entry.get('worker_secs')
-					entry['work'] -= entry['undertime']
-
 			if entry.get('ob_status') == 1:
 				if entry.get('card_out') > entry.get('ob_out'):
 					if entry.get('card_out') < entry.get('time_out'):
 						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
-						entry['work'] -= entry['undertime']
 				else:
 					if entry.get('ob_out') < entry.get('time_out'):
 						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
-						entry['work'] -= entry['undertime']
 			else:
 				if entry.get('card_out') < entry.get('time_out'):
-					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
-					entry['work'] -= entry['undertime']
+					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())	
 		else:
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('time_out'):
 					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
-					entry['work'] -= entry['undertime']
+
 
 	return entry
 
@@ -213,12 +208,18 @@ def get_absent(entry):
 			entry['is_absent'] = 1
 	
 	if entry.get('is_restday') and not entry.get('leave_status') and not entry.get('ob_status'):
+		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
 	#if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
 	#	entry["is_absent"] = 1
+	return entry
+
+def get_final_processing(entry):
+	entry['work'] -= entry['late']
+	entry['work'] -= entry['undertime']
 	return entry
 
 def get_tags(entry):
