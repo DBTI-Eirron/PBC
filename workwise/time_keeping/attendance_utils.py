@@ -95,7 +95,6 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 		entry["undertime"] = 0
 
 	entry = get_absent(entry)
-	entry = finalize_results(entry)
 	entry = get_tags(entry)
 
 def get_work(entry):
@@ -191,15 +190,6 @@ def get_absent(entry):
 	if not entry.get('is_restday'):
 		if not entry.get('card_in') and not entry.get('card_out'):
 			entry['is_absent'] = 1
-	
-	#if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
-	#	entry["is_absent"] = 1
-	return entry
-
-
-def finalize_results(entry):
-	if entry.get('ignore_late'):
-		
 	
 	#if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
 	#	entry["is_absent"] = 1
