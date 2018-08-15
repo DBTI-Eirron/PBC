@@ -121,7 +121,7 @@ def get_data(filters):
 	shift_map = get_shift_map()
 	for emp in employees:
 		timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
-		holidays = get_holiday_list(emp.company, pay_from, pay_to)
+		holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
 		schedule = get_schedule(emp.name, pay_from, pay_to)
 		leaves = get_leave_list(emp.name, pay_from, pay_to)
 		ots = get_ot_list(emp.name, pay_from, pay_to)
