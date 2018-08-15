@@ -106,9 +106,13 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 def get_work(entry):
 	if not entry.get('is_restday') and entry['card_in'] and entry['card_out']:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
-		if entry["is_halfday"] == 1:
+		if entry["lv_status"] == 3 or entry["lv_status"] == 2:
+			entry["is_halfday"] = 1
 			entry['work'] = entry['work'] / 2
-	
+		else:
+			if entry["is_halfday"] == 1:
+				entry['work'] = entry['work'] / 2
+
 	elif entry.get('ob_status') == 1:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
 		if entry["is_halfday"] == 1:
@@ -175,6 +179,7 @@ def get_late(entry):
 		
 		if entry["late"] > frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') and frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') > 0:
 			entry["is_halfday"] = 1
+			entry['work'] = entry['work'] / 2
 
 	return entry
 
@@ -184,6 +189,7 @@ def get_undertime(entry):
 			if entry.get('is_flexible'):
 				if entry.get('work') < (entry.get('worker_secs') + entry.get('late') ):
 					entry['undertime'] += entry.get('work') - entry.get('worker_secs')
+
 			if entry.get('ob_status') == 1:
 				if entry.get('card_out') > entry.get('ob_out'):
 					if entry.get('card_out') < entry.get('time_out'):
@@ -192,8 +198,9 @@ def get_undertime(entry):
 					if entry.get('ob_out') < entry.get('time_out'):
 						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 			else:
-				if entry.get('card_out') < entry.get('time_out'):
-					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())	
+				if entry.get('lv_status') != 2:
+					if entry.get('card_out') < entry.get('time_out'):
+						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())	
 		else:
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('time_out'):
@@ -205,6 +212,7 @@ def get_absent(entry):
 	if not entry.get('is_restday') and not entry.get('lv_status') and not entry['is_holiday'] and not entry.get('ob_status') and not entry['is_lwop']:
 		if not entry.get('card_in') and not entry.get('card_out'):
 			entry['is_absent'] = 1
+			entry["work"] = 0
 	
 	if entry.get('is_restday') and not entry.get('lv_status') and not entry.get('ob_status'):
 		entry["work"] = 0
