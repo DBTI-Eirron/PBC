@@ -13,7 +13,7 @@ class PayrollProcessing(Document):
 	def get_employees(self):
 		if self.employee:
 			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
-				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, whtax_manual, whtax_freq, is_attendance_base
+				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, whtax_manual, whtax_freq, is_attendance_base, ignore_late
 					FROM tabEmployee
 					WHERE company = %(company)s
 				AND `name` = %(employee)s
@@ -28,7 +28,7 @@ class PayrollProcessing(Document):
 				}, as_dict=True)
 		else:
 			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
-				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, whtax_manual, whtax_freq, is_attendance_base
+				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, whtax_manual, whtax_freq, is_attendance_base, ignore_late
 					FROM tabEmployee
 					WHERE company = %(company)s
 				AND payroll_schedule = %(pay_sched)s 
@@ -551,6 +551,9 @@ class PayrollProcessing(Document):
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
 				absent = 0
+
+			if emp.get("ignore_late"):
+				late =0
 				
 			attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 			#attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
