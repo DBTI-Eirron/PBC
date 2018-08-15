@@ -35,6 +35,12 @@ def get_data():
 					"doctype": "Time Card",	
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "My Tardiness Report",
+					"doctype": "Work Schedule",	
+					"is_query_report": True
+				},
 			]
 		},
 	]

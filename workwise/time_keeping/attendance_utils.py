@@ -91,6 +91,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 
 	if entry["late"] > frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') and frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') > 0:
 		entry["is_halfday"] = 1
+
 	#is_attendance_base
 	if not entry.get('is_attendance_base'):
 		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
@@ -194,13 +195,15 @@ def get_undertime(entry):
 					if entry.get('ob_out') < entry.get('time_out'):
 						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 						entry['work'] -= entry['undertime']
+			else:
+				if entry.get('card_out') < entry.get('time_out'):
+					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+					entry['work'] -= entry['undertime']
 		else:
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('time_out'):
 					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 					entry['work'] -= entry['undertime']
-
-	return entry
 
 	return entry
 
@@ -265,7 +268,6 @@ def get_tags(entry):
 
 		if not entry['card_out'] and entry['is_attendance_base']:
 			entry["tags"] += " <span class='label label-warning'> No Card OUT </span> "
-
 
 	entry["tags"] += "<span class='label label-danger'> LWOP </span> " if entry['is_lwop'] > 0 else ""
 
