@@ -199,15 +199,14 @@ def get_undertime(entry):
 				if entry.get('ob_out') < entry.get('time_out'):
 					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 
-
 	return entry
 
 def get_absent(entry):
-	if not entry.get('is_restday') and not entry.get('leave_status') and not entry['is_holiday'] and not entry.get('ob_status') and not entry['is_lwop']:
+	if not entry.get('is_restday') and not entry.get('lv_status') and not entry['is_holiday'] and not entry.get('ob_status') and not entry['is_lwop']:
 		if not entry.get('card_in') and not entry.get('card_out'):
 			entry['is_absent'] = 1
 	
-	if entry.get('is_restday') and not entry.get('leave_status') and not entry.get('ob_status'):
+	if entry.get('is_restday') and not entry.get('lv_status') and not entry.get('ob_status'):
 		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
