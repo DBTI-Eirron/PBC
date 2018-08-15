@@ -552,8 +552,8 @@ class PayrollProcessing(Document):
 			if emp.get("rate_type") == "Daily Rate":
 				absent = 0
 
-			if emp.get("ignore_late"):
-				late =0
+			if emp.get('ignore_late'):
+				late = 0
 				
 			attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 			#attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
