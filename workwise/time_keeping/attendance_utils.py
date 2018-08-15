@@ -198,9 +198,12 @@ def get_undertime(entry):
 					if entry.get('ob_out') < entry.get('time_out'):
 						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 			else:
-				if entry.get('lv_status') != 2:
+				if entry.get('lv_status') == 2:
+					if entry.get('card_out') < entry.get('break_in'):
+						entry['undertime'] += abs((entry.get('card_out') - entry.get('break_in')).total_seconds())
+				elif entry.get('lv_status') == 3:
 					if entry.get('card_out') < entry.get('time_out'):
-						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())	
+						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())					
 		else:
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('time_out'):
