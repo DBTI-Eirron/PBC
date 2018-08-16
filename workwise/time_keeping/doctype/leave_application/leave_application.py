@@ -10,13 +10,13 @@ from frappe.model.document import Document
 
 class LeaveApplication(Document):
 	def validate(self):
+		self.set_lwop()
 		self.validate_leave_table()
 		self.validate_days()
 		self.validate_date()
 		self.validate_employee()
 		self.validate_balance()
 		self.validate_medical()
-		self.set_lwop()
 		self.change_owner()
 		self.get_recipients()
 
@@ -70,8 +70,10 @@ class LeaveApplication(Document):
 
 	def set_lwop(self):
 		is_lwop = frappe.get_value("Leave Type", self.leave_type, "is_lwop")
-		if is_lwop > 0:
+		if is_lwop:
 			self.is_lwop = 1
+		else:
+			self.is_lwop = 0
 
 	def validate_employee(self):
 		solo, gender, civil_status = frappe.get_value("Employee", self.employee, ["is_solo_parent", "gender", "civil_status" ])
