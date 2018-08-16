@@ -18,9 +18,6 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 					ob_date = add_days(entry.get('target_date'), 1)
 					entry['ob_out'] = get_datetime( str(ob_date)+" "+ str(ob.to_time) )
 
-				#if getdate(entry.get('target_date')) == getdate('2018-06-29'):
-				#	frappe.throw(_("{0} {1}").format(entry['ob_in'], entry['ob_out']))
-			
 	if ots:
 		for ot in ots:
 			if ot['from_date'] == entry['target_date']:
@@ -85,10 +82,6 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 			entry['late'] = 0
 			entry['work'] -= entry['undertime']
 
-	#nightdiff
-	#if get_datetime(entry.get('card_out')) > get_datetime(entry.get('nd_start')):
-	#	frappe.throw("nightdiff")
-
 	#is_attendance_base
 	if not entry.get('is_attendance_base'):
 		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
@@ -107,7 +100,6 @@ def get_work(entry):
 	if not entry.get('is_restday') and entry['card_in'] and entry['card_out']:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
 		if entry["lv_status"] == 3 or entry["lv_status"] == 2:
-			entry["is_halfday"] = 1
 			entry['work'] = entry['work'] / 2
 		else:
 			if entry["is_halfday"] == 1:
@@ -176,10 +168,6 @@ def get_late(entry):
 					entry['late'] += b_diff.total_seconds()
 					entry['work'] -= b_diff.total_seconds()
 					entry['break'] -= b_diff.total_seconds()
-		
-	if entry["late"] > frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') and frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday') > 0:
-		entry["is_halfday"] = 1
-		entry['work'] = entry['work'] / 2
 
 	return entry
 
@@ -212,24 +200,40 @@ def get_undertime(entry):
 	return entry
 
 def get_absent(entry):
-	if not entry.get('is_restday') and not entry.get('lv_status') and not entry['is_holiday'] and not entry.get('ob_status') and not entry['is_lwop']:
+	if not entry.get('is_restday') and not entry['is_holiday'] and not entry.get('ob_status'):
 		if not entry.get('card_in') and not entry.get('card_out'):
-			entry['is_absent'] = 1
-			entry["work"] = 0
-	
+			if entry.get('lv_status') == 2:
+				if entry['is_lwop'] == 1:
+					entry['is_absent'] = 1
+					entry["work"] = 0
+					
+			elif entry.get('lv_status') == 3:
+				if entry['is_lwop'] == 1:
+					entry['is_absent'] = 1
+					entry["work"] = 0
+			else:
+				if entry.get('lv_status') != 1:
+					entry['is_absent'] = 1
+					entry["work"] = 0
+					
 	if entry.get('is_restday') and not entry.get('lv_status') and not entry.get('ob_status'):
 		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
-	#if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and not entry['is_lwop']:
-	#	entry["is_absent"] = 1
 	return entry
 
 def get_final_processing(entry):
 	entry['work'] -= entry['late']
 	entry['work'] -= entry['undertime']
+	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
+	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
+		entry["late"] = 0		
+		entry["absent"] = 1		
+		entry["is_halfday"] = 1		
+		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+
 	return entry
 
 def get_tags(entry):
@@ -240,7 +244,8 @@ def get_tags(entry):
 		entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+" 1sthalf </span>"
 	elif entry['lv_status'] == 3:
 		entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+" 2ndhalf </span>"
-
+	entry["tags"] += "<span class='label label-danger'> LWOP </span> " if entry['is_lwop'] > 0 else ""		
+	entry["tags"] += "<span class='label label-danger'> Halfday </span> " if entry['is_halfday'] > 0 else ""
 	#ot tags
 	ot_map = get_overtime_map()
 	if entry.get('linked_ot') and entry.get('overtime'):
@@ -279,8 +284,6 @@ def get_tags(entry):
 
 		if not entry['card_out'] and entry['is_attendance_base']:
 			entry["tags"] += " <span class='label label-warning'> No Card OUT </span> "
-
-	entry["tags"] += "<span class='label label-danger'> LWOP </span> " if entry['is_lwop'] > 0 else ""
 
 	return entry
 
