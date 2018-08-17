@@ -69,38 +69,36 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 				if l.is_second_half:
 					entry["lv_status"] = 3
 
-	entry = get_work(entry)
+	
 	entry = get_late(entry)
 	entry = get_undertime(entry)
 	entry = get_overtime(entry)
 
 	#if flexible
-	if entry.get('is_flexible'):
-		if entry.get('work') < (entry.get('worker_secs')):
-			entry['undertime'] += abs(entry.get('work') - entry.get('worker_secs'))
-			entry['work'] += entry['late']
-			entry['late'] = 0
-			entry['work'] -= entry['undertime']
+	#if entry.get('is_flexible'):
+	#	if entry.get('work') < (entry.get('worker_secs')):
+	#		entry['undertime'] += abs(entry.get('work') - entry.get('worker_secs'))
+	#		entry['work'] += entry['late']
+	#		entry['late'] = 0
+	#		entry['work'] -= entry['undertime']
 
 	#is_attendance_base
-	if not entry.get('is_attendance_base'):
-		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
-		entry["is_absent"] = 0
-		entry["break"] = 0
-		entry["late"] = 0
-		entry["nightdiff"] = 0
-		entry["overtime"] = 0
-		entry["undertime"] = 0
 
 	entry = get_absent(entry)
+	entry = get_work(entry)
 	entry = get_final_processing(entry)
 	entry = get_tags(entry)
 
 def get_work(entry):
 	if not entry.get('is_restday') and entry['card_in'] and entry['card_out']:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
-		if entry["lv_status"] == 3 or entry["lv_status"] == 2:
+
+		if entry["lv_status"] == 3:
 			entry['work'] = entry['work'] / 2
+		
+		elif entry["lv_status"] == 2:
+			entry['work'] = entry['work'] / 2
+
 		else:
 			if entry["is_halfday"] == 1:
 				entry['work'] = entry['work'] / 2
@@ -226,6 +224,7 @@ def get_absent(entry):
 				if entry['is_lwop'] == 1:
 					entry['is_absent'] = 1
 					entry["work"] = 0
+
 			elif entry.get('lv_status') == 1:
 				if entry['is_lwop'] == 1:
 					entry["work"] = 0
@@ -251,6 +250,16 @@ def get_absent(entry):
 def get_final_processing(entry):
 	entry['work'] -= entry['late']
 	entry['work'] -= entry['undertime']
+
+	if not entry.get('is_attendance_base'):
+		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
+		entry["is_absent"] = 0
+		entry["break"] = 0
+		entry["late"] = 0
+		entry["nightdiff"] = 0
+		entry["overtime"] = 0
+		entry["undertime"] = 0
+
 	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
 	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
 		entry["late"] = 0		
