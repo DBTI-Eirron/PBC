@@ -131,6 +131,14 @@ def get_data(filters):
 	employees = get_employees(filters)
 	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
 	shift_map = get_shift_map()
+	totals = {
+		'card_out': '<b> Totals </b>',
+		'break': 0,
+		'work': 0,
+		'late': 0,
+		'undertime': 0,
+		'overtime': 0, 
+	}
 	for emp in employees:
 		timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
 		holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
@@ -159,11 +167,17 @@ def get_data(filters):
 
 			get_attendance(entry, leaves, holidays, obs, ots, uts, ext)
 			entry['break'] = convert_secs(filters, entry['break'])
+			totals['break'] += entry['break']
 			entry['work'] = convert_secs(filters, entry['work'])
+			totals['work'] += entry['work']
 			entry['late'] = convert_secs(filters, entry['late'])
+			totals['late'] += entry['late']
 			entry['undertime'] = convert_secs(filters, entry['undertime'])
+			totals['undertime'] += entry['undertime']
 			entry['overtime'] = convert_secs(filters, entry['overtime'])
+			totals['overtime'] += entry['overtime']
 			data.append(entry)
+		data.append(totals)
 
 	return data
  
