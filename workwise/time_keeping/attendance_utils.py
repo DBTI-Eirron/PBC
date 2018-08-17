@@ -131,7 +131,7 @@ def get_late(entry):
 				entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 
 		else: #get normal late if no leave
-			if entry.get('card_in'):
+			if entry.get('card_in') and entry.get('lv_status') != 1:
 				if entry.get('ob_status') == 1 and entry.get('ob_in') < entry.get('card_in'): #if has OB and is lesser than card in
 					if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
 						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
@@ -173,29 +173,44 @@ def get_late(entry):
 
 def get_undertime(entry):
 	if not entry.get('ex_tardiness'):
-		if entry['card_out']:
-			if entry.get('is_flexible'):
-				if entry.get('work') < (entry.get('worker_secs') + entry.get('late') ):
-					entry['undertime'] += entry.get('work') - entry.get('worker_secs')
+		#if entry.get('is_flexible'):
+		#	if entry.get('work') < (entry.get('worker_secs') + entry.get('late') ):
+		#		entry['undertime'] += entry.get('work') - entry.get('worker_secs')
 
-			if entry.get('ob_status') == 1:
-				if entry.get('card_out') > entry.get('ob_out'):
-					if entry.get('card_out') < entry.get('time_out'):
-						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
-				else:
-					if entry.get('ob_out') < entry.get('time_out'):
-						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
-			else:
-				if entry.get('lv_status') == 2:
-					if entry.get('card_out') < entry.get('time_out'):
-						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
-				elif entry.get('lv_status') == 3:
-					if entry.get('card_out') < entry.get('break_start'):
-						entry['undertime'] += abs((entry.get('card_out') - entry.get('break_start')).total_seconds())					
-		else:
+		if entry.get('lv_status') == 2 and entry['card_out']: #get undertime if leave is 1sthalf halfday
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('time_out'):
 					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
+			else:
+				if entry.get('card_out') < entry.get('time_out'):
+					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+
+		elif entry.get('lv_status') == 3 and entry['card_out']: #get undertime if leave is 2ndhalf halfday
+			if entry.get('ob_status') == 1:
+				if entry.get('ob_out') < entry.get('break_start'):
+					entry['undertime'] += abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
+			else:
+				if entry.get('card_out') < entry.get('break_start'):
+					entry['undertime'] += abs((entry.get('card_out') - entry.get('break_start')).total_seconds())
+		else:	
+			if entry.get('card_out') and entry.get('lv_status') != 1:
+				if entry.get('ob_status') == 1:
+					if entry.get('card_out') > entry.get('ob_out'):
+						if entry.get('card_out') < entry.get('time_out'):
+							entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+					else:
+						if entry.get('ob_out') < entry.get('time_out'):
+							entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
+				else:
+					if entry.get('card_out') < entry.get('time_out'):
+						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+			else: #if no card in check for OB
+				if entry.get('ob_status') == 1:
+					if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
+						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
+					else:
+						if entry.get('ob_in') > entry.get('time_in'):
+							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 
 	return entry
 
@@ -211,6 +226,9 @@ def get_absent(entry):
 				if entry['is_lwop'] == 1:
 					entry['is_absent'] = 1
 					entry["work"] = 0
+			elif entry.get('lv_status') == 1:
+				if entry['is_lwop'] == 1:
+					entry["work"] = 0
 			else:
 				if entry.get('lv_status') != 1:
 					entry['is_absent'] = 1
@@ -222,6 +240,12 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
+	if not entry.get('card_out') and not entry.get('is_restday') and not entry.get('lv_status') and not entry.get('ob_status'):
+		entry["work"] = 0
+		entry["late"] = 0
+		entry["undertime"] = 0
+		entry["is_absent"] = 0
+		
 	return entry
 
 def get_final_processing(entry):
