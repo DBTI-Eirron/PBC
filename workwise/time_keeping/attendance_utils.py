@@ -244,8 +244,8 @@ def get_absent(entry):
 		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
-		entry["is_absent"] = 0
-		
+		entry["is_absent"] = 1
+
 	return entry
 
 def get_final_processing(entry):
