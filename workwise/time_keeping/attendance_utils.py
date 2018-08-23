@@ -37,8 +37,10 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 				entry['ex_tardiness'] = 1
 
 	if holidays:
+		dbh = 0
 		for h in holidays:
 			if h['holiday_date'] == entry['target_date']:
+				dbh += 1
 				entry["is_absent"] = 0
 				entry['is_lwop'] = 0
 				entry["undertime"] = 0
@@ -48,8 +50,11 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 				if h['is_special'] == 1:
 					entry['is_sp_holiday'] = 1
 
-				if not entry['card_in'] or not entry['card_out']:
-					entry['work'] = entry.get('work_hours') * 60 * 60
+				#if not entry['card_in'] or not entry['card_out']:
+				#	entry['work'] = entry.get('work_hours') * 60 * 60
+		if dbh >= 2:
+			entry['is_db_holiday'] = 1
+
 	#leaves	
 	for l in leaves:
 		if l['leave_date'] == entry['target_date']:
@@ -279,6 +284,7 @@ def get_tags(entry):
 		entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+" 2ndhalf </span>"
 	entry["tags"] += "<span class='label label-danger'> LWOP </span> " if entry['is_lwop'] > 0 else ""		
 	entry["tags"] += "<span class='label label-danger'> Halfday </span> " if entry['is_halfday'] > 0 else ""
+	entry["tags"] += "<span class='label label-success'> Double Holiday </span> " if entry['is_db_holiday'] > 0 else ""
 	#ot tags
 	ot_map = get_overtime_map()
 	if entry.get('linked_ot') and entry.get('overtime'):
@@ -286,7 +292,7 @@ def get_tags(entry):
 		is_sunday = 1 if getdate(entry.get('target_date')).weekday() == 6 else 0
 		is_excess = 1 if entry.get('overtime') > 28800 else 0
 		is_ndiff = 1 if entry.get('nightdiff') > 28800 else 0
-		is_db_holiday = 0
+		is_db_holiday = entry.get('is_db_holiday')
 		#[RD][HO][SHO][DHO][SUN][SAT][EX][ND]
 		overtime_type = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, is_excess, is_ndiff]
 		overtime_type = ''.join(str(x) for x in overtime_type)
@@ -489,6 +495,7 @@ def get_defaults(emp, sched, shift_map):
 		#HOLIDAY
 		"is_holiday": 0,
 		"is_sp_holiday": 0,
+		"is_db_holiday": 0,
 		"holiday_name": "",
 		"linked_holiday": "",
 		"ex_tardiness": 0,
