@@ -343,7 +343,7 @@ class PayrollProcessing(Document):
 					hdmfe = t.employer
 					if emp['hdmf_mode'] == "Manual":
 						hdmfm = flt(emp["hdmf_manual"], 8) - hdmf
-
+						
 				for l in hdmf_list:
 					amt = flt(eval(l), 8) / 2 if emp['hdmf_freq'] == "Both" else flt(eval(l), 8)
 					hdmf_register.append({"pay_code": l.upper(), "amount": amt })
@@ -362,7 +362,7 @@ class PayrollProcessing(Document):
 				taxable += taxable
 				table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
 					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
-
+				
 				for t in table:
 					tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8) / 2
 					if t.prescribed > 0:
