@@ -18,10 +18,13 @@ def get_data():
 					"type": "doctype",
 					"name": "Recurring Entry",
 				},
-
 				{
 					"type": "doctype",
 					"name": "Batch Entry",
+				},
+				{
+					"type": "doctype",
+					"name": "Last Pay Entry",
 				},
 			]
 		},
