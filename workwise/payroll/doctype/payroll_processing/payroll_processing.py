@@ -397,11 +397,17 @@ class PayrollProcessing(Document):
 					amt = rec.amount
 				
 				if rec.method == "Present Days":
-					amt = flt(amt * header['present_days'], 8)
-				
-				if rec.method == 'Deduct Absent':
+					amt = flt(amt * header.get('present_days'), 8)
+
+				elif rec.method == 'Work Days':
+					amt = flt(amt * header.get('work_days'), 8)
+	
+				elif rec.method == 'Deduct Absent':
 					hourly_rate = self.get_hourly_rate_base(amt, emp)
 					amt = (amt - (( header.get('absent_days') * 8) * hourly_rate * 2))
+
+				elif rec.method == 'Deduct Absent Actual':
+					amt = amt - ((amt / ( header.get('work_days') * emp.get('no_hours') )) * ( header.get('absent_days') * emp.get('no_hours')))
 
 				recurring_register.append({
 						"linked_document": rec.name,
@@ -424,11 +430,17 @@ class PayrollProcessing(Document):
 		for d in batch :
 			amt = d.amount	
 			if d.method == "Present Days":
-				amt = flt(amt * header['present_days'], 8)
+				amt = flt(amt * header.get('present_days'), 8)
+
+			elif d.method == 'Work Days':
+				amt = flt(amt * header.get('work_days'), 8)
 			
-			if d.method == 'Deduct Absent':
+			elif d.method == 'Deduct Absent':
 				hourly_rate = self.get_hourly_rate_base(amt, emp)
 				amt = (amt - (( header.get('absent_days') * 8) * hourly_rate * 2))
+
+			elif d.method == 'Deduct Absent Actual':
+				amt = amt - ((amt / ( header.get('work_days') * emp.get('no_hours') )) * ( header.get('absent_days') * emp.get('no_hours')))
 
 			batch_register.append({
 					"linked_document": d.name,
