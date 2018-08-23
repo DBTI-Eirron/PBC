@@ -244,6 +244,11 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
+	if entry.get('lv_status') > 1 and not entry.get('card_out'):
+		entry["work"] = 0
+		entry["is_absent"] = 1
+		entry["is_halfday"] = 1
+
 	if not entry.get('card_out') and not entry.get('is_restday') and not entry.get('lv_status') and not entry.get('ob_status'):
 		entry["work"] = 0
 		entry["late"] = 0
