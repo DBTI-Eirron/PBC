@@ -57,6 +57,10 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Payroll Settings",
+				},
+				{
+					"type": "doctype",
 					"name": "System Policy",
 				},
 				{

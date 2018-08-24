@@ -59,6 +59,7 @@ def get_net_pay(filters):
 					INNER JOIN `tabEmployee` AS te ON tr.employee = te.NAME 
 				WHERE
 					tr.period = %(payroll_period)s 
+					AND tr.on_hold = 0
 					AND tr.company = %(company)s 
 					AND te.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 							INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
@@ -79,7 +80,8 @@ def get_net_pay(filters):
 					`tabPayroll Register` AS tr
 					INNER JOIN `tabEmployee` AS te ON tr.employee = te.NAME 
 				WHERE
-					tr.period = %(payroll_period)s 
+					tr.period = %(payroll_period)s
+					AND tr.on_hold = 0
 					AND tr.company = %(company)s 
 					AND te.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 							INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)

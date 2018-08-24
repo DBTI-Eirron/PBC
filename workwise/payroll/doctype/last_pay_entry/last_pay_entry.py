@@ -51,35 +51,42 @@ class LastPayEntry(Document):
 		return register
 
 	def get_pro_rated(self, employee ,register):
-		for d in employee:
-			start_date = d.date_hired
-			if d.date_retired:
-				end_date = d.date_retired
-			elif d.date_terminated:
-				end_date = d.date_terminated
-			elif d.date_resigned:
-				end_date = d.date_resigned
+		for emp in employee:
+			total_bonus = 0
+			rates = self.get_rates(emp)
+			bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method")
+			if bonus_method == "Bonus Basis":
+				bonus = frappe.db.sql(""" SELECT bonus FROM `tabPayroll Register` WHERE employee = %(employee)s AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+					"employee": self.employee,
+					"from_year": self.from_year,
+					"to_year": self.to_year,
+				}, as_dict=True)
 
-		total_bonus = 0
-		bonus = frappe.db.sql(""" SELECT bonus FROM `tabPayroll Register` WHERE employee = %(employee)s AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
-			"employee": self.employee,
-			"from_year": self.from_year,
-			"to_year": self.to_year,
-		}, as_dict=True)
+				cutoff = 0
+				for d in bonus:
+					total_bonus += d.bonus
+					cutoff += 1
 
-		cutoff = 0
-		for d in bonus:
-			total_bonus += d.bonus
-			cutoff += 1
+				total_bonus = total_bonus / cutoff
 
-		total_bonus = total_bonus / cutoff
+			if bonus_method == "Attendance Base":
+				att = frappe.db.sql(""" SELECT bonus, present_days FROM `tabPayroll Register` WHERE employee = %(employee)s AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+					"employee": self.employee,
+					"from_year": self.from_year,
+					"to_year": self.to_year,
+				}, as_dict=True)
+				present_days = 0
+				for d in att:
+					present_days += d.present_days
 
-		register.append({
-			"description": "Pro Rated 13th Month",
-			"type": "Add",
-			"remarks": "",
-			"amount": total_bonus,
-		})
+				total_bonus = ( present_days / emp.get('total_yr_days')) * flt(rates.get('monthly_rate'), 8)
+
+			register.append({
+				"description": "Pro Rated 13th Month",
+				"type": "Add",
+				"remarks": "("+ str(present_days) +" / "+ str(emp.get('total_yr_days'))+") x "+ str(flt(rates.get('monthly_rate'), 8)) +"",
+				"amount": total_bonus,
+			})
 
 		return register
 
@@ -117,7 +124,7 @@ class LastPayEntry(Document):
 						register.append({
 							"description": "Convertible "+ str(b.leave_type) +"", 
 							"type": "Add",
-							"remarks": ""+ str( flt(rates.get('daily_rate'), 2) ) +" x "+ str(credits)+" Credit/s",
+							"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(credits)+" Credit/s",
 							"amount": total_amt,
 						})
 
