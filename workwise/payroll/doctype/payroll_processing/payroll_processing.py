@@ -13,12 +13,12 @@ class PayrollProcessing(Document):
 	def get_employees(self):
 		if self.employee:
 			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
-				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, whtax_manual, whtax_freq, is_attendance_base, ignore_late
+				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
+				whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
 					FROM tabEmployee
 					WHERE company = %(company)s
 				AND `name` = %(employee)s
 				AND payroll_schedule = %(pay_sched)s 
-				AND on_hold = 0
 				AND is_active = 1 
 				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
 				ORDER BY last_name, first_name""",{ 
@@ -28,11 +28,11 @@ class PayrollProcessing(Document):
 				}, as_dict=True)
 		else:
 			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
-				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, whtax_manual, whtax_freq, is_attendance_base, ignore_late
+				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
+				whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
 					FROM tabEmployee
 					WHERE company = %(company)s
 				AND payroll_schedule = %(pay_sched)s 
-				AND on_hold = 0
 				AND is_active = 1 
 				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
 				ORDER BY last_name, first_name""",{ 
@@ -68,6 +68,7 @@ class PayrollProcessing(Document):
 					'employee': emp.name,
 					'employee_name': emp.full_name,
 					'company': emp.company,
+					'on_hold': emp.on_hold,
 					'posting_date': self.payroll_date,
 					'process_date': nowdate(),
 					'period': self.period,
@@ -144,7 +145,9 @@ class PayrollProcessing(Document):
 					for d in register:
 						if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
 							self.update_loans(d.get('linked_document'))
-				payslip_label = " " + emp.full_name +""
+				payslip_label = " " + str(emp.full_name) +""
+				if emp.on_hold:
+					payslip_label += " <span class='label label-danger'> On-Hold </span>"
 				ss_list.append(payslip_label)
 
 			ss_list.append("<b>Processed "+ str(proc_emp)+" / "+str(no_emp)+" Employees</b>")

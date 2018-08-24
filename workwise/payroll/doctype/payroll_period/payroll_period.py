@@ -52,47 +52,48 @@ class PayrollPeriod(Document):
 
 		self.remove_payslips()
 		employees = frappe.db.sql(""" SELECT `name`, full_name, location, company, sss_no, phic_no, hdmf_no, tin, user_id
-		FROM tabEmployee WHERE `name` IN (SELECT employee FROM `tabPayroll Register` WHERE period = %s ) ORDER BY last_name, first_name  """, self.name,as_dict=1)
+		FROM tabEmployee WHERE `name` IN (SELECT employee FROM `tabPayroll Register` WHERE period = %s ) AND on_hold != 1  ORDER BY last_name, first_name  """, self.name,as_dict=1)
 
 		for emp in employees:
 			payroll_date, net_payroll, total_incomes, total_deductions = "", 0, 0, 0
-			register = frappe.db.sql(""" SELECT PRE.*, PR.posting_date, PR.net_payroll, PR.total_deduction, PR.total_income FROM `tabPayroll Register`  PR
+			register = frappe.db.sql(""" SELECT PRE.*, PR.on_hold, PR.posting_date, PR.net_payroll, PR.total_deduction, PR.total_income FROM `tabPayroll Register`  PR
 				INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
- 				WHERE period = %(period)s and employee = %(employee)s""",{ 
+ 				WHERE period = %(period)s and employee = %(employee)s """,{ 
 					"period": self.name,
 					"employee": emp.name,
 				}, as_dict=True)
 
-			ps = frappe.new_doc("My Payslip")
-			ps.update({
-				"owner": emp.user_id, "employee": emp.name, "payroll_period": self.name, 
-				"employee_name": emp.full_name, "company": emp.company,
-				"sss_no": emp.sss_no, "phic_no": emp.phic_no, "hdmf_no": emp.hdmf_no, "tin": emp.tin,
-			});			
+			if register:
+				ps = frappe.new_doc("My Payslip")
+				ps.update({
+					"owner": emp.user_id, "employee": emp.name, "payroll_period": self.name, 
+					"employee_name": emp.full_name, "company": emp.company,
+					"sss_no": emp.sss_no, "phic_no": emp.phic_no, "hdmf_no": emp.hdmf_no, "tin": emp.tin,
+				});
 
-			for d in register:
-				if d.pay_type == "Income":
-					ps.append("payslip_incomes", {
-						"description": d.pay_description,
-						"amount": d.amount,
-					})
-				elif d.pay_type == "Deduction":
-					ps.append("payslip_deductions", {
-						"description": d.pay_description,
-						"amount": d.amount,
-					})
+				for d in register:
+					if d.pay_type == "Income":
+						ps.append("payslip_incomes", {
+							"description": d.pay_description,
+							"amount": d.amount,
+						})
+					elif d.pay_type == "Deduction":
+						ps.append("payslip_deductions", {
+							"description": d.pay_description,
+							"amount": d.amount,
+						})
 
-				payroll_date = d.posting_date
-				net_payroll = d.net_payroll
-				total_incomes = d.total_income
-				total_deductions = d.total_deduction
+					payroll_date = d.posting_date
+					net_payroll = d.net_payroll
+					total_incomes = d.total_income
+					total_deductions = d.total_deduction
 
-			ps.update({
-				"payroll_date": payroll_date,
-				"net_payroll": net_payroll,
-				"total_income": total_incomes,
-				"total_deduction": total_deductions
-			});
-			ps.insert()
+				ps.update({
+					"payroll_date": payroll_date,
+					"net_payroll": net_payroll,
+					"total_income": total_incomes,
+					"total_deduction": total_deductions
+				});
+				ps.insert()
 		
 		msgprint("Payslips Created")

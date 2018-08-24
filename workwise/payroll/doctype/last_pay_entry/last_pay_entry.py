@@ -13,7 +13,8 @@ class LastPayEntry(Document):
 		emp = frappe.db.sql("""SELECT * FROM tabEmployee WHERE `name` = %(employee)s LIMIT 1""",{ "employee": self.employee,}, as_dict=True)
 		self.set('register', [])
 		register = []
-		
+
+		self.get_on_hold(emp, register)	
 		self.get_pro_rated(emp, register)
 		self.get_leave_conversion(emp, register)
 		self.get_loan(emp ,register)
@@ -30,6 +31,24 @@ class LastPayEntry(Document):
 
 
 		self.total_pay = total_add - total_less 
+
+	def get_on_hold(self, employee ,register):
+		total_bonus = 0
+		bonus = frappe.db.sql(""" SELECT period, net_payroll FROM `tabPayroll Register` WHERE employee = %(employee)s AND on_hold = 1 AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+			"employee": self.employee,
+			"from_year": self.from_year,
+			"to_year": self.to_year,
+		}, as_dict=True)
+
+		for d in bonus:
+			register.append({
+				"description": "On Hold Payroll",
+				"type": "Add",
+				"remarks": ""+str(d.period)+"",
+				"amount": d.net_payroll,
+			})
+
+		return register
 
 	def get_pro_rated(self, employee ,register):
 		for d in employee:
