@@ -255,6 +255,13 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 1
 
+	if entry.get('lv_status') == 1:
+		entry["work"] = 0
+		entry["late"] = 0
+		entry["undertime"] = 0
+		entry["is_absent"] = 0
+
+
 	return entry
 
 def get_final_processing(entry):
