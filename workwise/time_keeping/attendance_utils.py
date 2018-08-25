@@ -23,6 +23,8 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 			if ot['from_date'] == entry['target_date']:
 				entry['overtime'] += ot.total_hrs * 60 * 60
 				entry['linked_ot'] = ot.name
+				entry['ot_in'] = get_datetime( str(ot.from_date) +" "+ str(ot.from_time) )
+				entry['ot_out'] = get_datetime( str(ot.to_date) +" "+ str(ot.to_time) )
 
 	if uts:
 		for ut in uts:
@@ -118,8 +120,8 @@ def get_work(entry):
 def get_overtime(entry):
 	if entry.get('linked_ot') and entry.get('card_out'):
 		if entry.get('card_out') > entry.get('time_out'):
-			if entry['overtime'] > (entry.get('card_out') - entry.get('time_out')).total_seconds():
-				entry['overtime'] = (entry.get('card_out') - entry.get('time_out')).total_seconds()
+			if entry.get('ot_out') > entry.get('card_out'):
+				entry['overtime'] = abs((entry.get('ot_in') - entry.get('card_out')).total_seconds())
 
 	return entry
 
@@ -396,7 +398,7 @@ def get_ob_list(employee, from_date, to_date):
 	return ob_apps
 
 def get_ot_list(employee, from_date, to_date):
-	ot_apps = frappe.db.sql("""SELECT `name`, total_hrs, from_date FROM `tabOvertime Application` 
+	ot_apps = frappe.db.sql("""SELECT `name`, total_hrs, from_date, to_date, from_time, to_time FROM `tabOvertime Application` 
 		WHERE workflow_state = 'Approved' AND employee = %s AND target_date >= %s AND target_date <= %s """, (employee, from_date, to_date), as_dict=1)
 	return ot_apps
 
