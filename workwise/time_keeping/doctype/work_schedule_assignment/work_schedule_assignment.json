@@ -1,5 +1,4 @@
 {
- "_liked_by": "[]", 
  "allow_copy": 1, 
  "allow_guest_to_view": 0, 
  "allow_import": 0, 
@@ -392,7 +391,7 @@
    "label": "Filter Type", 
    "length": 0, 
    "no_copy": 0, 
-   "options": "Department\nEmployee", 
+   "options": "Department\nEmployee\nJob Level", 
    "permlevel": 0, 
    "precision": "", 
    "print_hide": 0, 
@@ -684,7 +683,7 @@
  "issingle": 1, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2018-02-12 00:30:15.648446", 
+ "modified": "2018-08-24 14:38:36.673753", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Work Schedule Assignment", 
