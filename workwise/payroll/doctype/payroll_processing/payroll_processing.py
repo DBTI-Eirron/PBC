@@ -542,7 +542,7 @@ class PayrollProcessing(Document):
 						is_sunday = 1 if getdate(at.target_date).weekday() == 6 else 0
 						is_excess = 1 if at.overtime > 8 else 0
 						is_ndiff = 1 if at.ndiff > 8 else 0
-						is_db_holiday = 0
+						is_db_holiday = at.is_db_holiday
 
 						#[RD][HO][SHO][DHO][SUN][SAT][EX][ND]
 						overtime_type = [at.is_restday, at.is_holiday, at.is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess, is_ndiff]
@@ -556,7 +556,7 @@ class PayrollProcessing(Document):
 					if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
 						if at.is_lwop == 1 and at.lv_status > 1:
 							absent += ( emp.get('no_hours') / 2 ) * flt(rates.get('hourly_rate'), 8)
-							absent_days += 0.5 
+							absent_days += 0.5
 						else:
 							absent += ( emp.get('no_hours') / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else emp.get('no_hours') * flt(rates.get('hourly_rate'), 8)
 							absent_days += 0.5 if at.is_halfday == 1 else 1
