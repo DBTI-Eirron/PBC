@@ -14,7 +14,7 @@ class OfficialBusinessApplication(Document):
 		self.get_ob_hrs()
 		self.change_owner()
 		self.get_recipients()
-		self.change_time()
+		#self.change_time()
 
 	def on_submit(self):
 		self.validate_approve_own_application()
