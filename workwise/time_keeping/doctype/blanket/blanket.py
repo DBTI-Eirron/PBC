@@ -22,6 +22,9 @@ class Blanket(Document):
 		elif self.application_type == "Official Business Application":
 			self.get_ob_hrs()
 			self.validate_employee()
+		elif self.application_type == "Change Schedule Application":
+			self.validate_csa_fields()
+			self.csa_get_shift()
 
 	def on_submit(self):
 		if self.application_type == "Overtime Application":
@@ -32,6 +35,10 @@ class Blanket(Document):
 		
 		elif self.application_type == "Leave Application":
 			self.make_leaves()
+
+		elif self.application_type == "Change Schedule Application":
+			self.make_change_schedule_application()
+
 
 	def on_cancel(self):
 		if self.application_type == "Leave Application":
@@ -300,3 +307,39 @@ class Blanket(Document):
 
 			new_ob_app.insert()
 			new_ob_app.submit()
+
+	#Change Schedule Application
+	def validate_csa_fields(self):
+		if not self.csa_date:
+			frappe.throw(_("No Date"))
+		if not self.get("csa_table"):
+			frappe.throw(_("No Employee"))
+
+	def csa_get_shift(self):
+		fields_list = {}
+		if not self.get("csa_table"):
+			frappe.throw(_("No Employee"))
+		for d in self.get("csa_table"):
+			old_shift =  frappe.db.sql("""SELECT `name`, work_shift FROM `tabWork Schedule` WHERE employee=%s and target_date = %s LIMIT 1""",(d.employee, self.csa_date), as_dict=True);	
+			for a in old_shift:
+				d.current_shift = a.work_shift
+
+	def make_change_schedule_application(self):
+		for d in self.get("csa_table"):
+			new_csa_app = frappe.new_doc("Change Schedule Application")
+			new_csa_app.update({
+				"employee": d.employee,
+				"employee_name": d.employee_name,
+				"target_date": self.csa_date,
+				"company": self.company,
+				"old_shift": d.current_shift,
+				"new_shift": self.csa_newshift,
+				"new_time_in": self.csa_timein,
+				"new_time_out": self.csa_timeout,
+				"remarks": self.csa_remarks,
+				"workflow_state": "Approved",
+			})
+
+			new_csa_app.insert()
+			new_csa_app.save()
+			new_csa_app.submit()

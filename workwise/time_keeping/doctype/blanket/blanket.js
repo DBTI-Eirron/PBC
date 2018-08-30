@@ -78,4 +78,17 @@ frappe.ui.form.on('Blanket', {
 		} 
 	},
 
+	csa_dates: function(frm) {
+		if( frm.doc.target_date) {
+			return frappe.call({
+				method: "csa_get_shift",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_field("csa_table");
+					frm.refresh_fields();
+				}
+			});	
+		}
+	},
+
 });
