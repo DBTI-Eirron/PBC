@@ -555,14 +555,14 @@ class PayrollProcessing(Document):
 					
 					if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
 						if at.is_lwop == 1 and at.lv_status > 1:
-							absent += ( emp.get('no_hours') / 2 ) * flt(rates.get('hourly_rate'), 8)
+							absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8)
 							absent_days += 0.5
 						else:
-							absent += ( emp.get('no_hours') / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else emp.get('no_hours') * flt(rates.get('hourly_rate'), 8)
+							absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else emp.get('no_hours') * flt(rates.get('hourly_rate'), 8)
 							absent_days += 0.5 if at.is_halfday == 1 else 1
 
 					if at.is_holiday == 1 and (prev_lwop == 1 or prev_absent == 1 ) and not at.is_ob:
-						unpaid_holiday += emp.get('no_hours') * flt(rates.get('hourly_rate'), 8)
+						unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 
 					#check if this attendance is lwop or absent for next attendance
 					prev_lwop = 1 if at.is_lwop else 0
