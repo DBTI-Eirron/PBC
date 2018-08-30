@@ -354,13 +354,18 @@ def get_schedule(employee, pay_from, pay_to):
 
 def get_shift_map():
 	shift_map = {}
-	shifts = frappe.db.sql("""SELECT `name`, work_hours, grace_period, b_grace_period, is_restday,
+	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
 			is_flexible, setup_preshift, setup_postshift, ignore_late
 		FROM `tabWork Shift` """, as_dict=True)
-
+	
 	for d in shifts:
+		if flt(d.override_hrs) > 0:		
+			work_hours = d.override_hrs		
+		else:		
+			work_hours = d.work_hours
+
 		shift_map[d.name] = {
-			"work_hours": d.work_hours,
+			"work_hours": work_hours,
 			"grace_period": d.grace_period,
 			"b_grace_period": d.b_grace_period,
 			"is_restday": d.is_restday,
