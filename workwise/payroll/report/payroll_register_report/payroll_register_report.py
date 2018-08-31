@@ -48,7 +48,6 @@ def execute(filters=None):
 			total_payroll = 0
 		row += [total_income, total_deduction, total_payroll]
 		grand_total += total_payroll
-		
 		data.append(row)
 	total_row += ["", "", grand_total]
 	data.append(total_row)
@@ -85,10 +84,10 @@ def get_columns(employee_list):
 
 	if employee_list:
 		income_types = frappe.db.sql_list(""" SELECT code
-			FROM `tabTransaction Type` WHERE `type` = 'Income' ORDER BY code """)
+			FROM `tabTransaction Type` WHERE `type` = 'Income' ORDER BY sort """)
 
 		deduction_types = frappe.db.sql_list(""" SELECT code
-			FROM `tabTransaction Type` WHERE `type` = 'Deduction' ORDER BY code""")
+			FROM `tabTransaction Type` WHERE `type` = 'Deduction' ORDER BY sort""")
 
 	for pay_code in income_types:
 		pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
