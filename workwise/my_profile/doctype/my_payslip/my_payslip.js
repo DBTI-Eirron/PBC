@@ -7,6 +7,7 @@ frappe.ui.form.on('My Payslip', {
 	},
 
 	refresh: function(frm){
+		var host_link = window.location.hostname+":8080";
 		cur_frm.toggle_display('basic_section',false);
 		cur_frm.toggle_display('entries_section',false);
 		cur_frm.toggle_display('totals_section',false);
@@ -33,6 +34,10 @@ frappe.ui.form.on('My Payslip', {
 						cur_frm.toggle_display('totals_section', true);		
 					}
 					frm.pass_dialog.hide()
+					frm.add_custom_button(__('Print Payslip'),
+						function() {
+							window.open("http://192.168.1.169:8080/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2FReports&reportUnit=%2FReports%2FPayslip2&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+						});
 				}
 			});
 		});
