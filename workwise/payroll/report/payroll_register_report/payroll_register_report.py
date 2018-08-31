@@ -33,17 +33,17 @@ def execute(filters=None):
 		row = [emp.name, emp.full_name]
 		total_income = 0
 		for income in income_types:
-			income_amount = flt(income_map.get(emp.name, {}).get(income), 2)
-			total_income += flt(income_amount, 2)
+			income_amount = flt(income_map.get(emp.name, {}).get(income), 8)
+			total_income += flt(income_amount, 8)
 			row.append(income_amount)
 
 		total_deduction = 0
 		for deduction in deduction_types:
-			deduction_amount = flt(deduction_map.get(emp.name, {}).get(deduction), 2)
-			total_deduction += flt(deduction_amount, 2)
+			deduction_amount = flt(deduction_map.get(emp.name, {}).get(deduction), 8)
+			total_deduction += flt(deduction_amount, 8)
 			row.append(deduction_amount)
 
-		total_payroll = flt(total_income, 2) - flt(total_deduction, 2)
+		total_payroll = flt(total_income, 8) - flt(total_deduction, 8)
 		if total_payroll < 0:
 			total_payroll = 0
 		row += [total_income, total_deduction, total_payroll]
