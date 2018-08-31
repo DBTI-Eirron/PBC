@@ -64,37 +64,34 @@ class PayrollPeriod(Document):
 				}, as_dict=True)
 
 			if register:
+				letter_head = frappe.db.get_value("Company", emp.company, "default_letter_head")
 				ps = frappe.new_doc("My Payslip")
 				ps.update({
 					"owner": emp.user_id, "employee": emp.name, "payroll_period": self.name, 
 					"employee_name": emp.full_name, "company": emp.company,
 					"sss_no": emp.sss_no, "phic_no": emp.phic_no, "hdmf_no": emp.hdmf_no, "tin": emp.tin,
 				});
-				total_incomes, total_deductions = 0, 0
 
 				for d in register:
 					if d.pay_type == "Income":
 						ps.append("payslip_incomes", {
 							"description": d.pay_description,
-							"amount": flt(d.amount, 8),
+							"amount": d.amount,
 						})
-						total_incomes += flt(d.amount, 8)
-
 					elif d.pay_type == "Deduction":
 						ps.append("payslip_deductions", {
 							"description": d.pay_description,
-							"amount": flt(d.amount, 8),
+							"amount": d.amount,
 						})
-						total_deductions += flt(d.amount, 8)
 
 					payroll_date = d.posting_date
-				
-				total_incomes = flt(total_incomes, 8)
-				total_deductions = flt(total_deductions, 8)
-				net_payroll = flt(total_incomes, 8) - flt(total_deductions, 8) 
+					net_payroll = d.net_payroll
+					total_incomes = d.total_income
+					total_deductions = d.total_deduction
 
 				ps.update({
 					"payroll_date": payroll_date,
+					"letter_head": letter_head,
 					"net_payroll": net_payroll,
 					"total_income": total_incomes,
 					"total_deduction": total_deductions
