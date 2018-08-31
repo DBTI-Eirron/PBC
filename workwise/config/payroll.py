@@ -162,6 +162,10 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
+					"name": "BIR2316",
+				},	
+				{
+					"type": "doctype",
 					"name": "SSS Setup",
 				},			
 				{
