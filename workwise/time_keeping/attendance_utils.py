@@ -103,8 +103,12 @@ def get_work(entry):
 		if entry["lv_status"] == 3:
 			entry['work'] = entry['work'] / 2
 		
+		
 		elif entry["lv_status"] == 2:
 			entry['work'] = entry['work'] / 2
+
+		elif entry["lv_status"] == 1:
+			entry['work'] = 0
 
 		else:
 			if entry["is_halfday"] == 1:
