@@ -14,6 +14,7 @@ class ChangeScheduleApplication(Document):
 		self.change_sched()
 		self.change_owner()
 		self.get_recipients()
+		self.get_approver_and_date()
 
 	def on_cancel(self):
 		self.validate_reject_cancel_own_application()
@@ -120,3 +121,7 @@ class ChangeScheduleApplication(Document):
 			user_id = frappe.get_value("Employee", self.employee, "user_id")
 			if user_id == frappe.session.user:
 				frappe.throw(_("You cannot reject or cancel your own application"))
+
+	def get_approver_and_date(self):
+		self.approved_by = frappe.session.user
+		self.approved_on = nowdate()

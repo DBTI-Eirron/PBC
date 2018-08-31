@@ -21,9 +21,14 @@ class OvertimeApplication(Document):
 
 	def on_submit(self):
 		self.validate_approve_own_application()
+		self.get_approver_and_date()
 
 	def on_cancel(self):
 		self.validate_reject_cancel_own_application()
+
+	def get_approver_and_date(self):
+		self.approved_by = frappe.session.user
+		self.approved_on = nowdate()
 
 	def change_owner(self):
 		owner = ""

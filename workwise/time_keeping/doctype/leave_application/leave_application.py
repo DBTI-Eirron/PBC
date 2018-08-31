@@ -27,11 +27,16 @@ class LeaveApplication(Document):
 		self.validate_leave()
 		self.validate_balance()
 		self.update_leave_credits()
+		self.get_approver_and_date()
 
 	def on_cancel(self):
 		self.validate_reject_cancel_own_application()
 		frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits - %s 
 			WHERE name = %s """, (self.total_leave_days, self.from_balance))
+
+	def get_approver_and_date(self):
+		self.approved_by = frappe.session.user
+		self.approved_on = nowdate()
 
 	def change_owner(self):
 		owner = ""
