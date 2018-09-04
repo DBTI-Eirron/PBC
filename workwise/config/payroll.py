@@ -181,5 +181,15 @@ def get_data():
 					"name": "TRAIN Setup",
 				},
 			]
-		}
+		},		
+		{
+			"label": _("Utilities"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Payroll Process Logs",
+				},
+			]
+		},
+
 	]

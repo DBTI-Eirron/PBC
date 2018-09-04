@@ -229,7 +229,19 @@ class BIR2316(Document):
 	def get_employee_dependants(self):
 		i = 1
 		employee_family = frappe.db.sql(""" SELECT DISTINCT `full_name`, `birthday` FROM `tabFamily Members` WHERE `is_qualified_dependent` = 1 AND `parent` = %s """, (self.employee), as_dict=1)
-		for fam in employee_family:
-			self.dependent_name_1 = fam.full_name
-			self.dependent_birthday_1 = fam.birthday
+		for d in employee_family:
+			if i == 1:
+				self.dependent_name_1 = d.full_name
+				self.dependent_birthday_1 = d.birthday
+			if i == 2:
+				self.dependent_name_2 = d.full_name
+				self.dependent_birthday_2 = d.birthday
+			if i == 3:
+				self.dependent_name_3 = d.full_name
+				self.dependent_birthday_3 = d.birthday
+			if i == 4:
+				self.dependent_name_4 = d.full_name
+				self.dependent_birthday_4 = d.birthday
+			if i >=5:
+				break
 			i += 1
