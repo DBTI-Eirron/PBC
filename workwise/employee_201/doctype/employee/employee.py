@@ -20,6 +20,7 @@ class Employee(Document):
 		self.validate_spouse()
 		self.validate_salary()
 		self.create_user()
+		self.validate_is_qualified_dependent()
 
 	def on_update(self):
 		if self.user_id:
@@ -120,3 +121,8 @@ class Employee(Document):
 					return "access_granted"
 				else:
 					return "access_denied"
+
+	def validate_is_qualified_dependent(self):
+		for emp in self.get("family_members"):
+			if emp.is_qualified_dependent == 1:
+				emp.is_dependent = 1
