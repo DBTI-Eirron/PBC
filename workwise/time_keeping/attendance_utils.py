@@ -272,7 +272,6 @@ def get_absent(entry):
 def get_final_processing(entry):
 	entry['work'] -= entry['late']
 	entry['work'] -= entry['undertime']
-
 	if not entry.get('is_attendance_base'):
 		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
 		entry["is_absent"] = 0

@@ -3,9 +3,10 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, datetime
+from datetime import timedelta, datetime
 from frappe import _
-from frappe.utils import nowdate, cstr
+from frappe.utils import nowdate, cstr, getdate
 from frappe.model.document import Document
 
 class DTRProblemApplication(Document):
@@ -66,7 +67,18 @@ class DTRProblemApplication(Document):
 		self.approved_by = frappe.session.user
 		self.approved_on = nowdate()
 
+	def update_target_date(self):
+		target_date = datetime.strptime(str(self.target_date) + ' ' + '00:00:00', '%Y-%m-%d %H:%M:%S').date()
+		#frappe.throw(_(target_date))
+		if self.is_previous:
+			target_date = target_date - timedelta(days=1)
+		else:
+			target_date = self.target_date
+
+		return target_date
+
 	def make_timecard(self):
+		target_date = self.update_target_date()
 		bio = frappe.db.get_value("Employee", self.employee, "biometrics_id")
 		for req in self.get("time_record_request"):
 			card_type = self.get_card_type(req)
@@ -74,7 +86,7 @@ class DTRProblemApplication(Document):
 			new_timecard.update({
 				"biometrics_id": bio,
 				"card_type": card_type,
-				"date": self.target_date,
+				"date": str(target_date),
 				"time": req.request
 			})
 
