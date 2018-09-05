@@ -8,7 +8,7 @@
  "idx": 1, 
  "is_standard": "Yes", 
  "letter_head": "time keeping report", 
- "modified": "2018-03-06 10:32:12.522866", 
+ "modified": "2018-09-05 11:42:29.770753", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Employee Tardiness Report", 
@@ -21,10 +21,7 @@
    "role": "Administrator"
   }, 
   {
-   "role": "Report Manager"
-  }, 
-  {
-   "role": "All"
+   "role": "HR Manager"
   }, 
   {
    "role": "Time Keeping Manager"
@@ -33,7 +30,7 @@
    "role": "Maintenance Manager"
   }, 
   {
-   "role": "Rank and File"
+   "role": "Payroll Manager"
   }
  ]
 }
