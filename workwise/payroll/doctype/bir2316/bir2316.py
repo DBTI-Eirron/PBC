@@ -24,8 +24,7 @@ class BIR2316(Document):
 			entry = {
 				"tax_id": "000-000-000",
 				"rdo_code": "000",
-				"employer_name": "",
-				"employer_addr": "",
+				"employer_name": e.company,
 				"civil_status": e.civil_status,
 				"birthday": e.birthday,
 				"ntax_bs": 0,
@@ -62,7 +61,6 @@ class BIR2316(Document):
 			self.date_of_birth = entry.get('birthday')
 			self.exemption_status = entry.get('civil_status')
 			self.employer_name = entry.get('employer_name')
-			self.employer_addr = entry.get('employer_addr')
 			self.ntax_bs = entry.get('ntax_bs')
 			self.ntax_ho = entry.get('ntax_ho')
 			self.ntax_ot = entry.get('ntax_ot')
@@ -91,6 +89,7 @@ class BIR2316(Document):
 		self.get_employee_address()
 		self.get_employee_contact()
 		self.get_employee_dependants()
+		self.get_company_address()
 
 	def get_employee_info(self, e, entry):
 		entry['tax_id'] = e.tin
@@ -245,3 +244,9 @@ class BIR2316(Document):
 			if i >=5:
 				break
 			i += 1
+
+	def get_company_address(self):
+		company_address = frappe.db.sql(""" SELECT DISTINCT TA.`address_line1`, TA.`pincode`, TA.`address_type` FROM `tabDynamic Link` DL JOIN `tabAddress` TA WHERE DL.`parenttype` = "Address" AND DL.`link_doctype` = "Company" AND DL.`parent` = TA.`name` AND TA.`address_type` = "Registered" AND DL.`link_name` = %s """, (self.employer_name), as_dict=1)
+		for com in company_address:
+			self.employer_addr = com.address_line1
+			self.employer_zip = com.pincode
