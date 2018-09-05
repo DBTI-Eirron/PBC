@@ -166,14 +166,14 @@ class BIR2316(Document):
 			if bir_type == "Deminimis" and not is_taxable:
 				entry['ntax_demi'] += d.amount
 
-			if bir_type == "Contribution" and not is_taxable:
-				entry['ntax_contrib'] += d.amount
-
 			if bir_type == "Other" and not is_taxable:
 				entry['ntax_other'] += d.amount
 
 			if bir_type == "Hazard" and not is_taxable:
 				entry['ntax_hazard'] += d.amount
+			
+			if bir_type == "Contribution":
+				entry['ntax_contrib'] += d.amount
 
 		if is_taxable:
 			entry['tax_total'] = entry['tax_bs'] + entry['tax_rep'] + entry['tax_transpo'] + entry['tax_cola'] + entry['tax_housing'] + entry['tax_commission'] + entry['tax_sharing'] + entry['tax_fees'] + entry['tax_bonus'] + entry['tax_ot'] + entry['tax_hazard']
