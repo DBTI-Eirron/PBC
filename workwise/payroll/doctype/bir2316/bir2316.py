@@ -208,6 +208,12 @@ class BIR2316(Document):
 		self.tax_id = tl+"-"+tm+"-"+tr+"-"+tx
 
 	def get_employee_address(self):
+		self.foreign_address = ""
+		self.foreign_address_zipcode = ""
+		self.registered_address = ""
+		self.registered_address_zipcode = ""
+		self.local_address = ""
+		self.local_address_zipcode = ""
 		employee_address = frappe.db.sql(""" SELECT DISTINCT TA.`address_line1`, TA.`pincode`, TA.`address_type` FROM `tabDynamic Link` DL JOIN `tabAddress` TA WHERE DL.`parenttype` = "Address" AND DL.`link_doctype` = "Employee" AND DL.`parent` = TA.`name` AND TA.`address_type` = "Foreign" OR TA.`address_type` = "Local Home" OR TA.`address_type` = "Registered" AND DL.`link_name` = %s """, (self.employee), as_dict=1)
 		for add in employee_address:
 			if add.address_type == "Foreign":
@@ -221,11 +227,20 @@ class BIR2316(Document):
 				self.local_address_zipcode = add.pincode
 
 	def get_employee_contact(self):
+		self.telephone_number = ""
 		employee_contact = frappe.db.sql(""" SELECT DISTINCT TC.`phone` FROM `tabContact` TC JOIN `tabDynamic Link` DL WHERE DL.`parenttype` = "Contact" AND DL.`link_doctype` = "Employee" AND DL.`link_name` = %s LIMIT 1""", (self.employee), as_dict=1)
 		for con in employee_contact:
 			self.telephone_number = con.phone
 
 	def get_employee_dependants(self):
+		self.dependent_name_1 = ""
+		self.dependent_birthday_1 = ""
+		self.dependent_name_2 = ""
+		self.dependent_birthday_2 = ""
+		self.dependent_name_3 = ""
+		self.dependent_birthday_3 = ""
+		self.dependent_name_4 = ""
+		self.dependent_birthday_4 = ""
 		i = 1
 		employee_family = frappe.db.sql(""" SELECT DISTINCT `full_name`, `birthday` FROM `tabFamily Members` WHERE `is_qualified_dependent` = 1 AND `parent` = %s """, (self.employee), as_dict=1)
 		for d in employee_family:
@@ -246,6 +261,8 @@ class BIR2316(Document):
 			i += 1
 
 	def get_company_address(self):
+		self.employer_addr = ""
+		self.employer_zip = ""
 		company_address = frappe.db.sql(""" SELECT DISTINCT TA.`address_line1`, TA.`pincode`, TA.`address_type` FROM `tabDynamic Link` DL JOIN `tabAddress` TA WHERE DL.`parenttype` = "Address" AND DL.`link_doctype` = "Company" AND DL.`parent` = TA.`name` AND TA.`address_type` = "Registered" AND DL.`link_name` = %s """, (self.employer_name), as_dict=1)
 		for com in company_address:
 			self.employer_addr = com.address_line1
