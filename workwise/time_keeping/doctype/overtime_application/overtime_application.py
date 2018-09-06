@@ -18,6 +18,7 @@ class OvertimeApplication(Document):
 		self.change_owner()
 		self.get_recipients()
 		self.validate_overtime()
+		self.validate_duplicate_ot_application()
 
 	def on_submit(self):
 		self.validate_approve_own_application()
@@ -117,3 +118,10 @@ class OvertimeApplication(Document):
 			user_id = frappe.get_value("Employee", self.employee, "user_id")
 			if user_id == frappe.session.user:
 				frappe.throw(_("You cannot reject or cancel your own application"))
+
+	def validate_duplicate_ot_application(self):
+		application = frappe.db.sql(""" SELECT `name` FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `from_date` = %s AND `to_date` = %s AND `to_time` = %s AND `from_time` = %s """,(self.employee, self.from_date, self.to_date, self.to_time, self.from_time), as_dict=True)
+
+		for d in application:
+			if d.name:
+				frappe.throw(_("Application already exists, {0}.").format(d.name))
