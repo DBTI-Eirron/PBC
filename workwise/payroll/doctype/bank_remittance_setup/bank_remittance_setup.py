@@ -11,15 +11,16 @@ from frappe.model.document import Document
 class BankRemittanceSetup(Document):
 	def validate(self):
 		self.validate_duplicate_document()
-		self.validate_duplicate_employees_with_bank_remittance_setup()
 		self.fill_company()
-		self.fill_employees()
 		self.remove_duplicates()
 		self.get_employees_count()
+		self.validate_duplicate_employees_with_bank_remittance_setup()
+
+	def on_submit(self):
+		pass
 
 	def validate_duplicate_employees_with_bank_remittance_setup(self):
-		employees = self.get_employees()
-		for d in employees:
+		for d in self.get("employees"):
 			setup = frappe.db.sql(""" SELECT DISTINCT BS.`name` FROM `tabBank Remittance Setup` BS JOIN `tabBank Remittance Setup Table` BT ON BS.`name` = BT.`parent` WHERE BS.`docstatus` = 1 AND BS.`company` = %(company)s AND BS.`payroll_period` = %(period)s AND BT.`employee` = %(employee)s """,{ 
 				"period": self.payroll_period,
 				"company": self.company,
@@ -41,14 +42,16 @@ class BankRemittanceSetup(Document):
 			frappe.throw(_("Setup for Payroll Period {0} already exists").format(self.payroll_period))
 
 	def get_employees(self):
-		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll FROM `tabPayroll Register` PR JOIN `tabBank Setup Table` BR WHERE PR.`employee` = BR.`parent` AND PR.`period` = %(period)s AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s """,{ 
+		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll FROM `tabPayroll Register` PR JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` WHERE TE.`on_hold` = 0 AND PR.`period` = %(period)s AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s """,{ 
 			"period": self.payroll_period,
 			"bank": self.bank,
+			"account_type": self.bank_account_type,
 		}, as_dict=True)
 
 		return employees
 
 	def fill_employees(self):
+		self.set('employees', [])
 		employees = self.get_employees()
 
 		for d in employees:

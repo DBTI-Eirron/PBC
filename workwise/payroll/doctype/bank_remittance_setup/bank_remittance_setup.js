@@ -33,6 +33,10 @@ frappe.ui.form.on('Bank Remittance Setup', {
 		frm.trigger("fill_employees");
 	},
 
+	bank_account_type: function(frm) {
+		frm.trigger("fill_employees");
+	},
+
 	fill_company: function(frm) {
 		if(frm.doc.bank && frm.doc.company) {
 			return frappe.call({
@@ -46,7 +50,7 @@ frappe.ui.form.on('Bank Remittance Setup', {
 	},
 
 	fill_employees: function(frm) {
-		if(frm.doc.bank && frm.doc.company && frm.doc.payroll_period && frm.doc.payroll_date && frm.doc.payroll_schedule && frm.doc.funding_account) {
+		if(frm.doc.bank && frm.doc.company && frm.doc.payroll_period && frm.doc.payroll_date && frm.doc.payroll_schedule && frm.doc.funding_account && frm.doc.bank_account_type) {
 			return frappe.call({
 				method: "fill_employees",
 				doc: frm.doc,
