@@ -36,7 +36,7 @@ def get_columns(filters):
 		},
 	]
 
-	if filters.bank == "Bank of the Philippine Islands":
+	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI" :
 		columns += [
 			{
 				"fieldname": "payroll_schedule",
