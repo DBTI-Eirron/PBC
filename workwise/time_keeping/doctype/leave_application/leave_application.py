@@ -244,9 +244,20 @@ class LeaveApplication(Document):
 		self.total_leave_days = self.get_total_leave_days()
 
 	def get_leave_balance(self):
+		self.from_balance = ""
 		total_balance = 0
+		deduct_balance = ""
+
+		deduct = frappe.db.sql(""" SELECT `name`, `deduct_to` FROM `tabLeave Type` LT WHERE `name` = %s LIMIT 1 """, (self.leave_type), as_dict=True)
+
+		if deduct:
+			if deduct[0].deduct_to:
+				deduct_balance = deduct[0].deduct_to
+			else:
+				deduct_balance = deduct[0].name
+
 		bal = frappe.db.sql("""SELECT `name`, credits, used_credits, from_date, to_date FROM `tabLeave Balance` WHERE employee = %s 
-			AND leave_type = %s AND (%s BETWEEN from_date AND to_date) AND (%s BETWEEN from_date AND to_date) """, (self.employee, self.leave_type, self.from_date, self.to_date), as_dict=True)
+			AND leave_type = %s AND (%s BETWEEN from_date AND to_date) AND (%s BETWEEN from_date AND to_date) """, (self.employee, deduct_balance, self.from_date, self.to_date), as_dict=True)
 
 		if bal:
 			total_balance = flt(bal[0]['credits'], 2) - flt( bal[0]['used_credits'], 2)
