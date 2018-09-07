@@ -5,6 +5,7 @@ cur_frm.add_fetch('employee', 'full_name', 'employee_name');
 cur_frm.add_fetch('employee', 'position_title', 'current_position');
 cur_frm.add_fetch('employee', 'job_level', 'current_job_level');
 cur_frm.add_fetch('employee', 'employment_status', 'current_employment_status');
+cur_frm.add_fetch('employee', 'company', 'current_company');
 cur_frm.add_fetch('employee', 'department', 'current_department');
 cur_frm.add_fetch('employee', 'location', 'current_location');
 cur_frm.add_fetch('employee', 'end_of_contract', 'current_end_of_contract');

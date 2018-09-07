@@ -146,6 +146,7 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
+					"company": self.new_company,
 					"department": self.new_department,
 					"location": self.new_location,
 				})
@@ -155,6 +156,7 @@ class EmployeeMovement(Document):
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
+					"company": self.current_company,
 					"department": self.current_department,
 					"location": self.current_location,
 				})
