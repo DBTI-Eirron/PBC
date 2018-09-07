@@ -12,10 +12,10 @@ from frappe.model.document import Document
 class DTRProblemApplication(Document):
 	def validate(self):
 		self.get_request()
-		self.get_approver_details()
-
+		
 	def on_submit(self):
 		self.approve_request()
+		self.get_approver_details()
 
 	def on_cancel(self):
 		self.revert_request()
@@ -44,8 +44,14 @@ class DTRProblemApplication(Document):
 				timecard_sel = self.get_timecard(card)
 				frappe.client.set_value("Time Card", timecard_sel[0].name, "time", req.current)
 			if req.action == "Approved" and not req.current:
-				if frappe.db.exists("Time Card", req.time_card):
-					frappe.delete_doc("Time Card", req.time_card)
+				if req.time_card:
+					if frappe.db.exists("Time Card", req.time_card):
+						frappe.delete_doc("Time Card", req.time_card)
+				else:
+					bio = frappe.db.get_value("Employee", self.employee, "biometrics_id")
+					card = self.get_card_type(req)
+					frappe.db.sql(""" DELETE FROM `tabTime Card` WHERE `biometrics_id` = %s AND card_type = %s AND `date` = %s AND `time` = %s """, (bio, card, self.target_date, req.request), as_dict=True)
+					frappe.db.commit()
 
 	def get_card_type(self, req):
 		if req.type == "Time In":
