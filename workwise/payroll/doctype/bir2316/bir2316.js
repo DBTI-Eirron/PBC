@@ -2,13 +2,20 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('BIR2316', {
-	refresh: function(frm) {
-		var host_link = window.location.hostname+":8080";
-		frm.add_custom_button(__('Print BIR2316'),
-			function() {
-				window.open("http://"+host_link+"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2FReports&reportUnit=%2FReports%2FBIR2316&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf");
-			});
+	onload: function(frm) {
+		
+	},
 
+	refresh: function(frm) {
+		cur_frm.toggle_display('employee_info', false);
+		cur_frm.toggle_display('wife_exemption_claim', false);
+		var host_link = window.location.hostname+":8080";
+		if(frm.doc.docstatus == 1){
+			frm.add_custom_button(__('Print BIR2316'),
+			function() {
+				window.open("http://"+host_link+"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2FReports&reportUnit=%2FReports%2FBIR2316&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+			});
+		}
 	},
 
 	payroll_year: function(frm) {
@@ -37,6 +44,8 @@ frappe.ui.form.on('BIR2316', {
 				method: "get_info",
 				doc: frm.doc,
 				callback: function(r) {
+					cur_frm.toggle_display('employee_info', true);
+					cur_frm.toggle_display('wife_exemption_claim', true);
 					frm.refresh_fields();
 				}
 			});

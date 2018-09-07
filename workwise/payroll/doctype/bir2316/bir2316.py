@@ -10,8 +10,15 @@ from frappe.model.document import Document
 
 class BIR2316(Document):
 	def validate(self):
+		self.get_info()
 		self.get_agent()
-	
+
+	def validate_fields(self):
+		if not self.employee:
+			frappe.throw(_("No Employee selected"))
+		if not self.payroll_year:
+			frappe.throw(_("No Payroll Year selected"))
+
 	def get_agent(self):
 		approver = frappe.session.user
 		agents = frappe.db.sql("""SELECT full_name FROM tabEmployee WHERE `user_id` = %s LIMIT 1""", (approver), as_dict=True)
@@ -19,6 +26,8 @@ class BIR2316(Document):
 			self.agent = d.full_name
 
 	def get_info(self):
+		self.validate_fields()
+		self.wife_exemption_claim = "No"
 		emp = frappe.db.sql("""SELECT * FROM tabEmployee WHERE `name` = %(employee)s LIMIT 1""",{ "employee": self.employee,}, as_dict=True)
 		for e in emp:
 			entry = {
@@ -105,6 +114,8 @@ class BIR2316(Document):
 		return entry
 
 	def get_salary_info(self, e, entry, tr_map):
+		bir_type = ""
+		is_taxable = ""
 		salary = frappe.db.sql("""SELECT pr.employee, pr.employee_name, pre.pay_code, pre.amount FROM `tabPayroll Register` pr
 			INNER JOIN `tabPayroll Register Entries` pre ON pre.parent = pr.`name`
 			WHERE employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
