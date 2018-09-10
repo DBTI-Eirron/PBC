@@ -541,7 +541,7 @@ class PayrollProcessing(Document):
 						is_saturday = 1 if getdate(at.target_date).weekday() == 5 else 0
 						is_sunday = 1 if getdate(at.target_date).weekday() == 6 else 0
 						is_excess = 1 if at.overtime > 8 else 0
-						is_ndiff = 1 if at.ndiff > 8 else 0
+						is_ndiff = 1 if at.nightdiff > 8 else 0
 						is_db_holiday = at.is_db_holiday
 
 						#[RD][HO][SHO][DHO][SUN][SAT][EX][ND]
@@ -552,6 +552,14 @@ class PayrollProcessing(Document):
 							overtime += at.overtime * rates.get('hourly_rate') * (ot_map[overtime_type]['rate'] / 100)
 						else:
 							overtime += at.overtime * rates.get('hourly_rate')
+
+						if at.nightdiff:
+							nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
+							#ndiff_type = [at.is_restday, at.is_holiday, at.is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess, 1]
+							#if ndiff_type in ot_map:
+							#	ndiff += at.nightdiff * rates.get('hourly_rate') * (ot_map[overtime_type]['rate'] / 100)
+							#else:
+							#	ndiff += at.nightdiff * rates.get('hourly_rate')
 					
 					if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
 						if at.is_lwop == 1 and at.lv_status > 1:
@@ -578,6 +586,7 @@ class PayrollProcessing(Document):
 			attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 			#attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
 			attendance_register.append({"pay_code": "OT", "amount": flt(overtime, 8) })
+			attendance_register.append({"pay_code": "ND", "amount": flt(nightdiff, 8) })
 			attendance_register.append({"pay_code": "LT", "amount": flt(late, 8) })
 			attendance_register.append({"pay_code": "UT", "amount": flt(undertime, 8) })
 			

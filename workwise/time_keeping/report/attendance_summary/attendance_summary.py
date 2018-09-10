@@ -85,6 +85,12 @@ def get_columns(filters):
 			"width": 60
 		},
 		{
+			"fieldname": "nightdiff",
+			"label": _("ND"),
+			"fieldtype": "Float",
+			"width": 60
+		},
+		{
 			"fieldname": "undertime",
 			"label": _("UT"),
 			"fieldtype": "Float",
@@ -138,6 +144,7 @@ def get_data(filters):
 		'late': 0,
 		'undertime': 0,
 		'overtime': 0, 
+		'nightdiff': 0,
 	}
 	for emp in employees:
 		timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
@@ -176,6 +183,8 @@ def get_data(filters):
 			totals['undertime'] += entry['undertime']
 			entry['overtime'] = convert_secs(filters, entry['overtime'])
 			totals['overtime'] += entry['overtime']
+			entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
+			totals['nightdiff'] += entry['nightdiff']
 			data.append(entry)
 		data.append(totals)
 

@@ -20,7 +20,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 
 	if ots:
 		for ot in ots:
-			if ot['from_date'] == entry['target_date']:
+			if ot['target_date'] == entry['target_date']:
 				entry['overtime'] += ot.total_hrs * 60 * 60
 				entry['linked_ot'] = ot.name
 				entry['ot_in'] = get_datetime( str(ot.from_date) +" "+ str(ot.from_time) )
@@ -77,9 +77,10 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 					entry["lv_status"] = 3
 
 	
-	entry = get_late(entry)
-	entry = get_undertime(entry)
-	entry = get_overtime(entry)
+	get_late(entry)
+	get_undertime(entry)
+	get_overtime(entry)
+	#get_ndiff(entry)
 
 	#if flexible
 	#if entry.get('is_flexible'):
@@ -91,10 +92,10 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 
 	#is_attendance_base
 
-	entry = get_absent(entry)
-	entry = get_work(entry)
-	entry = get_final_processing(entry)
-	entry = get_tags(entry)
+	get_absent(entry)
+	get_work(entry)
+	get_final_processing(entry)
+	get_tags(entry)
 
 def get_work(entry):
 	if not entry.get('is_restday') and entry['card_in'] and entry['card_out']:
@@ -129,7 +130,16 @@ def get_overtime(entry):
 
 	return entry
 
+def get_ndiff(entry):	
+	if entry.get('time_out') > entry.get('nd_start'):
+		entry['nightdiff'] += (entry.get('time_out') - entry.get('nd_start')).total_seconds()
+		if entry.get('time_out') > entry.get('nd_end'):
+			entry['nightdiff'] += (entry.get('nd_start') - entry.get('nd_end')).total_seconds()
+
+	return entry
+
 def get_late(entry):
+	time_gp = entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) #time in with grace period
 	if not entry.get('ex_tardiness'):
 		if entry.get('lv_status') == 2 and entry['card_in']: #get late if leave is 1sthalf halfday
 			if entry.get('card_in') > entry.get('break_end'):
@@ -145,12 +155,12 @@ def get_late(entry):
 					if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
 						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
 					else:
-						if entry.get('ob_in') > entry.get('time_in'):
+						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
 							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 				else: 
-					if entry.get('card_in') and entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+					if entry.get('card_in') and entry.get('card_in') > time_gp:
 						if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
-							entry['late'] += ( entry.get('card_in') - (entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')))  ).total_seconds()
+							entry['late'] += ( entry.get('card_in') - ( time_gp )  ).total_seconds()
 						else:
 							entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 			
@@ -159,7 +169,7 @@ def get_late(entry):
 					if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
 						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
 					else:
-						if entry.get('ob_in') > entry.get('time_in'):
+						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
 							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 
 		#break_out
@@ -281,12 +291,12 @@ def get_final_processing(entry):
 		entry["overtime"] = 0
 		entry["undertime"] = 0
 
-	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
-	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
-		entry["late"] = 0		
-		entry["absent"] = 1		
-		entry["is_halfday"] = 1		
-		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+	#ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
+	#if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
+	#	entry["late"] = 0		
+	#	entry["absent"] = 1		
+	#	entry["is_halfday"] = 1		
+	#	entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
 
 	return entry
 
@@ -406,7 +416,7 @@ def get_ob_list(employee, from_date, to_date):
 	return ob_apps
 
 def get_ot_list(employee, from_date, to_date):
-	ot_apps = frappe.db.sql("""SELECT `name`, total_hrs, from_date, to_date, from_time, to_time FROM `tabOvertime Application` 
+	ot_apps = frappe.db.sql("""SELECT `name`, total_hrs, target_date, from_date, to_date, from_time, to_time FROM `tabOvertime Application` 
 		WHERE workflow_state = 'Approved' AND employee = %s AND target_date >= %s AND target_date <= %s """, (employee, from_date, to_date), as_dict=1)
 	return ot_apps
 

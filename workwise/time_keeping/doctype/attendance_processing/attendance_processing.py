@@ -72,6 +72,7 @@ class AttendanceProcessing(Document):
 					entry['late'] = self.convert_secs(entry['late'])
 					entry['undertime'] = self.convert_secs(entry['undertime'])
 					entry['overtime'] = self.convert_secs(entry['overtime'])
+					entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
 					register = frappe.new_doc("Attendance Register")
 					register.update(entry)
 					register.insert()
