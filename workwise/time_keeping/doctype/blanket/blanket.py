@@ -9,6 +9,7 @@ from frappe import msgprint, _
 from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_link_to_form, comma_or, get_fullname, nowdate, data, add_days
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, timediff_hrs
+from workwise.employee_201.emp_filters_utils import empget_employees, empget_subordinates, empget_company
 from frappe.model.document import Document
 
 class Blanket(Document):
@@ -343,3 +344,54 @@ class Blanket(Document):
 			new_csa_app.insert()
 			new_csa_app.save()
 			new_csa_app.submit()
+
+	def filter_company(self):
+		if self.application_type == "Change Schedule Application":
+			if not self.company:
+				frappe.throw(_("Company is Required"))
+
+			entries, curr_emp = [], []
+			employees = empget_company(self.company)
+
+			for emp in employees:
+				curr_emp.append(emp.employee)
+
+			if employees:
+				for d in employees:
+					if d.name not in curr_emp:
+						row = {
+							"employee": d.name,
+							"employee_name": d.full_name,
+						}
+						entries.append(row)
+
+				for d in entries:
+					row = self.append('csa_table', {})
+					row.update(d)
+
+	def filter_add(self):
+		if self.application_type == "Change Schedule Application":
+			if not self.company:
+				frappe.throw(_("Company is Required"))
+
+			if self.filter_value and self.filter_type:
+				entries, curr_emp = [], []
+				employees = empget_employees(self.filter_type, self.filter_value, self.company)
+				
+				for emp in employees:
+					curr_emp.append(emp.employee)
+
+				if employees:
+					for d in employees:
+						if d.name not in curr_emp:
+							row = {
+								"employee": d.name,
+								"employee_name": d.full_name,
+							}
+							entries.append(row)
+
+					for d in entries:
+						row = self.append('csa_table', {})
+						row.update(d)
+			else:
+				frappe.throw(_(" Input Filter Value and Filter Type "))

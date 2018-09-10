@@ -16,6 +16,32 @@ frappe.ui.form.on('Blanket', {
 		frm.trigger("get_dates");
 	},
 
+	filter_company: function(frm){
+		return frappe.call({
+			method: "filter_company",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		});
+	},
+
+	filter_type: function(frm) {
+		frm.set_value("filter_value",null)
+	},
+
+	filter_add: function(frm) {
+		if(frm.doc.company && frm.doc.filter_value && frm.doc.filter_type) {
+			return frappe.call({
+				method: "filter_add",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		} 
+	},
+
 	from_date: function(frm) {
 		if (frm.doc.application_type=="Leave Application") {
 			frm.trigger("get_dates");
