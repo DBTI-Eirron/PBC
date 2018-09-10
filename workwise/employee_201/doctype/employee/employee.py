@@ -10,7 +10,6 @@ from frappe.contacts.address_and_contact import load_address_and_contact, delete
 from frappe.model.document import Document
 
 class Employee(Document):
-
 	def onload(self):
 		load_address_and_contact(self, "employee")
 
@@ -50,7 +49,8 @@ class Employee(Document):
 				user = frappe.new_doc("User")
 				user.update({
 					"email": self.email,
-					"first_name": self.first_name
+					"first_name": self.first_name,
+					"send_welcome_mail": 0,
 				})
 				if user.insert():
 					self.user_id = self.email

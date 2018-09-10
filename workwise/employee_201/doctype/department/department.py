@@ -35,8 +35,6 @@ def create_root():
 
 @frappe.whitelist()
 def rebuild_department_tree():
-	#frappe.db.sql(""" UPDATE `tabDepartment` SET parent_department = 'Organization Structure' WHERE is_group = 1 AND (parent_department is null or parent_department = "")
-	#AND `name` != 'Organization Structure'  """)
 	rebuild_tree("Department", "parent_department")
 
 @frappe.whitelist()

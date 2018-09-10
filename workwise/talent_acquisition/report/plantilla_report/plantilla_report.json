@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2018-03-26 16:05:41.353966", 
+ "modified": "2018-09-06 17:30:30.214009", 
  "modified_by": "Administrator", 
  "module": "Talent Acquisition", 
  "name": "Plantilla Report", 
@@ -21,6 +21,9 @@
   }, 
   {
    "role": "Administrator"
+  }, 
+  {
+   "role": "Maintenance Manager"
   }
  ]
 }
