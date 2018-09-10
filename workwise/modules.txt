@@ -7,3 +7,4 @@ Dashboard
 Learning And Development
 Performance Management
 Talent Acquisition
+Setup
