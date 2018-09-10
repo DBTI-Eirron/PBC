@@ -10,10 +10,15 @@ from frappe.model.document import Document
 
 class LoanApplication(Document):
 	def validate(self):
+		self.update_missing_names()
 		self.update_amounts()
 		self.update_paid_unpaid()
 		self.validate_date()
 		self.validate_user_sensitivity_level()
+
+	def update_missing_names(self):
+		self.employee_name = frappe.db.get_value("Employee", self.employee, "full_name")
+		self.loan_name = frappe.db.get_value("Transaction Type", self.loan_type, "title")
 
 	def validate_date(self):
 		if self.release_date > self.payment_start:
