@@ -48,9 +48,10 @@ class DTRProblemApplication(Document):
 					if frappe.db.exists("Time Card", req.time_card):
 						frappe.delete_doc("Time Card", req.time_card)
 				else:
+					dtr_date = self.update_target_date()
 					bio = frappe.db.get_value("Employee", self.employee, "biometrics_id")
 					card = self.get_card_type(req)
-					frappe.db.sql(""" DELETE FROM `tabTime Card` WHERE `biometrics_id` = %s AND card_type = %s AND `date` = %s AND `time` = %s """, (bio, card, self.target_date, req.request), as_dict=True)
+					frappe.db.sql(""" DELETE FROM `tabTime Card` WHERE `biometrics_id` = %s AND card_type = %s AND `date` = %s AND `time` = %s """, (bio, card, dtr_date, req.request), as_dict=True)
 					frappe.db.commit()
 
 	def get_card_type(self, req):
