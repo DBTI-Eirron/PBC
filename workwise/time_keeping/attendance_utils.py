@@ -20,7 +20,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 
 	if ots:
 		for ot in ots:
-			if ot['target_date'] == entry['target_date']:
+			if getdate(ot['target_date']) == entry['target_date']:
 				entry['overtime'] += ot.total_hrs * 60 * 60
 				entry['linked_ot'] = ot.name
 				entry['ot_in'] = get_datetime( str(ot.from_date) +" "+ str(ot.from_time) )
@@ -80,7 +80,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 	get_late(entry)
 	get_undertime(entry)
 	get_overtime(entry)
-	#get_ndiff(entry)
+	get_ndiff(entry)
 
 	#if flexible
 	#if entry.get('is_flexible'):
@@ -411,7 +411,7 @@ def get_ob_list(employee, from_date, to_date):
 		FROM `tabOfficial Business Application Table` OBAT
 		INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
 		WHERE OBA.employee = %s AND OBA.workflow_state = 'Approved' AND OBAT.target_date >= %s 
-		AND OBAT.target_date <= %s""",(employee, from_date, to_date), as_dict=1)
+		AND OBAT.target_date <= %s AND OBAT.is_excluded = 0 """,(employee, from_date, to_date), as_dict=1)
 
 	return ob_apps
 
@@ -435,13 +435,15 @@ def get_card_within(pre_shift, post_shift, timecard_list):
 	for tc in timecard_list:
 		if pre_shift <= tc.card_datetime <= post_shift:
 			cards.append({
+				"card_name":tc.name,
+				"card_time":tc.time,
 				"card_datetime": tc.card_datetime,
 				"card_type": tc.card_type
 			})
 	return cards
 
 def get_timecard_list(bio, pay_from, pay_to):
-	timecard_list = frappe.db.sql("""SELECT TIMESTAMP(date, time) as card_datetime, card_type FROM `tabTime Card` 
+	timecard_list = frappe.db.sql("""SELECT TIMESTAMP(date, time) as card_datetime, card_type,name,`time` FROM `tabTime Card` 
 		WHERE biometrics_id = %(bio)s AND date >= %(from_date)s AND date <= %(to_date)s
 		ORDER BY date, time """,{
 			"bio": bio,
