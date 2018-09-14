@@ -1,0 +1,69 @@
+// Copyright (c) 2018, HDI Systech and contributors
+// For license information, please see license.txt
+cur_frm.add_fetch('employee','full_name','employee_name');
+cur_frm.add_fetch('employee','company','company');
+
+frappe.ui.form.on('Compensatory Time Off', {
+	onload: function(frm) {
+		if (!frm.doc.posting_date) {
+			frm.set_value("posting_date", get_today());
+		}
+	},
+
+	from_time: function(frm) {
+		frm.trigger("validate_file_cto");
+	},
+
+	to_time: function(frm) {
+		frm.trigger("validate_file_cto");
+	},
+
+	date: function(frm) {
+		frm.trigger("validate_file_cto");
+	},
+
+	validate_file_cto: function(frm) {
+		if(frm.doc.from_time && frm.doc.to_time && frm.doc.date) {
+			return frappe.call({
+				method: "validate_file_cto",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		} 
+	},
+
+	use_fromtime: function(frm) {
+		frm.trigger("validate_use_cto");
+	},
+
+	use_totime: function(frm) {
+		frm.trigger("validate_use_cto");
+	},
+
+	use_date: function(frm) {
+		frm.trigger("validate_use_cto");
+	},
+
+	employee: function(frm) {
+		frm.trigger("validate_use_cto");
+	},
+
+	validate_use_cto: function(frm) {
+		if(frm.doc.use_fromtime && frm.doc.use_totime && frm.doc.use_date) {
+			return frappe.call({
+				method: "validate_use_cto",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		} 
+	},
+
+	refresh: function(frm) {
+
+	},
+	
+});
