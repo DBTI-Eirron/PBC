@@ -525,6 +525,7 @@ class PayrollProcessing(Document):
 				if at.target_date == add_days(self.attendance_from, -1):
 					prev_lwop = 1 if at.is_lwop else 0
 					prev_absent = 1 if at.is_absent else 0
+				
 				else: 
 					if (emp.get("rate_type") == "Daily Rate" and at.is_holiday == 1 and at.is_absent != 1):
 						work_days += 0
@@ -566,7 +567,7 @@ class PayrollProcessing(Document):
 							absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8)
 							absent_days += 0.5
 						else:
-							absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else emp.get('no_hours') * flt(rates.get('hourly_rate'), 8)
+							absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else ( at.work_hours ) * flt(rates.get('hourly_rate'), 8)
 							absent_days += 0.5 if at.is_halfday == 1 else 1
 
 					if at.is_holiday == 1 and (prev_lwop == 1 or prev_absent == 1 ) and not at.is_ob:
@@ -584,7 +585,7 @@ class PayrollProcessing(Document):
 				late = 0
 				
 			attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
-			#attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
+			attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
 			attendance_register.append({"pay_code": "OT", "amount": flt(overtime, 8) })
 			attendance_register.append({"pay_code": "ND", "amount": flt(nightdiff, 8) })
 			attendance_register.append({"pay_code": "LT", "amount": flt(late, 8) })
