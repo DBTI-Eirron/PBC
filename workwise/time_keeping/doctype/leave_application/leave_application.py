@@ -121,16 +121,24 @@ class LeaveApplication(Document):
 
 			if d.is_half_day == 1:
 				add_days = 0.5			
+			
 			if d.is_holiday == 1:
 				if inc_holidays == 1:
 					add_days = 1
 				else:
 					add_days = 0
+			
 			if d.is_excluded == 1:
 				add_days = 0
+			
 			if d.is_second_half == 1:
 				d.is_half_day = 1
 				add_days = 0.5
+
+			if getdate(d.leave_date).weekday() == 5:
+				lvbal_saturday = frappe.db.get_single_value('Timekeeping Settings', 'lvbal_saturday')
+				if lvbal_saturday > 0:
+					add_days = flt(lvbal_saturday, 8)
 
 			total_leave_days += add_days
 
