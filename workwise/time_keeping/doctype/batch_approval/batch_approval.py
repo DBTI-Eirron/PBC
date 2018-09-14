@@ -50,8 +50,8 @@ class BatchApproval(Document):
 				application = frappe.get_doc(self.application_type, b.application)
 				application.update({
 					"workflow_state": "Approved",
-					"approved_by" = frappe.session.user
-					"approved_on" = nowdate()
+					"approved_by": frappe.session.user,
+					"approved_on": nowdate(),
 				})
 				application.save()
 				application.submit()
