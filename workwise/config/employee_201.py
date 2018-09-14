@@ -46,6 +46,19 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Cost Center",
+					"description": _("Cost Center"),
+				},
+				{
+					"type": "doctype",
+					"name": "Cost Center",
+					"icon": "fa fa-sitemap",
+					"label": _("Chart of Cost Centers"),
+					"route": "Tree/Cost Center",
+					"description": _("Tree of financial Cost Centers."),
+				},
+				{
+					"type": "doctype",
 					"name": "Job Level",
 					"description": _("Job Level"),
 				},

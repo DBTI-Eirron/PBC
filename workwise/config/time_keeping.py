@@ -69,6 +69,10 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Compensatory Time Off",
+				},
+				{
+					"type": "doctype",
 					"name": "Batch Approval",
 				},
 			]

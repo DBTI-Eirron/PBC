@@ -118,6 +118,12 @@ def get_data():
 					"doctype": "Payroll Register",	
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "Net Payroll by Cost Center",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},
 			],
 		},
 		{
@@ -185,6 +191,10 @@ def get_data():
 		{
 			"label": _("Utilities"),
 			"items": [
+				{
+					"type": "doctype",
+					"name": "Statement of Account",
+				},
 				{
 					"type": "doctype",
 					"name": "Payroll Process Logs",
