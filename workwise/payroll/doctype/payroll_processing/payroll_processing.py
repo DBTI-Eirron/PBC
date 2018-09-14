@@ -517,15 +517,15 @@ class PayrollProcessing(Document):
 		attendance_register = []
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0
-			unpaid_holiday, prev_lwop, prev_absent  =  0, 0 ,0
+			unpaid_holiday, prev_lwop, prev_absent, is_uho  =  0, 0 ,0, 0
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
 
 			for at in attendance:
 				if at.target_date == add_days(self.attendance_from, -1):
-					prev_lwop = 1 if at.is_lwop else 0
-					prev_absent = 1 if at.is_absent else 0
-				
+					if at.is_absent or at.is_lwop:
+						is_uho = 1
+
 				else: 
 					if (emp.get("rate_type") == "Daily Rate" and at.is_holiday == 1 and at.is_absent != 1):
 						work_days += 0
@@ -570,12 +570,12 @@ class PayrollProcessing(Document):
 							absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else ( at.work_hours ) * flt(rates.get('hourly_rate'), 8)
 							absent_days += 0.5 if at.is_halfday == 1 else 1
 
-					if at.is_holiday == 1 and (prev_lwop == 1 or prev_absent == 1 ) and not at.is_ob:
+					if at.is_holiday == 1 and is_uho == 1 and not at.is_ob:
 						unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 
 					#check if this attendance is lwop or absent for next attendance
-					prev_lwop = 1 if at.is_lwop else 0
-					prev_absent = 1 if at.is_absent else 0
+					if (at.is_lwop or at.is_absent or at.is_restday) and not at.is_ob:
+						is_uho = 1
 
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
