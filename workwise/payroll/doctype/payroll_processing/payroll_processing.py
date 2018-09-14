@@ -530,10 +530,7 @@ class PayrollProcessing(Document):
 					if (emp.get("rate_type") == "Daily Rate" and at.is_holiday == 1 and at.is_absent != 1):
 						work_days += 0
 					elif not at.is_restday:
-						if at.is_holiday == 1 and is_uho == 1 and not at.is_ob:
-							work_days += 0
-						else:
-							work_days += 1
+						work_days += 1
 
 					if at.late > 0:
 						late += flt(at.late, 8) * flt(rates.get('hourly_rate'), 8)
