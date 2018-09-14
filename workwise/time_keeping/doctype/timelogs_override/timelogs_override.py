@@ -172,21 +172,21 @@ class TimelogsOverride(Document):
 			pre_shift = add_to_date(get_datetime(date_time_in), hours= (0 - shift_map[d.work_shift]['setup_preshift']) )
 			post_shift = add_to_date(get_datetime(date_time_out), hours=shift_map[d.work_shift]['setup_postshift'])
 			final_pre_shift = pre_shift + datetime.timedelta(days=1)
-			for x in tc_entries:
-				final_date_time = get_datetime(str(x.date)+ " " +str(x.time))
-				if final_date_time < final_pre_shift and  final_date_time > pre_shift:
-					if  x.card_type == 0:
-						d.log_time_in = x.name
-						d.time_in = x.time
-					if x.card_type == 1:
-						d.log_time_out = x.name
-						d.time_out = x.time
-					if x.card_type == 2:
-						d.log_break_in = x.name
-						d.break_in = x.time
-					if x.card_type == 3:
-						d.log_break_out = x.name
-						d.break_out = x.time
+			card_list = get_card_within(pre_shift, final_pre_shift, timecard_list)		
+			sorted_card_list = sorted(card_list, key=lambda k: k['card_datetime'])
+			for x in sorted_card_list:
+					if  x['card_type'] == 0:
+						d.log_time_in = x['card_name']
+						d.time_in = x['card_time']
+					if x['card_type'] == 1:
+						d.log_time_out = x['card_name']
+						d.time_out = x['card_time']
+					if x['card_type'] == 2:
+						d.log_break_in = x['card_name']
+						d.break_in = x['card_time']
+					if x['card_type'] == 3:
+						d.log_break_out = x['card_name']
+						d.break_out = x['card_time']
 
 			
 			
