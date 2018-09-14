@@ -10,8 +10,10 @@ from frappe.model.document import Document
 
 class BIR2316(Document):
 	def validate(self):
-		self.get_info()
-		self.get_agent()
+		if self.document_type == "Current":
+			self.get_info()
+			self.get_agent()
+			self.get_prev_employer_info()
 
 	def validate_fields(self):
 		if not self.employee:
@@ -36,6 +38,17 @@ class BIR2316(Document):
 				"employer_name": e.company,
 				"civil_status": e.civil_status,
 				"birthday": e.birthday,
+				"sum_gcipe": 0,
+				"sum_tnt": 0,
+				"sum_tci": 0,
+				"sum_tcipe": 0,
+				"sum_gtci": 0,
+				"sum_te": 250000,
+				"sum_pph": 0,
+				"sum_ntci": 0,
+				"sum_td": 0,
+				"sum_atw_pres": 0,
+				"sum_tatwa": 0,
 				"ntax_bs": 0,
 				"ntax_ho": 0,
 				"ntax_ot": 0,
@@ -64,12 +77,28 @@ class BIR2316(Document):
 			self.get_employee_info(e, entry)
 			self.get_company_info(e, entry)
 			self.get_salary_info(e, entry, tr_map)
+			self.get_prev_employer_summary(e, entry)
+			self.get_summary_info(e, entry)
+			self.get_whtax_info(e, entry)
 			
 			self.tax_id = entry.get('tax_id')
 			self.rdo_code = entry.get('rdo_code')
 			self.date_of_birth = entry.get('birthday')
 			self.exemption_status = entry.get('civil_status')
 			self.employer_name = entry.get('employer_name')
+			self.employer_tax_id = entry.get('employer_tax_id')
+
+			self.sum_gcipe = entry.get('ntax_total') + entry.get('tax_total')
+			self.sum_tnt = entry.get('ntax_total')
+			self.sum_tci = entry.get('tax_total')
+			self.sum_tcipe = entry.get('sum_tcipe')
+			self.sum_gtci = entry.get('sum_gtci')
+			self.sum_te = entry.get('sum_te')
+			self.sum_pph = entry.get('sum_pph')
+			self.sum_ntci = entry.get('tax_total') - entry.get('ntax_total') + entry.get('sum_tcipe') - entry.get('sum_pph')
+			self.sum_atw_pres = entry.get('sum_atw_pres')
+			self.sum_tatwa = entry.get('sum_atw_pres') + flt(self.sum_atw_prev, 2)
+
 			self.ntax_bs = entry.get('ntax_bs')
 			self.ntax_ho = entry.get('ntax_ho')
 			self.ntax_ot = entry.get('ntax_ot')
@@ -110,6 +139,7 @@ class BIR2316(Document):
 		for d in company:
 			entry['employer_name'] = d.name
 			entry['employer_addr'] = d.registered_addr
+			entry['employer_tax_id'] = d.tax_id
 
 		return entry
 
@@ -202,12 +232,6 @@ class BIR2316(Document):
 			}
 		return tr_map
 
-	def load_dates(self):
-		from_date, to_date = frappe.db.get_value("Payroll Year",self.payroll_year,["from_date", "to_date"])
-		if from_date and to_date:
-			self.from_date = from_date
-			self.to_date = to_date
-
 	def load_tax_id(self):
 		tax_id = self.tax_id.replace("-","")
 		if len(tax_id) <= 9:
@@ -278,3 +302,40 @@ class BIR2316(Document):
 		for com in company_address:
 			self.employer_addr = com.address_line1
 			self.employer_zip = com.pincode
+
+	def get_prev_employer_info(self):
+		prev_bir = frappe.db.sql(""" SELECT DISTINCT prev_employer_tax_id, prev_employ_name, prev_employ_addr, prev_employ_zip, from_date FROM `tabBIR2316` WHERE document_type = "Previous" AND `employee` = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
+
+		if prev_bir:
+			for d in prev_bir:
+				self.prev_employer_tax_id = d.prev_employer_tax_id
+				self.prev_employ_name = d.prev_employ_name
+				self.prev_employ_addr = d.prev_employ_addr
+				self.prev_employ_zip = d.prev_employ_zip
+				self.prev_from_date = d.from_date
+
+	def get_prev_employer_summary(self, e, entry):
+		prev_bir = frappe.db.sql(""" SELECT DISTINCT * FROM `tabBIR2316` WHERE document_type = "Previous" AND `employee` = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
+
+		if prev_bir:
+			for d in prev_bir:
+				entry['sum_tcipe'] = d.sum_tcipe
+				self.sum_atw_prev = d.sum_atw_prev
+
+	def get_summary_info(self, e, entry):
+		summary = frappe.db.sql("""SELECT DISTINCT employee, employee_name, gross_payroll, taxable_income FROM `tabPayroll Register`
+			WHERE employee = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, getdate(self.from_date), getdate(self.to_date)), as_dict=True)
+
+		if summary:
+			for d in summary:
+				entry['sum_gtci'] += d.gross_payroll
+				entry['sum_td'] += d.taxable_income
+
+	def get_whtax_info(self, e, entry):
+		salary = frappe.db.sql("""SELECT DISTINCT pr.employee, pr.employee_name, pre.pay_code, pre.amount FROM `tabPayroll Register` pr
+			INNER JOIN `tabPayroll Register Entries` pre ON pre.parent = pr.`name`
+			WHERE employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
+
+		for d in salary:
+			if d.pay_code == "WHTAX":
+				entry['sum_atw_pres'] += (d.amount * 2 * 12)
