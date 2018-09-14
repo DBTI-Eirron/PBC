@@ -139,7 +139,6 @@ def get_ndiff(entry):
 	return entry
 
 def get_late(entry):
-	time_gp = entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) #time in with grace period
 	if not entry.get('ex_tardiness'):
 		if entry.get('lv_status') == 2 and entry['card_in']: #get late if leave is 1sthalf halfday
 			if entry.get('card_in') > entry.get('break_end'):
@@ -152,15 +151,15 @@ def get_late(entry):
 		else: #get normal late if no leave
 			if entry.get('card_in') and entry.get('lv_status') != 1:
 				if entry.get('ob_status') == 1 and entry.get('ob_in') < entry.get('card_in'): #if has OB and is lesser than card in
-					if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
+					if entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')) : #if OB is in second half
 						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
 					else:
 						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
 							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 				else: 
-					if entry.get('card_in') and entry.get('card_in') > time_gp:
+					if entry.get('card_in') and entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 						if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
-							entry['late'] += ( entry.get('card_in') - ( time_gp )  ).total_seconds()
+							entry['late'] += ( entry.get('card_in') - entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) ).total_seconds()
 						else:
 							entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 			
@@ -225,11 +224,11 @@ def get_undertime(entry):
 						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
 			else: #if no card in check for OB
 				if entry.get('ob_status') == 1:
-					if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
-						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
+					if entry.get('ob_out') < entry.get('break_end'): #if OB is in second half
+						entry['undertime'] += abs((entry.get('ob_out') - entry.get('break_end')).total_seconds())
 					else:
-						if entry.get('ob_in') > entry.get('time_in'):
-							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+						if entry.get('ob_out') < entry.get('time_out'):
+							entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 
 	return entry
 
@@ -253,6 +252,29 @@ def get_absent(entry):
 				if entry.get('lv_status') != 1:
 					entry['is_absent'] = 1
 					entry["work"] = 0
+					entry["late"] = 0
+					entry["undertime"] = 0
+					
+		elif not entry.get('card_in'):
+			if entry.get('lv_status') == 2:
+				if entry['is_lwop'] == 1:
+					entry['is_absent'] = 1
+					entry["work"] = 0
+					
+			elif entry.get('lv_status') == 3:
+				if entry['is_lwop'] == 1:
+					entry['is_absent'] = 1
+					entry["work"] = 0
+
+			elif entry.get('lv_status') == 1:
+				if entry['is_lwop'] == 1:
+					entry["work"] = 0
+			else:
+				if entry.get('lv_status') != 1:
+					entry['is_absent'] = 1
+					entry["work"] = 0
+					entry["late"] = 0
+					entry["undertime"] = 0
 					
 	if entry.get('is_restday') and not entry.get('lv_status') and not entry.get('ob_status'):
 		entry["work"] = 0
@@ -282,6 +304,7 @@ def get_absent(entry):
 def get_final_processing(entry):
 	entry['work'] -= entry['late']
 	entry['work'] -= entry['undertime']
+
 	if not entry.get('is_attendance_base'):
 		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
 		entry["is_absent"] = 0
