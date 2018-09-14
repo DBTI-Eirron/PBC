@@ -153,11 +153,11 @@ def get_late(entry):
 				if entry.get('ob_status') == 1 and entry.get('ob_in') < entry.get('card_in'): #if has OB and is lesser than card in
 					if entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')) : #if OB is in second half
 						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
-					else:
+					else: #if OB is in first half
 						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
 							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 				else: 
-					if entry.get('card_in') and entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+					if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 						if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
 							entry['late'] += ( entry.get('card_in') - entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) ).total_seconds()
 						else:
@@ -282,8 +282,6 @@ def get_absent(entry):
 					entry["late"] = 0
 					entry["undertime"] = 0
 
-
-					
 	if entry.get('is_restday') and not entry.get('lv_status') and not entry.get('ob_status'):
 		entry["work"] = 0
 		entry["late"] = 0
@@ -322,12 +320,46 @@ def get_final_processing(entry):
 		entry["overtime"] = 0
 		entry["undertime"] = 0
 
-	#ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
-	#if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
-	#	entry["late"] = 0		
-	#	entry["absent"] = 1		
-	#	entry["is_halfday"] = 1		
-	#	entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+	ch_tr=0
+	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
+	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
+		entry["late"] = 0
+		entry["absent"] = 1
+		entry["is_halfday"] = 1
+		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+		ch_tr=1
+
+	chu_tr=0
+	chu = flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_consider_halfday'), 8)		
+	if flt(entry["undertime"], 8) >= chu and chu > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1:		
+		entry["undertime"] = 0		
+		entry["absent"] = 1		
+		entry["is_halfday"] = 1		
+		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+		chu_tr=1
+
+	if chu_tr == 1 and ch_tr == 1:
+		entry["late"] = 0		
+		entry["undertime"] = 0
+		entry["is_halfday"] = 0
+		entry['work'] = 0
+		entry["is_absent"] = 1
+
+	strict_card = flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_nocard'), 8)	
+	if entry.get('lv_status') != 1 and not entry.get('card_out') and strict_card:
+		entry['is_absent'] = 1
+		entry["is_halfday"] = 0
+		entry["work"] = 0
+		entry["late"] = 0
+		entry["undertime"] = 0
+
+	strict_card = flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_nocard'), 8)	
+	if entry.get('lv_status') != 1 and not entry.get('card_in') and strict_card:
+		entry['is_absent'] = 1
+		entry["is_halfday"] = 0
+		entry["work"] = 0
+		entry["late"] = 0
+		entry["undertime"] = 0
 
 	return entry
 
