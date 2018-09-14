@@ -170,11 +170,13 @@ class BIR2316(Document):
 		self.sum_pph = entry.get('sum_pph')
 		self.sum_ntci = entry.get('sum_gtci') - entry.get('sum_te') - entry.get('sum_pph')
 		self.sum_atw_pres = entry.get('sum_atw_pres')
+		self.sum_atw_prev = entry.get('sum_atw_prev')
 		self.sum_tatwa = entry.get('sum_atw_pres') + flt(self.sum_atw_prev, 2)
 
 	def set_computations(self, e, entry):
 		tr_map = self.get_transaction_map()
 		self.get_salary_info(e, entry, tr_map)
+		self.get_monthpay_info(e, entry)
 
 		self.ntax_bs = entry.get('ntax_bs')
 		self.ntax_ho = entry.get('ntax_ho')
@@ -318,8 +320,8 @@ class BIR2316(Document):
 				entry['prev_employ_addr'] = d.prev_employ_addr
 				entry['prev_employ_zip'] = d.prev_employ_zip
 				entry['prev_from_date'] = d.from_date
-				entry['sum_tcipe'] = d.sum_tcipe
-				entry['sum_atw_prev'] = d.sum_atw_prev
+				entry['sum_tcipe'] += d.sum_tcipe
+				entry['sum_atw_prev'] += d.sum_atw_prev
 
 		return entry
 
@@ -341,7 +343,7 @@ class BIR2316(Document):
 
 		for d in salary:
 			if d.pay_code == "WHTAX":
-				entry['sum_atw_pres'] += (d.amount * 2 * 12)
+				entry['sum_atw_pres'] += d.amount
 
 		return entry
 
@@ -432,4 +434,14 @@ class BIR2316(Document):
 			
 			entry['ntax_total'] = entry['ntax_bs'] + entry['ntax_ho'] + entry['ntax_ot'] + entry['ntax_nd'] + entry['ntax_bonus'] + entry['ntax_demi'] + entry['ntax_contrib'] + entry['ntax_other']
 
+		return entry
+
+	def get_monthpay_info(self, e, entry):
+		monthpay = frappe.db.sql("""SELECT DISTINCT LP.`amount` FROM `tabLast Pay Register` LP JOIN `tabLast Pay Entry` LE ON LP.`parent`=LE.`name` WHERE LP.`description` = "Pro Rated 13th Month" AND LE.`employee` = %s AND LE.posting_date >= %s AND LE.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
+
+		for d in monthpay:
+			entry['ntax_bonus'] += d.amount
+
+		entry['ntax_total'] += entry['ntax_bonus']
+		
 		return entry
