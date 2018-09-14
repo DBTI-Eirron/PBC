@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import getdate
+from frappe.utils import getdate, nowdate
 from frappe.model.document import Document
 
 class BatchApproval(Document):
@@ -50,6 +50,8 @@ class BatchApproval(Document):
 				application = frappe.get_doc(self.application_type, b.application)
 				application.update({
 					"workflow_state": "Approved",
+					"approved_by" = frappe.session.user
+					"approved_on" = nowdate()
 				})
 				application.save()
 				application.submit()
