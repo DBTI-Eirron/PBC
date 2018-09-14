@@ -13,3 +13,7 @@ def update_approved_on_and_by():
 		for a in application_list:
 			frappe.db.sql("""UPDATE """+table+""" SET `approved_on` = DATE(modified), approved_by = modified_by WHERE `docstatus` = 1 AND `name` = %s """, (a.name))
 			frappe.db.commit()
+
+def update_old_change_schedule_application():
+	frappe.db.sql("""UPDATE `tabChange Schedule Application` SET `posting_date` = DATE(creation) WHERE `docstatus` = 1 AND `posting_date` IS NULL """)
+	frappe.db.commit()
