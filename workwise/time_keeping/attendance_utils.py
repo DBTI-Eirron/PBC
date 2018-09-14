@@ -80,7 +80,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 	get_late(entry)
 	get_undertime(entry)
 	get_overtime(entry)
-	get_ndiff(entry)
+	#get_ndiff(entry)
 
 	#if flexible
 	#if entry.get('is_flexible'):
@@ -254,7 +254,7 @@ def get_absent(entry):
 					entry["work"] = 0
 					entry["late"] = 0
 					entry["undertime"] = 0
-					
+
 		elif not entry.get('card_in'):
 			if entry.get('lv_status') == 2:
 				if entry['is_lwop'] == 1:
