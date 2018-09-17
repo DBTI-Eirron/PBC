@@ -177,6 +177,7 @@ class BIR2316(Document):
 		tr_map = self.get_transaction_map()
 		self.get_salary_info(e, entry, tr_map)
 		self.get_monthpay_info(e, entry)
+		self.get_monthpay_ceiling_info(e, entry)
 
 		self.ntax_bs = entry.get('ntax_bs')
 		self.ntax_ho = entry.get('ntax_ho')
@@ -251,7 +252,7 @@ class BIR2316(Document):
 		return entry
 
 	def get_employee_address(self, e, entry):
-		employee_address = frappe.db.sql(""" SELECT DISTINCT TA.`address_line1`, TA.`pincode`, TA.`address_type` FROM `tabDynamic Link` DL JOIN `tabAddress` TA WHERE DL.`parenttype` = "Address" AND DL.`link_doctype` = "Employee" AND DL.`parent` = TA.`name` AND TA.`address_type` = "Foreign" OR TA.`address_type` = "Local Home" OR TA.`address_type` = "Registered" AND DL.`link_name` = %s """, (self.employee), as_dict=1)
+		employee_address = frappe.db.sql(""" SELECT DISTINCT TA.`address_line1`, TA.`pincode`, TA.`address_type` FROM `tabDynamic Link` DL JOIN `tabAddress` TA ON DL.`parent`=TA.`name` WHERE DL.`parenttype` = "Address" AND DL.`link_doctype` = "Employee" AND DL.`parent` = TA.`name` AND TA.`address_type` = "Foreign" OR TA.`address_type` = "Local Home" OR TA.`address_type` = "Registered" AND DL.`link_name` = %s """, (self.employee), as_dict=1)
 		for add in employee_address:
 			if add.address_type == "Foreign":
 				entry['foreign_address'] = add.address_line1
@@ -444,4 +445,38 @@ class BIR2316(Document):
 
 		entry['ntax_total'] += entry['ntax_bonus']
 		
+		return entry
+
+	def get_monthpay_ceiling_info(self, e, entry):
+		ceiling_limit = 0.0
+		total_bonus = 0.0
+		prev_ntax_bonus = 0.0
+		total_ntax_bonus = 0.0
+
+		prev_bir = frappe.db.sql(""" SELECT DISTINCT `ntax_bonus` FROM `tabBIR2316` WHERE document_type = "Previous" AND `employee` = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
+
+		if prev_bir:
+			for e in prev_bir:
+				prev_ntax_bonus += flt(e.ntax_bonus, 2)
+
+		total_ntax_bonus += prev_ntax_bonus
+
+		ceiling = frappe.db.sql(""" SELECT `value` FROM `tabSingles` WHERE `doctype` = "Payroll Settings" AND `field` = "ceiling_month_pay" LIMIT 1 """, as_dict=True)
+
+		if ceiling:
+			for d in ceiling:
+				ceiling_limit += flt(d.value, 2) 
+
+			total_ntax_bonus += entry['ntax_bonus']
+			total_bonus = total_ntax_bonus + entry['tax_bonus']
+
+			if total_bonus > ceiling_limit:
+				entry['tax_bonus'] = total_ntax_bonus - ceiling_limit
+				entry['ntax_bonus'] = entry['ntax_bonus'] - entry['tax_bonus']
+
+				entry['ntax_total'] = entry['ntax_total'] - entry['tax_bonus']
+				entry['tax_total'] =  entry['tax_total'] + entry['tax_bonus']
+			if total_bonus <= ceiling_limit:
+				entry['ntax_bonus'] = total_ntax_bonus
+				
 		return entry
