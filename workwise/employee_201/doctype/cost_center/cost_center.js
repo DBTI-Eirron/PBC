@@ -3,6 +3,17 @@
 
 frappe.ui.form.on('Cost Center', {
 	refresh: function(frm) {
+		frm.trigger("set_root_readonly");
+		frm.add_custom_button(__("Cost Center Tree"), function() {
+			frappe.set_route("Tree", "Cost Center");
+		});
+	},
 
-	}
+	set_root_readonly: function(frm) {
+		frm.set_intro("");
+		if(frm.doc.is_root) {
+			frm.set_read_only();
+			frm.set_intro(__("This is a root Cost Center and cannot be edited."), true);
+		}
+	},
 });

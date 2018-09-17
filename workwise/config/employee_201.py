@@ -44,18 +44,18 @@ def get_data():
 					"name": "Location",
 					"description": _("Location"),
 				},
-				{
-					"type": "doctype",
-					"name": "Cost Center",
-					"description": _("Cost Center"),
-				},
+				#{
+				#	"type": "doctype",
+				#	"name": "Cost Center",
+				#	"description": _("Cost Center"),
+				#},
 				{
 					"type": "doctype",
 					"name": "Cost Center",
 					"icon": "fa fa-sitemap",
-					"label": _("Chart of Cost Centers"),
+					"label": _("Cost Center"),
 					"route": "Tree/Cost Center",
-					"description": _("Tree of financial Cost Centers."),
+					"description": _("Tree of Cost Centers."),
 				},
 				{
 					"type": "doctype",
