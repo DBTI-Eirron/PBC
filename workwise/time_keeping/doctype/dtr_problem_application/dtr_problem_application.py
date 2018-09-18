@@ -94,7 +94,7 @@ class DTRProblemApplication(Document):
 				"biometrics_id": bio,
 				"card_type": card_type,
 				"date": str(target_date),
-				"time": req.request
+				"time": str(req.request)
 			})
 
 			new_timecard.insert()
