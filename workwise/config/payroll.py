@@ -71,6 +71,10 @@ def get_data():
 					"route": "Tree/Account",
 					"description": _("Tree of financial accounts."),
 				},
+				{
+					"type": "doctype",
+					"name": "Bank Remittance Setup",
+				},
 			]
 		},
 		{
@@ -114,7 +118,7 @@ def get_data():
 				},
 				{
 					"type": "report",
-					"name": "Bank Remittance - EastWest Bank",
+					"name": "Bank Remittance",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
 				},
