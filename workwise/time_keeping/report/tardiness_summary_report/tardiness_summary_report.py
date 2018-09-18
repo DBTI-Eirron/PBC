@@ -57,7 +57,7 @@ def get_data(filters):
 	employees = get_employees(filters)
 	for emp in employees:
 		included = 0
-		absent_result = frappe.db.sql(""" SELECT `target_date` FROM `tabAttendance Register` WHERE is_absent != 0 AND target_date >= %(from)s AND target_date <= %(to)s AND `employee` = %(employee)s """,{
+		absent_result = frappe.db.sql(""" SELECT `target_date` FROM `tabAttendance Register` WHERE is_absent != 0 AND target_date >= %(from)s AND target_date <= %(to)s AND `employee` = %(employee)s ORDER BY `target_date` """,{
 			"to": att_to,
 			"from": att_from,
 			"employee": emp.name,
@@ -69,7 +69,7 @@ def get_data(filters):
 			if included == 0:
 				included = 0
 
-		late_result = frappe.db.sql(""" SELECT `target_date`,`late` FROM `tabAttendance Register` WHERE late != 0 AND target_date >= %(from)s AND target_date <= %(to)s AND `employee` = %(employee)s """,{
+		late_result = frappe.db.sql(""" SELECT `target_date`,`late` FROM `tabAttendance Register` WHERE late != 0 AND target_date >= %(from)s AND target_date <= %(to)s AND `employee` = %(employee)s ORDER BY `target_date` """,{
 				"to": att_to,
 				"from": att_from,
 				"employee": emp.name,
@@ -81,7 +81,7 @@ def get_data(filters):
 			if included == 0:
 				included = 0
 
-		undertime_result = frappe.db.sql(""" SELECT `target_date`, `undertime` FROM `tabAttendance Register` WHERE undertime != 0 AND target_date >= %(from)s AND target_date <= %(to)s AND `employee` = %(employee)s """,{
+		undertime_result = frappe.db.sql(""" SELECT `target_date`, `undertime` FROM `tabAttendance Register` WHERE undertime != 0 AND target_date >= %(from)s AND target_date <= %(to)s AND `employee` = %(employee)s ORDER BY `target_date` """,{
 			"to": att_to,
 			"from": att_from,
 			"employee": emp.name,
@@ -108,12 +108,10 @@ def get_data(filters):
 
 				data.append(entry)
 			data.append({
-					"data":"<b>Late</b>",
+				"data":"<b>Late</b>",
 			})
 			
-			total_late = {
-				"time": 0.0,
-			}
+			total_late = 0.0
 
 			for lates in late_result:
 				entry = {
@@ -123,7 +121,7 @@ def get_data(filters):
 				entry['time'] = convert_secs(filters, entry['time'])
 				data.append(entry)
 
-				total_late['time'] += entry['time']
+				total_late += entry['time']
 
 			total_late_data = {
 				"data": _("TOTAL"),
@@ -134,9 +132,7 @@ def get_data(filters):
 					"data":"<b>Undertime</b>",
 			})
 
-			total_undertime = {
-				"time": 0.0,
-			}
+			total_undertime = 0.0
 
 			for undertimes in undertime_result:
 				entry = {
@@ -146,7 +142,7 @@ def get_data(filters):
 				entry['time'] = convert_secs(filters, entry['time'])
 				data.append(entry)
 
-				total_undertime['time'] += entry['time']
+				total_undertime += entry['time']
 			
 			total_undertime_data = {
 				"data": _("TOTAL"),
