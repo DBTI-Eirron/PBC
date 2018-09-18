@@ -57,6 +57,7 @@ class PayrollProcessing(Document):
 		tr_map = self.get_transaction_map()
 		ot_map = self.get_overtime_map()
 		previous_period = self.get_previous_period()
+		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
 
 		if employees:
 			no_emp = len(employees)
@@ -94,6 +95,7 @@ class PayrollProcessing(Document):
 					'net_payroll': 0.0,
 					'gross_payroll': 0.0,
 					'bonus': 0.0,
+					'uho_ab_days': uho_ab_days,
 				}
 
 				#Calculate Rates and Previous Entries
@@ -572,10 +574,23 @@ class PayrollProcessing(Document):
 
 					if at.is_holiday == 1 and is_uho == 1 and not at.is_ob:
 						unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
+						if header['uho_ab_days'] == 1:
+							absent_days += 1
 
 					#check if this attendance is lwop or absent for next attendance
-					if (at.is_lwop or at.is_absent or at.is_restday) and not at.is_ob:
-						is_uho = 1
+
+					if is_uho == 1:
+						if at.lv_status == 1 and not at.is_lwop:
+							is_uho = 0
+
+						if at.is_ob:
+							is_uho = 0
+					else:
+						is_uho = 0
+						if (at.is_absent or at.is_lwop) and not at.is_ob:
+							is_uho = 1
+
+
 
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
