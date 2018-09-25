@@ -3,7 +3,7 @@
 
 cur_frm.add_fetch('employee', 'position_title', 'position_title');
 cur_frm.add_fetch('employee', 'department', 'department');
-cur_frm.add_fetch('employee', 'division', 'division');
+
 
 frappe.ui.form.on('Training Event', {
 	refresh: function(frm) {

@@ -21,6 +21,11 @@ def get_data():
 					"name": "Training Evaluation",
 					"description": _("Training Evaluation"),
 				},
+				{
+					"type": "doctype",
+					"name": "Training Result",
+					"description": _("Training Result"),
+				},
 			]
 		},
 	]
