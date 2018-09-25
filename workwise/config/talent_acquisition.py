@@ -13,6 +13,11 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Schedules and Assessment",
+					"description": _("Schedules and Assessment"),
+				},				
+				{
+					"type": "doctype",
 					"name": "Job Opening",
 					"description": _("Job Opening"),
 				},
@@ -27,10 +32,14 @@ def get_data():
 					"description": _("Personnel Requisition"),
 				},
 				{
-					"type": "report",
-					"name": "Applicant Monitoring",
-					"doctype": "Applicant Monitoring",	
-					"is_query_report": True
+					"type": "page",
+					"name": "applicant_monitoring",
+					"label": _("Applicant Monitoring"),
+				},	
+				{
+					"type": "page",
+					"name": "interview_and_background",
+					"label": _("Interview and Background"),
 				},
 			]
 		},

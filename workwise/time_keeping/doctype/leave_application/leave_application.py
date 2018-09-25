@@ -81,7 +81,8 @@ class LeaveApplication(Document):
 			self.is_lwop = 0
 
 	def validate_employee(self):
-		solo, gender, civil_status = frappe.get_value("Employee", self.employee, ["is_solo_parent", "gender", "civil_status" ])
+		access_list = []
+		solo, gender, civil_status, employment_status = frappe.get_value("Employee", self.employee, ["is_solo_parent", "gender", "civil_status", "employment_status"])
 		f_only, m_only, mr_only, sp_only = frappe.get_value("Leave Type", self.leave_type, ["female_only", "male_only", "married_only", "solo_parent_only"])
 
 		if f_only == 1 and gender != 'Female':
@@ -95,6 +96,15 @@ class LeaveApplication(Document):
 
 		if sp_only == 1 and solo != 1:			
 			frappe.throw(_("Leave Type is for Solo Only"))
+
+		allow_from_employment_status = frappe.db.sql(""" SELECT DISTINCT employment_status FROM `tabLeave Type Table` WHERE `parent` = %s """, (self.leave_type), as_dict=True)
+
+		if allow_from_employment_status:
+			for a in allow_from_employment_status:
+				access_list.append(a.employment_status)
+
+			if employment_status not in access_list:
+				frappe.throw(_("Employement Status {0} is not allowed for {1}").format(employment_status ,self.leave_type))
 
 	def validate_days(self):
 		self.total_leave_days = self.get_total_leave_days()

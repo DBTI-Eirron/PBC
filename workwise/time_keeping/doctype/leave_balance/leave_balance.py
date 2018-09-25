@@ -11,6 +11,7 @@ from frappe.model.document import Document
 class LeaveBalance(Document):
 	def validate(self):
 		self.validate_range()
+		self.validate_employment_status()
 
 	def validate_range(self):
 		from_exist = frappe.db.sql("""SELECT `name` FROM `tabLeave Balance` WHERE `name`!= %s AND employee = %s 
@@ -24,3 +25,16 @@ class LeaveBalance(Document):
 
 		if to_exist:
 			frappe.throw(_("Leave Balance Already Exist for To Date"))
+
+	def validate_employment_status(self):
+		access_list = []
+		employment_status = frappe.get_value("Employee", self.employee, ["employment_status"])
+
+		allow_from_employment_status = frappe.db.sql(""" SELECT DISTINCT employment_status FROM `tabLeave Type Table` WHERE `parent` = %s """, (self.leave_type), as_dict=True)
+
+		if allow_from_employment_status:
+			for a in allow_from_employment_status:
+				access_list.append(a.employment_status)
+
+			if employment_status not in access_list:
+				frappe.throw(_("Employement Status {0} is not allowed for {1}").format(employment_status ,self.leave_type))
