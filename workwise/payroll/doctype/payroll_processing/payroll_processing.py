@@ -147,7 +147,7 @@ class PayrollProcessing(Document):
 					for d in register:
 						if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
 							self.update_loans(d.get('linked_document'))
-				payslip_label = " " + str(emp.full_name) +""
+				payslip_label = " " + emp.full_name +""
 				if emp.on_hold:
 					payslip_label += " <span class='label label-danger'> On-Hold </span>"
 				ss_list.append(payslip_label)
