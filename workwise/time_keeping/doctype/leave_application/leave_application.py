@@ -6,10 +6,12 @@ from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_li
 from frappe.email import queue
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
 from workwise.payroll.policy_utils import get_policy
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
 from frappe.model.document import Document
 
 class LeaveApplication(Document):
 	def validate(self):
+		grant_head_subordinate_access(self)
 		self.set_lwop()
 		self.validate_leave_table()
 		self.validate_days()
@@ -17,32 +19,22 @@ class LeaveApplication(Document):
 		self.validate_employee()
 		self.validate_balance()
 		self.validate_medical()
-		self.change_owner()
+		change_owner(self)
 		self.get_recipients()
 
 	def on_submit(self):
 		self.set_lwop()
-		self.validate_approve_own_application()
+		validate_approve_own_application(self)
 		self.validate_medical()
 		self.validate_leave()
 		self.validate_balance()
 		self.update_leave_credits()
-		self.get_approver_and_date()
+		get_approver_and_date(self)
 
 	def on_cancel(self):
-		self.validate_reject_cancel_own_application()
+		validate_reject_cancel_own_application(self)
 		frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits - %s 
 			WHERE name = %s """, (self.total_leave_days, self.from_balance))
-
-	def get_approver_and_date(self):
-		self.approved_by = frappe.session.user
-		self.approved_on = nowdate()
-
-	def change_owner(self):
-		owner = ""
-		owner_email = frappe.db.sql("""SELECT user_id FROM `tabEmployee` WHERE `name` = %s LIMIT 1""",( self.employee ), as_dict=1)
-		for d in owner_email:
-			self.owner = d.user_id
 
 	def get_recipients(self):
 		recipients = []
@@ -282,20 +274,6 @@ class LeaveApplication(Document):
 			self.from_balance = bal[0]['name']
 
 		return total_balance
-
-	def validate_approve_own_application(self):
-		cur_user = frappe.session.user
-		if not "Administrator" in frappe.get_roles(cur_user):
-			user_id = frappe.get_value("Employee", self.employee, "user_id")
-			if user_id == frappe.session.user:
-				frappe.throw(_("Not Allowed to Approved own Application"))
-
-	def validate_reject_cancel_own_application(self):
-		cur_user = frappe.session.user
-		if not "Administrator" in frappe.get_roles(cur_user):
-			user_id = frappe.get_value("Employee", self.employee, "user_id")
-			if user_id == frappe.session.user:
-				frappe.throw(_("You cannot reject or cancel your own application"))
 
 @frappe.whitelist()
 def get_number_of_leave_days(from_date, to_date, half_day=None):

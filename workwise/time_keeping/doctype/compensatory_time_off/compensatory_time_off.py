@@ -8,9 +8,11 @@ from datetime import datetime
 from frappe import _
 from frappe.utils import nowdate, get_time, flt
 from frappe.model.document import Document
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
+		grant_head_subordinate_access(self)
 		if self.type == "File":
 			self.validate_fields_file_cto()
 			self.validate_duplicate_file_cto()
@@ -18,12 +20,16 @@ class CompensatoryTimeOff(Document):
 		if self.type == "Use":
 			self.validate_fields_use_cto()
 			self.validate_use_cto()
+		change_owner(self)
 
 	def on_submit(self):
+		validate_approve_own_application(self)
 		if self.type == "Use":
 			self.deduct_use_cto()
+		get_approver_and_date(self)
 
 	def on_cancel(self):
+		validate_reject_cancel_own_application(self)
 		if self.type == "File":
 			self.validate_cancel_file_cto()
 		if self.type == "Use":

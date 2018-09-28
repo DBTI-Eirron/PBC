@@ -8,16 +8,22 @@ from datetime import timedelta, datetime
 from frappe import _
 from frappe.utils import nowdate, cstr, getdate
 from frappe.model.document import Document
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
 
 class DTRProblemApplication(Document):
 	def validate(self):
+		grant_head_subordinate_access(self)
 		self.get_request()
+		change_owner(self)
 		
 	def on_submit(self):
+		validate_approve_own_application(self)
 		self.approve_request()
 		self.get_approver_details()
+		get_approver_and_date(self)
 
 	def on_cancel(self):
+		validate_reject_cancel_own_application(self)
 		self.revert_request()
 
 	def get_request(self):

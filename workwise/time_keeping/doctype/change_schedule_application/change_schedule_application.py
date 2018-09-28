@@ -7,25 +7,22 @@ import frappe, datetime
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
 
 class ChangeScheduleApplication(Document):
 	def on_submit(self):
-		self.validate_approver()
+		grant_head_subordinate_access(self)
+		validate_approve_own_application(self)
 		self.change_sched()
-		self.change_owner()
+		change_owner(self)
 		self.get_recipients()
-		self.get_approver_and_date()
+		get_approver_and_date(self)
 
 	def on_cancel(self):
-		self.validate_reject_cancel_own_application()
+		validate_reject_cancel_own_application(self)
 
 	def validate(self):
 		self.validate_existing_application()
-		
-	def validate_approver(self):
-		user_id = frappe.get_value("Employee", self.employee, "user_id")
-		if user_id == frappe.session.user:
-			frappe.throw(_("Not Allowed to Approved own Application"))
 		
 	def validate_existing_application(self):
 		if self.old_shift == self.new_shift:
@@ -83,7 +80,6 @@ class ChangeScheduleApplication(Document):
 	def delta_to_time(self, delta_obj):
 		return (datetime.datetime.min + delta_obj).time()
 
-
 	def get_shift(self):
 		fields_list = {}
 		old_shift =  frappe.db.sql("""SELECT `name`, work_shift FROM `tabWork Schedule` WHERE employee=%s and target_date = %s LIMIT 1""",(self.employee, self.target_date), as_dict=True);
@@ -93,12 +89,6 @@ class ChangeScheduleApplication(Document):
 		
 		if fields_list:
 			return fields_list
-			
-	def change_owner(self):
-		owner = ""
-		owner_email = frappe.db.sql("""SELECT user_id FROM `tabEmployee` WHERE `name` = %s LIMIT 1""",( self.employee ), as_dict=1)
-		for d in owner_email:
-			self.owner = d.user_id
 			
 	def get_recipients(self):
 		recipients = []
@@ -114,14 +104,3 @@ class ChangeScheduleApplication(Document):
 		if recipients:
 			send_to = ', '.join(str(x) for x in recipients)
 			self.managers_list = send_to
-
-	def validate_reject_cancel_own_application(self):
-		cur_user = frappe.session.user
-		if not "Administrator" in frappe.get_roles(cur_user):
-			user_id = frappe.get_value("Employee", self.employee, "user_id")
-			if user_id == frappe.session.user:
-				frappe.throw(_("You cannot reject or cancel your own application"))
-
-	def get_approver_and_date(self):
-		self.approved_by = frappe.session.user
-		self.approved_on = nowdate()

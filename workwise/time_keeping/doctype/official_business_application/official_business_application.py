@@ -8,30 +8,22 @@ from frappe import _
 from frappe.utils import cint, flt, getdate, cstr, nowdate, get_datetime, add_days, get_datetime_str, get_time
 from frappe.model.document import Document
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, timediff_hrs
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
 
 class OfficialBusinessApplication(Document):
 	def validate(self):
+		grant_head_subordinate_access(self)
 		self.get_ob_hrs()
-		self.change_owner()
+		change_owner(self)
 		self.get_recipients()
 		#self.change_time()
 
 	def on_submit(self):
-		self.validate_approve_own_application()
-		self.get_approver_and_date()
+		validate_approve_own_application(self)
+		get_approver_and_date(self)
 
 	def on_cancel(self):
-		self.validate_reject_cancel_own_application()
-
-	def get_approver_and_date(self):
-		self.approved_by = frappe.session.user
-		self.approved_on = nowdate()
-
-	def change_owner(self):
-		owner = ""
-		owner_email = frappe.db.sql("""SELECT user_id FROM `tabEmployee` WHERE `name` = %s LIMIT 1""",( self.employee ), as_dict=1)
-		for d in owner_email:
-			self.owner = d.user_id
+		validate_reject_cancel_own_application(self)
 
 	def get_recipients(self):
 		recipients = []
@@ -135,20 +127,6 @@ class OfficialBusinessApplication(Document):
 			frappe.db.sql("""INSERT INTO `tabOfficial Business Application Table` 
 				( target_date, from_time, to_time, is_half_day, is_holiday, is_excluded, parent, parentfield, parenttype, modified_by, owner, creation, modified, `name`,docstatus) 
 				VALUES (%s,%s,%s,0,0,0,%s,"official_business_application_table","Official Business Application","Administrator","Administrator",NOW(),NOW(),%s,1)""", (d.from_date,d.from_time,d.to_time,d.name,d.name))
-			
-	def validate_approve_own_application(self):
-		cur_user = frappe.session.user
-		if not "Administrator" in frappe.get_roles(cur_user):
-			user_id = frappe.get_value("Employee", self.employee, "user_id")
-			if user_id == frappe.session.user:
-				frappe.throw(_("Not Allowed to Approved own Application"))
-
-	def validate_reject_cancel_own_application(self):
-		cur_user = frappe.session.user
-		if not "Administrator" in frappe.get_roles(cur_user):
-			user_id = frappe.get_value("Employee", self.employee, "user_id")
-			if user_id == frappe.session.user:
-				frappe.throw(_("You cannot reject or cancel your own application"))
 
 @frappe.whitelist()
 def update_old_obs():
