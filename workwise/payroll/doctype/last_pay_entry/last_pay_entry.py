@@ -52,6 +52,7 @@ class LastPayEntry(Document):
 
 	def get_pro_rated(self, employee ,register):
 		for emp in employee:
+			present_days = 0
 			total_bonus = 0
 			rates = self.get_rates(emp)
 			bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method")
