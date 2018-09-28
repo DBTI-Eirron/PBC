@@ -88,6 +88,12 @@ def get_data():
 				},
 				{
 					"type": "report",
+					"name": "Payroll Register Per Department",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "Preliminary Report",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
