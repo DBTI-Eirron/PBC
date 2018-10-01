@@ -14,6 +14,11 @@ class JobApplicant(Document):
 		self.update_applicant_name()
 		self.validate_date()
 		self.validate_company()
+		if not self.apply_type:
+			self.apply_type = "Candidate"
+
+	def on_submit(self):
+		self.update_applicant_status()
 
 	def update_applicant_name(self):
 		if self.middle_name:
@@ -32,3 +37,6 @@ class JobApplicant(Document):
 		if self.currently_employed == "Yes": 
 			if not self.company:
 				throw(_("Company is required"))
+
+	def update_applicant_status(self):
+		self.db_set("apply_type", "For Assessment")

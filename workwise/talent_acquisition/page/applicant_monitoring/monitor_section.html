@@ -1,0 +1,101 @@
+<div class="module-body">
+
+<div class="row module-section">
+	<div class="col-sm-4 module-section-column">
+		<div class="col-sm-12">
+			<div class="h4 section-head">
+				<hr>
+			</div>
+		</div>
+	</div>
+
+	<div class="col-sm-8 module-section-column">
+		<div class="col-sm-12">
+			<div class="h4 section-head">
+				Steps and Process
+				<hr>
+			</div>
+			
+
+			<div class="section-body bg-light">
+				<div class="h4 section-head"> Step 1: Sourcing Candidates</div>
+					<!--<span><button class="pull-right btn btn-success btn-post" > + Add Candidate </button></span>-->
+				<div>
+					<p> Online Advertising on job and Career sites or professional networking and participation in trade associations. Internal and/or External </p>
+				</div>
+
+
+				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
+				{% for (var i=0; i < candidates.length; i++) { var d = candidates[i] %}
+					<li class="strong module-sidebar-item">
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Job%20Applicant/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+							<span>{{ d.applicant_name }}</span>
+						</a>
+					</li>
+				{% } %}
+				</ul>
+			</div>
+
+			<hr>
+			<div class="section-body bg-light">
+				<div class="h4 section-head"> Step 2: Schedule and Assesment</div>
+				<div>
+					<p> Review of Resumes, preliminary phone interviews to obtain applicants background and work experiences. </p>
+				</div>
+
+
+				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
+				{% for (var i=0; i < for_assessment.length; i++) { var d = for_assessment[i] %}
+					<li class="strong module-sidebar-item">
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Job%20Applicant/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+							<span>{{ d.applicant_name }}</span>
+						</a>
+					</li>
+				{% } %}
+				</ul>
+			</div>
+		
+			<hr>
+			<div class="section-body bg-light">
+				<div class="h4 section-head"> Step 3: Interview and Background Investigation</div>
+				<div>
+					<p> Hiring manager reviews the applications and resumes the employement specialist have forwarded. </p>
+				</div>
+
+
+				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
+				{% for (var i=0; i < for_interview.length; i++) { var d = for_interview[i] %}
+					<li class="strong module-sidebar-item">
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Schedules%20and%20Assessment/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+							<span>{{ d.applicant_name }}</span>
+						</a>
+					</li>
+				{% } %}
+				</ul>
+			</div>
+
+			<hr>
+			<div class="section-body bg-light">
+				<div class="h4 section-head"> Step 4: Job Offer</div>
+				<div>
+					<p> When reccruiting for positions where you negotiate th terms of employement, compensation and benefits, and other issues until the parties reach an agreement. </p>
+				</div>
+
+
+				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
+				{% for (var i=0; i < job_offer.length; i++) { var d = job_offer[i] %}
+					<li class="strong module-sidebar-item">
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Interview%20and%20Background/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+							<span>{{ d.applicant_name }}</span>
+						</a>
+					</li>
+				{% } %}
+				</ul>
+			</div>
+
+
+		</div>
+	</div>
+
+</div>
+</div>

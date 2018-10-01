@@ -4,18 +4,14 @@
 frappe.ui.form.on('Job Applicant', {
 	refresh: function(frm) {
 		if (!frm.doc.__islocal) {
-			if (frm.doc.__onload && frm.doc.__onload.offer_letter) {
-				frm.add_custom_button(__("Offer Letter"), function() {
-					frappe.set_route("Form", "Offer Letter", frm.doc.__onload.offer_letter);
-				}, __("View"));
-			} else {
-				frm.add_custom_button(__("Offer Letter"), function() {
+			if (frm.doc.docstatus == 1) {
+				frm.add_custom_button(__("Make Schedules and Assessment"), function() {
 					frappe.route_options = {
-						"job_applicant": frm.doc.name,
+						"applicant": frm.doc.name,
 						"applicant_name": frm.doc.applicant_name,
-						"designation": frm.doc.job_opening,
+						"apply_for": frm.doc.apply_for,
 					};
-					frappe.new_doc("Offer Letter");
+					frappe.new_doc("Schedules and Assessment");
 				}, __("Make"));
 				cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
 			}

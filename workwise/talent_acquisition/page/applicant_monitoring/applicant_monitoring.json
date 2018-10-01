@@ -1,0 +1,23 @@
+{
+ "content": null, 
+ "creation": "2018-09-25 06:02:49.655805", 
+ "docstatus": 0, 
+ "doctype": "Page", 
+ "idx": 0, 
+ "modified": "2018-09-25 06:02:58.673179", 
+ "modified_by": "Administrator", 
+ "module": "Talent Acquisition", 
+ "name": "applicant_monitoring", 
+ "owner": "Administrator", 
+ "page_name": "applicant_monitoring", 
+ "roles": [
+  {
+   "role": "Administrator"
+  }
+ ], 
+ "script": null, 
+ "standard": "Yes", 
+ "style": null, 
+ "system_page": 0, 
+ "title": "Applicant Monitoring"
+}
