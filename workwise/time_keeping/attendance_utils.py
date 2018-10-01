@@ -9,14 +9,30 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 			if ob['target_date'] == entry['target_date']:
 				entry['linked_ob'] = ob.name
 				entry['is_ob'] = 1
-				entry['ob_in'] = get_datetime( str(entry.get('target_date'))+" "+ str(ob.from_time) )
-				entry['ob_out'] = get_datetime( str(entry.get('target_date'))+" "+ str(ob.to_time) )
+
 				entry['ob_status'] = 1
 				entry["is_absent"] = 0
 				entry['is_lwop'] = 0
+
+				ob_in = get_datetime( str(entry.get('target_date'))+" "+ str(ob.from_time) )
+				if not entry['ob_in']:
+					entry['ob_in'] = ob_in
+				elif entry['ob_in'] and ob_in < entry['ob_in']:
+					entry['ob_in'] = ob_in
+
+				ob_out = get_datetime( str(entry.get('target_date'))+" "+ str(ob.to_time) )
+				if not entry['ob_out']:
+					entry['ob_out'] = ob_out
+				elif entry['ob_out'] and ob_out > entry['ob_out']:
+					entry['ob_out'] = ob_out
+
 				if entry['ob_out']  < entry['ob_in']:
 					ob_date = add_days(entry.get('target_date'), 1)
 					entry['ob_out'] = get_datetime( str(ob_date)+" "+ str(ob.to_time) )
+		
+	#if getdate(entry['target_date']) and getdate("2018-08-02"):
+	#	frappe.throw(_(entry['ob_in']))
+
 
 	if ots:
 		for ot in ots:
@@ -305,6 +321,11 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
+	if entry.get('is_restday'):
+		entry["late"] = 0
+		entry["undertime"] = 0
+		entry["is_absent"] = 0
+		
 	return entry
 
 def get_final_processing(entry):
