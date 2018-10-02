@@ -34,7 +34,9 @@ class LastPayEntry(Document):
 
 	def get_on_hold(self, employee ,register):
 		total_bonus = 0
-		bonus = frappe.db.sql(""" SELECT period, net_payroll FROM `tabPayroll Register` WHERE employee = %(employee)s AND on_hold = 1 AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+
+		bonus = frappe.db.sql(""" SELECT period, net_payroll FROM `tabPayroll Register` WHERE employee = %(employee)s 
+			AND on_hold = 1 AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
 			"employee": self.employee,
 			"from_year": self.from_year,
 			"to_year": self.to_year,
@@ -54,21 +56,53 @@ class LastPayEntry(Document):
 		for emp in employee:
 			present_days = 0
 			total_bonus = 0
+			remarks = ""
 			rates = self.get_rates(emp)
 			bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method")
-			if bonus_method == "Bonus Basis":
-				bonus = frappe.db.sql(""" SELECT bonus FROM `tabPayroll Register` WHERE employee = %(employee)s AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+
+			if bonus_method == "Standard":
+				register = frappe.db.sql(""" SELECT schedule, bonus FROM `tabPayroll Register` WHERE employee = %(employee)s 
+					AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s AND schedule = %(schedule)s """,{ 
 					"employee": self.employee,
 					"from_year": self.from_year,
 					"to_year": self.to_year,
+					"schedule": emp.payroll_schedule,
 				}, as_dict=True)
 
-				cutoff = 0
-				for d in bonus:
-					total_bonus += d.bonus
-					cutoff += 1
+				total_rate = 0.0
+				months = 0.0
+				for d in register:
+					if d.schedule == "Semi-Monthly":
+						months += 0.5
+						total_rate = d.monthly_rate
+					if d.schedule == "Monthly":
+						months += 1
+						total_rate = d.monthly_rate
 
-				total_bonus = total_bonus / cutoff
+				total_bonus += total_rate * months / 12
+				remarks = "( "+ str(total_rate) +" x "+ str(months)+" / 12 "+ ")"
+
+			if bonus_method == "Bonus Basis":
+				register = frappe.db.sql(""" SELECT schedule, bonus FROM `tabPayroll Register` WHERE employee = %(employee)s 
+					AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s AND schedule = %(schedule)s """,{ 
+					"employee": self.employee,
+					"from_year": self.from_year,
+					"to_year": self.to_year,
+					"schedule": emp.payroll_schedule,
+				}, as_dict=True)
+
+				total_rate = 0.0
+				months = 0.0
+				for d in register:
+					if d.schedule == "Semi-Monthly":
+						months += 0.5
+						total_rate += d.bonus
+					if d.schedule == "Monthly":
+						months += 1
+						total_rate += d.bonus
+
+				total_bonus += total_rate / months
+				remarks = "( "+ str(total_rate) +" / "+ str(months)+" )"
 
 			if bonus_method == "Attendance Base":
 				att = frappe.db.sql(""" SELECT bonus, present_days FROM `tabPayroll Register` WHERE employee = %(employee)s AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
@@ -81,11 +115,12 @@ class LastPayEntry(Document):
 					present_days += d.present_days
 
 				total_bonus = ( present_days / emp.get('total_yr_days')) * flt(rates.get('monthly_rate'), 8)
+				remarks = "("+ str(present_days) +" / "+ str(emp.get('total_yr_days'))+") x "+ str(flt(rates.get('monthly_rate'), 8)) +""
 
 			register.append({
 				"description": "Pro Rated 13th Month",
 				"type": "Add",
-				"remarks": "("+ str(present_days) +" / "+ str(emp.get('total_yr_days'))+") x "+ str(flt(rates.get('monthly_rate'), 8)) +"",
+				"remarks": remarks,
 				"amount": total_bonus,
 			})
 
