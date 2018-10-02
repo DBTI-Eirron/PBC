@@ -516,6 +516,7 @@ class PayrollProcessing(Document):
 					WHERE name = %s LIMIT 1 """,(total_unpaid, total_paid, loan_doc), as_dict=True )
 
 	def get_attendance(self, emp, rates, header, register, ot_map):
+		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		attendance_register = []
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0
@@ -527,6 +528,12 @@ class PayrollProcessing(Document):
 				if at.target_date == add_days(self.attendance_from, -1):
 					if at.is_absent or at.is_lwop:
 						is_uho = 1
+
+						if lwop_uho == 1:
+							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
+								is_uho = 0
+								if at.is_absent:
+									is_uho = 1
 
 				else: 
 					if (emp.get("rate_type") == "Daily Rate" and at.is_holiday == 1 and at.is_absent != 1):
@@ -585,10 +592,22 @@ class PayrollProcessing(Document):
 
 						if at.is_ob:
 							is_uho = 0
+
+						if lwop_uho == 1:
+							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
+								is_uho = 0
+								if at.is_absent:
+									is_uho = 1
 					else:
 						is_uho = 0
 						if (at.is_absent or at.is_lwop) and not at.is_ob:
 							is_uho = 1
+
+							if lwop_uho == 1:
+								if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
+									is_uho = 0
+									if at.is_absent:
+										is_uho = 1
 
 
 
