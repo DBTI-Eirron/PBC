@@ -39,6 +39,9 @@ class OfficialBusinessApplication(Document):
 			send_to = ', '.join(str(x) for x in recipients)
 			self.managers_list = send_to
 
+		if self.total_hrs == 0:
+			frappe.throw(_("Total Hours must not be zero"))
+
 	def get_ob_hrs(self):
 		total_ob_time = 0
 		for d in self.get('official_business_application_table'):
