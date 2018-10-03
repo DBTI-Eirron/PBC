@@ -176,7 +176,7 @@ def get_late(entry):
 				else: 
 					if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 						if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
-							entry['late'] += ( entry.get('card_in') - entry.get('time_in') - datetime.timedelta(minutes=entry.get('grace')) ).total_seconds()
+							entry['late'] += ( entry.get('card_in') - ( entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
 						else:
 							entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 			
