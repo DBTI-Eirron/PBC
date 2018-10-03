@@ -143,9 +143,10 @@ def get_ndiff(entry):
 			if entry.get('card_out') > entry.get('nd_end'):
 				entry['nightdiff'] = abs((entry.get('nd_start') - entry.get('nd_end')).total_seconds())
 
-	#early nightdiff
+		#early nightdiff
 		nd_early = get_datetime(str(entry.get('target_date')) +" "+ str("06:00:00") )
 		if get_datetime(entry.get('card_in')) < nd_early :
+			entry['nightdiff'] = abs((get_datetime(entry.get('card_in'))  - nd_early).total_seconds())
 
 	#OLD ND Code
 	#if entry.get('time_out') > entry.get('nd_start'):
@@ -482,7 +483,7 @@ def get_schedule(employee, pay_from, pay_to):
 def get_shift_map():
 	shift_map = {}
 	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
-			is_flexible, setup_preshift, setup_postshift, ignore_late, flex_from, flex_to
+			is_flexible, setup_preshift, setup_postshift, ignore_late, flex_from, flex_to, end_preshift, end_postshift
 		FROM `tabWork Shift` """, as_dict=True)
 	
 	for d in shifts:
@@ -501,7 +502,9 @@ def get_shift_map():
 			"setup_preshift": d.setup_preshift,
 			"setup_postshift": d.setup_postshift,
 			"flex_from": d.flex_from,
-			"flex_to": d.flex_to
+			"flex_to": d.flex_to,
+			"end_preshift": d.end_preshift,
+			"end_postshift": d.end_postshift,
 		}
 
 	return shift_map
@@ -546,17 +549,48 @@ def get_ext_list(employee, from_date, to_date):
 		WHERE workflow_state = 'Approved' AND employee = %s AND `date` >= %s AND `date` <= %s """, (employee, from_date, to_date), as_dict=1)
 	return ext_apps
 
-def get_card_within(pre_shift, post_shift, timecard_list):
-	cards = []
+def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list):
+	cards_in = []
+	cards_out = []
+	#frappe.throw(_(timecard_list))
 	for tc in timecard_list:
-		if pre_shift <= tc.card_datetime <= post_shift:
-			cards.append({
+		if pre_shift <= tc.card_datetime <= max_preshift and (tc.card_type == 0 or tc.card_type == 2):
+			cards_in.append({
+				"card_name":tc.name,
+				"card_time":tc.time,
+				"card_datetime": tc.card_datetime,
+				"card_type": tc.card_type
+			})				
+
+		if post_shift <= tc.card_datetime <= max_postshift and (tc.card_type == 1 or tc.card_type == 3):
+			cards_out.append({
 				"card_name":tc.name,
 				"card_time":tc.time,
 				"card_datetime": tc.card_datetime,
 				"card_type": tc.card_type
 			})
-	return cards
+
+	return cards_in, cards_out
+
+def get_sorted_card(entry, cards_in, cards_out):
+	sorted_in = sorted(cards_in, key=lambda k: k['card_datetime'])
+	sorted_out = sorted(cards_out, key=lambda k: k['card_datetime'])
+	
+	for card in sorted_in:
+		if card['card_type'] == 0:
+			if entry['card_in'] == "":
+				entry['card_in'] = card['card_datetime']
+		elif card['card_type'] == 2:
+			if entry['break_out'] == "":
+				entry['break_out'] = card['card_datetime']
+ 	
+ 	for card in sorted_out:
+		if card['card_type'] == 1:
+			entry['card_out'] = card['card_datetime']
+		elif card['card_type'] == 3:
+			entry['break_in'] = card['card_datetime']
+
+ 	return entry
 
 def get_timecard_list(bio, pay_from, pay_to):
 	timecard_list = frappe.db.sql("""SELECT TIMESTAMP(date, time) as card_datetime, card_type,name,`time` FROM `tabTime Card` 
@@ -589,7 +623,9 @@ def get_defaults(emp, sched, shift_map):
 		"target_date": getdate(sched.datetime_in),
 		"work_shift": sched.work_shift,
 		"pre_shift": add_to_date(sched.datetime_in, hours= (0 - shift_map[sched.work_shift]['setup_preshift']) ),
-		"post_shift": add_to_date(sched.datetime_out, hours=shift_map[sched.work_shift]['setup_postshift']),
+		"end_preshift": add_to_date(sched.datetime_in, hours= shift_map[sched.work_shift]['end_preshift'] ),
+		"post_shift": add_to_date(sched.datetime_out, hours= (0 - shift_map[sched.work_shift]['setup_postshift']) ),
+		"end_postshift": add_to_date(sched.datetime_out, hours=shift_map[sched.work_shift]['end_postshift'] ),	
 		"time_in": sched.datetime_in,
 		"time_out": sched.datetime_out,
 		"break_start": sched.break_start,

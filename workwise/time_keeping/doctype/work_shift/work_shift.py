@@ -23,7 +23,7 @@ class WorkShift(Document):
 			self.filter_name = "RD "+self.time_in+" - "+self.time_out
 
 	def validate_time_format(self):
-		time_fds = ['time_in', 'time_out', 'break_start', 'break_end', 'nd_start', 'nd_end', 'pre_shift', 'post_shift']
+		time_fds = ['time_in', 'time_out', 'break_start', 'break_end', 'nd_start', 'nd_end']
 		for fd in time_fds:
 			chk_time_format(self.get(fd), "%H:%M:%S")
 	

@@ -7,7 +7,7 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, 
-get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list)
+get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card)
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -157,21 +157,8 @@ def get_data(filters):
 		ext = get_ext_list(emp.name, pay_from, pay_to)
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
-			card_list = get_card_within(entry.get('pre_shift'), entry.get('post_shift'), timecard_list)		
-			sorted_card_list = sorted(card_list, key=lambda k: k['card_datetime'])
-			for card in sorted_card_list:
-				if card['card_type'] == 0:
-					if entry['card_in'] == "":
-						entry['card_in'] = card['card_datetime']
-				elif card['card_type'] == 1:
-					entry['card_out'] = card['card_datetime']
-
-				elif card['card_type'] == 2:
-					if entry['break_out'] == "":
-						entry['break_out'] = card['card_datetime']
-				elif card['card_type'] == 3:
-					entry['break_in'] = card['card_datetime']
-
+			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
+			get_sorted_card(entry, cards_in, cards_out)
 			get_attendance(entry, leaves, holidays, obs, ots, uts, ext)
 			entry['break'] = convert_secs(filters, entry['break'])
 			totals['break'] += entry['break']
