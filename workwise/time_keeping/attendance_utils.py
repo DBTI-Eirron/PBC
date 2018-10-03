@@ -342,6 +342,35 @@ def get_final_processing(entry):
 		entry["overtime"] = 0
 		entry["undertime"] = 0
 
+	#if flexible
+	if entry.get('is_flexible'):
+		if entry.get('card_in') and entry.get('card_out'):
+			entry['late'] = 0
+			entry['undertime'] = 0
+			entry['work'] = entry.get('worker_secs')
+
+			if entry.get('flex_to'):
+				if entry.get('card_in') > (entry.get('flex_to') + entry.get('flex_to') + datetime.timedelta(minutes=entry.get('grace'))):
+					if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
+						entry['late'] = ( entry.get('card_in') - (entry.get('flex_to') + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+					else:
+						entry['late'] = (entry.get('card_in') - entry.get('flex_to')).total_seconds()
+
+			diff = abs((entry.get('card_out') - entry.get('card_in')).total_seconds())
+			if diff < entry.get('worker_secs'):
+				entry['undertime'] = entry.get('worker_secs') - diff
+				entry['work'] = diff
+
+		#entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())		
+		#if entry.get('work') < (entry.get('worker_secs')):
+		#	entry['undertime'] += abs(entry.get('work') - entry.get('worker_secs'))
+		#	entry['work'] += entry['late']
+		#	entry['late'] = 0
+		#	entry['work'] = entry.get('worker_secs') - entry['undertime']
+
+
+
+
 	ch_tr=0
 	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
 	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
