@@ -136,10 +136,22 @@ def get_overtime(entry):
 	return entry
 
 def get_ndiff(entry):	
-	if entry.get('time_out') > entry.get('nd_start'):
-		entry['nightdiff'] += (entry.get('time_out') - entry.get('nd_start')).total_seconds()
-		if entry.get('time_out') > entry.get('nd_end'):
-			entry['nightdiff'] += (entry.get('nd_start') - entry.get('nd_end')).total_seconds()
+	#late nightdiff
+	if entry.get('card_in') and entry.get('card_out'):
+		if entry.get('card_out') > entry.get('nd_start'):
+			entry['nightdiff'] = abs((entry.get('card_out') - entry.get('nd_start')).total_seconds())
+			if entry.get('card_out') > entry.get('nd_end'):
+				entry['nightdiff'] = abs((entry.get('nd_start') - entry.get('nd_end')).total_seconds())
+
+	#early nightdiff
+		nd_early = get_datetime(str(entry.get('target_date')) +" "+ str("06:00:00") )
+		if get_datetime(entry.get('card_in')) < nd_early :
+
+	#OLD ND Code
+	#if entry.get('time_out') > entry.get('nd_start'):
+	#	entry['nightdiff'] += (entry.get('time_out') - entry.get('nd_start')).total_seconds()
+	#	if entry.get('time_out') > entry.get('nd_end'):
+	#		entry['nightdiff'] += (entry.get('nd_start') - entry.get('nd_end')).total_seconds()
 
 	return entry
 
