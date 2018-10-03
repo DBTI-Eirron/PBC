@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-import frappe, datetime
+import frappe, datetime, math
 from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
 from frappe import _
 
@@ -92,22 +92,10 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 				if l.is_second_half:
 					entry["lv_status"] = 3
 
-	
 	get_late(entry)
 	get_undertime(entry)
 	get_overtime(entry)
-	#get_ndiff(entry)
-
-	#if flexible
-	#if entry.get('is_flexible'):
-	#	if entry.get('work') < (entry.get('worker_secs')):
-	#		entry['undertime'] += abs(entry.get('work') - entry.get('worker_secs'))
-	#		entry['work'] += entry['late']
-	#		entry['late'] = 0
-	#		entry['work'] -= entry['undertime']
-
-	#is_attendance_base
-
+	get_ndiff(entry)
 	get_absent(entry)
 	get_work(entry)
 	get_final_processing(entry)
@@ -139,10 +127,11 @@ def get_work(entry):
 	return entry
 
 def get_overtime(entry):
-	if entry.get('linked_ot') and entry.get('card_out'):
-		if entry.get('card_out') > entry.get('time_out'):
-			if entry.get('ot_out') > entry.get('card_out'):
-				entry['overtime'] = abs((entry.get('ot_in') - entry.get('card_out')).total_seconds())
+	if frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard'):
+		if entry.get('linked_ot') and entry.get('card_out'):
+			if entry.get('card_out') > entry.get('time_out'):
+				if entry.get('ot_out') > entry.get('card_out'):
+					entry['overtime'] = abs((entry.get('ot_in') - entry.get('card_out')).total_seconds())
 
 	return entry
 
