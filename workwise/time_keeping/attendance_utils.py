@@ -41,6 +41,10 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 				entry['linked_ot'] = ot.name
 				entry['ot_in'] = get_datetime( str(ot.from_date) +" "+ str(ot.from_time) )
 				entry['ot_out'] = get_datetime( str(ot.to_date) +" "+ str(ot.to_time) )
+				if entry['ot_out'] and entry['straight_ot']:
+					entry['card_out'] = entry['ot_out']
+
+
 
 	if uts:
 		for ut in uts:
@@ -176,7 +180,7 @@ def get_late(entry):
 							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 				else: 
 					if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-						if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
+						if entry['graceperiod_late']:
 							entry['late'] += ( entry.get('card_in') - ( entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
 						else:
 							entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
@@ -346,21 +350,32 @@ def get_final_processing(entry):
 	#if flexible
 	if entry.get('is_flexible'):
 		if entry.get('card_in') and entry.get('card_out'):
-			entry['late'] = 0
-			entry['undertime'] = 0
-			entry['work'] = entry.get('worker_secs')
+			if entry.get('flexible_type') == "In-Out":
+				entry['late'] = 0
+				entry['undertime'] = 0	
+				entry['work'] = entry.get('worker_secs')			
+				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds()
+				if diff < entry.get('worker_secs'):
+					entry['undertime'] = entry.get('worker_secs') - diff
+					entry['late'] = 0
+					entry['work'] = abs(diff) - (entry.get('break_mins') * 60)
 
-			if entry.get('flex_to'):
-				if entry.get('card_in') > (entry.get('flex_to') + entry.get('flex_to') + datetime.timedelta(minutes=entry.get('grace'))):
-					if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
-						entry['late'] = ( entry.get('card_in') - (entry.get('flex_to') + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
-					else:
-						entry['late'] = (entry.get('card_in') - entry.get('flex_to')).total_seconds()
-
-			diff = abs((entry.get('card_out') - entry.get('card_in')).total_seconds())
-			if diff < entry.get('worker_secs'):
-				entry['undertime'] = entry.get('worker_secs') - diff
-				entry['work'] = diff
+			else:
+				entry['late'] = 0
+				entry['undertime'] = 0
+				entry['work'] = entry.get('worker_secs')
+				flex = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
+				if flex:
+					if entry.get('card_in') > ( flex + datetime.timedelta(minutes=entry.get('grace'))):
+						if entry['graceperiod_late']:
+							entry['late'] = ( entry.get('card_in') - (flex + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+						else:
+							entry['late'] = ( entry.get('card_in') - flex ).total_seconds()
+			
+				diff = abs((entry.get('card_out') - entry.get('card_in')).total_seconds())
+				if diff < entry.get('worker_secs'):
+					entry['undertime'] = entry.get('worker_secs') - diff
+					entry['work'] = diff
 
 		#entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())		
 		#if entry.get('work') < (entry.get('worker_secs')):
@@ -483,7 +498,8 @@ def get_schedule(employee, pay_from, pay_to):
 def get_shift_map():
 	shift_map = {}
 	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
-			is_flexible, setup_preshift, setup_postshift, ignore_late, flex_from, flex_to, end_preshift, end_postshift
+			is_flexible, setup_preshift, setup_postshift, ignore_late, flex_from, flex_to, 
+			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type
 		FROM `tabWork Shift` """, as_dict=True)
 	
 	for d in shifts:
@@ -505,6 +521,9 @@ def get_shift_map():
 			"flex_to": d.flex_to,
 			"end_preshift": d.end_preshift,
 			"end_postshift": d.end_postshift,
+			"graceperiod_late": d.graceperiod_late,
+			"straight_ot": d.straight_ot,
+			"flexible_type": d.flexible_type,
 		}
 
 	return shift_map
@@ -686,6 +705,10 @@ def get_defaults(emp, sched, shift_map):
 		"holiday_name": "",
 		"linked_holiday": "",
 		"ex_tardiness": 0,
-		"tags": "",		
+		"tags": "",
+		#POLICY
+		"graceperiod_late": shift_map[sched.work_shift]['graceperiod_late'],
+		"straight_ot": shift_map[sched.work_shift]['straight_ot'],
+		"flexible_type": shift_map[sched.work_shift]['flexible_type']
 	}
 	return entry
