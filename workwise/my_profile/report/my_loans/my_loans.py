@@ -51,7 +51,13 @@ def get_columns(filters):
 			"label": _("Total Paid Amount"),
 			"fieldtype": "Float",
 			"width": 140
-		},		
+		},
+		{
+			"fieldname": "total_unpaid",
+			"label": _("Total Unpaid Amount"),
+			"fieldtype": "Float",
+			"width": 140
+		},	
 	]
 
 	return columns
@@ -107,7 +113,8 @@ def get_result_as_list(data, filters):
 			"loan_amount": d.get("loan_amount"),
 			"interest": d.get("interest"),
 			"total_loan": d.get("total_loan"),			
-			"total_paid": d.get("total_paid")
+			"total_paid": d.get("total_paid"),
+			"total_unpaid": flt(d.get("total_loan"), 2) - flt(d.get("total_paid"), 2)
 		}
 		
 		result.append(row)
