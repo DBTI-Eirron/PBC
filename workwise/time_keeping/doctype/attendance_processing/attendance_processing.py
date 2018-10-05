@@ -14,7 +14,7 @@ get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_lis
 class AttendanceProcessing(Document):
 	def get_employees(self):
 		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location,is_attendance_base, no_hours FROM tabEmployee WHERE company = %(company)s {conditions}
-			AND on_hold = 0 AND is_active = 1 ORDER BY `full_name` """.format(conditions=self.get_employee_conditions()),{ 
+			AND is_active = 1 ORDER BY `full_name` """.format(conditions=self.get_employee_conditions()),{ 
 				"company": self.company,
 				"employee": self.employee
 			}, as_dict=True)
