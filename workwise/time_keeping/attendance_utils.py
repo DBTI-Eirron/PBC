@@ -4,6 +4,11 @@ from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money,
 from frappe import _
 
 def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
+	if entry.get("override_in"):
+		entry['card_in'] = entry.get("override_in")
+	if entry.get("override_out"):
+		entry['card_out'] = entry.get("override_out")
+
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
@@ -679,7 +684,9 @@ def get_defaults(emp, sched, shift_map):
 		"is_processed": 0,
 		#timecard data
 		"card_in": "",
-		"card_out": "",			
+		"card_out": "",
+		"override_in": sched.o_time_in,
+		"override_out": sched.o_time_out,			
 		"break_out": "",
 		"break_in": "",
 		#basic attendance
