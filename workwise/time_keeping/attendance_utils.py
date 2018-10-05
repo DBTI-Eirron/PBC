@@ -182,8 +182,18 @@ def get_late(entry):
 					if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 						if entry['graceperiod_late']:
 							entry['late'] += ( entry.get('card_in') - ( entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+							if entry.get('card_in') > entry.get('break_start'): #Reduce late based from Break Time
+								if entry.get('card_in') > entry.get('break_end'): #Reduce late Beyond Break Time
+									entry['late'] -= abs((entry.get('break_start') - entry.get('break_end')).total_seconds())
+								else:
+									entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
 						else:
 							entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
+							if entry.get('card_in') > entry.get('break_start'): #Reduce late based from Break Time
+								if entry.get('card_in') > entry.get('break_end'): #Reduce late Beyond Break Time
+									entry['late'] -= abs((entry.get('break_start') - entry.get('break_end')).total_seconds())
+								else:
+									entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
 			
 			else: #if no card in check for OB
 				if entry.get('ob_status') == 1:
@@ -328,9 +338,12 @@ def get_absent(entry):
 		entry["is_absent"] = 0
 
 	if entry.get('is_restday'):
-		entry["late"] = 0
-		entry["undertime"] = 0
-		entry["is_absent"] = 0
+		entry['late'] = 0
+		entry['undertime'] = 0
+		entry['is_absent'] = 0
+
+	if not entry.get('card_out'):
+		entry['overtime'] = 0
 		
 	return entry
 
@@ -354,12 +367,11 @@ def get_final_processing(entry):
 				entry['late'] = 0
 				entry['undertime'] = 0	
 				entry['work'] = entry.get('worker_secs')			
-				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds()
+				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds()  - (entry.get('break_mins') * 60)
 				if diff < entry.get('worker_secs'):
-					entry['undertime'] = entry.get('worker_secs') - diff
+					entry['undertime'] = (entry.get('worker_secs') - diff)
 					entry['late'] = 0
-					entry['work'] = abs(diff) - (entry.get('break_mins') * 60)
-
+					entry['work'] = abs(diff)
 			else:
 				entry['late'] = 0
 				entry['undertime'] = 0
@@ -383,9 +395,6 @@ def get_final_processing(entry):
 		#	entry['work'] += entry['late']
 		#	entry['late'] = 0
 		#	entry['work'] = entry.get('worker_secs') - entry['undertime']
-
-
-
 
 	ch_tr=0
 	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
@@ -484,7 +493,7 @@ def get_tags(entry):
 
 def get_schedule(employee, pay_from, pay_to):
 	schedule = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
-		datetime_in, datetime_out, pre_shift, post_shift, break_start, break_end, nd_start, nd_end
+		datetime_in, datetime_out, pre_shift, post_shift, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
 		FROM `tabWork Schedule` 
 		WHERE employee = %(employee)s AND target_date >= %(from_date)s AND target_date <= %(to_date)s
 		ORDER BY target_date ASC""",{
@@ -563,9 +572,14 @@ def get_ut_list(employee, from_date, to_date):
 		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s AND from_date <= %s """, (employee, from_date, to_date), as_dict=1)
 	return ut_apps
 
+def get_cto_list(employee, from_date, to_date):
+	cto_apps = frappe.db.sql("""SELECT `name`, use_fromtime, use_totime,  from_date FROM `tabCompensatory Time Off` 
+		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s AND from_date <= %s """, (employee, from_date, to_date), as_dict=1)
+	return cto_apps
+
 def get_ext_list(employee, from_date, to_date):
-	ext_apps = frappe.db.sql("""SELECT `name`, from_time, to_time, `date`, `type` FROM `tabExcuse Tardiness Application` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND `date` >= %s AND `date` <= %s """, (employee, from_date, to_date), as_dict=1)
+	ext_apps = frappe.db.sql("""SELECT `name`, `date`, from_time, to_time, `type` FROM `tabExcuse Tardiness Application` 
+		WHERE workflow_state = 'Approved' AND employee = %s AND `date` >= %s AND `date` <= %s AND `type` = 'Use' """, (employee, from_date, to_date), as_dict=1)
 	return ext_apps
 
 def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list):
