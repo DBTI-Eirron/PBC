@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import frappe, datetime
 from datetime import datetime
 from frappe import _
-from frappe.utils import nowdate, get_time, flt
+from frappe.utils import nowdate, get_time, flt, getdate
 from frappe.model.document import Document
 from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
 
@@ -20,6 +20,7 @@ class CompensatoryTimeOff(Document):
 		if self.type == "Use":
 			self.validate_fields_use_cto()
 			self.validate_use_cto()
+			self.validate_date_use_cto()
 		change_owner(self)
 
 	def on_submit(self):
@@ -68,13 +69,23 @@ class CompensatoryTimeOff(Document):
 			self.required_credits = 1.0
 
 		total_credits_earned = 0.00
-		current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance FROM `tabCompensatory Time Off` WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 ORDER BY `date` DESC""",( self.employee ), as_dict=1)
+		date_list = []
+		current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 ORDER BY `date` DESC""",( self.employee ), as_dict=1)
 
 		if current_credits:
 			for d in current_credits:
 				total_credits_earned += flt(d.cred_balance, 2)
+				date_list.append(d.date)
 
 		self.total_credits_earned = total_credits_earned
+		last_date = date_list[-1]
+
+		return last_date
+
+	def validate_date_use_cto(self):
+		last_date = self.validate_use_cto()
+		if getdate(self.use_date) < getdate(last_date):
+			frappe.throw(_("Cannot Use CTO Application for date {0} because last Filed CTO Application date is {1}").format(self.use_date, last_date))
 
 	def deduct_use_cto(self):
 		entries = [] 
