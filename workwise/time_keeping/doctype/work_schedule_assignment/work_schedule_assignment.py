@@ -60,9 +60,7 @@ class WorkScheduleAssignment(Document):
 							"work_hours": shift[0]['work_hours'],
 							"break_mins": shift[0]['break_mins'],
 							"datetime_in": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 0), 
-							"datetime_out": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 1),
-							"pre_shift": self.get_date(i, shift[0]["pre_shift"], shift[0]["post_shift"], shift[0]['work_shift_type'], 0), 
-							"post_shift": self.get_date(i, shift[0]["pre_shift"], shift[0]["post_shift"], shift[0]['work_shift_type'], 1),						
+							"datetime_out": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 1),					
 							"break_start": self.get_date(i, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 0),
 							"break_end": self.get_date(i, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 1),
 							"nd_start": self.get_date(i, shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 0),
@@ -110,9 +108,6 @@ class WorkScheduleAssignment(Document):
 				"nd_start": self.get_date(i, sched_map[day]['nd_start'], sched_map[day]['nd_end'], sched_map[day]['shift_type'], 0),
 				"nd_end": self.get_date(i, sched_map[day]['nd_start'], sched_map[day]['nd_end'], sched_map[day]['shift_type'], 1),	
 			}
-			info["pre_shift"] = add_to_date(info["datetime_in"], hours= (0 - sched_map[day]['setup_preshift']) )
-			info["post_shift"] = add_to_date(info["datetime_out"], hours=sched_map[day]['setup_postshift'])
-			
 			dates.append(info)
 
 		if self.get('employees'):
@@ -133,9 +128,7 @@ class WorkScheduleAssignment(Document):
 						"work_hours": d['work_hours'],
 						"break_mins": d['break_mins'],
 						"datetime_in": d["datetime_in"],
-						"datetime_out": d["datetime_out"],
-						"pre_shift": d["pre_shift"],
-						"post_shift": d["post_shift"],							
+						"datetime_out": d["datetime_out"],						
 						"break_start": d["break_start"],
 						"break_end": d["break_end"],
 						"nd_start": d["nd_start"],
@@ -191,10 +184,6 @@ class WorkScheduleAssignment(Document):
 				"nd_start": shift[0]['nd_start'],
 				"nd_end": shift[0]['nd_end'],				
 				"shift_type": shift[0]['work_shift_type'],
-				"pre_shift": shift[0]['pre_shift'],
-				"post_shift": shift[0]['post_shift'],
-				"setup_preshift": shift[0]['setup_preshift'],
-				"setup_postshift": shift[0]['setup_postshift'],
 			}
 
 		return sched_template
