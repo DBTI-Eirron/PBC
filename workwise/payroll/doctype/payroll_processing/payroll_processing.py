@@ -547,6 +547,9 @@ class PayrollProcessing(Document):
 					if at.undertime > 0:
 						undertime += flt(at.undertime, 8) * flt(rates.get('hourly_rate'), 8)
 
+					if at.nightdiff:
+						nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
+
 					if at.overtime > 0:
 						is_saturday = 1 if getdate(at.target_date).weekday() == 5 else 0
 						is_sunday = 1 if getdate(at.target_date).weekday() == 6 else 0
@@ -608,8 +611,6 @@ class PayrollProcessing(Document):
 									is_uho = 0
 									if at.is_absent:
 										is_uho = 1
-
-
 
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
