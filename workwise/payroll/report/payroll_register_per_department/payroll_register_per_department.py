@@ -19,6 +19,15 @@ def execute(filters=None):
 
 	columns = get_columns(income_types, deduction_types)
 	
+	final_total_row = ["<b> Total</b>",""]
+	f_total_income, f_total_deduction, f_total_payroll = 0, 0, 0
+	f_income_total, f_deduction_total = [], []
+
+	for f_income in income_types:
+		f_income_total.append(0)
+
+	for f_deduction in deduction_types:
+		f_deduction_total.append(0)
 
 	for department in department_list:
 		dept_name = "<b>"+ str(department.name) +"</b>"
@@ -28,20 +37,34 @@ def execute(filters=None):
 			income_map = get_income_map(filters, employee_list)
 			deduction_map = get_deduction_map(filters, employee_list)
 			dtotal_income, dtotal_deduction, dtotal_payroll = 0, 0, 0
+			income_total, deduction_total = [], []
+			total_row = ["<b> Total</b>",""]
+
+			for income in income_types:
+				income_total.append(0)
+
+			for deduction in deduction_types:
+				deduction_total.append(0)
 
 			for emp in employee_list:
 				row = [emp.name, emp.full_name]
-
 				total_payroll, total_income, total_deduction = 0, 0, 0
+
+				i = 0
 				for income in income_types:
 					income_amount = flt(income_map.get(emp.name, {}).get(income), 2)
 					total_income += flt(income_amount, 2)
+					income_total[i] += flt(income_amount, 2)
 					row.append(income_amount)
+					i += 1
 
+				i = 0
 				for deduction in deduction_types:
 					deduction_amount = flt(deduction_map.get(emp.name, {}).get(deduction), 2)
 					total_deduction += flt(deduction_amount, 2)
+					deduction_total[i] += flt(deduction_amount, 2)
 					row.append(deduction_amount)
+					i += 1
 
 				total_payroll = flt(total_income, 2) - flt(total_deduction, 2)
 				row += [total_income, total_deduction, total_payroll]
@@ -50,18 +73,38 @@ def execute(filters=None):
 				dtotal_payroll += total_payroll
 				data.append(row)
 
-			total_row = ["<b> Total</b>",""]
+			i = 0
 			for income in income_types:
-				total_row.append("")
+				total_row.append(income_total[i])
+				f_income_total[i] += flt(income_total[i], 2)
+				i += 1
 
+			i = 0
 			for deduction in deduction_types:
-				total_row.append("")
+				total_row.append(deduction_total[i])
+				f_deduction_total[i] += flt(deduction_total[i], 2)
+				i += 1
+
 			total_row += [dtotal_income, dtotal_deduction, dtotal_payroll]
-
-	
-
+			f_total_income += dtotal_income
+			f_total_deduction += dtotal_deduction
+			f_total_payroll += dtotal_payroll
 
 			data.append(total_row)
+
+	#Final Total
+	if not filters.department:
+		i = 0
+		for income in income_types:
+			final_total_row.append(f_income_total[i])
+			i += 1
+		i = 0
+		for deduction in deduction_types:
+			final_total_row.append(f_deduction_total[i])
+			i += 1
+		final_total_row += [f_total_income, f_total_deduction, f_total_payroll]
+		data.append("")
+		data.append(final_total_row)
 
 	return columns, data
 
