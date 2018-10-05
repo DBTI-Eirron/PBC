@@ -11,10 +11,17 @@ from frappe.model.document import Document
 class BIR2316(Document):
 	def validate(self):
 		if self.document_type == "Current":
+			self.validate_bir()
 			self.get_info()
 			self.get_agent()
 		if self.document_type == "Previous":
 			self.set_previous_computation()
+
+	def validate_bir(self):
+		current_bir = frappe.db.sql(""" SELECT DISTINCT * FROM `tabBIR2316` WHERE document_type = "Current" AND `employee` = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
+		if current_bir:
+			for d in current_bir:
+				frappe.throw(_("Current BIR2316 already exists, {0}").format(d.name))
 
 	def set_previous_computation(self):
 		self.ntax_total = flt(self.ntax_bonus, 2) + flt(self.ntax_contrib, 2)
@@ -367,7 +374,7 @@ class BIR2316(Document):
 		return entry
 
 	def get_prev_employer_info(self, e, entry):
-		prev_bir = frappe.db.sql(""" SELECT DISTINCT * FROM `tabBIR2316` WHERE document_type = "Previous" AND `employee` = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
+		prev_bir = frappe.db.sql(""" SELECT DISTINCT * FROM `tabBIR2316` WHERE document_type = "Previous" AND `employee` = %s AND docstatus = 1 """, (self.employee), as_dict=1)
 
 		if prev_bir:
 			for d in prev_bir:
