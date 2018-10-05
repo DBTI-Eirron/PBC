@@ -13,7 +13,13 @@ class BIR2316(Document):
 		if self.document_type == "Current":
 			self.get_info()
 			self.get_agent()
+		if self.document_type == "Previous":
+			self.set_previous_computation()
 
+	def set_previous_computation(self):
+		self.ntax_total = flt(self.ntax_bonus, 2) + flt(self.ntax_contrib, 2)
+		self.tax_total = flt(self.tax_bs, 2) + flt(self.tax_bonus, 2)
+	
 	def get_agent(self):
 		approver = frappe.session.user
 		agents = frappe.db.sql("""SELECT full_name FROM tabEmployee WHERE `user_id` = %s LIMIT 1""", (approver), as_dict=True)
@@ -116,94 +122,143 @@ class BIR2316(Document):
 		self.get_employee_address(e, entry)
 		self.get_employee_contact(e, entry)
 
-		self.tax_id = entry.get('tax_id')
-		self.local_address = entry.get('local_address')
-		self.registered_address = entry.get('registered_address')
-		self.foreign_address = entry.get('foreign_address')
-		self.date_of_birth = entry.get('date_of_birth')
-		self.exemption_status = entry.get('exemption_status')
-		self.rdo_code = entry.get('rdo_code')
-		self.local_address_zipcode = entry.get('local_address_zipcode')
-		self.registered_address_zipcode = entry.get('registered_address_zipcode')
-		self.foreign_address_zipcode = entry.get('foreign_address_zipcode')
-		self.telephone_number = entry.get('telephone_number')
+		if not self.tax_id:
+			self.tax_id = entry.get('tax_id')
+		if not self.local_address:
+			self.local_address = entry.get('local_address')
+		if not self.registered_address:
+			self.registered_address = entry.get('registered_address')
+		if not self.foreign_address:
+			self.foreign_address = entry.get('foreign_address')
+		if not self.date_of_birth:
+			self.date_of_birth = entry.get('date_of_birth')
+		if not self.exemption_status:
+			self.exemption_status = entry.get('exemption_status')
+		if not self.rdo_code:
+			self.rdo_code = entry.get('rdo_code')
+		if not self.local_address_zipcode:
+			self.local_address_zipcode = entry.get('local_address_zipcode')
+		if not self.registered_address_zipcode:
+			self.registered_address_zipcode = entry.get('registered_address_zipcode')
+		if not self.foreign_address_zipcode:
+			self.foreign_address_zipcode = entry.get('foreign_address_zipcode')
+		if not self.telephone_number:
+			self.telephone_number = entry.get('telephone_number')
 
 	def set_qualified_dependent_children(self, e, entry):
 		self.get_employee_dependants(e, entry)
 
-		self.dependent_name_1 = entry.get('dependent_name_1')
-		self.dependent_birthday_1 = entry.get('dependent_birthday_1')
-		self.dependent_name_3 = entry.get('dependent_name_3')
-		self.dependent_birthday_3 = entry.get('dependent_birthday_3')
-		self.dependent_name_2 = entry.get('dependent_name_2')
-		self.dependent_birthday_2 = entry.get('dependent_birthday_2')
-		self.dependent_name_4 = entry.get('dependent_name_4')
-		self.dependent_birthday_4 = entry.get('dependent_birthday_4')
+		if not self.dependent_name_1:
+			self.dependent_name_1 = entry.get('dependent_name_1')
+		if not self.dependent_birthday_1:
+			self.dependent_birthday_1 = entry.get('dependent_birthday_1')
+		if not self.dependent_name_3:
+			self.dependent_name_3 = entry.get('dependent_name_3')
+		if not self.dependent_birthday_3:
+			self.dependent_birthday_3 = entry.get('dependent_birthday_3')
+		if not self.dependent_name_2:
+			self.dependent_name_2 = entry.get('dependent_name_2')
+		if not self.dependent_birthday_2:
+			self.dependent_birthday_2 = entry.get('dependent_birthday_2')
+		if not self.dependent_name_4:
+			self.dependent_name_4 = entry.get('dependent_name_4')
+		if not self.dependent_birthday_4:
+			self.dependent_birthday_4 = entry.get('dependent_birthday_4')
 
 	def set_employer_information_present(self, e, entry):
 		self.get_company_info(e, entry)
 		self.get_company_address(e, entry)
 
-		self.employer_tax_id = entry.get('employer_tax_id')
-		self.employer_name = entry.get('employer_name')
-		self.employer_addr = entry.get('employer_addr')
-		self.employer_zip = entry.get('employer_zip')
+		if not self.employer_tax_id:
+			self.employer_tax_id = entry.get('employer_tax_id')
+		if not self.employer_name:
+			self.employer_name = entry.get('employer_name')
+		if not self.employer_addr:
+			self.employer_addr = entry.get('employer_addr')
+		if not self.employer_zip:
+			self.employer_zip = entry.get('employer_zip')
 
 	def set_employer_information_previous(self, e, entry):
 		self.get_prev_employer_info(e, entry)
 
-		self.prev_employer_tax_id = entry.get('prev_employer_tax_id')
-		self.prev_employ_name = entry.get('prev_employ_name')
-		self.prev_employ_addr = entry.get('prev_employ_addr')
-		self.prev_employ_zip = entry.get('prev_employ_zip')
+		if not self.prev_employer_tax_id:
+			self.prev_employer_tax_id = entry.get('prev_employer_tax_id')
+		if not self.prev_employ_name:
+			self.prev_employ_name = entry.get('prev_employ_name')
+		if not self.prev_employ_addr:
+			self.prev_employ_addr = entry.get('prev_employ_addr')
+		if not self.prev_employ_zip:
+			self.prev_employ_zip = entry.get('prev_employ_zip')
 
 	def set_summary(self, e, entry):
-		self.get_summary_info(e, entry)
+		self.get_last_pay(e, entry)
 		self.get_whtax_info(e, entry)
 
-		self.sum_gcipe = entry.get('ntax_total') + entry.get('tax_total')
-		self.sum_tnt = entry.get('ntax_total')
-		self.sum_tci = entry.get('tax_total')
-		self.sum_tcipe = entry.get('sum_tcipe')
-		self.sum_gtci = entry.get('sum_gtci')
-		self.sum_te = entry.get('sum_te')
-		self.sum_pph = entry.get('sum_pph')
-		self.sum_ntci = entry.get('sum_gtci') - entry.get('sum_te') - entry.get('sum_pph')
+		self.sum_gcipe = flt(self.ntax_total, 2) + flt(self.tax_total, 2)	
+		self.sum_tnt = flt(self.ntax_total, 2)	
+		self.sum_tci = flt(self.tax_total, 2)	
+		self.sum_tcipe = entry.get('sum_tcipe')	
+		self.sum_gtci = flt(self.sum_tci, 2) + flt(self.sum_tcipe, 2)	
+		self.sum_te = flt(self.sum_te, 2)	
+		self.sum_pph = flt(self.sum_pph, 2)	
+		self.sum_ntci = flt(self.sum_gtci, 2) - flt(self.sum_te, 2) - flt(self.sum_pph, 2)	
+		self.sum_td = entry.get('sum_td')	
 		self.sum_atw_pres = entry.get('sum_atw_pres')
 		self.sum_atw_prev = entry.get('sum_atw_prev')
-		self.sum_tatwa = entry.get('sum_atw_pres') + flt(self.sum_atw_prev, 2)
+		self.sum_tatwa =  flt(self.sum_atw_pres, 2) + flt(self.sum_atw_prev, 2)
 
 	def set_computations(self, e, entry):
+		self.get_tax_basic(e, entry)
 		tr_map = self.get_transaction_map()
 		self.get_salary_info(e, entry, tr_map)
 		self.get_monthpay_info(e, entry)
 		self.get_monthpay_ceiling_info(e, entry)
 
-		self.ntax_bs = entry.get('ntax_bs')
-		self.ntax_ho = entry.get('ntax_ho')
-		self.ntax_ot = entry.get('ntax_ot')
-		self.ntax_nd = entry.get('ntax_nd')
-		self.ntax_bonus = entry.get('ntax_bonus')
-		self.ntax_demi = entry.get('ntax_demi')
-		self.ntax_contrib = entry.get('ntax_contrib')
-		self.ntax_other = entry.get('ntax_other')
-		self.ntax_hazard = entry.get('ntax_hazard')
+		if self.ntax_bs == 0.000:
+			self.ntax_bs = entry.get('ntax_bs')
+		if self.ntax_ho == 0.000:
+			self.ntax_ho = entry.get('ntax_ho')
+		if self.ntax_ot == 0.000:
+			self.ntax_ot = entry.get('ntax_ot')
+		if self.ntax_nd == 0.000:
+			self.ntax_nd = entry.get('ntax_nd')
+		if self.ntax_bonus == 0.000:
+			self.ntax_bonus = entry.get('ntax_bonus')
+		if self.ntax_demi == 0.000:
+			self.ntax_demi = entry.get('ntax_demi')
+		if self.ntax_contrib == 0.000:
+			self.ntax_contrib = entry.get('ntax_contrib')
+		if self.ntax_other == 0.000:
+			self.ntax_other = entry.get('ntax_other')
+		if self.ntax_hazard == 0.000:
+			self.ntax_hazard = entry.get('ntax_hazard')
 
-		self.tax_bs = entry.get('tax_bs')
-		self.tax_rep = entry.get('tax_rep')
-		self.tax_transpo = entry.get('tax_transpo')
-		self.tax_cola = entry.get('tax_cola')
-		self.tax_housing = entry.get('tax_housing')
-		self.tax_commission = entry.get('tax_commission')
-		self.tax_sharing = entry.get('tax_sharing')
-		self.tax_fees = entry.get('tax_fees')
-		self.tax_bonus = entry.get('tax_bonus')
-		self.tax_ot = entry.get('tax_ot')
-		self.tax_hazard = entry.get('tax_hazard')
+		if self.tax_bs == 0.000:
+			self.tax_bs = entry.get('tax_bs')
+		if self.tax_rep == 0.000:
+			self.tax_rep = entry.get('tax_rep')
+		if self.tax_transpo == 0.000:
+			self.tax_transpo = entry.get('tax_transpo')
+		if self.tax_cola == 0.000:
+			self.tax_cola = entry.get('tax_cola')
+		if self.tax_housing == 0.000:
+			self.tax_housing = entry.get('tax_housing')
+		if self.tax_commission == 0.000:
+			self.tax_commission = entry.get('tax_commission')
+		if self.tax_sharing == 0.000:
+			self.tax_sharing = entry.get('tax_sharing')
+		if self.tax_fees == 0.000:
+			self.tax_fees = entry.get('tax_fees')
+		if self.tax_bonus == 0.000:
+			self.tax_bonus = entry.get('tax_bonus')
+		if self.tax_ot == 0.000:
+			self.tax_ot = entry.get('tax_ot')
+		if self.tax_hazard == 0.000:
+			self.tax_hazard = entry.get('tax_hazard')
 
-		self.ntax_total = entry.get('ntax_total')
-		self.tax_total = entry.get('tax_total')
-
+		self.ntax_total = flt(self.ntax_bs, 2) + flt(self.ntax_ho, 2) + flt(self.ntax_ot, 2) + flt(self.ntax_nd, 2) + flt(self.ntax_bonus, 2) + flt(self.ntax_demi, 2) + flt(self.ntax_contrib, 2) + flt(self.ntax_other, 2) + flt(self.ntax_hazard, 2)
+		self.tax_total = flt(self.tax_bs, 2) + flt(self.tax_rep, 2) + flt(self.tax_transpo, 2) + flt(self.tax_cola, 2) + flt(self.tax_housing, 2) + flt(self.tax_commission, 2) + flt(self.tax_sharing, 2) + flt(self.tax_fees, 2) + flt(self.tax_bonus, 2) + flt(self.tax_ot, 2) + flt(self.tax_hazard, 2)
+	
 	def load_tax_id(self, e, entry):
 		if self.tax_id:
 			tax_id = self.tax_id.replace("-","")
@@ -326,25 +381,24 @@ class BIR2316(Document):
 
 		return entry
 
-	def get_summary_info(self, e, entry):
-		summary = frappe.db.sql("""SELECT DISTINCT employee, employee_name, gross_payroll, taxable_income FROM `tabPayroll Register`
-			WHERE employee = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, getdate(self.from_date), getdate(self.to_date)), as_dict=True)
-
-		if summary:
-			for d in summary:
-				entry['sum_gtci'] += d.gross_payroll
-				entry['sum_td'] += d.taxable_income
-
-		return entry
-
 	def get_whtax_info(self, e, entry):
 		salary = frappe.db.sql("""SELECT DISTINCT pr.employee, pr.employee_name, pre.pay_code, pre.amount FROM `tabPayroll Register` pr
 			INNER JOIN `tabPayroll Register Entries` pre ON pre.parent = pr.`name`
-			WHERE employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
+			WHERE on_hold = 0 AND employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 
 		for d in salary:
 			if d.pay_code == "WHTAX":
 				entry['sum_atw_pres'] += d.amount
+
+		return entry
+
+	def get_tax_basic(self, e, entry):
+		basic_salary = frappe.db.sql("""SELECT DISTINCT gross_payroll FROM `tabPayroll Register`
+			WHERE employee = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
+
+		if basic_salary:
+			for d in basic_salary:
+				entry['tax_bs'] += d.gross_payroll
 
 		return entry
 
@@ -369,8 +423,8 @@ class BIR2316(Document):
 			is_taxable = tr_map[d.get("pay_code")]['is_taxable']
 
 			#TAXABLE
-			if bir_type == "Basic" and is_taxable:
-				entry['tax_bs'] += d.amount
+			#if bir_type == "Basic" and is_taxable:
+			#	entry['tax_bs'] += d.amount
 
 			if bir_type == "Representation" and is_taxable:
 				entry['tax_rep'] += d.amount
@@ -430,20 +484,24 @@ class BIR2316(Document):
 			if bir_type == "Contribution":
 				entry['ntax_contrib'] += d.amount
 
-		#if is_taxable:
-			entry['tax_total'] = entry['tax_bs'] + entry['tax_rep'] + entry['tax_transpo'] + entry['tax_cola'] + entry['tax_housing'] + entry['tax_commission'] + entry['tax_sharing'] + entry['tax_fees'] + entry['tax_bonus'] + entry['tax_ot'] + entry['tax_hazard']
-			
-			entry['ntax_total'] = entry['ntax_bs'] + entry['ntax_ho'] + entry['ntax_ot'] + entry['ntax_nd'] + entry['ntax_bonus'] + entry['ntax_demi'] + entry['ntax_contrib'] + entry['ntax_other']
+		return entry
 
+	def get_last_pay(self, e, entry):
+		last_pay = frappe.db.sql("""SELECT DISTINCT `tax_due`, `not_yet_paid` FROM `tabLast Pay Entry` WHERE `employee` = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
+
+		if last_pay:
+			for d in last_pay:
+				entry['sum_td'] += d.tax_due
+				entry['sum_atw_pres'] += d.not_yet_paid
+		
 		return entry
 
 	def get_monthpay_info(self, e, entry):
 		monthpay = frappe.db.sql("""SELECT DISTINCT LP.`amount` FROM `tabLast Pay Register` LP JOIN `tabLast Pay Entry` LE ON LP.`parent`=LE.`name` WHERE LP.`description` = "Pro Rated 13th Month" AND LE.`employee` = %s AND LE.posting_date >= %s AND LE.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 
-		for d in monthpay:
-			entry['ntax_bonus'] += d.amount
-
-		entry['ntax_total'] += entry['ntax_bonus']
+		if monthpay:
+			for d in monthpay:
+				entry['ntax_bonus'] += d.amount
 		
 		return entry
 
@@ -474,8 +532,6 @@ class BIR2316(Document):
 				entry['tax_bonus'] = total_ntax_bonus - ceiling_limit
 				entry['ntax_bonus'] = entry['ntax_bonus'] - entry['tax_bonus']
 
-				entry['ntax_total'] = entry['ntax_total'] - entry['tax_bonus']
-				entry['tax_total'] =  entry['tax_total'] + entry['tax_bonus']
 			if total_bonus <= ceiling_limit:
 				entry['ntax_bonus'] = total_ntax_bonus
 				
