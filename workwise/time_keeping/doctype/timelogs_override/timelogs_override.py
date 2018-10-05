@@ -6,7 +6,9 @@ import frappe, datetime
 from frappe.model.document import Document
 from frappe	import _
 from frappe.utils import flt, getdate, formatdate, cstr, nowdate, add_to_date
-from workwise.time_keeping.attendance_utils import get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, get_attendance, get_card_within,get_datetime,get_shift_map
+from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, 
+get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_datetime)
 
 class TimelogsOverride(Document):
 
@@ -21,55 +23,14 @@ class TimelogsOverride(Document):
 		if d.old_shift != d.work_shift:		
 			self.change_sched(d) 
 
-	def save_time_logs(self,d,bio_id):	
-		schedule_in = frappe.get_value('Work Shift',d.work_shift,'time_in')
-		if d.time_in:
-			if d.log_time_in:
-				frappe.set_value('Time Card',d.log_time_in,'time',d.time_in)
-			else:
-				self.new_time_card(bio_id,0,d.target_date,d.time_in)
-		else:
-			if d.time_in:
-				frappe.delete_doc("Time Card", d.log_time_in)
-		if d.break_in:
-			if d.log_break_in:
-				frappe.set_value('Time Card',d.log_break_in,'time',d.break_in)
-			else:
-				self.new_time_card(bio_id,2,d.target_date,d.break_in)
-		else:
-			if d.log_break_in:
-				frappe.delete_doc("Time Card", d.log_break_in)
-		if d.break_out:
-			if d.log_break_out:
-				frappe.set_value('Time Card',d.log_break_out,'time',d.break_out)
-			else:
-				self.new_time_card(bio_id,3,d.target_date,d.break_out)
-		else:
-			if d.log_break_out:
-				frappe.delete_doc("Time Card", d.log_break_out)
-		if d.time_out:
-			shift_map = get_shift_map()
-			time_in = frappe.get_value('Work Shift',d.work_shift,'time_in')
-			date_time_in = str(d.target_date) + " " + str(time_in)
-			pre_shift = add_to_date(get_datetime(date_time_in), hours= (0 - shift_map[d.work_shift]['setup_preshift']) )
-			time_out = datetime.datetime.strptime(d.time_out, '%H:%M:%S').time()
-			str_pre_shift = str(pre_shift)[11:]
-			final_pre_shift = datetime.datetime.strptime(str_pre_shift, '%H:%M:%S').time()
-			date = getdate(d.target_date) + datetime.timedelta(days=1) 
-			if d.log_time_out:
-				if time_out < final_pre_shift:
-					frappe.set_value('Time Card',d.log_time_out,'time',d.time_out)
-					frappe.set_value('Time Card',d.log_time_out,'date',date)
-				else:
-					frappe.set_value('Time Card',d.log_time_out,'time',d.time_out)
-			else:
-				if time_out < final_pre_shift:
-					self.new_time_card(bio_id,1,str(date),d.time_out)
-				else:
-					self.new_time_card(bio_id,1,d.target_date,d.time_out)
-		else:
-			if d.log_time_out:
-				frappe.delete_doc("Time Card", d.log_time_out)
+	def save_time_logs(self,d,bio_id):
+		for item in self.get("timelogs_override"):
+			schedule = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, d.target_date), as_dict=True)
+			for sched in schedule:
+				frappe.db.sql("""UPDATE `tabWork Schedule`
+				SET o_time_in = %s, o_break_in = %s, o_break_out =%s, o_time_out =%s
+				WHERE `name` =%s""",(d.o_time_in,d.o_break_in,d.o_break_out,d.o_time_out,sched.name),as_dict=True)
+			
 	
 	def change_sched(self,d):
 		work_shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(d.work_shift), as_dict=True)
@@ -132,63 +93,55 @@ class TimelogsOverride(Document):
 		bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
 		pay_from, pay_to = frappe.db.get_value("Payroll Period", self.payroll_period, ["attendance_from", "attendance_to"])
 		schedule = get_schedule(self.employee, pay_from, pay_to)
-		if schedule:
-			entries = []
-			for d in schedule:
-				row = {
-					"schedule_name": d.name,
-					"work_shift": d.work_shift,
-					"old_shift": d.work_shift,
-					"target_date": d.target_date
-
-				}
-				entries.append(row);
-
-			for d in entries:
-				row = self.append('timelogs_override', {})
-				row.update(d)
-
-		tc_entries = self.load_entries(pay_from,pay_to)
-		self.print_entries(tc_entries,pay_from,pay_to)
-
-
-	def load_entries(self,pay_from,pay_to):
 		entries = []
-		bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
-		tc_entries = frappe.db.sql("""SELECT `name`,`card_type`, `time`, `date` FROM `tabTime Card` WHERE `biometrics_id`=%s AND `date` >= %s and `date`<=%s""", (bio_id,pay_from,pay_to),as_dict=True)
+		for d in schedule:
+			row = {
+				"schedule_name": d.name,
+				"work_shift": d.work_shift,
+				"old_shift": d.work_shift,
+				"target_date": d.target_date,
+				"o_time_in":d.o_time_in,
+				"o_break_in":d.o_break_in,
+				"o_break_out":d.o_break_out,
+				"o_time_out":d.o_time_out
+			}
+			entries.append(row);
 
-		return tc_entries
+		for d in entries:
+			row = self.append('timelogs_override', {})
+			row.update(d)
+		self.print_entries(pay_from,pay_to)
 
-	def  print_entries(self,tc_entries,pay_from,pay_to):
-		
+	def  print_entries(self,pay_from,pay_to):
 		for d in self.get("timelogs_override"):
-			bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
-			timecard_list = get_timecard_list(bio_id, pay_from, pay_to + datetime.timedelta(days=1))
-			shift_map = get_shift_map()
-			time_in = frappe.get_value('Work Shift',d.work_shift,'time_in')
-			time_out = frappe.get_value('Work Shift',d.work_shift,'time_out')
-			date_time_in = str(d.target_date) + " " + str(time_in)
-			date_time_out = str(d.target_date) + " " + str(time_out)
-			pre_shift = add_to_date(get_datetime(date_time_in), hours= (0 - shift_map[d.work_shift]['setup_preshift']) )
-			post_shift = add_to_date(get_datetime(date_time_out), hours=shift_map[d.work_shift]['setup_postshift'])
-			final_pre_shift = pre_shift + datetime.timedelta(days=1)
-			card_list = get_card_within(pre_shift, final_pre_shift, timecard_list)		
-			sorted_card_list = sorted(card_list, key=lambda k: k['card_datetime'])
-			for x in sorted_card_list:
-					if  x['card_type'] == 0:
-						d.log_time_in = x['card_name']
-						d.time_in = x['card_time']
-					if x['card_type'] == 1:
-						d.log_time_out = x['card_name']
-						d.time_out = x['card_time']
-					if x['card_type'] == 2:
-						d.log_break_in = x['card_name']
-						d.break_in = x['card_time']
-					if x['card_type'] == 3:
-						d.log_break_out = x['card_name']
-						d.break_out = x['card_time']
+			employee = frappe.db.sql("""SELECT * FROM `tabEmployee` WHERE `name`= %s LIMIT 1""",(self.employee),as_dict=True)
+			for emp in employee:
+				bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
+				timecard_list = get_timecard_list(bio_id, pay_from, pay_to + datetime.timedelta(days=1))
+				shift_map = get_shift_map()
+				schedule = frappe.db.sql("""SELECT * FROM `tabWork Schedule` WHERE employee = %s AND target_date =%s""",(self.employee,d.target_date),as_dict=True)
+				for sched in schedule:
+					entry = get_defaults(emp, sched, shift_map)
+					datetime_in = sched['datetime_in']
+					datetime_out = sched['datetime_out']
+					setup_preshift, end_preshift, setup_postshift, end_postshift = frappe.get_value('Work Shift',d.work_shift,['setup_preshift','end_preshift','setup_postshift','end_postshift'])
+					pre_shift = datetime_in - datetime.timedelta(hours=setup_preshift)
+					end_pre_shift = datetime_in + datetime.timedelta(hours=end_preshift)
+					post_shift = datetime_out - datetime.timedelta(hours=setup_postshift)
+					end_post_shift = datetime_out + datetime.timedelta(hours=end_postshift)
+					cards_in, cards_out = get_card_within(pre_shift, end_pre_shift, post_shift, end_post_shift, timecard_list)
+					sorted_card_list = get_sorted_card(entry, cards_in, cards_out)
+					d.time_in = sorted_card_list['card_in']
+					d.break_in = sorted_card_list['break_in']
+					d.break_out = sorted_card_list['break_out']
+					d.time_out = sorted_card_list['card_out']
+					# d.o_time_in = sched['o_time_in']
+					# d.o_break_in = sched['o_break_in']
+					# d.o_break_out = sched['o_break_out']
+					# d.o_time_out = sched['o_time_out']
+
+
+					
+					
 
 			
-			
-
-		
