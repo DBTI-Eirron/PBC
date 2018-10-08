@@ -13,7 +13,7 @@ class Dashboard(Document):
 
 @frappe.whitelist()
 def get_birthdays(target_doc=None):
-	info = frappe.db.sql("""SELECT * FROM `tabEmployee` """, as_dict=1)
+	info = frappe.db.sql("""SELECT * FROM `tabEmployee` WHERE `is_active` = 1 """, as_dict=1)
 	return info
 
 @frappe.whitelist()
@@ -24,7 +24,8 @@ def get_dashboard_info(target_doc=None):
 		"apps": "",
 	}
 	bday_today = datetime.date.strftime(getdate(nowdate()), '%b-%d')
-	info['bday'] = frappe.db.sql(""" SELECT full_name, profile_picture, birthday FROM `tabEmployee` WHERE DATE_FORMAT(birthday, '%%b-%%d') = %s  """, (bday_today), as_dict=1)
+	frappe.throw(_(bday_today))
+	info['bday'] = frappe.db.sql(""" SELECT full_name, profile_picture, birthday FROM `tabEmployee` WHERE DATE_FORMAT(birthday, '%%b-%%d') = %s AND `is_active` = 1 """, (bday_today), as_dict=1)
 	info['todo'] = frappe.db.sql("""SELECT * FROM `tabToDo` WHERE owner = %s """, (frappe.session.user), as_dict=1)
 	info['post'] = frappe.db.sql("""SELECT P.post_description, E.profile_picture, E.full_name FROM `tabPublic Post` P LEFT JOIN `tabEmployee` E ON E.user_id = P.owner ORDER BY P.creation  """, as_dict=1)
 
@@ -64,19 +65,19 @@ def get_employee_gender_data():
 	g_count = []
 	c_count = []
 
-	companies = frappe.db.sql("""SELECT DISTINCT `name` as company FROM `tabCompany` ORDER BY `name`""", as_dict=True)
+	companies = frappe.db.sql("""SELECT DISTINCT `name` as company FROM `tabCompany` WHERE `is_active` = 1 ORDER BY `name`""", as_dict=True)
 	for a in companies:
 		companylist.append(a.company)
 
-	genders = frappe.db.sql("""SELECT DISTINCT `name` as gender FROM `tabGender` ORDER BY `name`""", as_dict=True)
+	genders = frappe.db.sql("""SELECT DISTINCT `name` as gender FROM `tabGender` WHERE `is_active` = 1 ORDER BY `name`""", as_dict=True)
 	for b in genders:
 		genderlist.append(b.gender)
 
-	gender_count = frappe.db.sql("""SELECT DISTINCT count(*) as count FROM `tabGender`""", as_dict=True)
+	gender_count = frappe.db.sql("""SELECT DISTINCT count(*) as count FROM `tabGender` WHERE `is_active` = 1 """, as_dict=True)
 	for c in gender_count:
 		g_count.append(c.count)
 
-	company_count = frappe.db.sql("""SELECT DISTINCT count(*) as count FROM `tabCompany`""", as_dict=True)
+	company_count = frappe.db.sql("""SELECT DISTINCT count(*) as count FROM `tabCompany` WHERE `is_active` = 1 """, as_dict=True)
 	for d in company_count:
 		c_count.append(d.count)
 
@@ -86,7 +87,7 @@ def get_employee_gender_data():
 		com_count = c_count[0] - 1
 		valuelist = []
 		while (com_count >= 0):
-			employee_count = frappe.db.sql("""SELECT DISTINCT COUNT(*) as count FROM `tabEmployee` WHERE company = %(company)s AND gender = %(gender)s""",{
+			employee_count = frappe.db.sql("""SELECT DISTINCT COUNT(*) as count FROM `tabEmployee` WHERE company = %(company)s AND gender = %(gender)s AND `is_active` = 1 """,{
 				"company": companylist[com_count],
 				"gender": genderlist[gen_count]
 			}, as_dict=True)
@@ -119,11 +120,11 @@ def get_employee_age_data():
 	valuelist = []
 	agelist = []
 
-	ages = frappe.db.sql("""SELECT DATE_FORMAT(FROM_DAYS(DATEDIFF(NOW(), birthday)), "%Y")+0 as age FROM `tabEmployee` GROUP BY age ORDER BY age""", as_dict=True)
+	ages = frappe.db.sql("""SELECT DATE_FORMAT(FROM_DAYS(DATEDIFF(NOW(), birthday)), "%Y")+0 as age FROM `tabEmployee` WHERE `is_active` = 1 GROUP BY age ORDER BY age""", as_dict=True)
 	for b in ages:
 		agelist.append(int(b.age))
 
-		employee_count = frappe.db.sql("""SELECT DISTINCT COUNT(*) as count FROM `tabEmployee` WHERE DATE_FORMAT(FROM_DAYS(DATEDIFF(NOW(), birthday)), '%%Y') + 0 = %(age)s""",{
+		employee_count = frappe.db.sql("""SELECT DISTINCT COUNT(*) as count FROM `tabEmployee` WHERE `is_active` = 1 AND DATE_FORMAT(FROM_DAYS(DATEDIFF(NOW(), birthday)), '%%Y') + 0 = %(age)s""",{
 			"age": int(b.age)
 		}, as_dict=True)
 
