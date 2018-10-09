@@ -12,18 +12,26 @@ class EmployeeSubordinates(Document):
 		self.remove_duplicates()	
 		if self.employee:
 			user_id = frappe.db.get_value("Employee", self.employee, "user_id")
-			if user_id and self.get("subordinates"):
-				frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE allow = 'Employee' AND user = %s AND for_value != %s """, (user_id, self.employee), as_dict=1)
-
+			if user_id:
+				self.remove_all_permissions()
 				for d in self.get("subordinates"):
 					frappe.permissions.add_user_permission("Employee", d.subordinate, user_id)
+				frappe.cache().delete_value('user_permissions')
 			else:
 				frappe.throw(_("This Employee has no User ID."))
 
-	def on_trash(self):
+	def remove_all_permissions(self):
 		user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 		if user_id:
-			frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE allow = 'Employee' AND user = %s AND for_value != %s """, (user_id, self.employee), as_dict=1)
+			perms = frappe.db.sql("""SELECT `name`, for_value FROM `tabUser Permission` WHERE allow = 'Employee' AND user = %s AND for_value != %s """, (user_id, self.employee), as_dict=1)
+			for d in perms:
+				frappe.permissions.remove_user_permission("Employee", d.for_value, user_id)
+			frappe.cache().delete_value('user_permissions')
+		else:
+			frappe.throw(_("This Employee has no User ID."))
+
+	def on_trash(self):
+		self.remove_all_permissions()
 
 	def remove_duplicates(self):
 		unique_emp = []
