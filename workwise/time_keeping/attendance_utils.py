@@ -400,7 +400,6 @@ def get_final_processing(entry):
 		#	entry['work'] += entry['late']
 		#	entry['late'] = 0
 		#	entry['work'] = entry.get('worker_secs') - entry['undertime']
-
 	ch_tr=0
 	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
 	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
@@ -733,3 +732,4 @@ def get_defaults(emp, sched, shift_map):
 		"flexible_type": shift_map[sched.work_shift]['flexible_type']
 	}
 	return entry
+
