@@ -51,6 +51,7 @@ class Employee(Document):
 					"email": self.email,
 					"first_name": self.first_name,
 					"send_welcome_mail": 0,
+					"last_name": self.last_name,
 				})
 				if user.insert():
 					self.user_id = self.email
