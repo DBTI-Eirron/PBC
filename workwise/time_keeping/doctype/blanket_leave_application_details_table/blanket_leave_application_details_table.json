@@ -9,7 +9,7 @@
  "docstatus": 0, 
  "doctype": "DocType", 
  "document_type": "", 
- "editable_grid": 0, 
+ "editable_grid": 1, 
  "engine": "InnoDB", 
  "fields": [
   {
@@ -146,7 +146,7 @@
  "issingle": 0, 
  "istable": 1, 
  "max_attachments": 0, 
- "modified": "2018-03-21 21:11:14.801741", 
+ "modified": "2018-10-05 17:05:22.497219", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Blanket Leave Application Details Table", 
