@@ -33,11 +33,6 @@ def get_data():
 					"doctype": "Appraisal Report",	
 					"is_query_report": True
 				},
-				{
-					"type": "doctype",
-					"name": "Team Updates",
-					"description": _("Team Updates"),
-				},
 			]
 		},
 	]
