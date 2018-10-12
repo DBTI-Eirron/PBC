@@ -39,16 +39,22 @@ class DTRProblemApplication(Document):
 			if req.action == "Approved" and req.current:
 				card = self.get_card_type(req)
 				timecard_sel = self.get_timecard(card)
-				frappe.client.set_value("Time Card", timecard_sel[0].name, "time", req.request)
+				if timecard_sel:
+					for a in timecard_sel:
+						frappe.client.set_value("Time Card", a.name, "time", req.request)
+				else:
+					self.make_timecard(req)
 			if req.action == "Approved" and not req.current:
-				self.make_timecard()
+				self.make_timecard(req)
 
 	def revert_request(self):
 		for req in self.get("time_record_request"):
 			if req.action == "Approved" and req.current:
 				card = self.get_card_type(req)
 				timecard_sel = self.get_timecard(card)
-				frappe.client.set_value("Time Card", timecard_sel[0].name, "time", req.current)
+				if timecard_sel:
+					for a in timecard_sel:
+						frappe.client.set_value("Time Card", a.name, "time", req.current)
 			if req.action == "Approved" and not req.current:
 				if req.time_card:
 					if frappe.db.exists("Time Card", req.time_card):
@@ -90,18 +96,18 @@ class DTRProblemApplication(Document):
 
 		return target_date
 
-	def make_timecard(self):
+	def make_timecard(self, req):
 		target_date = self.update_target_date()
 		bio = frappe.db.get_value("Employee", self.employee, "biometrics_id")
-		for req in self.get("time_record_request"):
-			card_type = self.get_card_type(req)
-			new_timecard = frappe.new_doc("Time Card")
-			new_timecard.update({
-				"biometrics_id": bio,
-				"card_type": card_type,
-				"date": str(target_date),
-				"time": str(req.request)
-			})
 
-			new_timecard.insert()
-			new_timecard.save()
+		card_type = self.get_card_type(req)
+		new_timecard = frappe.new_doc("Time Card")
+		new_timecard.update({
+			"biometrics_id": bio,
+			"card_type": card_type,
+			"date": str(target_date),
+			"time": str(req.request)
+		})
+
+		new_timecard.insert()
+		new_timecard.save()
