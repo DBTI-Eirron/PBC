@@ -53,10 +53,6 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Blanket",
-				},
-				{
-					"type": "doctype",
 					"name": "Excuse Tardiness Application",
 				},
 				{
@@ -71,9 +67,23 @@ def get_data():
 					"type": "doctype",
 					"name": "Compensatory Time Off",
 				},
+
+			]
+		},
+		{
+			"label": _("Tools"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Blanket",
+				},	
 				{
 					"type": "doctype",
 					"name": "Batch Approval",
+				},
+				{
+					"type": "doctype",
+					"name": "Work Suspension",
 				},
 			]
 		},
