@@ -125,7 +125,7 @@ def validate_filters(filters):
 
 def get_employees(filters):
 	employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location, is_attendance_base, no_hours FROM tabEmployee WHERE `name` = %(employee)s
-		AND on_hold = 0 AND is_active = 1 LIMIT 1 """,{ 
+		AND is_active = 1 LIMIT 1 """,{ 
 			"employee": filters.employee
 		}, as_dict=True)
 
