@@ -349,6 +349,9 @@ def get_absent(entry):
 
 	if not entry.get('card_out'):
 		entry['overtime'] = 0
+
+	if not entry.get('card_in'):
+		entry['overtime'] = 0
 		
 	return entry
 
