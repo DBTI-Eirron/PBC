@@ -85,6 +85,10 @@ def get_data():
 					"type": "doctype",
 					"name": "Work Suspension",
 				},
+				{
+					"type": "doctype",
+					"name": "Timelogs Override",
+				},
 			]
 		},
 		{
@@ -113,10 +117,6 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Holiday",
-				},
-				{
-					"type": "doctype",
-					"name": "Timelogs Override",
 				},
 			]
 		},
