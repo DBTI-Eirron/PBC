@@ -61,7 +61,7 @@ class LeaveApplication(Document):
 				frappe.throw(_("Maximum of {1} Day(s) are Allowed for ( {0} ) ").format(self.leave_type, max_days))
 
 		if filing_days > 0:
-			date_diff=datediff_days_raw(nowdate(), self.from_date, "%Y-%m-%d")		
+			date_diff=datediff_days_raw(nowdate(), cstr(self.from_date), "%Y-%m-%d")		
 			if date_diff.days > filing_days:
 				frappe.throw(_("Date of Filling should not be later than {0} Day(s) ").format(filing_days))
 
