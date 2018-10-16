@@ -10,7 +10,7 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Jasper Forms",
+					"name": "Jasper Form",
 				},
 				{
 					"type": "doctype",
