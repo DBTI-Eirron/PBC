@@ -355,7 +355,7 @@ class PayrollProcessing(Document):
 		
 			for d in hdmf_register:
 				register.append(d)
-				if d.get("pay_code") == "HDMF":
+				if d.get("pay_code") == "HDMF" or d.get("pay_code") == "HDMFM":
 					self.calculate_special_header(d, header, tr_map)
 
 	def get_whtax(self, emp, rates, header, register):
