@@ -7,7 +7,10 @@ import frappe
 from frappe.model.document import Document
 
 class JasperForm(Document):
-	pass
+	def validate(self):
+		file = open("copy.txt", "w") 
+		file.write("Your text goes here") 
+		file.close() 
 
 @frappe.whitelist()
 def get_forms(doctype_name):
