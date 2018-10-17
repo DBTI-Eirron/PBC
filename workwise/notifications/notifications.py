@@ -13,13 +13,17 @@ def get_notification_config():
 			"Leave Application": {"workflow_state": "Pending"},
 			"Overtime Application": {"workflow_state": "Pending"},
 			"Official Business Application": {"workflow_state": "Pending"},
+			"Change Schedule Application": {"workflow_state": "Pending"},
 			"Undertime Application": {"workflow_state": "Pending"},
 			"Excuse Tardiness Application": {"workflow_state": "Pending"},
 			"DTR Problem Application": {"workflow_state": "Pending"},
-			"Change Schedule Application": {"workflow_state": "Pending"},
+			"Compensatory Time Off": {"workflow_state": "Pending"},
+			"Blanket": {"workflow_state": "Pending"},
+			"Work Suspension": {"workflow_state": "Pending"},
 			"Loan Application": {"workflow_state": "Pending"},
 			"Appraisal": {"appraisal_type": "360-Degree"},
 			"Job Applicant": {"status": "Open"},
+			
 		}
 	}
 
