@@ -20,10 +20,14 @@ class Employee(Document):
 		self.validate_salary()
 		self.create_user()
 		self.validate_is_qualified_dependent()
-
+		if self.job_offer:
+			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
+			
 	def on_update(self):
 		if self.user_id:
 			self.update_user_permissions()
+
+
 
 	def update_user_permissions(self):
 		frappe.permissions.add_user_permission("Employee", self.name, self.user_id)
