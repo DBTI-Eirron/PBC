@@ -4,8 +4,22 @@
 	<div class="col-sm-4 module-section-column">
 		<div class="col-sm-12">
 			<div class="h4 section-head">
+			Active Request
 				<hr>
+
 			</div>
+			
+			<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">	
+				{% for (var i=0; i < ar.length; i++) { var d = ar[i] %}
+					<li class="strong module-sidebar-item">
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Personnel%20Requisition/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+							<p>{{ d.name }}</p><span class="label label-danger"> {{ d.quantity }}</span>
+							<span class="label label-success"> {{ d.position_title }}</span>
+							<span class="label label-info"> {{ d.date_needed }}</span>
+						</a>
+					</li>
+				{% } %}
+			</ul>
 		</div>
 	</div>
 
@@ -19,7 +33,7 @@
 
 			<div class="section-body bg-light">
 				<div class="h4 section-head"> Step 1: Sourcing Candidates</div>
-					<!--<span><button class="pull-right btn btn-success btn-post" > + Add Candidate </button></span>-->
+					<span><button class="pull-right btn btn-success btn-post" > + Add Candidate </button></span>
 				<div>
 					<p> Online Advertising on job and Career sites or professional networking and participation in trade associations. Internal and/or External </p>
 				</div>
@@ -67,7 +81,7 @@
 				{% for (var i=0; i < for_interview.length; i++) { var d = for_interview[i] %}
 					<li class="strong module-sidebar-item">
 						<a class="module-link" data-name="my_payslip" href="desk#Form/Schedules%20and%20Assessment/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
-							<span>{{ d.applicant_name }}</span>
+							<span>{{ d.applicant_name }}</span><span class="label label-info"> {{ d.interview_date }}</span>
 						</a>
 					</li>
 				{% } %}
@@ -86,6 +100,25 @@
 				{% for (var i=0; i < job_offer.length; i++) { var d = job_offer[i] %}
 					<li class="strong module-sidebar-item">
 						<a class="module-link" data-name="my_payslip" href="desk#Form/Interview%20and%20Background/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+							<span>{{ d.applicant_name }}</span>
+						</a>
+					</li>
+				{% } %}
+				</ul>
+			</div>
+
+			<hr>
+			<div class="section-body bg-light">
+				<div class="h4 section-head"> Step 5: Employee Records</div>
+				<div>
+					<p>  Create Employee Record </p>
+				</div>
+
+
+				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
+				{% for (var i=0; i < for_employee.length; i++) { var d = for_employee[i] %}
+					<li class="strong module-sidebar-item">
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Offer%20Letter/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
 							<span>{{ d.applicant_name }}</span>
 						</a>
 					</li>

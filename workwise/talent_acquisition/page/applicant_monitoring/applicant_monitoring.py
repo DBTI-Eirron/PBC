@@ -18,17 +18,16 @@ def get_candidates(target_doc=None):
 		"for_interview": "",
 		"for_assessment": "",
 		"job_offer": "",
+		"for_employee": "",
+		"ar": "",
 	}
-
 	info['candidates'] = frappe.db.sql("""SELECT * FROM `tabJob Applicant` WHERE docstatus = 0  AND apply_type = 'Candidate'""", as_dict=1)
-	
 	info['for_assessment'] = frappe.db.sql("""SELECT * FROM `tabJob Applicant` WHERE apply_type = 'For Assessment' AND docstatus = 1 """, as_dict=1)
-
 	info['for_interview'] = frappe.db.sql("""SELECT * FROM `tabSchedules and Assessment` WHERE apply_type = 'For Interview' AND docstatus = 1 """, as_dict=1)
-	
 	info['job_offer'] = frappe.db.sql("""SELECT * FROM `tabInterview and Background` WHERE apply_type = 'Job Offer' AND docstatus = 1 """, as_dict=1)
+	info['for_employee'] = frappe.db.sql("""SELECT * FROM `tabOffer Letter` WHERE status = 'Accepted' AND docstatus = 1 AND apply_type != 'Completed' """, as_dict=1)
+	info['ar'] = frappe.db.sql("""SELECT * FROM `tabPersonnel Requisition` WHERE docstatus = 1 """, as_dict=1)
 	
-
 	return info
 
 @frappe.whitelist()
