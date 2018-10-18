@@ -41,6 +41,7 @@ frappe.ui.form.on('Payroll Processing', {
 
 	company: function(frm){
 		frm.set_value("period", null);
+		frm.set_value("employee", null);
 	}
 });
 
