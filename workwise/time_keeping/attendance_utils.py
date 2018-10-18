@@ -6,6 +6,7 @@ from frappe import _
 def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 	if entry.get("override_in"):
 		entry['card_in'] = entry.get("override_in")
+
 	if entry.get("override_out"):
 		entry['card_out'] = entry.get("override_out")
 
@@ -272,21 +273,22 @@ def get_undertime(entry):
 def get_absent(entry):
 	if not entry.get('is_restday') and not entry['is_holiday'] and not entry.get('ob_status'):
 		if not entry.get('card_in') and not entry.get('card_out'):
-			if entry.get('lv_status') == 2:
+			if entry.get('lv_status') == 1 or entry.get('suspension') == 2:
 				if entry['is_lwop'] == 1:
 					entry['is_absent'] = 1
 					entry["work"] = 0
 					
-			elif entry.get('lv_status') == 3:
+			elif entry.get('lv_status') == 3 or entry.get('suspension') == 3:
 				if entry['is_lwop'] == 1:
 					entry['is_absent'] = 1
 					entry["work"] = 0
 
-			elif entry.get('lv_status') == 1:
+			elif entry.get('lv_status') == 1 or entry.get('suspension') == 1:
+				entry['is_absent'] = 0	
 				if entry['is_lwop'] == 1:
 					entry["work"] = 0
 			else:
-				if entry.get('lv_status') != 1:
+				if entry.get('lv_status') != 1 or entry.get('suspension') != 1:
 					entry['is_absent'] = 1
 					entry["work"] = 0
 					entry["late"] = 0
@@ -325,7 +327,7 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
-	if entry.get('lv_status') > 1 and not entry.get('card_out'):
+	if (entry.get('lv_status') > 1 or entry.get('suspension') > 1) and not entry.get('card_out'):
 		entry["work"] = 0
 		entry["is_absent"] = 1
 		entry["is_halfday"] = 1
@@ -336,7 +338,7 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 1
 
-	if entry.get('lv_status') == 1:
+	if entry.get('lv_status') == 1 or entry.get('suspension') == 1:
 		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
@@ -352,7 +354,7 @@ def get_absent(entry):
 
 	if not entry.get('card_in'):
 		entry['overtime'] = 0
-		
+
 	return entry
 
 def get_final_processing(entry):
@@ -474,6 +476,13 @@ def get_tags(entry):
 			entry["tags"] += " <span class='label label-success'>OT-"+overtime_type+"</span> " if entry['overtime'] > 0 else ""
 			
 	#ut tags
+	if entry.get('suspension') == 1:
+		entry["tags"] += " <span class='label label-success'> Work Suspension </span> "
+	elif entry.get('suspension') == 2:
+		entry["tags"] += " <span class='label label-success'> 1sthalf Work Suspension </span> "
+	elif entry.get('suspension') == 3:
+		entry["tags"] += " <span class='label label-success'> 2ndhalf Work Suspension </span> "
+
 	if entry.get('linked_ut'):
 		entry["tags"] += " <span class='label label-danger'> Approved Undertime </span> "
 	elif entry.get('undertime') > 0:
@@ -589,6 +598,70 @@ def get_ext_list(employee, from_date, to_date):
 		WHERE workflow_state = 'Approved' AND employee = %s AND `date` >= %s AND `date` <= %s AND `type` = 'Use' """, (employee, from_date, to_date), as_dict=1)
 	return ext_apps
 
+def get_ws_list(from_date, to_date):
+	ws_apps = frappe.db.sql(""" SELECT apply_to, apply_value, target_date, suspension_start, suspension_end FROM `tabWork Suspension` WS 
+		INNER JOIN `tabWork Suspension Dates` WSD ON WSD.parent = WS.`name`
+		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s AND target_date <= %s """, (from_date, to_date), as_dict=1)
+
+	return ws_apps
+
+def get_suspension_map(from_date, to_date):
+	suspension_map = {}
+
+	suspensions = frappe.db.sql(""" SELECT apply_to, apply_value, target_date, suspension_start, suspension_end FROM `tabWork Suspension` WS 
+		INNER JOIN `tabWork Suspension Dates` WSD ON WSD.parent = WS.`name`
+		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s AND target_date <= %s  AND WS.docstatus = 1 """, (from_date, to_date), as_dict=1)
+	
+	if suspensions:
+		for d in suspensions:
+			suspension_name = ""+cstr(d.apply_to)+"_"+cstr(d.apply_value)+"_"+cstr(d.target_date)+""
+			suspension_map[suspension_name] = {
+				"apply_to": d.apply_to,
+				"apply_value": d.apply_value,
+				"suspension_date": d.target_date,
+				"suspension_start": d.suspension_start,
+				"suspension_end": d.suspension_end,
+			}
+
+	return suspension_map
+
+def get_suspension(emp, suspension_map, entry):
+	if suspension_map:
+		start, end = "", ""
+		company = "Company_"+cstr(emp.company)+"_"+cstr(entry.get('target_date'))+""
+		location = "Location_"+cstr(emp.location)+"_"+cstr(entry.get('target_date'))+""
+		department = "Department_"+cstr(emp.department)+"_"+cstr(entry.get('target_date'))+""
+		if company in suspension_map:
+			start = suspension_map[company]['suspension_start']
+			end = suspension_map[company]['suspension_end']
+
+		if location in suspension_map:
+			start = suspension_map[location]['suspension_start']
+			end = suspension_map[location]['suspension_end']
+			
+		if department in suspension_map:
+			start = suspension_map[department]['suspension_start']
+			end = suspension_map[department]['suspension_end']
+
+		if start and end:
+			if start < end:
+				entry['suspension_start'] = get_datetime( str(entry.get('target_date') )+" "+ str(start) )
+				entry['suspension_end'] = get_datetime( str(entry.get('target_date') )+" "+ str(end) )
+			elif start > end:
+				entry['suspension_start'] = get_datetime( str(entry.get('target_date') )+" "+ str(start) )
+				entry['suspension_end'] = get_datetime( str( add_days(entry.get('target_date'), 1) )+" "+ str(end) )
+
+		if entry['suspension_start'] and entry['suspension_end']:
+			entry['suspension'] = 1			
+			if entry['suspension_start'] >= entry['break_end']:
+				entry['suspension'] = 3
+			else:	
+				if entry['suspension_end'] <= entry['break_end']:
+					entry['suspension'] = 2
+
+
+	return entry
+
 def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list):
 	cards_in = []
 	cards_out = []
@@ -656,6 +729,9 @@ def get_defaults(emp, sched, shift_map):
 	entry = {
 		#employe settings
 		"employee": emp.name,
+		"company": emp.company,
+		"location": emp.location,
+		"department": emp.department,
 		"worker_hrs": emp.no_hours,
 		"worker_secs": (emp.no_hours * 60) * 60,
 		"is_attendance_base": emp.is_attendance_base,
@@ -729,7 +805,11 @@ def get_defaults(emp, sched, shift_map):
 		"linked_holiday": "",
 		"ex_tardiness": 0,
 		"tags": "",
-		#POLICY
+		#SUSPENSION
+		"suspension": 0,
+		"suspension_start": "",
+		"suspension_end": "",
+		#POLICIES
 		"graceperiod_late": shift_map[sched.work_shift]['graceperiod_late'],
 		"straight_ot": shift_map[sched.work_shift]['straight_ot'],
 		"flexible_type": shift_map[sched.work_shift]['flexible_type']
