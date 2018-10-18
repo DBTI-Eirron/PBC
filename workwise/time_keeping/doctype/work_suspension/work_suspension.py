@@ -23,13 +23,6 @@ class WorkSuspension(Document):
 		if self.from_date > self.to_date:
 			frappe.throw(_("From Date must be before To Date"))
 
-		for d in self.get('dates'):
-			exist = frappe.db.sql("""SELECT WS.`name` FROM `tabWork Suspension` WS 
-				INNER JOIN `tabWork Suspension Dates` WSD ON WSD.parent = WS.`name`
-				WHERE WSD.target_date = %s AND WS.company = %s AND WS.`name` != %s AND WS.docstatus = 1  """,(d.target_date, self.company, self.name) )
-			if exist:
-				frappe.throw(_("Work Suspension Already Filed on {0} for {1}").format(d.target_date, self.company))
-
 	def get_dates(self):
 		if not self.from_date and not self.to_date:
 			frappe.throw(_("No From Date and To Date is Required"))
