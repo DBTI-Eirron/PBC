@@ -330,7 +330,7 @@ class PayrollProcessing(Document):
 
 	def get_hdmf(self, emp, rates, header, register, tr_map):
 		hdmf_register = []
-		if self.frequency == emp['hdmf_freq'] or emp.get('phic_freq') == 'Both':
+		if self.frequency == emp['hdmf_freq'] or emp.get('hdmf_freq') == 'Both':
 			if emp['hdmf_mode'] != "None":
 				hdmf_register = []
 				hdmf_list = ["hdmf","hdmfe","hdmfm"]
