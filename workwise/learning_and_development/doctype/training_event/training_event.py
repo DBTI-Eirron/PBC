@@ -15,6 +15,7 @@ class TrainingEvent(Document):
 		self.update_number_of_attendees()
 		self.validate_participant_capacity()
 		self.validate_attendees()
+		self.validate_total_cost()
 
 	def validate_datetime(self):
 		if self.event_start and get_datetime(self.event_start) > get_datetime(self.event_end):
@@ -26,6 +27,9 @@ class TrainingEvent(Document):
 	def validate_participant_capacity(self):
 		if self.number_of_attendees > self.participant_capacity:
 			throw(_("Number of Attendees exceed the allowed Participant Capacity"))
+
+	def validate_total_cost(self):
+		self.total_cost = cint(self.number_of_attendees) * flt(self.cost_per_participant, 2);
 
 	def update_number_of_attendees(self):
 		attendees = 0
