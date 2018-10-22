@@ -45,6 +45,7 @@ class BatchApproval(Document):
 			row.update(d)
 
 	def approve_applications(self):
+		table = "`tab"+self.application_type+"`"
 		for b in self.get("batch_table"):
 			if b.action == "Approved":
 				application = frappe.get_doc(self.application_type, b.application)
@@ -55,3 +56,6 @@ class BatchApproval(Document):
 				})
 				application.save()
 				application.submit()
+			if b.action == "Rejected":
+				frappe.db.sql("""UPDATE """+table+""" SET docstatus = 2, workflow_state = "Rejected" WHERE `name` = %s """, (b.application))
+				frappe.db.commit()
