@@ -16,16 +16,30 @@ frappe.query_reports["Preliminary Report"] = {
 			"label": __("Period"),
 			"fieldtype": "Link",
 			"options": "Payroll Period",
-			"reqd": 1,
-			"filters": {
-				"status": 'Open'
-			}
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company,
+						"status": 'Open'
+					}
+				};
+			},
+			"reqd": 1
 		},
 		{
 			"fieldname": "employee",
 			"label": __("Employee"),
 			"fieldtype": "Link",
 			"options": "Employee",
-		},	
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company
+					}
+				};
+			}
+		},
 	]
 }

@@ -21,25 +21,59 @@ def execute(filters=None):
 	deduction_map = get_deduction_map(filters, employee_list)
 
 	data = []
+	dtotal_income, dtotal_deduction, dtotal_payroll = 0, 0, 0
+	income_total, deduction_total = [], []
+
+	total_row = ["<b> Total</b>",""]
+
+	for income in income_types:
+		income_total.append(0)
+
+	for deduction in deduction_types:
+		deduction_total.append(0)
+
 	for emp in employee_list:
 		row = [emp.name, emp.full_name]
 
 		total_income = 0
+		i = 0
 		for income in income_types:
 			income_amount = flt(income_map.get(emp.name, {}).get(income), 2)
 			total_income += flt(income_amount, 2)
+			income_total[i] += flt(income_amount, 2)
 			row.append(income_amount)
+			i += 1
 
 		total_deduction = 0
+		i = 0
 		for deduction in deduction_types:
 			deduction_amount = flt(deduction_map.get(emp.name, {}).get(deduction), 2)
 			total_deduction += flt(deduction_amount, 2)
+			deduction_total[i] += flt(deduction_amount, 2)
 			row.append(deduction_amount)
+			i += 1
 
 		total_payroll = flt(total_income, 2) - flt(total_deduction, 2)
+		if total_payroll < 0:
+			total_payroll = 0
 		row += [total_income, total_deduction, total_payroll]
-
+		dtotal_income += total_income
+		dtotal_deduction += total_deduction
+		dtotal_payroll += total_payroll
 		data.append(row)
+
+	i = 0
+	for income in income_types:
+		total_row.append(income_total[i])
+		i += 1
+
+	i = 0
+	for deduction in deduction_types:
+		total_row.append(deduction_total[i])
+		i += 1
+
+	total_row += [dtotal_income, dtotal_deduction, dtotal_payroll]
+	data.append(total_row)
 
 	return columns, data
 
@@ -66,10 +100,10 @@ def get_columns(employee_list):
 
 	if employee_list:
 		income_types = frappe.db.sql_list(""" SELECT code
-			FROM `tabTransaction Type` WHERE `type` = 'Income' ORDER BY code """)
+			FROM `tabTransaction Type` WHERE `type` = 'Income' ORDER BY sort """)
 
 		deduction_types = frappe.db.sql_list(""" SELECT code
-			FROM `tabTransaction Type` WHERE `type` = 'Deduction' ORDER BY code""")
+			FROM `tabTransaction Type` WHERE `type` = 'Deduction' ORDER BY sort""")
 
 	for pay_code in income_types:
 		pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
@@ -93,19 +127,19 @@ def get_columns(employee_list):
 		{
 			"fieldname": "total_income",
 			"label": _("Total Income"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		},
 		{
 			"fieldname": "total_deduction",
 			"label": _("Total Deduction"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		},
 		{
 			"fieldname": "total_payroll",
 			"label": _("Total Payroll"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		},
 	]
