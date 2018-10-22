@@ -100,8 +100,8 @@ def get_loans(filters):
 				TE.middle_name,
 				TE.suffix,
 				TE.hdmf_no,
-				( SELECT payment_date FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS percov,
-				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
+				( SELECT payment_date FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS percov,
+				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS total_paid 
 			FROM
 				`tabLoan Application` AS LA
 				INNER JOIN `tabEmployee` AS TE ON TE.`name` = LA.employee 
@@ -136,8 +136,8 @@ def get_loans(filters):
 				TE.middle_name,
 				TE.suffix,
 				TE.hdmf_no,
-				( SELECT payment_date FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS percov,
-				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
+				( SELECT payment_date FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS percov,
+				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS total_paid 
 			FROM
 				`tabLoan Application` AS LA
 				INNER JOIN `tabEmployee` AS TE ON TE.`name` = LA.employee 
