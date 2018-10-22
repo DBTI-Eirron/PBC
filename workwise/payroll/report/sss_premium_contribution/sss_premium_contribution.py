@@ -19,9 +19,11 @@ def execute(filters=None):
 
 	sss_map = get_sss_map(filters, employee_list)
 
+	final_employee, final_employer, final_ec, final_total = 0, 0, 0, 0
+
 	data = []
 	for emp in employee_list:
-		row = [emp.name, emp.full_name]
+		row = [emp.name, emp.full_name, emp.sss_no]
 
 		total_sss = 0
 		for sss in sss_types:
@@ -29,9 +31,17 @@ def execute(filters=None):
 			total_sss += sss_amount
 			row.append(sss_amount)
 
+		final_employee += flt(sss_map.get(emp.name, {}).get("SSS"))
+		final_employer += flt(sss_map.get(emp.name, {}).get("SSSE"))
+		final_ec += flt(sss_map.get(emp.name, {}).get("SSSC"))
+		final_total += total_sss
+
 		row += [total_sss]
 
 		data.append(row)
+
+	final = ["<b>Total: </b>","", "", final_employee, final_employer, final_ec, final_total]
+	data.append(final)
 
 	return columns, data
 
@@ -49,6 +59,12 @@ def get_columns(employee_list):
 			"label": _("Employee Name"),
 			"fieldtype": "Data",
 			"width": 220
+		},
+		{
+			"fieldname": "sss_no",
+			"label": _("SSS Number"),
+			"fieldtype": "Data",
+			"width": 160
 		},
 		{
 			"fieldname": "SSS",
@@ -87,7 +103,6 @@ def get_employees(filters):
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
 				WHERE SU.allow_user = %(user)s)
 			AND company = %(company)s
-			AND on_hold = 0
 			AND is_active = 1 ORDER BY last_name, first_name""",{ 
 				"company": filters.company,
 				"user": frappe.session.user
@@ -98,7 +113,6 @@ def get_employees(filters):
 			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
 			AND company = %(company)s
-			AND on_hold = 0
 			AND is_active = 1 ORDER BY last_name, first_name""",{ 
 				"company": filters.company
 			}, as_dict=True)
