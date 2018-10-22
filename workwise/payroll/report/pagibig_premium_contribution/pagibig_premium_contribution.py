@@ -20,19 +20,28 @@ def execute(filters=None):
 
 	HDMF_map = get_HDMF_map(filters, employee_list)
 
+	final_employee, final_employer, final_total = 0, 0, 0
+
 	data = []
 	for emp in employee_list:
-		row = [emp.name, emp.full_name]
+		row = [emp.name, emp.full_name, emp.hdmf_no]
 
 		total_HDMF = 0
-		for HDMF in HDMF_types:
-			HDMF_amount = flt(HDMF_map.get(emp.name, {}).get(HDMF))
+		for d in HDMF_types:
+			HDMF_amount = flt(HDMF_map.get(emp.name, {}).get(d))
 			total_HDMF += HDMF_amount
 			row.append(HDMF_amount)
+
+		final_employee += flt(HDMF_map.get(emp.name, {}).get("HDMF"))
+		final_employer += flt(HDMF_map.get(emp.name, {}).get("HDMFE"))
+		final_total += total_HDMF
 
 		row += [total_HDMF]
 
 		data.append(row)
+
+	final = ["<b>Total: </b>","" , "", final_employee, final_employer, final_total]
+	data.append(final)
 
 	return columns, data
 
@@ -54,6 +63,12 @@ def get_columns(employee_list):
 			"label": _("Employee Name"),
 			"fieldtype": "Data",
 			"width": 220
+		},
+		{
+			"fieldname": "hdmf_no",
+			"label": _("HDMF Number"),
+			"fieldtype": "Data",
+			"width": 160
 		},
 		{
 			"fieldname": "HDMF",
@@ -86,7 +101,6 @@ def get_employees(filters):
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
 				WHERE SU.allow_user = %(user)s)
 			AND company = %(company)s
-			AND on_hold = 0
 			AND is_active = 1 ORDER BY last_name, first_name""",{ 
 				"company": filters.company,
 				"user": frappe.session.user
@@ -97,7 +111,6 @@ def get_employees(filters):
 			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
 			AND company = %(company)s
-			AND on_hold = 0
 			AND is_active = 1 ORDER BY last_name, first_name""",{ 
 				"company": filters.company
 			}, as_dict=True)
