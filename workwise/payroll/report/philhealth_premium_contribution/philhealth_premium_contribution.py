@@ -20,9 +20,11 @@ def execute(filters=None):
 
 	PHIC_map = get_PHIC_map(filters, employee_list)
 
+	final_employee, final_employer, final_total = 0, 0, 0
+
 	data = []
 	for emp in employee_list:
-		row = [emp.name, emp.full_name]
+		row = [emp.name, emp.full_name, emp.phic_no]
 
 		total_PHIC = 0
 		for PHIC in PHIC_types:
@@ -30,9 +32,22 @@ def execute(filters=None):
 			total_PHIC += PHIC_amount
 			row.append(PHIC_amount)
 
+		final_employee += flt(PHIC_map.get(emp.name, {}).get("PHIC"))
+		final_employer += flt(PHIC_map.get(emp.name, {}).get("PHICE"))
+		final_total += total_PHIC
+
 		row += [total_PHIC]
 
 		data.append(row)
+
+	final = ["<b>Total: </b>","", "", final_employee, final_employer, final_total]
+	data.append(final)
+
+	i = 0
+	for x in data:
+		if data[i][5] <= 0.0:
+			data.pop(i)
+		i += 1
 
 	return columns, data
 
@@ -54,6 +69,12 @@ def get_columns(employee_list):
 			"label": _("Employee Name"),
 			"fieldtype": "Data",
 			"width": 220
+		},
+		{
+			"fieldname": "phic_no",
+			"label": _("PHIC Number"),
+			"fieldtype": "Data",
+			"width": 120
 		},
 		{
 			"fieldname": "PHIC",
@@ -86,7 +107,6 @@ def get_employees(filters):
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
 				WHERE SU.allow_user = %(user)s)
 			AND company = %(company)s
-			AND on_hold = 0
 			AND is_active = 1 ORDER BY last_name, first_name""",{ 
 				"company": filters.company,
 				"user": frappe.session.user
@@ -97,7 +117,6 @@ def get_employees(filters):
 			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
 			AND company = %(company)s
-			AND on_hold = 0
 			AND is_active = 1 ORDER BY last_name, first_name""",{ 
 				"company": filters.company
 			}, as_dict=True)
