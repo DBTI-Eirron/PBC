@@ -31,14 +31,14 @@ def execute(filters=None):
 			total_sss += sss_amount
 			row.append(sss_amount)
 
-		final_employee += flt(sss_map.get(emp.name, {}).get("SSS"))
-		final_employer += flt(sss_map.get(emp.name, {}).get("SSSE"))
-		final_ec += flt(sss_map.get(emp.name, {}).get("SSSC"))
-		final_total += total_sss
-
-		row += [total_sss]
-
-		data.append(row)
+		if total_sss > 0:
+			final_employee += flt(sss_map.get(emp.name, {}).get("SSS"))
+			final_employer += flt(sss_map.get(emp.name, {}).get("SSSE"))
+			final_ec += flt(sss_map.get(emp.name, {}).get("SSSC"))
+			final_total += total_sss
+			row += [total_sss]
+			
+			data.append(row)
 
 	final = ["<b>Total: </b>","", "", final_employee, final_employer, final_ec, final_total]
 	data.append(final)
