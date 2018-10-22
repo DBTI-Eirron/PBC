@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
-from frappe.utils import cint, flt, getdate, cstr
+from frappe.utils import cint, flt, getdate, cstr, nowdate
 from frappe import _
 
 def execute(filters=None):
@@ -100,6 +100,7 @@ def get_loans(filters):
 				TE.middle_name,
 				TE.suffix,
 				TE.hdmf_no,
+				"PagIbig Loan" as loan_type,
 				( SELECT payment_date FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS percov,
 				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS total_paid 
 			FROM
@@ -136,6 +137,7 @@ def get_loans(filters):
 				TE.middle_name,
 				TE.suffix,
 				TE.hdmf_no,
+				"PagIbig Loan" as loan_type,
 				( SELECT payment_date FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS percov,
 				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS total_paid 
 			FROM
@@ -162,8 +164,36 @@ def get_data(filters):
 	data = []
 	loans = get_loans(filters)
 
+	if filters.include_header:
+		hdmf_id = frappe.db.get_value("Company", filters.company, "hdmf_id")
+		address = frappe.db.sql_list("""SELECT DISTINCT(TA.`address_line1`) as address
+			 FROM `tabDynamic Link` DL 
+			 JOIN `tabAddress` TA WHERE DL.`parenttype` = "Address" 
+			 AND DL.`link_doctype` = "Company" AND DL.`parent` = TA.`name` 
+			 AND TA.`address_type` = "Registered" AND DL.`link_name` = %s LIMIT 1 """, filters.company)
+		
+		headers = [
+			{
+				"hdmf_no": "Employer ID",
+				"loan_type": hdmf_id 
+			},
+			{
+				"hdmf_no": "Employer Name",
+				"loan_type": filters.company
+			},
+			{
+				"hdmf_no": "Address",
+				"loan_type": address[0] if address else ""
+			},
+		]
+
+		for d in headers:
+			data.append(d)
+
 	for loan in loans: 
 		data.append(loan)
+
+
 
 	return data
  
@@ -171,11 +201,12 @@ def get_result_as_list(data, filters):
 	result = []
 	for d in data:
 		percov = ""
-		percov = d.get("percov")
-		percov = datetime.datetime.strftime(percov,"%Y%m")
+		if d.get("percov"):
+			percov = datetime.datetime.strftime(d.get("percov"),"%Y%m")
+
 		row = {
 			"pagibig_id": d.get("hdmf_no"),
-			"loan_type": "PagIbig Loan",
+			"loan_type": d.get("loan_type"),
 			"last_name": d.get("last_name"),
 			"first_name": d.get("first_name"),
 			"name_extension": d.get("suffix"),
