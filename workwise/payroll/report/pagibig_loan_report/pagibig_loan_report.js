@@ -1,0 +1,37 @@
+// Copyright (c) 2016, HDI Systech and contributors
+// For license information, please see license.txt
+/* eslint-disable */
+
+frappe.query_reports["PagIbig Loan Report"] = {
+	"filters": [
+		{
+			"fieldname": "company",
+			"label": __("Company"),
+			"fieldtype": "Link",
+			"options": "Company",
+			"reqd": 1
+		},
+		{
+			"fieldname": "from_date",
+			"label": __("From Date"),
+			"fieldtype": "Date",
+			"reqd": 1
+		},
+		{
+			"fieldname": "to_date",
+			"label": __("To Date"),
+			"fieldtype": "Date",
+			"reqd": 1
+		},
+	],
+	
+	onload: function(report) {
+		var host_link = window.location.hostname+":8080";
+		report.page.add_inner_button(__("Export as Excel"), function() {
+			var from_date = frappe.query_report_filters_by_name.from_date.get_value();
+			var to_date = frappe.query_report_filters_by_name.to_date.get_value();
+			var company = frappe.query_report_filters_by_name.company.get_value();		
+			window.open("http://"+host_link+"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2FReports&reportUnit=%2FReports%2FPAGIBIG_Loan_Report&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=xlsx&company="+company+"&from_date="+from_date+"&to_date="+to_date+"");
+		});
+	},
+}
