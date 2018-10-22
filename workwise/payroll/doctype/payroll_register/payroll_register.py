@@ -5,6 +5,11 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
+from frappe	import _
 
 class PayrollRegister(Document):
 	pass
+@frappe.whitelist()
+def get_period_status(period):
+	freq = frappe.get_value("Payroll Period",period,"frequency")
+	return freq
