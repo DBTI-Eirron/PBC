@@ -5,7 +5,8 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import throw, _, scrub
-from frappe.utils import getdate, validate_email_add, today, add_years
+from frappe.utils import getdate, validate_email_add, today, add_years, nowdate, cstr, getdate
+from datetime import date
 from frappe.contacts.address_and_contact import load_address_and_contact, delete_contact_and_address
 from frappe.model.document import Document
 
@@ -16,6 +17,7 @@ class Employee(Document):
 	def validate(self):
 		self.update_fullname()
 		self.validate_date()
+		self.get_age()
 		self.validate_spouse()
 		self.validate_salary()
 		self.create_user()
@@ -131,3 +133,9 @@ class Employee(Document):
 		for emp in self.get("family_members"):
 			if emp.is_qualified_dependent == 1:
 				emp.is_dependent = 1
+
+	def get_age(self):
+		today = date.today()
+		bday = getdate(self.birthday)
+		age = today.year - bday.year - ((today.month, today.day) < (bday.month, bday.day))
+		self.age = age
