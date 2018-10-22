@@ -20,6 +20,7 @@ class ChangeScheduleApplication(Document):
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
+		self.revert_change_sched()
 
 	def validate(self):
 		self.validate_existing_application()
@@ -39,7 +40,7 @@ class ChangeScheduleApplication(Document):
 		if exist:
 			frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, self.target_date), as_dict=True)
 			old_shift = frappe.db.sql_list("""SELECT `work_shift` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s LIMIT 1""", (self.employee, self.target_date))
-		target_date = getdate(self.target_date)		
+		target_date = getdate(self.target_date)
 
 		for ws in work_shift:
 			work_sched = frappe.new_doc("Work Schedule")
@@ -48,6 +49,41 @@ class ChangeScheduleApplication(Document):
 				"company": self.company,
 				"target_date": target_date,
 				"work_shift": self.new_shift,
+				"datetime_in": self.get_date(target_date, ws.time_in, ws.time_out, ws.shift_type, 0),
+				"datetime_out": self.get_date(target_date, ws.time_out, ws.time_out, ws.shift_type, 1),
+				"pre_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 0),
+				"post_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 1),							
+				"break_start": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 0),
+				"break_end": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 1),
+				"nd_start": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 0),
+				"nd_end": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 1),	
+				"shift_type": ws.shift_type,
+				"is_restday": ws.is_restday,
+				"is_flexible": ws.is_flexible,
+			})	
+			if work_sched.insert():
+				if old_shift:
+					self.old_shift = old_shift
+			else:
+				frappe.throw(_("Changing Failed"))
+
+	def revert_change_sched(self):
+		old_shift = ""
+		work_shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(self.old_shift), as_dict=True)
+		
+		exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, self.target_date), as_dict=True)
+		if exist:
+			frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, self.target_date), as_dict=True)
+			old_shift = frappe.db.sql_list("""SELECT `work_shift` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s LIMIT 1""", (self.employee, self.target_date))
+		target_date = getdate(self.target_date)
+
+		for ws in work_shift:
+			work_sched = frappe.new_doc("Work Schedule")
+			work_sched.update({
+				"employee": self.employee,
+				"company": self.company,
+				"target_date": target_date,
+				"work_shift": self.old_shift,
 				"datetime_in": self.get_date(target_date, ws.time_in, ws.time_out, ws.shift_type, 0),
 				"datetime_out": self.get_date(target_date, ws.time_out, ws.time_out, ws.shift_type, 1),
 				"pre_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 0),
