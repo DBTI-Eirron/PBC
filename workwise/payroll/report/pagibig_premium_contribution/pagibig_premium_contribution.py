@@ -23,6 +23,30 @@ def execute(filters=None):
 	final_employee, final_employer, final_total = 0, 0, 0
 
 	data = []
+
+	if filters.include_header:
+		hdmf_id = frappe.db.get_value("Company", filters.company, "hdmf_id")
+		address = frappe.db.sql_list("""SELECT DISTINCT(TA.`address_line1`) as address
+			 FROM `tabDynamic Link` DL 
+			 JOIN `tabAddress` TA WHERE DL.`parenttype` = "Address" 
+			 AND DL.`link_doctype` = "Company" AND DL.`parent` = TA.`name` 
+			 AND TA.`address_type` = "Registered" AND DL.`link_name` = %s LIMIT 1 """, filters.company)
+		
+		headers = [
+			[
+				"Employer ID", hdmf_id 
+			],
+			[
+				"Employer Name", filters.company
+			],
+			[
+				"Address", address[0] if address else ""
+			],
+		]
+
+		for d in headers:
+			data.append(d)
+
 	for emp in employee_list:
 		row = [emp.name, emp.full_name, emp.hdmf_no]
 
