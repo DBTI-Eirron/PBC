@@ -27,6 +27,7 @@ def execute(filters=None):
 		total_plus = 0
 		total_less = 0
 		total_tax = 0
+		taxable = 0
 		tax_due = 0
 
 		row = [emp.tin, emp.name, emp.full_name]
