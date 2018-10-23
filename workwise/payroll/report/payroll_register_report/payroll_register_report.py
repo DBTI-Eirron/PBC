@@ -156,7 +156,7 @@ def get_columns(employee_list):
 def get_employees(filters):
 	employees = frappe.db.sql("""SELECT `name`, full_name, first_name, middle_name, last_name, department	FROM tabEmployee
 		WHERE company = %(company)s {conditions}
-		AND on_hold = 0 AND is_active = 1 ORDER BY last_name, first_name""".format(conditions=get_conditions(filters)), filters, as_dict=1)
+		AND is_active = 1 ORDER BY last_name, first_name""".format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	return employees
 
@@ -174,7 +174,7 @@ def get_income_map(filters, employee_list):
 	income_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		WHERE PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
+		WHERE PR.on_hold = 0 AND PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
 		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.payroll_period] + [emp.name for emp in employee_list]), as_dict=1)
 
 	income_map = {}
@@ -191,7 +191,7 @@ def get_deduction_map(filters, employee_list):
 	deduction_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		WHERE PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
+		WHERE PR.on_hold = 0 AND PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
 		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.payroll_period] + [emp.name for emp in employee_list]), as_dict=1)
 
 	deduction_map = {}
