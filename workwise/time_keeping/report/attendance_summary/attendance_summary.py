@@ -7,7 +7,7 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date, get_datetime
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, 
-get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card)
+get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_suspension_map, get_suspension )
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -124,7 +124,7 @@ def validate_filters(filters):
 		frappe.throw("Filter Time Options is Required")
 
 def get_employees(filters):
-	employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location, is_attendance_base, no_hours FROM tabEmployee WHERE `name` = %(employee)s
+	employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location, department, is_attendance_base, no_hours FROM tabEmployee WHERE `name` = %(employee)s
 		AND is_active = 1 LIMIT 1 """,{ 
 			"employee": filters.employee
 		}, as_dict=True)
@@ -137,6 +137,7 @@ def get_data(filters):
 	employees = get_employees(filters)
 	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
 	shift_map = get_shift_map()
+	suspension_map = get_suspension_map(pay_from, pay_to)
 	totals = {
 		'card_out': '<b> Totals </b>',
 		'break': 0,
@@ -155,11 +156,14 @@ def get_data(filters):
 		obs = get_ob_list(emp.name, pay_from, pay_to)
 		uts = get_ut_list(emp.name, pay_from, pay_to)
 		ext = get_ext_list(emp.name, pay_from, pay_to)
+		
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
 			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
 			get_sorted_card(entry, cards_in, cards_out)
+			get_suspension(emp, suspension_map, entry)
 			get_attendance(entry, leaves, holidays, obs, ots, uts, ext)
+
 			entry['break'] = convert_secs(filters, entry['break'])
 			totals['break'] += entry['break']
 			entry['work'] = convert_secs(filters, entry['work'])
