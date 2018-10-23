@@ -590,12 +590,12 @@ def get_ut_list(employee, from_date, to_date):
 
 def get_cto_list(employee, from_date, to_date):
 	cto_apps = frappe.db.sql("""SELECT `name`, use_fromtime, use_totime,  from_date FROM `tabCompensatory Time Off` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s AND from_date <= %s """, (employee, from_date, to_date), as_dict=1)
+		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s AND from_date <= %s AND `type` = 'Use' """, (employee, from_date, to_date), as_dict=1)
 	return cto_apps
 
 def get_ext_list(employee, from_date, to_date):
 	ext_apps = frappe.db.sql("""SELECT `name`, `date`, from_time, to_time, `type` FROM `tabExcuse Tardiness Application` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND `date` >= %s AND `date` <= %s AND `type` = 'Use' """, (employee, from_date, to_date), as_dict=1)
+		WHERE workflow_state = 'Approved' AND employee = %s AND `date` >= %s AND `date` <= %s  """, (employee, from_date, to_date), as_dict=1)
 	return ext_apps
 
 def get_ws_list(from_date, to_date):
