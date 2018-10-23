@@ -78,32 +78,33 @@ def get_data(filters):
 	accounts = get_accounts(filters)
 	register = get_register(filters)
 
-	for acc in accounts: 
-		entry = {
-			"account_name": acc.account_name,
-			"account": acc.name,
-			"account_code": acc.account_code,
-			"balance": acc.default_balance,
-			"debit": 0.0,
-			"credit": 0.0,
-		}
+	if accounts:
+		for acc in accounts: 
+			entry = {
+				"account_name": acc.account_name,
+				"account": acc.name,
+				"account_code": acc.account_code,
+				"balance": acc.default_balance,
+				"debit": 0.0,
+				"credit": 0.0,
+			}
 
-		for r in register:
-			if r['account'] == entry['account']:
-				if entry['balance'] == "Debit":
-					entry['debit'] += r['amount']
-				else:
-					entry['credit'] += r['amount']
+			for r in register:
+				if r['account'] == entry['account']:
+					if entry['balance'] == "Debit":
+						entry['debit'] += r['amount']
+					else:
+						entry['credit'] += r['amount']
 
-		total_debit += entry['debit']
-		total_credit += entry['credit']
-		data.append(entry)
+			total_debit += entry['debit']
+			total_credit += entry['credit']
+			data.append(entry)
 
-	data.append({
-			"account_name": _("TOTAL"),
-			"debit": total_debit,
-			"credit": total_credit,
-		})
+		data.append({
+				"account_name": _("TOTAL"),
+				"debit": total_debit,
+				"credit": total_credit,
+			})
 
 	return data
  
