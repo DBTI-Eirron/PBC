@@ -32,13 +32,13 @@ def execute(filters=None):
 			total_PHIC += PHIC_amount
 			row.append(PHIC_amount)
 
-		final_employee += flt(PHIC_map.get(emp.name, {}).get("PHIC"))
-		final_employer += flt(PHIC_map.get(emp.name, {}).get("PHICE"))
-		final_total += total_PHIC
+		if total_PHIC > 0:
+			final_employee += flt(PHIC_map.get(emp.name, {}).get("PHIC"))
+			final_employer += flt(PHIC_map.get(emp.name, {}).get("PHICE"))
+			final_total += total_PHIC
+			row += [total_PHIC]
 
-		row += [total_PHIC]
-
-		data.append(row)
+			data.append(row)
 
 	final = ["<b>Total: </b>","", "", final_employee, final_employer, final_total]
 	data.append(final)
