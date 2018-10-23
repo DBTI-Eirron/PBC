@@ -153,7 +153,12 @@ def get_data():
 					"type": "report",
 					"name": "Alphalist Minimum Wage",	
 					"is_query_report": True
-				},		
+				},	
+				{
+					"type": "report",
+					"name": "PagIbig Loan Report",	
+					"is_query_report": True
+				},	
 				{
 					"type": "report",
 					"name": "PagIbig Premium Contribution",	
