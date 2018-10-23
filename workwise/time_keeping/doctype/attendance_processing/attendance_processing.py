@@ -9,7 +9,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card)
+get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_suspension_map, get_suspension)
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
@@ -41,6 +41,7 @@ class AttendanceProcessing(Document):
 				frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
 				
 				shift_map = get_shift_map()
+				suspension_map = get_suspension_map(pay_from, pay_to)
 				timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
 				schedule = get_schedule(emp.name, pay_from, pay_to)
 				holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
@@ -54,6 +55,7 @@ class AttendanceProcessing(Document):
 					entry = get_defaults(emp, sched, shift_map)
 					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
 					get_sorted_card(entry, cards_in, cards_out)
+					get_suspension(emp, suspension_map, entry)
 					get_attendance(entry, leaves, holidays, obs, ots, uts, ext)
 					entry['break'] = self.convert_secs(entry['break'])
 					entry['work'] = self.convert_secs(entry['work'])
