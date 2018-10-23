@@ -56,13 +56,13 @@ def execute(filters=None):
 			total_HDMF += HDMF_amount
 			row.append(HDMF_amount)
 
-		final_employee += flt(HDMF_map.get(emp.name, {}).get("HDMF"))
-		final_employer += flt(HDMF_map.get(emp.name, {}).get("HDMFE"))
-		final_total += total_HDMF
+		if total_HDMF > 0:
+			final_employee += flt(HDMF_map.get(emp.name, {}).get("HDMF"))
+			final_employer += flt(HDMF_map.get(emp.name, {}).get("HDMFE"))
+			final_total += total_HDMF
+			row += [total_HDMF]
 
-		row += [total_HDMF]
-
-		data.append(row)
+			data.append(row)
 
 	final = ["<b>Total: </b>","" , "", final_employee, final_employer, final_total]
 	data.append(final)
