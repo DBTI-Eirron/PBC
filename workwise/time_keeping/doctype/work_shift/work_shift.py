@@ -14,6 +14,7 @@ class WorkShift(Document):
 	def validate(self):
 		self.validate_time_format()
 		self.validate_time()
+		self.validate_is_flexible()
 		#self.validate_pre_post()
 		self.make_filter_name()
 
@@ -70,6 +71,15 @@ class WorkShift(Document):
 	
 	def delta_to_time(self, delta_obj):
 		return (datetime.datetime.min + delta_obj).time()
+
+	def validate_is_flexible(self):
+		if self.is_flexible == 1:
+			if not self.flexible_type:
+				frappe.throw(_("Flexible Type is required"))
+			else:
+				if self.flexible_type == "Standard":
+					if not self.flex_from or not self.flex_to:
+						frappe.throw(_("Flex From and Flex To is required"))
 
 @frappe.whitelist()
 def calc_work_hours(time_in, time_out, break_start, break_end):
