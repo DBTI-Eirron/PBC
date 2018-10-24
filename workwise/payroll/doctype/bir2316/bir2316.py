@@ -509,7 +509,7 @@ class BIR2316(Document):
 		register = frappe.db.sql("""SELECT tt.bir_type, pre.amount FROM `tabPayroll Register` pr
 			INNER JOIN `tabPayroll Register Entries` pre ON pre.parent = pr.`name`
 			INNER JOIN `tabTransaction Type` tt ON pre.pay_code = tt.`name`
-			WHERE bir_type = '13th Month' employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
+			WHERE bir_type = '13th Month' AND employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 		
 		for d in register:
 			pres_bonus += d.amount
