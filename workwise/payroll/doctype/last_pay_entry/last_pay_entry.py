@@ -181,11 +181,10 @@ class LastPayEntry(Document):
 				"amount": total_bonus,
 			})
 
-			ceiling = frappe.db.get_single_value('Payroll Settings', 'ceiling_month_pay')
-			if total_bonus >= ceiling:
-				entry["pres_total_tax"] += total_bonus
-				entry["gross_taxable"] += total_bonus
-				entry["net_pay"] += total_bonus
+
+			entry["pres_total_tax"] += total_bonus
+			entry["gross_taxable"] += total_bonus
+			entry["net_pay"] += total_bonus
 
 		return register
 
