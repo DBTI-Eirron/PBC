@@ -60,8 +60,8 @@ def get_accounts(filters):
 	return accounts
 
 def get_register(filters):
-	register_list = frappe.db.sql("""SELECT * FROM `tabPayroll Register` 
-		WHERE company = %(company)s AND posting_date >= %(from_date)s AND posting_date <= %(to_date)s""",{
+	register_list = frappe.db.sql("""SELECT PE.account, PE.amount FROM `tabPayroll Register` PR JOIN `tabPayroll Register Entries` PE
+		WHERE PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""",{
 			"company": filters.company,
 			"from_date": filters.from_date,
 			"to_date": filters.to_date,
