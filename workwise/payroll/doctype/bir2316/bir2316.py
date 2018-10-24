@@ -496,7 +496,7 @@ class BIR2316(Document):
 		
 		return entry
 
-	def get_bonus_ceiling_info(self, e, entry, tr_map):
+	def get_bonus_ceiling_info(self, e, entry):
 		#handles getting bonuses for Present BIR2316 generation
 		pro_rated_bonus = 0.0
 		pres_bonus = 0.0
