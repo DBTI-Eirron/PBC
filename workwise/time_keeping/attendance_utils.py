@@ -523,7 +523,7 @@ def get_schedule(employee, pay_from, pay_to):
 def get_shift_map():
 	shift_map = {}
 	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
-			is_flexible, setup_preshift, setup_postshift, ignore_late, flex_from, flex_to, 
+			is_flexible, setup_preshift, setup_postshift, flex_from, flex_to, 
 			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type
 		FROM `tabWork Shift` """, as_dict=True)
 	
@@ -539,7 +539,6 @@ def get_shift_map():
 			"b_grace_period": d.b_grace_period,
 			"is_restday": d.is_restday,
 			"is_flexible": d.is_flexible,
-			"ignore_late": d.ignore_late,
 			"setup_preshift": d.setup_preshift,
 			"setup_postshift": d.setup_postshift,
 			"flex_from": d.flex_from,
@@ -757,7 +756,6 @@ def get_defaults(emp, sched, shift_map):
 		"flex_from": shift_map[sched.work_shift]['flex_from'],
 		"flex_to": shift_map[sched.work_shift]['flex_to'],		
 		"is_restday": shift_map[sched.work_shift]['is_restday'],
-		"ignore_late": shift_map[sched.work_shift]['ignore_late'],
 		#general policy
 		"is_processed": 0,
 		#timecard data
