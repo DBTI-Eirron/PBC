@@ -218,8 +218,7 @@ class BIR2316(Document):
 		self.get_tax_basic(e, entry)
 		tr_map = self.get_transaction_map()
 		self.get_salary_info(e, entry, tr_map)
-		self.get_monthpay_info(e, entry)
-		self.get_monthpay_ceiling_info(e, entry)
+		self.get_bonus_ceiling_info(e, entry)
 
 		if self.ntax_bs == 0.000:
 			self.ntax_bs = entry.get('ntax_bs')
@@ -503,43 +502,39 @@ class BIR2316(Document):
 		
 		return entry
 
-	def get_monthpay_info(self, e, entry):
-		monthpay = frappe.db.sql("""SELECT DISTINCT LP.`amount` FROM `tabLast Pay Register` LP JOIN `tabLast Pay Entry` LE ON LP.`parent`=LE.`name` WHERE LP.`description` = "Pro Rated 13th Month" AND LE.`employee` = %s AND LE.posting_date >= %s AND LE.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
-
-		if monthpay:
-			for d in monthpay:
-				entry['ntax_bonus'] += d.amount
-		
-		return entry
-
-	def get_monthpay_ceiling_info(self, e, entry):
-		ceiling_limit = 0.0
+	def get_bonus_ceiling_info(self, e, entry):
+		#handles getting bonuses for Present BIR2316 generation
+		pro_rated_bonus = 0.0
+		pres_bonus = 0.0
+		prev_bonus = 0.0
 		total_bonus = 0.0
-		prev_ntax_bonus = 0.0
-		total_ntax_bonus = 0.0
+		ntax_bonus = 0.0
+		tax_bonus = 0.0
 
-		prev_bir = frappe.db.sql(""" SELECT DISTINCT `ntax_bonus` FROM `tabBIR2316` WHERE document_type = "Previous" AND `employee` = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
+		#Get Present Bonus from lastpay entry
+		pro_rated = frappe.db.sql("""SELECT LP.`amount` as amount
+			FROM `tabLast Pay Register` LP JOIN `tabLast Pay Entry` LE ON LP.`parent`= LE.`name` WHERE LP.`description` = "Pro Rated 13th Month" 
+			AND LE.`employee` = %s AND LE.posting_date >= %s AND LE.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 
-		if prev_bir:
-			for e in prev_bir:
-				prev_ntax_bonus += flt(e.ntax_bonus, 2)
+		for d in pro_rated:
+			pres_bonus += d.amount
 
-		total_ntax_bonus += prev_ntax_bonus
+		#Get Previous Bonus from BIR2316 entry
+		prev_bir = frappe.db.sql(""" SELECT tax_bonus, `ntax_bonus` FROM `tabBIR2316` WHERE document_type = "Previous" 
+			AND `employee` = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
+		for e in prev_bir:
+			prev_bonus += flt(e.ntax_bonus, 2)
+			prev_bonus += flt(e.tax_bonus, 2)
 
-		ceiling = frappe.db.sql(""" SELECT `value` FROM `tabSingles` WHERE `doctype` = "Payroll Settings" AND `field` = "ceiling_month_pay" LIMIT 1 """, as_dict=True)
+		#Get bonuses based from ceiling setting
+		total_bonus = prev_bonus + pres_bonus
+		ceiling = frappe.db.get_single_value('Payroll Settings', 'ceiling_month_pay') 
 
-		if ceiling:
-			for d in ceiling:
-				ceiling_limit += flt(d.value, 2) 
-
-			total_ntax_bonus += entry['ntax_bonus']
-			total_bonus = total_ntax_bonus + entry['tax_bonus']
-
-			if total_bonus > ceiling_limit:
-				entry['tax_bonus'] = total_ntax_bonus - ceiling_limit
-				entry['ntax_bonus'] = entry['ntax_bonus'] - entry['tax_bonus']
-
-			if total_bonus <= ceiling_limit:
-				entry['ntax_bonus'] = total_ntax_bonus
+		if total_bonus >= ceiling:
+			diff = abs(total_bonus - ceiling)
+			entry['ntax_bonus'] = ceiling
+			entry['tax_bonus'] = diff
+		else:
+			entry['ntax_bonus'] = total_bonus
 				
 		return entry
