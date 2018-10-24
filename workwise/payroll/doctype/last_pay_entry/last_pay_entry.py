@@ -345,7 +345,11 @@ class LastPayEntry(Document):
 		tax_due = tax_due + train_prescribed
 
 		entry["tax_due"] += tax_due
-		entry["not_yet_paid"] = entry["tax_due"] - entry["pres_tax_paid"] - entry["prev_tax_paid"]
+
+		if entry["tax_due"] > 0:
+			entry["not_yet_paid"] = entry["tax_due"] - entry["pres_tax_paid"] - entry["prev_tax_paid"]
+		else:
+			entry["not_yet_paid"] = entry["tax_due"] - entry["pres_tax_paid"] 
 
 	def set_summary(self, entry):
 		self.net_pay = flt(entry["net_pay"], 8) - flt(entry["not_yet_paid"], 8)
