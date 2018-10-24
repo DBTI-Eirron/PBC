@@ -453,9 +453,6 @@ class BIR2316(Document):
 			if bir_type == "Fees" and is_taxable:
 				entry['tax_fees'] += d.amount
 
-			if bir_type == "13 Month" and is_taxable:
-				entry['tax_bonus'] += d.amount
-
 			if bir_type == "Overtime" and is_taxable:
 				entry['tax_ot'] += d.amount
 
@@ -474,9 +471,6 @@ class BIR2316(Document):
 
 			if bir_type == "Night Differential" and not is_taxable:
 				entry['ntax_nd'] += d.amount
-
-			if bir_type == "13th Month" and not is_taxable:
-				entry['ntax_bonus'] += d.amount
 
 			if bir_type == "Deminimis" and not is_taxable:
 				entry['ntax_demi'] += d.amount
@@ -502,7 +496,7 @@ class BIR2316(Document):
 		
 		return entry
 
-	def get_bonus_ceiling_info(self, e, entry):
+	def get_bonus_ceiling_info(self, e, entry, tr_map):
 		#handles getting bonuses for Present BIR2316 generation
 		pro_rated_bonus = 0.0
 		pres_bonus = 0.0
@@ -510,6 +504,15 @@ class BIR2316(Document):
 		total_bonus = 0.0
 		ntax_bonus = 0.0
 		tax_bonus = 0.0
+
+		#get 13th month from payroll register
+		register = frappe.db.sql("""SELECT tt.bir_type, pre.amount FROM `tabPayroll Register` pr
+			INNER JOIN `tabPayroll Register Entries` pre ON pre.parent = pr.`name`
+			INNER JOIN `tabTransaction Type` tt ON pre.pay_code = tt.`name`
+			WHERE bir_type = '13th Month' employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
+		
+		for d in register:
+			pres_bonus += d.amount
 
 		#Get Present Bonus from lastpay entry
 		pro_rated = frappe.db.sql("""SELECT LP.`amount` as amount
@@ -530,11 +533,14 @@ class BIR2316(Document):
 		total_bonus = prev_bonus + pres_bonus
 		ceiling = frappe.db.get_single_value('Payroll Settings', 'ceiling_month_pay') 
 
+		
 		if total_bonus >= ceiling:
-			diff = abs(total_bonus - ceiling)
-			entry['ntax_bonus'] = ceiling
+			#get taxable bonus
+			diff = total_bonus - ceiling
 			entry['tax_bonus'] = diff
+			entry['ntax_bonus'] = total_bonus - diff
 		else:
+			#get non-taxable bonus:
 			entry['ntax_bonus'] = total_bonus
 				
 		return entry
