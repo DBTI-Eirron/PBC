@@ -538,7 +538,7 @@ class BIR2316(Document):
 			#get taxable bonus
 			diff = total_bonus - ceiling
 			entry['tax_bonus'] = diff
-			entry['ntax_bonus'] = total_bonus - diff
+			entry['ntax_bonus'] = pres_bonus - diff
 		else:
 			#get non-taxable bonus:
 			entry['ntax_bonus'] = total_bonus
