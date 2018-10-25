@@ -18,7 +18,7 @@ class BIR2316(Document):
 			self.set_previous_computation()
 
 	def validate_bir(self):
-		current_bir = frappe.db.sql(""" SELECT DISTINCT * FROM `tabBIR2316` WHERE document_type = "Current" AND `employee` = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
+		current_bir = frappe.db.sql(""" SELECT DISTINCT * FROM `tabBIR2316` WHERE document_type = "Current" AND employee = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
 		if current_bir:
 			for d in current_bir:
 				frappe.throw(_("Current BIR2316 already exists, {0}").format(d.name))
@@ -374,7 +374,6 @@ class BIR2316(Document):
 
 	def get_prev_employer_info(self, e, entry):
 		prev_bir = frappe.db.sql(""" SELECT DISTINCT * FROM `tabBIR2316` WHERE document_type = "Previous" AND `employee` = %s AND docstatus = 1 """, (self.employee), as_dict=1)
-
 		if prev_bir:
 			for d in prev_bir:
 				entry['prev_employer_tax_id'] = d.prev_employer_tax_id
@@ -391,20 +390,18 @@ class BIR2316(Document):
 		salary = frappe.db.sql("""SELECT DISTINCT pr.employee, pr.employee_name, pre.pay_code, pre.amount FROM `tabPayroll Register` pr
 			INNER JOIN `tabPayroll Register Entries` pre ON pre.parent = pr.`name`
 			WHERE on_hold = 0 AND employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
-
-		for d in salary:
-			if d.pay_code == "WHTAX":
-				entry['sum_atw_pres'] += d.amount
+		
+		if d.pay_code == "WHTAX":
+			entry['sum_atw_pres'] += d.amount
 
 		return entry
 
 	def get_tax_basic(self, e, entry):
-		basic_salary = frappe.db.sql("""SELECT DISTINCT gross_payroll FROM `tabPayroll Register`
+		basic_salary = frappe.db.sql("""SELECT gross_payroll FROM `tabPayroll Register`
 			WHERE employee = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 
-		if basic_salary:
-			for d in basic_salary:
-				entry['tax_bs'] += d.gross_payroll
+		for d in basic_salary:
+			entry['tax_bs'] += d.gross_payroll
 
 		return entry
 
@@ -487,8 +484,8 @@ class BIR2316(Document):
 		return entry
 
 	def get_last_pay(self, e, entry):
-		last_pay = frappe.db.sql("""SELECT DISTINCT `tax_due`, `not_yet_paid` FROM `tabLast Pay Entry` WHERE `employee` = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
-
+		last_pay = frappe.db.sql("""SELECT DISTINCT `tax_due`, `not_yet_paid` 
+			FROM `tabLast Pay Entry` WHERE `employee` = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 		if last_pay:
 			for d in last_pay:
 				entry['sum_td'] += d.tax_due
@@ -533,14 +530,12 @@ class BIR2316(Document):
 		total_bonus = prev_bonus + pres_bonus
 		ceiling = frappe.db.get_single_value('Payroll Settings', 'ceiling_month_pay') 
 
-		
-		if total_bonus >= ceiling:
-			#get taxable bonus
-			diff = total_bonus - ceiling
-			entry['tax_bonus'] = diff
-			entry['ntax_bonus'] = pres_bonus - diff
+		#identify if 13tm month is taxable or not
+		if total_bonus >= flt(ceiling, 2):
+			#get taxable bonus for this form
+			entry['tax_bonus'] = pres_bonus
 		else:
-			#get non-taxable bonus:
-			entry['ntax_bonus'] = total_bonus
+			#get non-taxable bonus for this form
+			entry['ntax_bonus'] = pres_bonus
 				
 		return entry
