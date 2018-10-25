@@ -391,8 +391,9 @@ class BIR2316(Document):
 			INNER JOIN `tabPayroll Register Entries` pre ON pre.parent = pr.`name`
 			WHERE on_hold = 0 AND employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 		
-		if d.pay_code == "WHTAX":
-			entry['sum_atw_pres'] += d.amount
+		for d in salary:
+			if d.pay_code == "WHTAX":
+				entry['sum_atw_pres'] += d.amount
 
 		return entry
 
