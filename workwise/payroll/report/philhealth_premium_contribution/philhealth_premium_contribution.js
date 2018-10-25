@@ -54,9 +54,7 @@ frappe.query_reports["PhilHealth Premium Contribution"] = {
 					});				
 				}
 			}
-		});
-		var host_link = window.location.hostname+":8080";
-		
+		});		
 	},/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {
 		if (columnDef.df.fieldname=="account") {
