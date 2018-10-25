@@ -34,19 +34,6 @@ def get_columns(filters):
 			"fieldtype": "Float",
 			"width": 120
 		},
-	]
-
-	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI" :
-		columns += [
-			{
-				"fieldname": "payroll_schedule",
-				"label": _("Payroll Time"),
-				"fieldtype": "Time",
-				"width": 120
-			},
-		]
-
-	columns += [	
 		{
 			"fieldname": "remarks",
 			"label": _("Remarks"),
@@ -54,6 +41,77 @@ def get_columns(filters):
 			"width": 250
 		},
 	]
+
+	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI" :
+		columns = []
+		columns = [
+			{
+				"fieldname": "detail",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "employee_name",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "employee_account",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "amount",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "remarks",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "lbl_total_amount",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "total_amount",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "lbl_total_count",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "total_count",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "lbl_funding_account",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "funding_account",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+		]
 
 	return columns
 
@@ -68,8 +126,10 @@ def get_net_pay(filters):
 	document = frappe.db.sql(""" SELECT
 		BT.employee,
 		BT.employee_name,
+		BT.employee_account,
 		BT.amount,
 		BT.remarks,
+		BR.payroll_time,
 		BR.payroll_schedule
 		FROM
 		`tabBank Remittance Setup` BR
@@ -85,7 +145,7 @@ def get_net_pay(filters):
 
 def get_data(filters):
 	data = []
-	document = get_net_pay(filters)
+	document = get_net_pay(filters)	
 
 	for doc in document: 
 		data.append(doc)
@@ -96,26 +156,70 @@ def get_result_as_list(data, filters):
 	result = []
 	total_count = 0
 	total_amount = 0.00
+
 	for d in data:
-		row = {
-			"employee": d.get("employee"),
-			"employee_name": d.get("employee_name"),
-			"amount": d.get("amount"),
-			"remarks": d.get("remarks"),
-			"payroll_schedule": d.get("payroll_schedule")
-		}
-		
 		total_amount += d.amount
 		total_count += 1
 
+	for d in data:
+		if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
+			if filters.include_header:
+					payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
+
+					if d.payroll_time == "Pay Now":
+						payroll_time = ""
+					else:
+						payroll_time = d.payroll_schedule
+
+					headers = [
+						{
+							"detail": "H",
+							"employee_name": "Payroll Date",
+							"employee_account": payroll_date,
+							"amount": "Payroll Time",
+							"remarks": payroll_time,
+							"lbl_total_amount": "Total Amount",
+							"total_amount": flt(total_amount, 2),
+							"lbl_total_count": "Total Count",
+							"total_count": total_count,
+							"lbl_funding_account": "Funding Account",
+							"funding_account": d.employee_account,
+						},
+					]
+
+					for h in headers:
+						result.append(h)
+
+	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
+		fields = {
+			"detail": "DETAIL CONSTANT",
+			"employee_name": "EMPLOYEE NAME",
+			"employee_account": "EMPLOYEE ACCOUNT",
+			"amount": "AMOUNT",
+			"remarks": "REMARKS",
+		}
+
+		result.append(fields)
+
+	for d in data:
+		row = {
+			"detail": "D",
+			"employee_name": d.get("employee_name"),
+			"employee_account": d.get("employee_account"),
+			"amount": flt(d.get("amount"), 2),
+			"remarks": d.get("remarks"),
+		}
+
 		result.append(row)
 
-	total = {
-		"amount": total_amount,
-		"employee": "<b>TOTAL</b>",
-		"employee_name": total_count
-	}
+	if filters.bank != "Bank of the Philippine Islands" and filters.bank != "BPI":
 
-	result.append(total)
+		total = {
+			"amount": flt(total_amount, 2),
+			"employee": "TOTAL",
+			"employee_name": total_count
+		}
+
+		result.append(total)
 
 	return result

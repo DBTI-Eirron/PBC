@@ -42,7 +42,7 @@ class BankRemittanceSetup(Document):
 			frappe.throw(_("Setup for Payroll Period {0} already exists").format(self.payroll_period))
 
 	def get_employees(self):
-		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll FROM `tabPayroll Register` PR JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` WHERE TE.`is_active` = 1 AND TE.`on_hold` = 0 AND PR.`period` = %(period)s AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s """,{ 
+		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account FROM `tabPayroll Register` PR JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` WHERE TE.`is_active` = 1 AND TE.`on_hold` = 0 AND PR.`period` = %(period)s AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s """,{ 
 			"period": self.payroll_period,
 			"bank": self.bank,
 			"account_type": self.bank_account_type,
@@ -58,6 +58,7 @@ class BankRemittanceSetup(Document):
 			i = {
 				"employee": d.employee,
 				"employee_name": d.employee_name,
+				"employee_account": d.bank_account,
 				"amount": d.net_payroll,
 				"remarks": ""
 			}
@@ -92,6 +93,7 @@ class BankRemittanceSetup(Document):
 				i = {
 					"employee": d.employee,
 					"employee_name": d.employee_name,
+					"employee_account": d.employee_account,
 					"amount": d.amount,
 					"remarks": d.remarks
 				}
