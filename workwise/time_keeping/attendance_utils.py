@@ -262,10 +262,12 @@ def get_undertime(entry):
 						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
 			else: #if no card in check for OB
 				if entry.get('ob_status') == 1:
-					if entry.get('ob_out') < entry.get('break_end'): #if OB is in second half
-						entry['undertime'] += abs((entry.get('ob_out') - entry.get('break_end')).total_seconds())
+					if entry.get('ob_out') < entry.get('break_end'): #if OB is in first half
+						entry['undertime'] += abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
+						if entry.get('ob_out') < entry.get('break_start'): #Add undertime Beyond Break Time
+							entry['undertime'] += abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
 					else:
-						if entry.get('ob_out') < entry.get('time_out'):
+						if entry.get('ob_out') < entry.get('time_out'): #if OB is wholeday
 							entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 
 	return entry
