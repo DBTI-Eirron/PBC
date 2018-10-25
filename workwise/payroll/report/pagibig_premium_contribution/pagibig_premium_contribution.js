@@ -33,7 +33,6 @@ frappe.query_reports["PagIbig Premium Contribution"] = {
 				if(r.message){
 					var host_link = ""+r.message.jasper_ip+":"+r.message.jasper_port+"";
 
-				var host_link = window.location.hostname+":8080";
 					report.page.add_inner_button(__("Print PagIbig Premium Contribution"), function() {
 						var from_date = frappe.query_report_filters_by_name.from_date.get_value();
 						var to_date = frappe.query_report_filters_by_name.to_date.get_value();
