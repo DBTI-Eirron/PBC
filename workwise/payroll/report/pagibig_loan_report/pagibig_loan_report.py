@@ -111,12 +111,11 @@ def get_loans(filters):
 				AND LA.`posting_date` BETWEEN %(from_date)s AND %(to_date)s
 				AND LA.company = %(company)s 
 				AND LA.docstatus = 1 
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-						INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(cur_user)s)
 			ORDER BY
 				LA.employee_name ASC """,{
 						"company": filters.company,
-						"cur_user": frappe.session.user,
+						"cur_user": cur_user,
 						"from_date": filters.from_date,
 						"to_date": filters.to_date
 			}, as_dict=True)
@@ -147,13 +146,10 @@ def get_loans(filters):
 				LA.loan_type = "HDMFL"
 				AND LA.`posting_date` BETWEEN %(from_date)s AND %(to_date)s
 				AND LA.company = %(company)s 
-				AND LA.docstatus = 1 
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-						INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+				AND LA.docstatus = 1
 			ORDER BY
 				LA.employee_name ASC """,{
 						"company": filters.company,
-						"cur_user": frappe.session.user,
 						"from_date": filters.from_date,
 						"to_date": filters.to_date
 			}, as_dict=True)

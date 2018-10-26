@@ -60,12 +60,23 @@ def get_accounts(filters):
 	return accounts
 
 def get_register(filters):
-	register_list = frappe.db.sql("""SELECT PE.account, PE.amount FROM `tabPayroll Register` PR JOIN `tabPayroll Register Entries` PE
-		WHERE PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""",{
-			"company": filters.company,
-			"from_date": filters.from_date,
-			"to_date": filters.to_date,
-		}, as_dict=True)
+	if not "Administrator" in frappe.get_roles(frappe.session.user):
+		register_list = frappe.db.sql("""SELECT PE.account, PE.amount FROM `tabPayroll Register` PR JOIN `tabPayroll Register Entries` PE JOIN `tabEmployee` TE ON PR.employee = TE.`name`
+			WHERE
+			TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) 
+			AND PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""",{
+				"company": filters.company,
+				"from_date": filters.from_date,
+				"to_date": filters.to_date,
+				"user": frappe.session.user
+			}, as_dict=True)
+	else:
+		register_list = frappe.db.sql("""SELECT PE.account, PE.amount FROM `tabPayroll Register` PR JOIN `tabPayroll Register Entries` PE
+			WHERE PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""",{
+				"company": filters.company,
+				"from_date": filters.from_date,
+				"to_date": filters.to_date
+			}, as_dict=True)
 	
 	return register_list
 

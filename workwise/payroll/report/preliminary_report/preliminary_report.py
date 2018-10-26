@@ -33,12 +33,12 @@ def execute(filters=None):
 		deduction_total.append(0)
 
 	for emp in employee_list:
-		row = [emp.name, emp.full_name]
+		row = [emp.employee, emp.employee_name]
 
 		total_income = 0
 		i = 0
 		for income in income_types:
-			income_amount = flt(income_map.get(emp.name, {}).get(income), 2)
+			income_amount = flt(income_map.get(emp.employee, {}).get(income), 2)
 			total_income += flt(income_amount, 2)
 			income_total[i] += flt(income_amount, 2)
 			row.append(income_amount)
@@ -47,7 +47,7 @@ def execute(filters=None):
 		total_deduction = 0
 		i = 0
 		for deduction in deduction_types:
-			deduction_amount = flt(deduction_map.get(emp.name, {}).get(deduction), 2)
+			deduction_amount = flt(deduction_map.get(emp.employee, {}).get(deduction), 2)
 			total_deduction += flt(deduction_amount, 2)
 			deduction_total[i] += flt(deduction_amount, 2)
 			row.append(deduction_amount)
@@ -147,9 +147,27 @@ def get_columns(employee_list):
 	return columns, income_types, deduction_types
 
 def get_employees(filters):
-	employees = frappe.db.sql("""SELECT `name`, full_name, first_name, middle_name, last_name, department	FROM tabEmployee
-		WHERE company = %(company)s {conditions}
-		AND on_hold = 0 AND is_active = 1 ORDER BY last_name, first_name""".format(conditions=get_conditions(filters)), filters, as_dict=1)
+	cur_user = frappe.session.user
+	if not "Administrator" in frappe.get_roles(cur_user):
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
+		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
+		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
+			AND PR.period = %(period)s
+			AND PR.company = %(company)s {conditions}
+			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+				"period": filters.payroll_period,
+				"company": filters.company,
+				"user": cur_user
+			}, as_dict=1)
+	else:
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
+		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
+		WHERE PR.period = %(period)s
+			AND TE.company = %(company)s {conditions}
+			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+				"period": filters.payroll_period,
+				"company": filters.company,
+			}, as_dict=1)
 
 	return employees
 
@@ -168,7 +186,7 @@ def get_income_map(filters, employee_list):
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
 		WHERE PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
-		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.payroll_period] + [emp.name for emp in employee_list]), as_dict=1)
+		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.payroll_period] + [emp.employee for emp in employee_list]), as_dict=1)
 
 	income_map = {}
 	for d in income_details:
@@ -184,8 +202,8 @@ def get_deduction_map(filters, employee_list):
 	deduction_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		WHERE PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
-		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.payroll_period] + [emp.name for emp in employee_list]), as_dict=1)
+		WHERE PR.on_hold = 0 AND PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
+		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.payroll_period] + [emp.employee for emp in employee_list]), as_dict=1)
 
 	deduction_map = {}
 	for d in deduction_details:

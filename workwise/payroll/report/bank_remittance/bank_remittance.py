@@ -123,23 +123,44 @@ def get_result(filters):
 	return result
 
 def get_net_pay(filters):
-	document = frappe.db.sql(""" SELECT
-		BT.employee,
-		BT.employee_name,
-		BT.employee_account,
-		BT.amount,
-		BT.remarks,
-		BR.payroll_time,
-		BR.payroll_schedule
-		FROM
-		`tabBank Remittance Setup` BR
-		JOIN `tabBank Remittance Setup Table` BT 
-		WHERE
-		BR.`name` = BT.parent AND BR.payroll_period = %(period)s AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s """,{
-		"period": filters.payroll_period,
-		"company": filters.company,
-		"bank": filters.bank,
-	}, as_dict=True)
+	if not "Administrator" in frappe.get_roles(frappe.session.user):
+		document = frappe.db.sql(""" SELECT DISTINCT
+			BT.employee,
+			BT.employee_name,
+			BT.employee_account,
+			BT.amount,
+			BT.remarks,
+			BR.payroll_time,
+			BR.payroll_schedule
+			FROM
+			`tabBank Remittance Setup` BR
+			JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
+			WHERE 
+			TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
+			AND BR.payroll_period = %(period)s AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s """,{
+			"period": filters.payroll_period,
+			"company": filters.company,
+			"bank": filters.bank,
+			"user": frappe.session.user
+		}, as_dict=True)
+	else:
+		document = frappe.db.sql(""" SELECT DISTINCT
+			BT.employee,
+			BT.employee_name,
+			BT.employee_account,
+			BT.amount,
+			BT.remarks,
+			BR.payroll_time,
+			BR.payroll_schedule
+			FROM
+			`tabBank Remittance Setup` BR
+			JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
+			WHERE 
+			BR.payroll_period = %(period)s AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s """,{
+			"period": filters.payroll_period,
+			"company": filters.company,
+			"bank": filters.bank,
+		}, as_dict=True)
 
 	return document
 
@@ -164,31 +185,31 @@ def get_result_as_list(data, filters):
 	for d in data:
 		if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
 			if filters.include_header:
-					payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
+				payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
 
-					if d.payroll_time == "Pay Now":
-						payroll_time = ""
-					else:
-						payroll_time = d.payroll_schedule
+				if d.payroll_time == "Pay Now":
+					payroll_time = ""
+				else:
+					payroll_time = d.payroll_schedule
 
-					headers = [
-						{
-							"detail": "H",
-							"employee_name": "Payroll Date",
-							"employee_account": payroll_date,
-							"amount": "Payroll Time",
-							"remarks": payroll_time,
-							"lbl_total_amount": "Total Amount",
-							"total_amount": flt(total_amount, 2),
-							"lbl_total_count": "Total Count",
-							"total_count": total_count,
-							"lbl_funding_account": "Funding Account",
-							"funding_account": d.employee_account,
-						},
-					]
+				headers = [
+					{
+						"detail": "H",
+						"employee_name": "Payroll Date",
+						"employee_account": payroll_date,
+						"amount": "Payroll Time",
+						"remarks": payroll_time,
+						"lbl_total_amount": "Total Amount",
+						"total_amount": flt(total_amount, 2),
+						"lbl_total_count": "Total Count",
+						"total_count": total_count,
+						"lbl_funding_account": "Funding Account",
+						"funding_account": d.employee_account,
+					},
+				]
 
-					for h in headers:
-						result.append(h)
+				for h in headers:
+					result.append(h)
 
 	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
 		fields = {

@@ -42,11 +42,20 @@ class BankRemittanceSetup(Document):
 			frappe.throw(_("Setup for Payroll Period {0} already exists").format(self.payroll_period))
 
 	def get_employees(self):
-		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account FROM `tabPayroll Register` PR JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` WHERE TE.`is_active` = 1 AND TE.`on_hold` = 0 AND PR.`period` = %(period)s AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s """,{ 
-			"period": self.payroll_period,
-			"bank": self.bank,
-			"account_type": self.bank_account_type,
-		}, as_dict=True)
+		cur_user = frappe.session.user
+		if not "Administrator" in frappe.get_roles(cur_user):
+			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account FROM `tabPayroll Register` PR JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) AND TE.`is_active` = 1 AND TE.`on_hold` = 0 AND PR.`period` = %(period)s AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s """,{ 
+				"period": self.payroll_period,
+				"bank": self.bank,
+				"account_type": self.bank_account_type,
+				"user": cur_user
+			}, as_dict=True)
+		else:
+			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account FROM `tabPayroll Register` PR JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` WHERE TE.`is_active` = 1 AND TE.`on_hold` = 0 AND PR.`period` = %(period)s AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s """,{ 
+				"period": self.payroll_period,
+				"bank": self.bank,
+				"account_type": self.bank_account_type,
+			}, as_dict=True)
 
 		return employees
 
