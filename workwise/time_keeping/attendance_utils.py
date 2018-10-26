@@ -375,28 +375,39 @@ def get_final_processing(entry):
 	#if flexible
 	if entry.get('is_flexible'):
 		if entry.get('card_in') and entry.get('card_out'):
-			if entry.get('flexible_type') == "In-Out":
-				entry['late'] = 0
-				entry['undertime'] = 0	
-				entry['work'] = entry.get('worker_secs')			
+			#Reset Flexible values
+			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
+
+			if entry.get('flexible_type') == "In-Out":		
 				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds()  - (entry.get('break_mins') * 60)
 				if diff < entry.get('worker_secs'):
 					entry['undertime'] = (entry.get('worker_secs') - diff)
 					entry['late'] = 0
 					entry['work'] = abs(diff)
 			else:
-				entry['late'] = 0
-				entry['undertime'] = 0
-				entry['work'] = entry.get('worker_secs')
+				#gete late base from flexible start time
+				flex_start = entry.get('card_in')
+				flex_end = entry.get('card_out')
+
+				if entry.get('ob_status') == 1:
+					if entry.get('ob_in') < entry.get('card_in'):
+						flex_start = entry.get('ob_in')
+
+					if entry.get('ob_out') > entry.get('card_out'):
+						flex_end = entry.get('ob_out')
+
 				flex = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
 				if flex:
-					if entry.get('card_in') > ( flex + datetime.timedelta(minutes=entry.get('grace'))):
+					if flex_start > ( flex + datetime.timedelta(minutes=entry.get('grace'))):
 						if entry['graceperiod_late']:
-							entry['late'] = ( entry.get('card_in') - (flex + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+							entry['late'] = ( flex_start - (flex + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
 						else:
-							entry['late'] = ( entry.get('card_in') - flex ).total_seconds()
-			
-				diff = abs((entry.get('card_out') - entry.get('card_in')).total_seconds())
+							entry['late'] = ( flex_start - flex ).total_seconds()
+				
+				#always reduce break mins
+				diff = abs((flex_start - flex_end).total_seconds())  - (entry.get('break_mins') * 60)	
+				
+				#Get Undertime
 				if diff < entry.get('worker_secs'):
 					entry['undertime'] = entry.get('worker_secs') - diff
 					entry['work'] = diff
