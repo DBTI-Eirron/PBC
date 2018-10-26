@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from frappe import _
+from frappe import _, msgprint
 
 def execute(filters=None):
 	if not filters: filters = frappe._dict({})
@@ -183,7 +183,9 @@ def get_employees(filters, department):
 			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters), department=department), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
-				"user": cur_user
+				"user": cur_user,
+				"employee": filters.employee,
+				"department": filters.department
 			}, as_dict=1)
 	else:
 		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
@@ -195,6 +197,8 @@ def get_employees(filters, department):
 			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters), department=department), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
+				"employee": filters.employee,
+				"department": filters.department
 			}, as_dict=1)
 
 	return employees

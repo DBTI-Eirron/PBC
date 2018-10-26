@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from frappe import _
+from frappe import _, msgprint
 
 def execute(filters=None):
 	if not filters: filters = frappe._dict({})
@@ -98,30 +98,31 @@ def get_columns(employee_list):
 		},
 	]
 
+
+	income_types = frappe.db.sql_list(""" SELECT code
+		FROM `tabTransaction Type` WHERE `type` = 'Income' ORDER BY sort """)
+
+	deduction_types = frappe.db.sql_list(""" SELECT code
+		FROM `tabTransaction Type` WHERE `type` = 'Deduction' ORDER BY sort""")
+
 	if employee_list:
-		income_types = frappe.db.sql_list(""" SELECT code
-			FROM `tabTransaction Type` WHERE `type` = 'Income' ORDER BY sort """)
+		for pay_code in income_types:
+			pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
+			columns.append({			
+				"fieldname": pay_code,
+				"label": pay_title,
+				"fieldtype": "Float",
+				"width": 100
+			})
 
-		deduction_types = frappe.db.sql_list(""" SELECT code
-			FROM `tabTransaction Type` WHERE `type` = 'Deduction' ORDER BY sort""")
-
-	for pay_code in income_types:
-		pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
-		columns.append({			
-			"fieldname": pay_code,
-			"label": pay_title,
-			"fieldtype": "Float",
-			"width": 100
-		})
-
-	for pay_code in deduction_types:
-		pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
-		columns.append({			
-			"fieldname": pay_code,
-			"label": pay_title,
-			"fieldtype": "Float",
-			"width": 100
-		})
+		for pay_code in deduction_types:
+			pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
+			columns.append({			
+				"fieldname": pay_code,
+				"label": pay_title,
+				"fieldtype": "Float",
+				"width": 100
+			})
 
 	columns += [
 		{
@@ -157,7 +158,8 @@ def get_employees(filters):
 			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
-				"user": cur_user
+				"user": cur_user,
+				"employee": filters.employee
 			}, as_dict=1)
 	else:
 		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
@@ -167,6 +169,7 @@ def get_employees(filters):
 			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
+				"employee": filters.employee
 			}, as_dict=1)
 
 	return employees
@@ -174,10 +177,10 @@ def get_employees(filters):
 def get_conditions(filters):
 	conditions = []
 	if filters.get("employee"):
-		conditions.append("`name`=%(employee)s")
+		conditions.append("PR.employee=%(employee)s")
 		
 	if filters.get("department"):
-		conditions.append("department=%(department)s")
+		conditions.append("TE.department=%(department)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 

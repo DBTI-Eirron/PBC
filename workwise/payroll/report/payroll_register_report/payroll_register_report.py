@@ -11,7 +11,6 @@ def execute(filters=None):
 	validate_filters(filters)
 
 	employee_list = get_employees(filters)
-	#frappe.throw(_(employee_list))
 	columns, income_types, deduction_types = get_columns(employee_list)
 
 	if not employee_list:
@@ -165,7 +164,8 @@ def get_employees(filters):
 			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
-				"user": cur_user
+				"user": cur_user,
+				"employee": filters.employee
 			}, as_dict=1)
 	else:
 		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
@@ -175,6 +175,7 @@ def get_employees(filters):
 			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
+				"employee": filters.employee
 			}, as_dict=1)
 
 	return employees
@@ -182,7 +183,7 @@ def get_employees(filters):
 def get_conditions(filters):
 	conditions = []
 	if filters.get("employee"):
-		conditions.append("TE.`name`=%(employee)s")
+		conditions.append("PR.employee=%(employee)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 

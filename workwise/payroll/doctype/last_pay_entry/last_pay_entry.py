@@ -296,7 +296,7 @@ class LastPayEntry(Document):
 
 	def get_present_tax_paid(self, employee, register, entry):
 		pres_tax_paid = 0.0
-		pres_tax = frappe.db.sql(""" SELECT PE.`amount` FROM `tabPayroll Register Entries` PE JOIN `tabPayroll Register` PR ON PE.`parent` = PR.`name` WHERE `pay_code` = "WHTAX" AND PR.on_hold = 0 AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s AND PR.employee = %(employee)s  """,{ 
+		pres_tax = frappe.db.sql(""" SELECT PE.`amount` FROM `tabPayroll Register Entries` PE JOIN `tabPayroll Register` PR ON PE.`parent` = PR.`name` WHERE PE.`pay_code` = "WHTAX" AND PR.on_hold = 0 AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s AND PR.employee = %(employee)s  """,{ 
 			"employee": self.employee,
 			"from_year": self.from_year,
 			"to_year": self.to_year,
