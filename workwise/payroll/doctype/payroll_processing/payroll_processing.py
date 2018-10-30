@@ -364,14 +364,13 @@ class PayrollProcessing(Document):
 		
 		if emp['whtax_mode'] != "None":
 			if emp['whtax_freq'] == 'Both':
-				taxable += taxable
 				table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
-					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
+					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Semi-Monthly'), as_dict=True )
 				
 				for t in table:
-					tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8) / 2
+					tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
 					if t.prescribed > 0:
-						tax_amt += flt(t.prescribed, 8) / 2
+						tax_amt += flt(t.prescribed, 8)
 
 			elif emp['whtax_freq'] == '2nd' and self.frequency == '2nd' :
 				if emp['payroll_schedule'] == "Semi-Monthly":
