@@ -15,8 +15,9 @@ def grant_head_subordinate_access(self):
 					frappe.throw(_("You Cannot Create Application In Behalf Of Your Subordinate"))
 
 def get_approver_and_date(self):
-	self.approved_by = frappe.session.user
-	self.approved_on = nowdate()
+	self.db_set("approved_by", frappe.session.user)
+	self.db_set("approved_on", nowdate())
+	frappe.db.commit()
 
 def validate_approve_own_application(self):
 	cur_user = frappe.session.user
@@ -36,4 +37,4 @@ def change_owner(self):
 	owner = ""
 	owner_email = frappe.db.sql("""SELECT user_id FROM `tabEmployee` WHERE `name` = %s LIMIT 1""",( self.employee ), as_dict=1)
 	for d in owner_email:
-		self.owner = d.user_id
+		self.db_set("owner", d.user_id)
