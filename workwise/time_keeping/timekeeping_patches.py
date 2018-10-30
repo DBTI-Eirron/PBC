@@ -4,7 +4,7 @@ from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 
 def update_approved_on_and_by():
-	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application"]
+	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application"]
 	for app in application_type_list:
 		table = "`tab"+app+"`"
 		table = str(table)
