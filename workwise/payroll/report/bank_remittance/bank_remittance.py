@@ -151,7 +151,8 @@ def get_net_pay(filters):
 			BT.amount,
 			BT.remarks,
 			BR.payroll_time,
-			BR.payroll_schedule
+			BR.payroll_schedule,
+			BR.funding_account
 			FROM
 			`tabBank Remittance Setup` BR
 			JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
@@ -179,11 +180,10 @@ def get_result_as_list(data, filters):
 	total_amount = 0.00
 
 	for d in data:
-		total_amount += d.amount
+		total_amount += flt(d.amount, 2)
 		total_count += 1
 
-	for d in data:
-		if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
+	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
 			if filters.include_header:
 				payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
 
@@ -204,7 +204,7 @@ def get_result_as_list(data, filters):
 						"lbl_total_count": "Total Count",
 						"total_count": total_count,
 						"lbl_funding_account": "Funding Account",
-						"funding_account": d.employee_account,
+						"funding_account": d.funding_account,
 					},
 				]
 
