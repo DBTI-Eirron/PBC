@@ -708,15 +708,6 @@ class PayrollProcessing(Document):
 							overtime += at.overtime * rates.get('hourly_rate') * (ot_map[overtime_type]['rate'] / 100)
 						else:
 							overtime += at.overtime * rates.get('hourly_rate')
-
-						if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
-							if at.nightdiff:
-								nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
-								#ndiff_type = [at.is_restday, at.is_holiday, at.is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess, 1]
-								#if ndiff_type in ot_map:
-								#	ndiff += at.nightdiff * rates.get('hourly_rate') * (ot_map[overtime_type]['rate'] / 100)
-								#else:
-								#	ndiff += at.nightdiff * rates.get('hourly_rate')
 					
 					if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
 						if at.is_lwop == 1 and at.lv_status > 1:
