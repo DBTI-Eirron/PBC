@@ -98,7 +98,7 @@ def set_emp_entries_by_department(company, as_of_date, root_lft, root_rgt, filte
 		},
 		as_dict=True)
 
-	emp_entries += frappe.db.sql("""select department, "Target" as position_title, SUM(quantity) as qty from `tabPersonnel Requisition`
+	emp_entries += frappe.db.sql("""select department, "Target" as position_title, SUM(quantity) as qty from `tabTalent Requisition`
 		where company=%(company)s
 		and department in (select name from `tabDepartment` where lft >= %(lft)s and rgt <= %(rgt)s)
 		and docstatus = 1

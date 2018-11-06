@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
-from frappe.utils import getdate, validate_email_add, today, add_years
+from frappe.utils import getdate, validate_email_add, today, add_years, nowdate
 from frappe import throw, _, scrub
 
 class JobApplicant(Document):
@@ -27,6 +27,9 @@ class JobApplicant(Document):
 			self.applicant_name = str(self.last_name) + ', ' + str(self.first_name)
 
 	def validate_date(self):
+		if not self.application_date:
+			self.application_date = nowdate()
+
 		if self.application_date and getdate(self.application_date) > getdate(today()):
 			throw(_("Date of Application cannot be greater than today."))
 

@@ -8,7 +8,7 @@
 				<hr>
 
 			</div>
-			
+			<!--
 			<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">	
 				{% for (var i=0; i < ar.length; i++) { var d = ar[i] %}
 					<li class="strong module-sidebar-item">
@@ -20,6 +20,8 @@
 					</li>
 				{% } %}
 			</ul>
+			-->
+
 		</div>
 	</div>
 
@@ -50,16 +52,17 @@
 				</ul>
 			</div>
 
+
 			<hr>
 			<div class="section-body bg-light">
-				<div class="h4 section-head"> Step 2: Schedule and Assesment</div>
+				<div class="h4 section-head"> Step 2: Schedule and Assessment</div>
 				<div>
 					<p> Review of Resumes, preliminary phone interviews to obtain applicants background and work experiences. </p>
 				</div>
 
 
 				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
-				{% for (var i=0; i < for_assessment.length; i++) { var d = for_assessment[i] %}
+				{% for (var i=0; i < schedule_assessment.length; i++) { var d = schedule_assessment[i] %}
 					<li class="strong module-sidebar-item">
 						<a class="module-link" data-name="my_payslip" href="desk#Form/Job%20Applicant/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
 							<span>{{ d.applicant_name }}</span>
@@ -68,38 +71,40 @@
 				{% } %}
 				</ul>
 			</div>
-		
+			
+
 			<hr>
 			<div class="section-body bg-light">
-				<div class="h4 section-head"> Step 3: Interview and Background Investigation</div>
+				<div class="h4 section-head"> Step 3: Interview </div>
 				<div>
 					<p> Hiring manager reviews the applications and resumes the employement specialist have forwarded. </p>
 				</div>
 
 
 				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
-				{% for (var i=0; i < for_interview.length; i++) { var d = for_interview[i] %}
+				{% for (var i=0; i < interview.length; i++) { var d = interview[i] %}
 					<li class="strong module-sidebar-item">
 						<a class="module-link" data-name="my_payslip" href="desk#Form/Schedules%20and%20Assessment/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
-							<span>{{ d.applicant_name }}</span><span class="label label-info"> {{ d.interview_date }}</span>
+							<span>{{ d.applicant_name }} </span><span class="label label-info">  {{ d.interview_date }}</span><span class="label label-success">  {{ d.interview_status }}</span>
 						</a>
 					</li>
 				{% } %}
 				</ul>
 			</div>
-
+			
+			
 			<hr>
 			<div class="section-body bg-light">
-				<div class="h4 section-head"> Step 4: Job Offer</div>
+				<div class="h4 section-head"> Step 4: Background investigation </div>
 				<div>
-					<p> When reccruiting for positions where you negotiate th terms of employement, compensation and benefits, and other issues until the parties reach an agreement. </p>
+					<p></p>
 				</div>
 
 
 				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
-				{% for (var i=0; i < job_offer.length; i++) { var d = job_offer[i] %}
+				{% for (var i=0; i < background_investigation.length; i++) { var d = background_investigation[i] %}
 					<li class="strong module-sidebar-item">
-						<a class="module-link" data-name="my_payslip" href="desk#Form/Interview%20and%20Background/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Schedules%20and%20Assessment/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
 							<span>{{ d.applicant_name }}</span>
 						</a>
 					</li>
@@ -109,7 +114,66 @@
 
 			<hr>
 			<div class="section-body bg-light">
-				<div class="h4 section-head"> Step 5: Employee Records</div>
+				<div class="h4 section-head"> Step 5: Job Offer</div>
+				<div>
+					<p> When reccruiting for positions where you negotiate th terms of employement, compensation and benefits, and other issues until the parties reach an agreement. </p>
+				</div>
+
+
+
+				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
+				{% for (var i=0; i < job_offer.length; i++) { var d = job_offer[i] %}
+					<li class="strong module-sidebar-item">
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Background%20Investigation/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+							<span>{{ d.applicant_name }}</span>
+						</a>
+					</li>
+				{% } %}
+				</ul>
+			</div>
+
+			
+			<hr>
+			<div class="section-body bg-light">
+				<div class="h4 section-head"> Step 6: Contract signing</div>
+				<div>
+				</div>
+
+				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
+				{% for (var i=0; i < contract_signing.length; i++) { var d = contract_signing[i] %}
+					<li class="strong module-sidebar-item">
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Offer%20Letter/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+							<span>{{ d.applicant_name }}</span>
+						</a>
+					</li>
+				{% } %}
+				</ul>
+			</div>
+
+			
+			<hr>
+			<div class="section-body bg-light">
+				<div class="h4 section-head"> Step 7: Employee 201</div>
+				<div><p> Creation of Employee 201 </p>
+				</div>
+
+				<ul class="module-sidebar-nav overlay-sidebar nav nav-pills nav-stacked">
+				{% for (var i=0; i < for_employee.length; i++) { var d = for_employee	[i] %}
+					<li class="strong module-sidebar-item">
+						<a class="module-link" data-name="my_payslip" href="desk#Form/Offer%20Letter/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
+							<span>{{ d.applicant_name }}</span>
+						</a>
+					</li>
+				{% } %}
+				</ul>
+			</div>
+
+
+			
+			<!--
+			<hr>
+			<div class="section-body bg-light">
+				<div class="h4 section-head"> Step 7: Onboarding</div>
 				<div>
 					<p>  Create Employee Record </p>
 				</div>
@@ -125,7 +189,7 @@
 				{% } %}
 				</ul>
 			</div>
-
+			-->
 
 		</div>
 	</div>

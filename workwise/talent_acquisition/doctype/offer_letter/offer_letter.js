@@ -5,7 +5,7 @@ frappe.provide("workwise.offer_letter");
 
 frappe.ui.form.on('Offer Letter', {
 	refresh: function(frm) {
-		if((!frm.doc.__islocal) && (frm.doc.status=='Accepted') && (frm.doc.docstatus===1)){
+		if((!frm.doc.__islocal) && (frm.doc.status=='Accepted') && (frm.doc.docstatus===1)  && frm.doc.signed_contract ){
 			frm.add_custom_button(__('Make Employee'),
 				function() {
 					workwise.offer_letter.make_employee(frm)
@@ -14,26 +14,10 @@ frappe.ui.form.on('Offer Letter', {
 		}
 	},
 
-	job_applicant: function(frm){
- 		if(frm.doc.job_applicant){
-	 		return frappe.call({
-				method: "workwise.talent_acquisition.doctype.offer_letter.offer_letter.get_name",
-				args: {
-					source_name: "Applicant",
-					source_value: frm.doc.job_applicant,
-				},
-				callback: function(r) {
-					if (!r.exc && r.message) {
-						frm.set_value("applicant_name", r.message.target_name);
-						frm.set_value("designation", r.message.target_job_opening);
-						frm.set_value("company", r.message.target_company);
-						frm.set_value("location", r.message.target_location);
-						
-					}
-				}
-			});
-		}
-	},
+	setup: function(frm) {
+		frm.add_fetch("representative", "full_name", "representative_name");
+		frm.add_fetch("representative", "position_title", "representative_position");
+	},		
 });
 
 workwise.offer_letter.make_employee = function(frm) {

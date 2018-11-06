@@ -17,7 +17,7 @@
  "is_standard": 1, 
  "login_required": 0, 
  "max_attachment_size": 0, 
- "modified": "2018-10-15 15:25:16.261949", 
+ "modified": "2018-11-04 02:43:03.664296", 
  "modified_by": "Administrator", 
  "module": "Talent Acquisition", 
  "name": "recruitment-form", 
@@ -32,71 +32,30 @@
  "title": "Application Form", 
  "web_form_fields": [
   {
-   "fieldname": "last_name", 
-   "fieldtype": "Data", 
-   "hidden": 0, 
-   "label": "Last Name", 
-   "max_length": 0, 
-   "max_value": 0, 
-   "read_only": 0, 
-   "reqd": 1
-  }, 
-  {
-   "fieldname": "first_name", 
-   "fieldtype": "Data", 
-   "hidden": 0, 
-   "label": "First Name", 
-   "max_length": 0, 
-   "max_value": 0, 
-   "read_only": 0, 
-   "reqd": 1
-  }, 
-  {
-   "fieldname": "middle_name", 
-   "fieldtype": "Data", 
-   "hidden": 0, 
-   "label": "Middle Name", 
-   "max_length": 0, 
-   "max_value": 0, 
-   "read_only": 0, 
-   "reqd": 0
-  }, 
-  {
    "fieldname": "apply_for", 
    "fieldtype": "Link", 
    "hidden": 0, 
    "label": "Apply For", 
    "max_length": 0, 
    "max_value": 0, 
-   "options": "Job Opening", 
+   "options": "Job Opening Tool", 
    "read_only": 0, 
    "reqd": 1
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
   }, 
   {
    "fieldname": "upload_resume", 
    "fieldtype": "Attach", 
    "hidden": 0, 
    "label": "Upload Resume", 
-   "max_length": 0, 
-   "max_value": 0, 
-   "read_only": 0, 
-   "reqd": 0
-  }, 
-  {
-   "fieldname": "company", 
-   "fieldtype": "Data", 
-   "hidden": 0, 
-   "label": "Company", 
-   "max_length": 0, 
-   "max_value": 0, 
-   "read_only": 0, 
-   "reqd": 0
-  }, 
-  {
-   "fieldname": "location", 
-   "fieldtype": "Data", 
-   "hidden": 0, 
-   "label": "Location", 
    "max_length": 0, 
    "max_value": 0, 
    "read_only": 0, 
@@ -112,6 +71,356 @@
    "reqd": 0
   }, 
   {
+   "fieldname": "", 
+   "fieldtype": "Section Break", 
+   "hidden": 0, 
+   "label": "Personal Information", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "last_name", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Last Name", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 1
+  }, 
+  {
+   "fieldname": "maiden_name", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Maiden Name", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "first_name", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "First Name", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 1
+  }, 
+  {
+   "fieldname": "nickname", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Nickname", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "middle_name", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Middle Name", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Section Break", 
+   "hidden": 0, 
+   "label": "Present Address", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "pres_ad_no", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "No.", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "pres_town", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Town", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "pres_ad_street", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Street", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "pres_city", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "City", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "pres_subdivision", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Subdivision/Village", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "pres_province", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Province", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "pres_barangay", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Barangay", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Section Break", 
+   "hidden": 0, 
+   "label": "Permanent Address", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "perm_ad_no", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "No.", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "perm_town", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Town", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "perm_street", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Street", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "perm_city", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "City", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "perm_subdivision", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Subdivision/Village", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "perm_province", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Province", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "perm_barangay", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Barangay", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Section Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "phone_number", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Contact Number/s", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "date_of_birth", 
+   "fieldtype": "Date", 
+   "hidden": 0, 
+   "label": "Date of Birth", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 1
+  }, 
+  {
+   "fieldname": "tax_id", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Tax Identification Number", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "place_of_birth", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Place of Birth", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 1
+  }, 
+  {
    "fieldname": "email_address", 
    "fieldtype": "Data", 
    "hidden": 0, 
@@ -120,49 +429,169 @@
    "max_value": 0, 
    "options": "Email", 
    "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "sss_number", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "SSS number", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "citizenship", 
+   "fieldtype": "Data", 
+   "hidden": 0, 
+   "label": "Citizenship", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "civil_status", 
+   "fieldtype": "Select", 
+   "hidden": 0, 
+   "label": "Civil Status", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "options": "Single\nMarried", 
+   "read_only": 0, 
    "reqd": 1
   }, 
   {
-   "fieldname": "mobile_number", 
-   "fieldtype": "Int", 
+   "fieldname": "", 
+   "fieldtype": "Section Break", 
    "hidden": 0, 
-   "label": "Mobile Number", 
    "max_length": 0, 
    "max_value": 0, 
    "read_only": 0, 
    "reqd": 0
   }, 
   {
-   "fieldname": "phone_number", 
-   "fieldtype": "Int", 
+   "fieldname": "applicant_family", 
+   "fieldtype": "Table", 
    "hidden": 0, 
-   "label": "Phone Number", 
+   "label": "Family Background", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "options": "Applicant Family", 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "applicant_education", 
+   "fieldtype": "Table", 
+   "hidden": 0, 
+   "label": "Educational Attainment", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "options": "Applicant Education", 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "applicant_reference", 
+   "fieldtype": "Table", 
+   "hidden": 0, 
+   "label": "Applicant Reference", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "options": "Applicant Reference", 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Section Break", 
+   "hidden": 0, 
    "max_length": 0, 
    "max_value": 0, 
    "read_only": 0, 
    "reqd": 0
   }, 
   {
+   "fieldname": "physical_disability", 
+   "fieldtype": "Small Text", 
+   "hidden": 0, 
+   "label": "Do you have any physical or mental disability which preclude you from performing certain kinds of work? (if yes, specify work limitation)", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "charged_crime", 
+   "fieldtype": "Small Text", 
+   "hidden": 0, 
+   "label": "Have you ever been charged of a crime, misdemeanor or summary offence? (if yes, describe in full)", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "", 
+   "fieldtype": "Column Break", 
+   "hidden": 0, 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "previously_employed", 
+   "fieldtype": "Check", 
+   "hidden": 0, 
+   "label": "Were you previously employed here", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "willing_relocated", 
+   "fieldtype": "Check", 
+   "hidden": 0, 
+   "label": "Are you willing to be relocated", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "fieldname": "days_notice", 
+   "fieldtype": "Int", 
+   "hidden": 0, 
+   "label": "how many days notice do you need to be available for work", 
+   "max_length": 0, 
+   "max_value": 0, 
+   "read_only": 0, 
+   "reqd": 0
+  }, 
+  {
+   "default": "Kiosk", 
    "fieldname": "application_source", 
    "fieldtype": "Select", 
-   "hidden": 0, 
+   "hidden": 1, 
    "label": "Application Source", 
    "max_length": 0, 
    "max_value": 0, 
-   "options": "\nKiosk\nWalk-in", 
-   "read_only": 0, 
-   "reqd": 0
-  }, 
-  {
-   "fieldname": "currently_employed", 
-   "fieldtype": "Select", 
-   "hidden": 0, 
-   "label": "Currently Employed", 
-   "max_length": 0, 
-   "max_value": 0, 
-   "options": "No\nYes", 
-   "read_only": 0, 
-   "reqd": 0
+   "options": "Kiosk", 
+   "read_only": 1, 
+   "reqd": 1
   }
  ], 
  "web_page_link_text": "recruitment_form"
