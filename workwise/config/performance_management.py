@@ -11,26 +11,51 @@ def get_data():
 					"name": "Appraisal",
 					"description": _("Appraisal"),
 				},
+				# {
+				# 	"type": "doctype",
+				# 	"name": "Appraisal Template",
+				# 	"description": _("Appraisal Template"),
+				# },
+				# {
+				# 	"type": "doctype",
+				# 	"name": "Appraisal Dates",
+				# 	"description": _("Appraisal Dates"),
+				# },
+			]
+		},
+		{
+		"label": _("Performance Planning"),
+			"items": [
 				{
 					"type": "doctype",
-					"name": "Appraisal Template",
-					"description": _("Appraisal Template"),
+					"name": "Target Setting",
+					"description": _("Target Setting"),
 				},
 				{
 					"type": "doctype",
-					"name": "Appraisal Dates",
-					"description": _("Appraisal Dates"),
+					"name": "Target Setting Period",
+					"description": _("Target Setting Period"),
 				},
+				{
+					"type": "doctype",
+					"name": "Target Standard",
+					"description": _("Target Standard"),
+				},
+			]
+		},
+		{
+		"label": _("Reports"),
+			"items": [
 				{
 					"type": "report",
-					"name": "Appraisal Comparison Report",
-					"doctype": "Appraisal Comparison Report",	
+					"name": "Comparison per Department",
+					"doctype": "Comparison per Department",	
 					"is_query_report": True
 				},
 				{
 					"type": "report",
-					"name": "Appraisal Report",
-					"doctype": "Appraisal Report",	
+					"name": "Tracking Individual Rating per Year",
+					"doctype": "Tracking Individual Rating per Year",	
 					"is_query_report": True
 				},
 			]

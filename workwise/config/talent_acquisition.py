@@ -4,7 +4,7 @@ from frappe import _
 def get_data():
 	return [
 		{
-			"label": _("Recruitment"),
+			"label": _("Talent Requisition Process"),
 			"items": [
 				{
 					"type": "page",
@@ -20,26 +20,34 @@ def get_data():
 					"type": "doctype",
 					"name": "Schedules and Assessment",
 					"description": _("Schedules and Assessment"),
-				},				
+				},	
 				{
 					"type": "doctype",
-					"name": "Interview and Background",
-					"label": _("Interview and Background"),
+					"name": "Background Investigation",
+				},	
+
+				{
+					"type": "doctype",
+					"name": "Interview",
 				},
 				{
 					"type": "doctype",
 					"name": "Offer Letter",
-					"description": _("Offer Letter"),
 				},
 			]
 		},
 		{
-			"label": _("Tools"),
+			"label": _("Talent Acquisition Planning"),
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Personnel Requisition",
-					"description": _("Personnel Requisition"),
+					"name": "Talent Acquisition Planning",
+					"description": _("Talent Acquisition Planning"),
+				},
+				{
+					"type": "doctype",
+					"name": "Talent Requisition",
+					"description": _("Talent Requisition"),
 				},
 				{
 					"type": "doctype",
@@ -51,6 +59,15 @@ def get_data():
 					"name": "Plantilla Report",
 					"doctype": "Plantilla Report",	
 					"is_query_report": True
+				},
+			]
+		},
+		{
+			"label": _("Tools"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Job Opening Tool",
 				},
 			]
 		},

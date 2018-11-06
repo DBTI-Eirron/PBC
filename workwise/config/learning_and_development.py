@@ -4,27 +4,81 @@ from frappe import _
 def get_data():
 	return [
 		{
-			"label": _("Training and Development"),
+			"label": _("Learning and Development"),
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Training Course",
-					"description": _("Training Course"),
+					"name": "Training Needs Analysis",
+					"description": _("Training Needs Analysis"),
 				},
 				{
 					"type": "doctype",
-					"name": "Training Event",
-					"description": _("Training Event"),
+					"name": "Learning Program",
+					"description": _("Learning Program"),
 				},
 				{
 					"type": "doctype",
-					"name": "Training Evaluation",
-					"description": _("Training Evaluation"),
+					"name": "Learning Event",
+					"description": _("Learning Event"),
 				},
 				{
 					"type": "doctype",
-					"name": "Training Result",
-					"description": _("Training Result"),
+					"name": "Learning Evaluation",
+					"description": _("Learning Evaluation"),
+				},
+				{
+					"type": "doctype",
+					"name": "Learning Feedback",
+					"description": _("Learning Feedback"),
+				},
+			]
+		},
+		{
+			"label": _("Setup"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Learning Objective",
+					"description": _("Learning Objective"),
+				},
+				{
+					"type": "doctype",
+					"name": "Learning Course",
+					"description": _("Learning Course"),
+				},
+				{
+					"type": "doctype",
+					"name": "Learning Provider",
+					"description": _("Learning Provider"),
+				},
+			]
+		},
+		{
+			"label": _("Reports"),
+			"items": [
+				{
+					"type": "report",
+					"name": "Training Needs Analysis Result",
+					"doctype": "Training Needs Analysis",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Learning Event Result",
+					"doctype": "Learning Event",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Learning Event Feedback",
+					"doctype": "Learning Feedback",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Completed Learning Course",
+					"doctype": "Completed Learning Course",	
+					"is_query_report": True
 				},
 			]
 		},

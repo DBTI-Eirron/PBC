@@ -204,8 +204,16 @@ def get_data():
 			]
 		},		
 		{
-			"label": _("Utilities"),
+			"label": _("Tools"),
 			"items": [
+				{
+					"type": "doctype",
+					"name": "Special Processing",
+				},
+				{
+					"type": "doctype",
+					"name": "Adjustment Processing",
+				},							
 				{
 					"type": "doctype",
 					"name": "Statement of Account",
