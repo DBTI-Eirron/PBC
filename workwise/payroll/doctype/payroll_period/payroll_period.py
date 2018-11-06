@@ -24,6 +24,11 @@ class PayrollPeriod(Document):
 	def validate(self):
 		self.validate_days()
 		self.validate_frequency()
+		self.validate_approval_cutoff()
+
+	def validate_approval_cutoff(self):
+		if getdate(self.approval_cutoff) <= getdate(self.attendance_to):
+			frappe.throw(_("Last Cutoff Date of Approval should be greater than To Date"))
 
 	def validate_frequency(self):
 		if self.schedule == "Monthly":

@@ -56,6 +56,7 @@ class PayrollProcessing(Document):
 		employees = self.get_employees()
 		tr_map = self.get_transaction_map()
 		ot_map = self.get_overtime_map()
+		adj_settings = self.get_adjustment_settings()
 		previous_period = self.get_previous_period()
 		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
 
@@ -107,6 +108,7 @@ class PayrollProcessing(Document):
 				self.get_basic(emp, rates, header, register)
 				self.get_recurring(emp, rates, header, register)
 				self.get_batch(emp, rates, header, register)
+				self.get_adjustment(emp, rates, header, register, adj_settings)
 				self.get_loans(emp, rates, register)
 
 				#Calculate Basic Entries to Header
@@ -275,6 +277,7 @@ class PayrollProcessing(Document):
 
 				if emp['sss_freq'] == '2nd':
 					target_amt += flt(header.get('previous_government_basis'), 8)
+
 				elif emp['sss_freq'] == 'Both' or emp['sss_freq'] == '1st':
 					target_amt += header.get('government_basis')
 
@@ -363,7 +366,7 @@ class PayrollProcessing(Document):
 		tax_amt = 0
 		
 		if emp['whtax_mode'] != "None":
-			if emp['whtax_freq'] == 'Both':
+			if emp.get('payroll_schedule') == 'Semi-Monthly':
 				table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
 					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Semi-Monthly'), as_dict=True )
 				
@@ -372,12 +375,18 @@ class PayrollProcessing(Document):
 					if t.prescribed > 0:
 						tax_amt += flt(t.prescribed, 8)
 
-			elif emp['whtax_freq'] == '2nd' and self.frequency == '2nd' :
-				if emp['payroll_schedule'] == "Semi-Monthly":
-					taxable += flt(header.get('previous_gross_payroll'), 8)
-
+			elif emp.get('payroll_schedule') == 'Monthly':
 				table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table` 
 					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
+
+				for t in table:
+					tax_amt = (flt(taxable, 8) - flt(t.compensatory ,8)) * flt(flt(t.percentage, 8) / 100 , 8)
+					if t.prescribed > 0:
+						tax_amt += flt(t.prescribed, 8)
+
+			elif emp.get('payroll_schedule') == 'Weekly':
+				table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table` 
+					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Weekly'), as_dict=True )
 
 				for t in table:
 					tax_amt = (flt(taxable, 8) - flt(t.compensatory ,8)) * flt(flt(t.percentage, 8) / 100 , 8)
@@ -454,6 +463,140 @@ class PayrollProcessing(Document):
 				})
 
 		for d in batch_register:
+			register.append(d)
+
+	def get_adjustment_settings(self):
+		settings = {
+			"inc_ab": "", "inc_uho": "", "inc_ot": "", "inc_nd": "", "inc_lt": "", "inc_ut": "",
+			"ded_ab": "", "ded_uho": "", "ded_ot": "", "ded_nd": "", "ded_lt": "", "ded_ut": "",
+		}
+
+		inc_ab = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ab')
+		inc_uho = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_uho')
+		inc_ot = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ot')
+		inc_nd = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_nd')
+		inc_lt = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_lt')
+		inc_ut = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ut')
+
+		ded_ab = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ab')
+		ded_uho = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_uho')
+		ded_ot = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ot')
+		ded_nd = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_nd')
+		ded_lt = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_lt')
+		ded_ut = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ut')
+
+		settings.update({
+			"inc_ab": inc_ab, "inc_uho": inc_uho, "inc_ot": inc_ot, "inc_nd": inc_nd, "inc_lt": inc_lt, "inc_ut": inc_ut,
+			"ded_ab": ded_ab, "ded_uho": ded_uho, "ded_ot": ded_ot, "ded_nd": ded_nd, "ded_lt": ded_lt, "ded_ut": ded_ut,
+		})
+
+		return settings 			
+
+	def get_adjustment(self, emp, rates, header, register, adjset):
+		adjustment_register = []
+		adjustment = frappe.db.sql("""SELECT name, absent, unpaid_holiday, overtime, nightdiff, late, undertime 
+			FROM `tabAdjustment Register`WHERE employee = %s AND payroll_period = %s """,(emp.get('name'), self.period), as_dict=True )
+		
+
+		for d in adjustment:
+			if d.absent != 0:
+				if d.absent < 0:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('inc_ab'),
+						"amount": abs(flt(d.absent, 8)),
+					})
+				else:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('ded_ab'),
+						"amount": abs(flt(d.absent, 8)),
+					})
+
+			if d.unpaid_holiday != 0:
+				if d.unpaid_holiday < 0:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('inc_ab'),
+						"amount": abs(flt(d.unpaid_holiday, 8)),
+					})
+				else:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('ded_ab'),
+						"amount": abs(flt(d.unpaid_holiday, 8)),
+					})
+
+			if d.overtime != 0:
+				if d.overtime < 0:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('ded_ab'),
+						"amount": abs(flt(d.overtime, 8)),
+					})
+				else:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('inc_ab'),
+						"amount": abs(flt(d.overtime, 8)),
+					})
+
+			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
+				if d.nightdiff != 0:
+					if d.nightdiff < 0:
+						adjustment_register.append({
+							"linked_document": d.name,
+							"linked_doctype": "Adjustment Register",
+							"pay_code": adjset.get('ded_ab'),
+							"amount": abs(flt(d.nightdiff, 8)),
+						})
+					else:
+						adjustment_register.append({
+							"linked_document": d.name,
+							"linked_doctype": "Adjustment Register",
+							"pay_code": adjset.get('inc_ab'),
+							"amount": abs(flt(d.nightdiff, 8)),
+						})
+
+			if d.late != 0:
+				if d.late < 0:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('inc_ab'),
+						"amount": abs(flt(d.late, 8)),
+					})
+				else:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('ded_ab'),
+						"amount": abs(flt(d.late, 8)),
+					})
+
+			if d.undertime != 0:
+				if d.undertime < 0:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('inc_ab'),
+						"amount": abs(flt(d.undertime, 8)),
+					})
+				else:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('ded_ab'),
+						"amount": abs(flt(d.undertime, 8)),
+					})
+
+		for d in adjustment_register:
 			register.append(d)
 
 	def get_hourly_rate_base(self, amt, emp):
@@ -546,8 +689,9 @@ class PayrollProcessing(Document):
 					if at.undertime > 0:
 						undertime += flt(at.undertime, 8) * flt(rates.get('hourly_rate'), 8)
 
-					if at.nightdiff:
-						nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
+					if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
+						if at.nightdiff:
+							nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
 
 					if at.overtime > 0:
 						is_saturday = 1 if getdate(at.target_date).weekday() == 5 else 0
@@ -565,13 +709,14 @@ class PayrollProcessing(Document):
 						else:
 							overtime += at.overtime * rates.get('hourly_rate')
 
-						if at.nightdiff:
-							nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
-							#ndiff_type = [at.is_restday, at.is_holiday, at.is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess, 1]
-							#if ndiff_type in ot_map:
-							#	ndiff += at.nightdiff * rates.get('hourly_rate') * (ot_map[overtime_type]['rate'] / 100)
-							#else:
-							#	ndiff += at.nightdiff * rates.get('hourly_rate')
+						if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
+							if at.nightdiff:
+								nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
+								#ndiff_type = [at.is_restday, at.is_holiday, at.is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess, 1]
+								#if ndiff_type in ot_map:
+								#	ndiff += at.nightdiff * rates.get('hourly_rate') * (ot_map[overtime_type]['rate'] / 100)
+								#else:
+								#	ndiff += at.nightdiff * rates.get('hourly_rate')
 					
 					if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
 						if at.is_lwop == 1 and at.lv_status > 1:
