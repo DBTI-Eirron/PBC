@@ -147,22 +147,31 @@ def get_overtime(entry):
 
 def get_ndiff(entry):	
 	#late nightdiff
-	if entry.get('card_in') and entry.get('card_out'):
-		if entry.get('card_out') > entry.get('nd_start'):
-			entry['nightdiff'] = abs((entry.get('card_out') - entry.get('nd_start')).total_seconds())
-			if entry.get('card_out') > entry.get('nd_end'):
-				entry['nightdiff'] = abs((entry.get('nd_start') - entry.get('nd_end')).total_seconds())
+	# Get Night Diff Datetime based from time
+	if entry.get('nd_start') and entry.get('nd_end'):
+		nd_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) )
+		nd_end = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
 
-		#early nightdiff
-		nd_early = get_datetime(str(entry.get('target_date')) +" "+ str("06:00:00") )
-		if get_datetime(entry.get('card_in')) < nd_early :
-			entry['nightdiff'] = abs((get_datetime(entry.get('card_in'))  - nd_early).total_seconds())
+		if entry.get('nd_start') > entry.get('nd_end'):
+			nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )
 
-	#OLD ND Code
-	#if entry.get('time_out') > entry.get('nd_start'):
-	#	entry['nightdiff'] += (entry.get('time_out') - entry.get('nd_start')).total_seconds()
-	#	if entry.get('time_out') > entry.get('nd_end'):
-	#		entry['nightdiff'] += (entry.get('nd_start') - entry.get('nd_end')).total_seconds()
+		if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
+			if entry.get('card_in') and entry.get('card_out'):
+				if entry.get('card_out') > nd_start:
+					entry['nightdiff'] = abs((entry.get('card_out') - nd_start).total_seconds())
+					if entry.get('card_out') > nd_end:
+						entry['nightdiff'] = abs( (nd_start - nd_end).total_seconds())
+
+				#early nightdiff
+				nd_early = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
+				if get_datetime(entry.get('card_in')) < nd_early :
+					entry['nightdiff'] = abs((get_datetime(entry.get('card_in')) - nd_early).total_seconds())
+
+		#OLD ND Code
+		#if entry.get('time_out') > entry.get('nd_start'):
+		#	entry['nightdiff'] += (entry.get('time_out') - entry.get('nd_start')).total_seconds()
+		#	if entry.get('time_out') > entry.get('nd_end'):
+		#		entry['nightdiff'] += (entry.get('nd_start') - entry.get('nd_end')).total_seconds()
 
 	return entry
 
@@ -537,7 +546,7 @@ def get_shift_map():
 	shift_map = {}
 	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
 			is_flexible, setup_preshift, setup_postshift, flex_from, flex_to, 
-			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type
+			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type, nd_end, nd_start
 		FROM `tabWork Shift` """, as_dict=True)
 	
 	for d in shifts:
@@ -561,6 +570,8 @@ def get_shift_map():
 			"graceperiod_late": d.graceperiod_late,
 			"straight_ot": d.straight_ot,
 			"flexible_type": d.flexible_type,
+			"nd_start": d.nd_start,
+			"nd_end": d.nd_end
 		}
 
 	return shift_map
@@ -572,57 +583,78 @@ def get_holiday_list(company, location, from_date, to_date):
 
 	return holidays
 
-def get_leave_list(employee, from_date, to_date):
+def get_leave_list(employee, from_date, to_date, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
+
 	leave_list = frappe.db.sql("""SELECT L.`name`, L.employee, L.leave_type, LA.leave_date, LA.is_half_day, LA.is_second_half, LA.is_holiday, LA.is_excluded, L.is_lwop
 		FROM `tabLeave Application Table` LA
 		INNER JOIN `tabLeave Application` L ON L.`name` = LA.parent
-		WHERE L.employee = %s AND LA.leave_date >= %s AND LA.leave_date <= %s AND L.docstatus = '1'
-		ORDER BY LA.leave_date ASC""",(employee, from_date, to_date), as_dict=True)
+		WHERE L.employee = %s AND LA.leave_date >= %s AND LA.leave_date <= %s {by_adjustment} AND L.docstatus = '1' 
+		ORDER BY LA.leave_date ASC """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 
 	return leave_list
 
-def get_ob_list(employee, from_date, to_date):
+def get_ob_list(employee, from_date, to_date, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
+
 	ob_apps = frappe.db.sql("""SELECT OBA.`name`, OBAT.target_date, OBAT.from_time, OBAT.to_time, OBAT.hrs, OBAT.is_holiday, OBAT.is_excluded 
 		FROM `tabOfficial Business Application Table` OBAT
 		INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
 		WHERE OBA.employee = %s AND OBA.workflow_state = 'Approved' AND OBAT.target_date >= %s 
-		AND OBAT.target_date <= %s AND OBAT.is_excluded = 0 """,(employee, from_date, to_date), as_dict=1)
+		AND OBAT.target_date <= %s AND OBAT.is_excluded = 0 {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 
 	return ob_apps
 
-def get_ot_list(employee, from_date, to_date):
+def get_ot_list(employee, from_date, to_date, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
+
 	ot_apps = frappe.db.sql("""SELECT `name`, total_hrs, target_date, from_date, to_date, from_time, to_time FROM `tabOvertime Application` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND target_date >= %s AND target_date <= %s """, (employee, from_date, to_date), as_dict=1)
+		WHERE workflow_state = 'Approved' AND employee = %s AND target_date >= %s 
+		AND target_date <= %s {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 	return ot_apps
 
-def get_ut_list(employee, from_date, to_date):
+def get_ut_list(employee, from_date, to_date, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
+
 	ut_apps = frappe.db.sql("""SELECT `name`, from_time, to_time, from_date FROM `tabUndertime Application` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s AND from_date <= %s """, (employee, from_date, to_date), as_dict=1)
+		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s 
+		AND from_date <= %s {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
+
 	return ut_apps
 
-def get_cto_list(employee, from_date, to_date):
+def get_cto_list(employee, from_date, to_date, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
+
 	cto_apps = frappe.db.sql("""SELECT `name`, use_fromtime, use_totime,  from_date FROM `tabCompensatory Time Off` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s AND from_date <= %s AND `type` = 'Use' """, (employee, from_date, to_date), as_dict=1)
+		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s AND from_date <= %s
+		AND `type` = 'Use' {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
+	
 	return cto_apps
 
-def get_ext_list(employee, from_date, to_date):
+def get_ext_list(employee, from_date, to_date, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
+
 	ext_apps = frappe.db.sql("""SELECT `name`, `date`, from_time, to_time, `type` FROM `tabExcuse Tardiness Application` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND `date` >= %s AND `date` <= %s  """, (employee, from_date, to_date), as_dict=1)
+		WHERE workflow_state = 'Approved' AND employee = %s AND `date` >= %s 
+		AND `date` <= %s {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
+	
 	return ext_apps
 
-def get_ws_list(from_date, to_date):
+def get_ws_list(from_date, to_date, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "	
+
 	ws_apps = frappe.db.sql(""" SELECT apply_to, apply_value, target_date, suspension_start, suspension_end FROM `tabWork Suspension` WS 
 		INNER JOIN `tabWork Suspension Dates` WSD ON WSD.parent = WS.`name`
-		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s AND target_date <= %s """, (from_date, to_date), as_dict=1)
+		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s 
+		AND target_date <= %s {by_adjustment} """.format( by_adjustment=by_adjustment ), (from_date, to_date), as_dict=1)
 
 	return ws_apps
 
 def get_suspension_map(from_date, to_date):
 	suspension_map = {}
-
 	suspensions = frappe.db.sql(""" SELECT apply_to, apply_value, target_date, suspension_start, suspension_end FROM `tabWork Suspension` WS 
 		INNER JOIN `tabWork Suspension Dates` WSD ON WSD.parent = WS.`name`
-		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s AND target_date <= %s  AND WS.docstatus = 1 """, (from_date, to_date), as_dict=1)
+		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s AND target_date <= %s AND WS.docstatus = 1 """, (from_date, to_date), as_dict=1)
 	
 	if suspensions:
 		for d in suspensions:
@@ -758,8 +790,8 @@ def get_defaults(emp, sched, shift_map):
 		"time_out": sched.datetime_out,
 		"break_start": sched.break_start,
 		"break_end": sched.break_end,
-		"nd_start": sched.nd_start,
-		"nd_end": sched.nd_end,
+		"nd_start": shift_map[sched.work_shift]['nd_start'],
+		"nd_end": shift_map[sched.work_shift]['nd_end'],
 		#shift policy
 		"work_hours": shift_map[sched.work_shift]['work_hours'],
 		"break_mins": sched.break_mins,

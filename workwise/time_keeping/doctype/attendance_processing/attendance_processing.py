@@ -35,6 +35,7 @@ class AttendanceProcessing(Document):
 		ss_list = []
 
 		if employees:
+			pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to", "approval_cutoff"])
 			for emp in employees:
 				data = []
 				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to"])
@@ -45,11 +46,11 @@ class AttendanceProcessing(Document):
 				timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
 				schedule = get_schedule(emp.name, pay_from, pay_to)
 				holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
-				leaves = get_leave_list(emp.name, pay_from, pay_to)
-				ots = get_ot_list(emp.name, pay_from, pay_to)
-				obs = get_ob_list(emp.name, pay_from, pay_to)
-				uts = get_ut_list(emp.name, pay_from, pay_to)
-				ext = get_ext_list(emp.name, pay_from, pay_to)
+				leaves = get_leave_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
+				ots = get_ot_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
+				obs = get_ob_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
+				uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
+				ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
 
 				for sched in schedule:
 					entry = get_defaults(emp, sched, shift_map)

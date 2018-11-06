@@ -29,6 +29,11 @@ frappe.query_reports["Attendance Summary"] = {
 			"fieldname": "show_break",
 			"label": __("Show Break Time"),
 			"fieldtype": "Check",
+		},
+		{
+			"fieldname": "show_adjusted",
+			"label": __("Show Adjusted"),
+			"fieldtype": "Check",
 		}
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {

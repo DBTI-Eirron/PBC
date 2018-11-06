@@ -135,7 +135,7 @@ def get_data(filters):
 	#Initialize
 	data = []
 	employees = get_employees(filters)
-	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
+	pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "approval_cutoff"])
 	shift_map = get_shift_map()
 	suspension_map = get_suspension_map(pay_from, pay_to)
 	totals = {
@@ -151,11 +151,11 @@ def get_data(filters):
 		timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
 		holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
 		schedule = get_schedule(emp.name, pay_from, pay_to)
-		leaves = get_leave_list(emp.name, pay_from, pay_to)
-		ots = get_ot_list(emp.name, pay_from, pay_to)
-		obs = get_ob_list(emp.name, pay_from, pay_to)
-		uts = get_ut_list(emp.name, pay_from, pay_to)
-		ext = get_ext_list(emp.name, pay_from, pay_to)
+		leaves = get_leave_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		ots = get_ot_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		obs = get_ob_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
 		
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
