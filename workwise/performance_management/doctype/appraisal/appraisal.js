@@ -1,17 +1,14 @@
 // Copyright (c) 2017, HDI Systech and contributors
 // For license information, please see license.txt
-
-cur_frm.add_fetch('employee', 'company', 'company');
-cur_frm.add_fetch('employee', 'full_name', 'employee_name');
-cur_frm.add_fetch('appraisal_dates', 'start_date', 'start_date');
-cur_frm.add_fetch('appraisal_dates', 'end_date', 'end_date');
-
+cur_frm.add_fetch('appraisee', 'date_hired', 'date_joined');
+cur_frm.add_fetch('appraisee', 'full_name', 'appraisee_fullname');
 frappe.ui.form.on('Appraisal', {
 	refresh: function(frm) {
 	
 	},
 
 	onload: function(frm) {
+		frm.trigger("set_header");
 		if (!frm.doc.status) {
 			frm.set_value("status", 'Draft');
 		}
@@ -41,14 +38,15 @@ frappe.ui.form.on('Appraisal', {
 		frm.set_value("status", 'Draft');;
 	},
 
-	appraisal_template: function(frm) {
-		frm.trigger("get_appraisal_template_goal");
+	target_setting: function(frm) {
+		frm.trigger("get_performance_planning");
 	},
 
-	get_appraisal_template_goal: function(frm) {
-		if(frm.doc.appraisal_template) {
+	get_performance_planning: function(frm) {
+		if(frm.doc.target_setting) {
+			frm.doc.appraisal_goal = null;
 			return frappe.call({
-				method: "get_appraisal_template_goal",
+				method: "get_performance_planning",
 				doc: frm.doc,
 				callback: function(r) {
 					frm.refresh_field("appraisal_goal");
@@ -57,4 +55,32 @@ frappe.ui.form.on('Appraisal', {
 			});
 		} 
 	},
+	set_header: function(frm) {
+		return frappe.call({
+			method: "set_header",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("header");
+				frm.refresh_fields();
+			}
+		});
+	},
 });	
+
+cur_frm.fields_dict['target_setting'].get_query = function(doc) {
+	return {
+		filters: {
+			"docstatus": 1
+		}
+	}
+}
+
+frappe.ui.form.on("Appraisal", "onload", function(frm) {
+    cur_frm.set_query("appraisee", function() {
+        return {
+            "filters": {
+                "department": frm.doc.department
+            }
+        };
+    });
+});

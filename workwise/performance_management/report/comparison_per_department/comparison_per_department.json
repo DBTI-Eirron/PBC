@@ -1,0 +1,23 @@
+{
+ "add_total_row": 0, 
+ "apply_user_permissions": 1, 
+ "creation": "2018-11-05 09:04:24.602430", 
+ "disabled": 0, 
+ "docstatus": 0, 
+ "doctype": "Report", 
+ "idx": 0, 
+ "is_standard": "Yes", 
+ "modified": "2018-11-05 09:04:32.350394", 
+ "modified_by": "Administrator", 
+ "module": "Performance Management", 
+ "name": "Comparison per Department", 
+ "owner": "Administrator", 
+ "ref_doctype": "Target Setting", 
+ "report_name": "Comparison per Department", 
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "System Manager"
+  }
+ ]
+}
