@@ -11,6 +11,16 @@ def get_data():
 					"name": "Appraisal",
 					"description": _("Appraisal"),
 				},
+				{
+					"type": "doctype",
+					"name": "Appraisal Settings",
+					"description": _("Appraisal Settings"),
+				},
+				{
+					"type": "doctype",
+					"name": "Rating Classification",
+					"description": _("Rating Classification"),
+				},
 				# {
 				# 	"type": "doctype",
 				# 	"name": "Appraisal Template",
@@ -36,11 +46,6 @@ def get_data():
 					"name": "Target Setting Period",
 					"description": _("Target Setting Period"),
 				},
-				{
-					"type": "doctype",
-					"name": "Target Standard",
-					"description": _("Target Standard"),
-				},
 			]
 		},
 		{
@@ -57,6 +62,42 @@ def get_data():
 					"name": "Tracking Individual Rating per Year",
 					"doctype": "Tracking Individual Rating per Year",	
 					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Performance Improvement Plan",
+					"doctype": "Performance Improvement Plan",	
+					"is_query_report": True
+				},
+			]
+		},
+		{
+		"label": _("Other Forms"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Peer Assessment",
+					"description": _("Peer Assessment"),
+				},
+				{
+					"type": "doctype",
+					"name": "Peer Assessment Settings",
+					"description": _("Peer Assessment Settings"),
+				},
+				{
+					"type": "doctype",
+					"name": "Core Values Practice",
+					"description": _("Core Values Practice"),
+				},
+				{
+					"type": "doctype",
+					"name": "Core Values Practice Settings",
+					"description": _("Core Values Practice Settings"),
+				},
+				{
+					"type": "doctype",
+					"name": "Target Standard",
+					"description": _("Target Standard"),
 				},
 			]
 		},

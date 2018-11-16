@@ -11,6 +11,7 @@ class TargetSetting(Document):
 	def validate(self):
 		self.validate_weight()
 		self.validate_appraisee()
+		self.set_header()
 		# self.validate_kra()
 
 	def load_appraisee_info(self):
@@ -19,6 +20,7 @@ class TargetSetting(Document):
 			self.immediate_supervisor = par.parent
 			self.supervisor_job_title = par.position_title
 			self.immediate_supervisor_name = frappe.get_value('Employee',par.parent,'full_name')
+		return self.type
 
 	def change_key_indicator(self):
 		result = []
@@ -30,8 +32,8 @@ class TargetSetting(Document):
 		total_w = 0.0
 		for d in self.key_indicator:
 			total_w += float(d.weight)
-		if total_w != 100:
-			frappe.throw(_("Total weightage assigned should be 100%. It is {0}").format(str(total_w) + "%"))
+		if total_w >70:
+			frappe.throw(_("Total weightage assigned should be less than 70%. It is {0}").format(str(total_w) + "%"))
 
 	def validate_appraisee(self):
 		if self.type == "Individual":
@@ -40,6 +42,16 @@ class TargetSetting(Document):
 		elif self.type == "Department":
 			if self.department is None:
 				frappe.throw(_("Select Department"))
+	def get_type(self):
+		return self.type
+
+	def set_header(self):
+		header = "STANDARDS:"
+		result = frappe.db.sql("""SELECT rating_equivalent,rate_to FROM `tabRating Classification` ORDER BY rate_to ASC""",as_dict=True)
+		for r in result:
+			header += " " + str(int(r.rate_to)) + " - " + str(r.rating_equivalent) + " ,"
+		header = header[:-1] + "."
+		self.header = header
 
 	# def validate_kra(self):
 	# 	total = total_ki = 0 
