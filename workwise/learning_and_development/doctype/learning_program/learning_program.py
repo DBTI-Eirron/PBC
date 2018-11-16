@@ -62,5 +62,9 @@ class LearningProgram(Document):
 		self.total_cost_participant = flt(self.cost_per_participant, 2) * i
 
 	def compute_total_needs_cost(self):
+		total_cost_row = 0.0
+		final_cost = 0.0
 		for d in self.needs:
-			self.total_cost_materials = flt(self.total_cost_materials, 2) + (flt(d.cost, 2) * flt(d.quantity, 2))
+			total_cost_row = (flt(d.cost, 2) * flt(d.quantity, 2))
+			final_cost += total_cost_row
+		self.total_cost_materials = final_cost

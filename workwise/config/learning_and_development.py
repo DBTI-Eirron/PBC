@@ -8,6 +8,11 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
+					"name": "WLPD Plan",
+					"description": _("WLPD Plan"),
+				},
+				{
+					"type": "doctype",
 					"name": "Training Needs Analysis",
 					"description": _("Training Needs Analysis"),
 				},
@@ -80,6 +85,27 @@ def get_data():
 					"doctype": "Completed Learning Course",	
 					"is_query_report": True
 				},
+			]
+		},
+		{
+			"label": _("Forms"),
+			"items": [
+				{
+					"type": "doctype",
+					"name": "Service Agreement Contract",
+					"description": _("Service Agreement Contract"),
+				},
+				{
+					"type": "doctype",
+					"name": "Learning Request Form",
+					"description": _("Learning Request Form"),
+				},
+				#{
+				#	"type": "doctype",
+				#	"name": "Executive Summary Report",
+				#	"description": _("Executive Summary Report"),
+				#},
+
 			]
 		},
 	]

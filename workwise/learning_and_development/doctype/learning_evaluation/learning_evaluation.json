@@ -400,7 +400,7 @@
    "read_only": 0, 
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
-   "reqd": 0, 
+   "reqd": 1, 
    "search_index": 0, 
    "set_only_once": 0, 
    "unique": 0
@@ -624,7 +624,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2018-11-04 21:20:10.165022", 
+ "modified": "2018-11-12 12:40:46.426111", 
  "modified_by": "Administrator", 
  "module": "Learning and Development", 
  "name": "Learning Evaluation", 
