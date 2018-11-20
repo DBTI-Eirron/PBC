@@ -112,8 +112,14 @@ def get_data():
 				},
 				{
 					"type": "report",
-					"name": "13th Month Basis",
+					"name": "13th Month",
 					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Pro Rated 13th Month",
+					"doctype": "Last Pay Entry",	
 					"is_query_report": True
 				},
 				{

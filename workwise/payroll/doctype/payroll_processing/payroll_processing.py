@@ -83,6 +83,8 @@ class PayrollProcessing(Document):
 					'previous_present_days': 0.0,
 					'previous_gross_payroll': 0.0,
 					'previous_government_basis': 0.0,
+					'prev_govt_deduction':0.0,
+					'prev_govt_income': 0.0,
 					'bonus_income': 0.0,
 					'bonus_deduction': 0.0,
 					'taxable_income': 0.0,
@@ -90,6 +92,8 @@ class PayrollProcessing(Document):
 					'total_income': 0.0,
 					'total_deduction': 0.0,
 					'government_basis': 0.0,
+					'govt_income': 0.0,
+					'govt_deduction': 0.0,
 					'work_days': 0.0,
 					'absent_days': 0.0,
 					'present_days': 0.0,
@@ -174,6 +178,8 @@ class PayrollProcessing(Document):
 
 					if tr_map[d.get("pay_code")]['is_government']:
 						header['government_basis'] += d.get('amount')
+						if not d.get("pay_code") == "BS":
+							header['prev_govt_income'] += d.get('amount')
 
 				elif tr_map[d.get("pay_code")]['type'] == 'Deduction':
 					header['total_deduction'] += d.get('amount')
@@ -186,6 +192,7 @@ class PayrollProcessing(Document):
 
 					if tr_map[d.get("pay_code")]['is_government']:
 						header['government_basis'] -= d.get('amount')
+						header['prev_govt_deduction'] += d.get('amount')
 	
 	def calculate_special_header(self, d, header, tr_map):
 		if tr_map[d.get("pay_code")]['type'] == 'Income':
@@ -273,23 +280,26 @@ class PayrollProcessing(Document):
 				sss_register = []
 				sss_list = ["sss","ssse","sssc"]
 				sss, ssse, sssc = 0, 0, 0
-				target_amt = header.get('government_basis')
+				target_amt = 0
 
-				if emp['sss_freq'] == '2nd':
-					target_amt += flt(header.get('previous_government_basis'), 8)
+				if emp.get('sss_freq') == '2nd':
+					if emp.get('payroll_schedule') == "Semi-Monthly":
+						target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
+					elif emp.get('payroll_schedule') == "Monthly":
+						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
-				elif emp['sss_freq'] == 'Both' or emp['sss_freq'] == '1st':
-					target_amt += header.get('government_basis')
+				elif emp.get('sss_freq') == 'Both' or emp.get('sss_freq') == '1st':
+					target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
 				table = frappe.db.sql("""SELECT employee, employer, ec FROM `tabSSS Table`
 					WHERE %s >= beginning AND %s <= ending LIMIT 1 """,( target_amt, target_amt ), as_dict=True )
 
 				for t in table:
-					sss = flt(emp["sss_manual"], 8) if emp.get('sss_mode') == "Manual" and flt(emp["sss_manual"], 8) > t.employee else t.employee
+					sss = flt( emp.get('sss_manual') , 8) if emp.get('sss_mode') == "Manual" and flt( emp.get('sss_manual') , 8) > t.employee else t.employee
 					ssse, sssc = t.employer, t.ec
 
 				for l in sss_list:
-					amt = flt(eval(l), 8) / 2 if emp['sss_freq'] == "Both" else flt(eval(l), 8)
+					amt = flt(eval(l), 8) / 2 if emp.get('sss_freq') == "Both" else flt(eval(l), 8)
 					sss_register.append({"pay_code": l.upper(), "amount": amt })
 
 			for d in sss_register:
@@ -298,34 +308,40 @@ class PayrollProcessing(Document):
 
 	def get_phic(self, emp, rates, header, register, tr_map):
 		phic_register = []
-		if self.frequency == emp['phic_freq'] or emp.get('phic_freq') == 'Both':
-			phic_register = []
-			phic_list = ["phic","phice"]
-			manual = flt(emp.get("phic_manual"), 8)
-			mode = emp.get('phic_mode')
-			target_amt = flt(header.get('government_basis'), 8)
+		if self.frequency == emp.get('phic_freq') or emp.get('phic_freq') == 'Both':
+			if emp.get('phic_freq') != "None":
+				phic_register = []
+				phic_list = ["phic","phice"]
+				manual = flt(emp.get("phic_manual"), 8)
+				mode = emp.get('phic_mode')
+				target_amt = 0
 
-			if emp['phic_freq'] == '2nd':
-				target_amt += flt(header.get('previous_government_basis'), 8)
-			elif emp['sss_freq'] == 'Both' or emp['phic_freq'] == '1st':
-				target_amt += flt(header.get('government_basis'), 8)
+				if emp.get('phic_freq') == '2nd':
+					if emp.get('payroll_schedule') == "Semi-Monthly":
+						target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
+					elif emp.get('payroll_schedule') == "Monthly":
+						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
-			if mode != "None":
-				phic, phice = 0, 0
-				if target_amt < 10000:
-					phic = manual if mode == "Manual" and manual > 137.50 else 137.50
-					phice = 137.50
-				elif target_amt > 39999.99:
-					phic = manual if mode == "Manual" and manual > 550.00 else 550.00
-					phice = 550.00
-				else:
-					percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
-					phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
-					phice = percent_rate 
-				
-				for l in phic_list:
-					amt = flt(eval(l), 8) / 2 if emp['phic_freq'] == "Both" else flt(eval(l), 8)
-					phic_register.append({"pay_code": l.upper(), "amount": amt })
+				elif emp.get('phic_freq') == 'Both' or emp.get('phic_freq') == '1st':
+					target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+
+
+				if mode != "None":
+					phic, phice = 0, 0
+					if target_amt < 10000:
+						phic = manual if mode == "Manual" and manual > 137.50 else 137.50
+						phice = 137.50
+					elif target_amt > 39999.99:
+						phic = manual if mode == "Manual" and manual > 550.00 else 550.00
+						phice = 550.00
+					else:
+						percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
+						phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
+						phice = percent_rate 
+					
+					for l in phic_list:
+						amt = flt(eval(l), 8) / 2 if emp.get('phic_freq') == "Both" else flt(eval(l), 8)
+						phic_register.append({"pay_code": l.upper(), "amount": amt })
 
 			for d in phic_register:
 				register.append(d)
@@ -333,15 +349,21 @@ class PayrollProcessing(Document):
 
 	def get_hdmf(self, emp, rates, header, register, tr_map):
 		hdmf_register = []
-		if self.frequency == emp['hdmf_freq'] or emp.get('hdmf_freq') == 'Both':
+		if self.frequency == emp.get('hdmf_freq') or emp.get('hdmf_freq') == 'Both':
 			if emp['hdmf_mode'] != "None":
 				hdmf_register = []
 				hdmf_list = ["hdmf","hdmfe","hdmfm"]
 				hdmf, hdmfe, hdmfm = 0, 0, 0
+				target_amt = 0
 
-				target_amt = flt(header.get('government_basis'), 8)
-				if emp['hdmf_freq'] == '2nd':
-					target_amt += flt(header.get('previous_government_basis'), 8)
+				if emp.get('hdmf_freq') == '2nd':
+					if emp.get('payroll_schedule') == "Semi-Monthly":
+						target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
+					elif emp.get('payroll_schedule') == "Monthly":
+						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+
+				elif emp.get('hdmf_freq') == 'Both' or emp.get('hdmf_freq') == '1st':
+					target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
 				table = frappe.db.sql("""SELECT employee, employer FROM `tabHDMF Table` 
 					WHERE %s >= beginning AND %s <= ending LIMIT 1 """,(target_amt, target_amt), as_dict=True )
@@ -349,11 +371,11 @@ class PayrollProcessing(Document):
 				for t in table:
 					hdmf = t.employee
 					hdmfe = t.employer
-					if emp['hdmf_mode'] == "Manual":
-						hdmfm = flt(emp["hdmf_manual"], 8) - hdmf
+					if emp.get('hdmf_mode') == "Manual":
+						hdmfm = flt(emp.get("hdmf_manual"), 8) - hdmf
 						
 				for l in hdmf_list:
-					amt = flt(eval(l), 8) / 2 if emp['hdmf_freq'] == "Both" else flt(eval(l), 8)
+					amt = flt(eval(l), 8) / 2 if emp.get('hdmf_freq') == "Both" else flt(eval(l), 8)
 					hdmf_register.append({"pay_code": l.upper(), "amount": amt })
 		
 			for d in hdmf_register:
@@ -666,6 +688,15 @@ class PayrollProcessing(Document):
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
 
+			overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
+				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), self.attendance_from, self.attendance_to), as_dict=1)
+			
+			for ot in overtime_list:
+				if ot.ot_code in ot_map:
+					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+				else:
+					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
+
 			for at in attendance:
 				if at.target_date == add_days(self.attendance_from, -1):
 					if at.is_absent or at.is_lwop:
@@ -692,22 +723,6 @@ class PayrollProcessing(Document):
 					if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
 						if at.nightdiff:
 							nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
-
-					if at.overtime > 0:
-						is_saturday = 1 if getdate(at.target_date).weekday() == 5 else 0
-						is_sunday = 1 if getdate(at.target_date).weekday() == 6 else 0
-						is_excess = 1 if at.overtime > 8 else 0
-						is_ndiff = 1 if at.nightdiff > 8 else 0
-						is_db_holiday = at.is_db_holiday
-
-						#[RD][HO][SHO][DHO][SUN][SAT][EX][ND]
-						overtime_type = [at.is_restday, at.is_holiday, at.is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess, is_ndiff]
-						overtime_type = ''.join(str(x) for x in overtime_type)
-
-						if overtime_type in ot_map:
-							overtime += at.overtime * rates.get('hourly_rate') * (ot_map[overtime_type]['rate'] / 100)
-						else:
-							overtime += at.overtime * rates.get('hourly_rate')
 					
 					if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
 						if at.is_lwop == 1 and at.lv_status > 1:
@@ -723,19 +738,29 @@ class PayrollProcessing(Document):
 							absent_days += 1
 
 					#check if this attendance is lwop or absent for next attendance
-
 					if is_uho == 1:
+						#if present
+						if at.work and not at.is_lwop and not at.absent and not at.is_restday:
+							is_uho = 0
+
+						#if Proper Leave next day is not UHO
 						if at.lv_status == 1 and not at.is_lwop:
 							is_uho = 0
 
+						#if proper OB next day is not UHO
 						if at.is_ob:
-							is_uho = 0
+							is_uho = 0	
 
 						if lwop_uho == 1:
 							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
 								is_uho = 0
-								if at.is_absent:
+								if at.is_absent and at.is_lwop:
 									is_uho = 1
+						else:
+							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
+								if at.is_absent:
+									is_uho = 0
+						
 					else:
 						is_uho = 0
 						if (at.is_absent or at.is_lwop) and not at.is_ob:
@@ -780,10 +805,11 @@ class PayrollProcessing(Document):
 
 	def get_overtime_map(self):
 		ot_map = {}
-		ot = frappe.db.sql(""" SELECT ot_code, ot_rate FROM `tabOvertime Rates` """, as_dict=1)
+		ot = frappe.db.sql(""" SELECT `name`, ot_code, ot_rate FROM `tabOvertime Rates` """, as_dict=1)
 		for t in ot:
 			ot_map[t.ot_code] = {
 				"rate": t.ot_rate,
+				"name": t.name,
 			}
 		return ot_map
 
@@ -794,7 +820,8 @@ class PayrollProcessing(Document):
 		return previous_period
 
 	def get_previous(self, emp, header):
-		previous = frappe.db.sql(""" SELECT government_basis, taxable_income, gross_payroll, present_days, work_days, absent_days FROM `tabPayroll Register` 
+		previous = frappe.db.sql(""" SELECT government_basis, taxable_income, gross_payroll, 
+		present_days, work_days, absent_days, govt_income, govt_deduction FROM `tabPayroll Register` 
 		WHERE period = %s AND employee = %s LIMIT 1 """,(header.get('previous_period'), emp.get('name')), as_dict=True)		
 		for d in previous:
 			header['previous_taxable_income'] = d.taxable_income if d.taxable_income else 0
@@ -803,6 +830,8 @@ class PayrollProcessing(Document):
 			header['previous_work_days'] = d.work_days if d.work_days else 0
 			header['previous_absent_days'] = d.absent_days if d.absent_days else 0
 			header['previous_government_basis'] = d.government_basis if d.government_basis else 0
+			header['prev_govt_deduction'] = d.govt_deduction if d.govt_deduction else 0
+			header['prev_govt_income'] = d.govt_income if d.govt_income else 0
 
 	def create_log(self, ss_list):
 		log = "<p>" + _("No Employee for the above selected criteria Payroll or Already Created") + "</p>"
