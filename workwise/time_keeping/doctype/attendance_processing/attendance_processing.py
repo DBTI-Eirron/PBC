@@ -9,7 +9,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_suspension_map, get_suspension)
+get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_suspension_map, get_suspension, insert_overtime)
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
@@ -40,6 +40,7 @@ class AttendanceProcessing(Document):
 				data = []
 				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to"])
 				frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
+				frappe.db.sql("""DELETE FROM `tabOvertime` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
 				
 				shift_map = get_shift_map()
 				suspension_map = get_suspension_map(pay_from, pay_to)
@@ -64,9 +65,12 @@ class AttendanceProcessing(Document):
 					entry['undertime'] = self.convert_secs(entry['undertime'])
 					entry['overtime'] = self.convert_secs(entry['overtime'])
 					entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
+					insert_overtime(entry)
 					register = frappe.new_doc("Attendance Register")
 					register.update(entry)
 					register.insert()
+						
+
 				payslip_label = "Created for "+ cstr(emp.full_name) +""
 				ss_list.append(payslip_label)
 		else:
