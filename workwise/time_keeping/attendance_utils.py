@@ -708,7 +708,7 @@ def get_default_schedule(employee, pay_from, pay_to):
 		assign_default_schedule(employee, pay_from, pay_to, def_sched)
 
 	schedule = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
-		datetime_in, datetime_out, pre_shift, post_shift, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
+		datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
 		FROM `tabWork Schedule` 
 		WHERE employee = %(employee)s AND is_default_schedule = 1 AND target_date >= %(from_date)s AND target_date <= %(to_date)s
 		ORDER BY target_date ASC""",{
@@ -722,7 +722,7 @@ def get_default_schedule(employee, pay_from, pay_to):
 def get_schedule(employee, pay_from, pay_to):
 
 	schedule = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
-		datetime_in, datetime_out, pre_shift, post_shift, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
+		datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
 		FROM `tabWork Schedule` 
 		WHERE employee = %(employee)s AND target_date >= %(from_date)s AND target_date <= %(to_date)s
 		ORDER BY target_date ASC""",{
