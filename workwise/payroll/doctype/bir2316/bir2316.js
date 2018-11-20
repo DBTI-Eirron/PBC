@@ -1,7 +1,5 @@
 // Copyright (c) 2018, HDI Systech and contributors
 // For license information, please see license.txt
-cur_frm.add_fetch('employee','date_hired','from_date');
-cur_frm.add_fetch('employee','date_resigned','to_date');
 
 frappe.ui.form.on('BIR2316', {
 	onload: function(frm) {
@@ -22,6 +20,15 @@ frappe.ui.form.on('BIR2316', {
 		if(frm.doc.document_type == "Previous"){
 			frm.set_df_property("employer_section", "read_only", 0);
 			frm.refresh_fields();
+		}
+		if(frm.doc.document_type == "Current"){
+			frappe.call({
+				method: "get_from_and_to_date",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
 		}
 	},
 

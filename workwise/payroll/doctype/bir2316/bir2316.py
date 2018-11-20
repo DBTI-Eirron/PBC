@@ -16,6 +16,11 @@ class BIR2316(Document):
 			self.get_agent()
 		if self.document_type == "Previous":
 			self.set_previous_computation()
+			self.compute_total_ntax_and_tax()
+			self.set_summary_prev()
+
+	def get_from_and_to_date(self):
+		self.from_date, self.to_date = frappe.db.get_value("Employee", self.employee, ["date_hired","date_resigned"])
 
 	def validate_bir(self):
 		current_bir = frappe.db.sql(""" SELECT DISTINCT * FROM `tabBIR2316` WHERE document_type = "Current" AND employee = %s AND docstatus = 1 LIMIT 1 """, (self.employee), as_dict=1)
@@ -214,6 +219,21 @@ class BIR2316(Document):
 		self.sum_atw_prev = entry.get('sum_atw_prev')
 		self.sum_tatwa =  flt(self.sum_atw_pres, 2) + flt(self.sum_atw_prev, 2)
 
+	def set_summary_prev(self):
+
+		self.sum_gcipe = flt(self.ntax_total, 2) + flt(self.tax_total, 2)	
+		self.sum_tnt = flt(self.ntax_total, 2)	
+		self.sum_tci = flt(self.tax_total, 2)	
+		self.sum_tcipe = flt(self.sum_tcipe, 2)	
+		self.sum_gtci = flt(self.sum_tci, 2) + flt(self.sum_tcipe, 2)	
+		self.sum_te = flt(self.sum_te, 2)	
+		self.sum_pph = flt(self.sum_pph, 2)	
+		self.sum_ntci = flt(self.sum_gtci, 2) - flt(self.sum_te, 2) - flt(self.sum_pph, 2)	
+		self.sum_td = flt(self.sum_td, 2)
+		self.sum_atw_pres = flt(self.sum_atw_pres, 2)
+		self.sum_atw_prev = flt(self.sum_atw_prev, 2)
+		self.sum_tatwa =  flt(self.sum_atw_pres, 2) + flt(self.sum_atw_prev, 2)
+
 	def set_computations(self, e, entry):
 		self.get_tax_basic(e, entry)
 		tr_map = self.get_transaction_map()
@@ -238,7 +258,7 @@ class BIR2316(Document):
 			self.ntax_other = entry.get('ntax_other')
 		if self.ntax_hazard == 0.000:
 			self.ntax_hazard = entry.get('ntax_hazard')
-
+	
 		if self.tax_bs == 0.000:
 			self.tax_bs = entry.get('tax_bs')
 		if self.tax_rep == 0.000:
@@ -262,6 +282,9 @@ class BIR2316(Document):
 		if self.tax_hazard == 0.000:
 			self.tax_hazard = entry.get('tax_hazard')
 
+		self.compute_total_ntax_and_tax()
+
+	def compute_total_ntax_and_tax(self):
 		self.ntax_total = flt(self.ntax_bs, 2) + flt(self.ntax_ho, 2) + flt(self.ntax_ot, 2) + flt(self.ntax_nd, 2) + flt(self.ntax_bonus, 2) + flt(self.ntax_demi, 2) + flt(self.ntax_contrib, 2) + flt(self.ntax_other, 2) + flt(self.ntax_hazard, 2)
 		self.tax_total = flt(self.tax_bs, 2) + flt(self.tax_rep, 2) + flt(self.tax_transpo, 2) + flt(self.tax_cola, 2) + flt(self.tax_housing, 2) + flt(self.tax_commission, 2) + flt(self.tax_sharing, 2) + flt(self.tax_fees, 2) + flt(self.tax_bonus, 2) + flt(self.tax_ot, 2) + flt(self.tax_hazard, 2)
 	
@@ -398,11 +421,11 @@ class BIR2316(Document):
 		return entry
 
 	def get_tax_basic(self, e, entry):
-		basic_salary = frappe.db.sql("""SELECT gross_payroll FROM `tabPayroll Register`
+		basic_salary = frappe.db.sql("""SELECT SUM(gross_payroll) as gp FROM `tabPayroll Register`
 			WHERE employee = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 
 		for d in basic_salary:
-			entry['tax_bs'] += d.gross_payroll
+			entry['tax_bs'] = d.gp
 
 		return entry
 
@@ -538,5 +561,5 @@ class BIR2316(Document):
 		else:
 			#get non-taxable bonus for this form
 			entry['ntax_bonus'] = pres_bonus
-				
+		
 		return entry
