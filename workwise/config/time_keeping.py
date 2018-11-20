@@ -30,6 +30,10 @@ def get_data():
 					"type": "doctype",
 					"name": "Attendance Register",
 				},
+				{
+					"type": "doctype",
+					"name": "Overtime",
+				},
 			]
 		},
 		{
