@@ -105,11 +105,11 @@ def get_loans(filters):
 				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS total_paid 
 			FROM
 				`tabLoan Application` AS LA
-				INNER JOIN `tabEmployee` AS TE ON TE.`name` = LA.employee 
+				INNER JOIN `tabEmployee` AS TE ON LA.employee = TE.`name` INNER JOIN `tabPayroll Register` PR ON LA.employee = PR.employee
 			WHERE
 				LA.loan_type = "HDMFL"
 				AND LA.`posting_date` BETWEEN %(from_date)s AND %(to_date)s
-				AND LA.company = %(company)s 
+				AND PR.company = %(company)s 
 				AND LA.docstatus = 1 
 				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(cur_user)s)
 			ORDER BY
@@ -141,11 +141,11 @@ def get_loans(filters):
 				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` LIMIT 1 ) AS total_paid 
 			FROM
 				`tabLoan Application` AS LA
-				INNER JOIN `tabEmployee` AS TE ON TE.`name` = LA.employee 
+				INNER JOIN `tabEmployee` AS TE ON LA.employee = TE.`name` INNER JOIN `tabPayroll Register` PR ON LA.employee = PR.employee
 			WHERE
 				LA.loan_type = "HDMFL"
 				AND LA.`posting_date` BETWEEN %(from_date)s AND %(to_date)s
-				AND LA.company = %(company)s 
+				AND PR.company = %(company)s 
 				AND LA.docstatus = 1
 			ORDER BY
 				LA.employee_name ASC """,{

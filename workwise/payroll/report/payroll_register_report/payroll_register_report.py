@@ -159,9 +159,9 @@ def get_employees(filters):
 		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
+			AND PR.on_hold = 0
 			AND PR.period = %(period)s
-			AND PR.company = %(company)s {conditions}
-			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+			AND PR.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
 				"user": cur_user,
@@ -171,8 +171,8 @@ def get_employees(filters):
 		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
 		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PR.period = %(period)s
-			AND TE.company = %(company)s {conditions}
-			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+			AND PR.on_hold = 0
+			AND TE.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
 				"employee": filters.employee

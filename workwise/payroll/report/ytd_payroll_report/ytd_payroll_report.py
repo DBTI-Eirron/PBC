@@ -31,12 +31,12 @@ def execute(filters=None):
 	for emp in employee_list:
 		row = [emp.name, emp.full_name]
 
-		total_netpay = 0
+		total_grosspay = 0
 		for p in periods:
 			period_amount = flt(period_map.get(emp.name, {}).get(p))
-			total_netpay += period_amount
+			total_grosspay += period_amount
 			row.append(period_amount)
-		row += [total_netpay]
+		row += [total_grosspay]
 		data.append(row)
 
 	return columns, data
@@ -67,7 +67,7 @@ def get_columns(employee_list, periods):
 
 	columns += [{
 			"fieldname": "net_pay",
-			"label": _("Net Pay "),
+			"label": _("Total "),
 			"fieldtype": "Float",
 			"width": 100
 		}]
@@ -82,9 +82,7 @@ def get_employees(filters):
 			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
 				WHERE SU.allow_user = %(user)s)
-			AND company = %(company)s
-			AND on_hold = 0
-			AND is_active = 1 ORDER BY last_name, first_name""",{ 
+			AND company = %(company)s ORDER BY last_name, first_name""",{ 
 				"company": filters.company,
 				"user": frappe.session.user
 			}, as_dict=True)
@@ -93,16 +91,14 @@ def get_employees(filters):
 		 	FROM tabEmployee
 			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-			AND company = %(company)s
-			AND on_hold = 0
-			AND is_active = 1 ORDER BY last_name, first_name""",{ 
+			AND company = %(company)s ORDER BY last_name, first_name""",{ 
 				"company": filters.company
 			}, as_dict=True)
 
 	return employees
 	
 def get_period_map(filters, employee_list, from_date, to_date):
-	period_details = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PR.net_payroll, PR.period
+	period_details = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PR.gross_payroll, PR.period
 		FROM `tabPayroll Register` PR
 		WHERE PR.posting_date >= %s AND PR.posting_date <= %s AND PR.company = (%s) AND PR.employee in (%s) GROUP BY PR.`name` """ %
 		 ('%s','%s','%s',', '.join(['%s']*len(employee_list))), tuple([from_date, to_date, filters.company] + [emp.name for emp in employee_list]), as_dict=1)
@@ -111,8 +107,8 @@ def get_period_map(filters, employee_list, from_date, to_date):
 	for d in period_details:
 		period_map.setdefault(d.employee, frappe._dict()).setdefault(d.period, [])
 		if period_map[d.employee][d.period]:
-			period_map[d.employee][d.period] += flt(d.net_payroll, 2)
+			period_map[d.employee][d.period] += flt(d.gross_payroll, 2)
 		else:
-			period_map[d.employee][d.period] = flt(d.net_payroll, 2)
+			period_map[d.employee][d.period] = flt(d.gross_payroll, 2)
 
 	return period_map

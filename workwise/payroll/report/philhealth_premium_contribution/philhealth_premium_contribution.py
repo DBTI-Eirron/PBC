@@ -101,30 +101,32 @@ def get_columns(employee_list):
 def get_employees(filters):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT *
-		 	FROM tabEmployee
-			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
-				WHERE SU.allow_user = %(user)s)
-			AND company = %(company)s
-			AND is_active = 1 ORDER BY last_name, first_name""",{ 
+		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee as `name`, PR.employee_name as full_name, TE.phic_no FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
+				WHERE PR.company = %(company)s 
+				AND PR.posting_date >= %(from_date)s
+				AND PR.posting_date <= %(to_date)s
+				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) 
+				ORDER BY PR.employee_name """,{ 
 				"company": filters.company,
+				"from_date": filters.from_date,
+				"to_date": filters.to_date,
 				"user": frappe.session.user
 			}, as_dict=True)
 	else:
-		employees = frappe.db.sql("""SELECT *
-		 	FROM tabEmployee
-			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-			AND company = %(company)s
-			AND is_active = 1 ORDER BY last_name, first_name""",{ 
-				"company": filters.company
+		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee as `name`, PR.employee_name as full_name, TE.phic_no FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
+				WHERE PR.company = %(company)s 
+				AND PR.posting_date >= %(from_date)s
+				AND PR.posting_date <= %(to_date)s
+				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY PR.employee_name """,{ 
+				"company": filters.company,
+				"from_date": filters.from_date,
+				"to_date": filters.to_date
 			}, as_dict=True)
 
 	return employees
 
 def get_PHIC_map(filters, employee_list):
-	PHIC_details = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
+	PHIC_details = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
 		WHERE employee in (%s) GROUP BY PRE.`name` """ %

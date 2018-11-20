@@ -176,11 +176,11 @@ def get_employees(filters, department):
 		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
+			AND PR.on_hold = 0
 			AND PR.period = %(period)s
 			AND PR.company = %(company)s
-			AND TE.department = '{department}' 
-			{conditions}
-			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters), department=department), { 
+			AND TE.department = '{department}'
+			{conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters), department=department), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
 				"user": cur_user,
@@ -191,10 +191,10 @@ def get_employees(filters, department):
 		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
 		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PR.period = %(period)s
+			AND PR.on_hold = 0
 			AND TE.company = %(company)s 
 			AND TE.department = '{department}'
-			{conditions}
-			AND PR.on_hold = 0 AND TE.is_active = 1 ORDER BY PR.employee_name""".format(conditions=get_conditions(filters), department=department), { 
+			{conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters), department=department), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
 				"employee": filters.employee,
@@ -238,7 +238,7 @@ def get_deduction_map(filters, employee_list):
 	deduction_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		WHERE PR.on_hold = 0 AND PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
+		WHERE PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
 		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.payroll_period] + [emp.employee for emp in employee_list]), as_dict=1)
 
 	deduction_map = {}
