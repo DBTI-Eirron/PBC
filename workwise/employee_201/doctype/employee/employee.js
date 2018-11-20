@@ -11,6 +11,13 @@ frappe.ui.form.on('Employee', {
 				}
 			};
 		});
+		cur_frm.set_query("default_schedule", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
 	},
 
 	refresh: function(frm) {
