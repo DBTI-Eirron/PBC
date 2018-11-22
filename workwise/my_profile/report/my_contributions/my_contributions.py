@@ -59,7 +59,7 @@ def get_data(filters):
 	if contribution_map:
 		for emp in employee_list:
 			date = contribution_map.get(emp.name, {}).get(posting_date)
-			row = [emp.name, date]
+			row = []
 
 			total = 0
 			for con in contribution_types:
@@ -74,7 +74,8 @@ def get_data(filters):
 	return data
 
 def get_employees(filters):
-	employees = frappe.db.sql("""SELECT * FROM `tabEmployee` WHERE user_id  = %(user)s """,{ "user": frappe.session.user }, as_dict=True)
+	cur_user = frappe.session.user
+	employees = frappe.db.sql("""SELECT * FROM `tabEmployee` WHERE user_id  = %(user)s """,{ "user": cur_user }, as_dict=True)
 
 	return employees
 
