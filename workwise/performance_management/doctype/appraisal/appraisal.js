@@ -48,11 +48,11 @@ frappe.ui.form.on('Appraisal', {
 	},
 
 	get_behind_target: function(frm) {
-		frm.set_value("status", 'Behind Target');;
+		frm.set_value("status", 'Behind Target');
 	},
 
 	get_not_behind_target: function(frm) {
-		frm.set_value("status", 'Draft');;
+		frm.set_value("status", 'Draft');
 	},
 
 	target_setting: function(frm) {

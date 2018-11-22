@@ -17,7 +17,7 @@ def execute(filters=None):
 	data = []
 	pay_year = frappe.db.sql("""SELECT `name` FROM `tabPayroll Year` WHERE docstatus = 1 """, as_dict=True)
 	for emp in employee_list:
-		row = [emp.appraisee, emp.appraisee_fullname]
+		row = [emp.appraisee, emp.appraisee_name]
 		for d in pay_year:
 			date_from, date_to = frappe.db.get_value("Payroll Year", d.name, ["from_date", "to_date"])
 
@@ -77,6 +77,6 @@ def get_columns(filters):
 	return columns
 
 def get_employees(filters):
-	employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_fullname FROM `tabAppraisal` WHERE docstatus = 1 AND company = %s """, (filters.company), as_dict=True)
+	employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_name FROM `tabAppraisal` WHERE docstatus = 1 AND company = %s """, (filters.company), as_dict=True)
 
 	return employees
