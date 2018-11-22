@@ -8,8 +8,8 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
-					"name": "WLPD Plan",
-					"description": _("WLPD Plan"),
+					"name": "WLD Needs",
+					"description": _("WLD Needs"),
 				},
 				{
 					"type": "doctype",
@@ -18,23 +18,18 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Learning Program",
-					"description": _("Learning Program"),
-				},
-				{
-					"type": "doctype",
 					"name": "Learning Event",
 					"description": _("Learning Event"),
 				},
 				{
 					"type": "doctype",
-					"name": "Learning Evaluation",
-					"description": _("Learning Evaluation"),
+					"name": "Evaluation for Learners",
+					"description": _("Evaluation for Learners"),
 				},
 				{
 					"type": "doctype",
-					"name": "Learning Feedback",
-					"description": _("Learning Feedback"),
+					"name": "Learning Session Evaluation",
+					"description": _("Learning Session Evaluation"),
 				},
 			]
 		},
@@ -43,18 +38,18 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Learning Objective",
-					"description": _("Learning Objective"),
+					"name": "Learning Program",
+					"description": _("Learning Program"),
 				},
 				{
 					"type": "doctype",
-					"name": "Learning Course",
-					"description": _("Learning Course"),
+					"name": "Learning Session",
+					"description": _("Learning Session"),
 				},
 				{
 					"type": "doctype",
-					"name": "Learning Provider",
-					"description": _("Learning Provider"),
+					"name": "Learning Methodology",
+					"description": _("Learning Methodology"),
 				},
 			]
 		},
@@ -63,8 +58,8 @@ def get_data():
 			"items": [
 				{
 					"type": "report",
-					"name": "Training Needs Analysis Result",
-					"doctype": "Training Needs Analysis",	
+					"name": "WLD Needs Monitoring",
+					"doctype": "WLD Needs",	
 					"is_query_report": True
 				},
 				{
@@ -75,14 +70,14 @@ def get_data():
 				},
 				{
 					"type": "report",
-					"name": "Learning Event Feedback",
-					"doctype": "Learning Feedback",	
+					"name": "Learning Session Evaluation Result",
+					"doctype": "Learning Session Evaluation",	
 					"is_query_report": True
 				},
 				{
 					"type": "report",
-					"name": "Completed Learning Course",
-					"doctype": "Completed Learning Course",	
+					"name": "Completed Learning Programs",
+					"doctype": "Learning Event",	
 					"is_query_report": True
 				},
 			]
@@ -90,6 +85,11 @@ def get_data():
 		{
 			"label": _("Forms"),
 			"items": [
+				{
+					"type": "doctype",
+					"name": "Certificate of Training",
+					"description": _("Certificate of Training"),
+				},
 				{
 					"type": "doctype",
 					"name": "Service Agreement Contract",
@@ -100,11 +100,11 @@ def get_data():
 					"name": "Learning Request Form",
 					"description": _("Learning Request Form"),
 				},
-				#{
-				#	"type": "doctype",
-				#	"name": "Executive Summary Report",
-				#	"description": _("Executive Summary Report"),
-				#},
+				{
+					"type": "doctype",
+					"name": "Executive Summary Report",
+					"description": _("Executive Summary Report"),
+				},
 
 			]
 		},

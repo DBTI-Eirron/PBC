@@ -4,66 +4,50 @@
 
 from __future__ import unicode_literals
 import frappe
+from frappe.utils import cint, flt, nowdate
+from frappe import _
 from frappe.model.document import Document
 
 class TrainingNeedsAnalysis(Document):
 	def validate(self):
-		self.validate_duplicate_entry_in_tables()
+		self.validate_fields()
 
 	def on_submit(self):
-		self.create_evaluation_entries()
+		pass
 
-	def validate_duplicate_entry_in_tables(self):
-		unique_obj = []
-		unique_entries_obj = []
-		for d in self.objectives:
-			if d.objective not in unique_obj:
-				unique_obj.append(d.objective);
-				
-				i = {
-					"objective": d.objective,
-					"description": d.description
-				}	
-				unique_entries_obj.append(i);
+	def validate_fields(self):
+		if self.type == "Individual":
+			if not self.employee:
+				frappe.throw(_("Employee is required"))
+		if self.type == "Department":
+			if not self.department:
+				frappe.throw(_("Department is required"))
 
-		self.set('objectives', [])
-		for uo in unique_entries_obj:
-			row = self.append('objectives', {})
-			row.update(uo)
+	def get_sessions(self):
+		self.set('session', [])
+		program_sessions = frappe.db.sql(""" SELECT session, objective, methodology FROM `tabLearning Session Table` 
+			WHERE `parent` = %s """,(self.training_name), as_dict=True)
 
-		unique_emp = []
-		unique_entries_emp = []
-		for d in self.participants:
-			if d.employee not in unique_emp:
-				unique_emp.append(d.employee);
-				
-				i = {
-					"employee": d.employee,
-					"employee_name": d.employee_name,
-					"company": d.company,
-					"department": d.department
-				}	
-				unique_entries_emp.append(i);
+		for a in program_sessions:
+			i = {
+				"session": a.session,
+				"objective": a.objective,
+				"methodology": a.methodology
+			}
 
+			self.append('session', i)
+
+	def get_employees(self):
 		self.set('participants', [])
-		for ue in unique_entries_emp:
-			row = self.append('participants', {})
-			row.update(ue)
+		employees = frappe.db.sql(""" SELECT `name`, full_name, company, department FROM `tabEmployee` 
+			WHERE is_active = 1 AND department = %s """,(self.department), as_dict=True)
 
-	def create_evaluation_entries(self):
-		for d in self.get("participants"):
-			eval_entry = frappe.new_doc("Learning Evaluation")
-			eval_entry.update({
-				"event_type": "Training Needs Analysis",
-				"event": self.name,
-				"employee": d.employee
-			})
+		for a in employees:
+			i = {
+				"employee": a.name,
+				"employee_name": a.full_name,
+				"company": a.company,
+				"department": a.department
+			}
 
-			for a in self.get("objectives"):
-				eval_entry.append('evaluation_table',{
-					"objective": a.objective,
-					"grade": 0
-				})
-
-			eval_entry.insert()
-			eval_entry.save()
+			self.append('participants', i)

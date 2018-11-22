@@ -10,61 +10,61 @@ from frappe.model.document import Document
 
 class LearningProgram(Document):
 	def validate(self):
-		self.validate_duplicate_entry_in_tables()
-		self.compute_participants_total_cost()
-		self.compute_total_needs_cost()
+		#self.validate_duplicate_entry_in_tables()
+		#self.compute_participants_total_cost()
+		#self.compute_total_needs_cost()
+		pass
 
 	def on_submit(self):
 		pass
 
-	def validate_duplicate_entry_in_tables(self):
-		unique_obj = []
-		unique_entries_obj = []
-		for d in self.objectives:
-			if d.objective not in unique_obj:
-				unique_obj.append(d.objective);
-				
-				i = {
-					"objective": d.objective,
-					"description": d.description
-				}	
-				unique_entries_obj.append(i);
+	#def validate_duplicate_entry_in_tables(self):
+	#	unique_obj = []
+	#	unique_entries_obj = []
+	#	for d in self.objectives:
+	#		if d.objective not in unique_obj:
+	#			unique_obj.append(d.objective);
+	#			
+	#			i = {
+	#				"objective": d.objective,
+	#				"description": d.description
+	#			}	
+	#			unique_entries_obj.append(i);
+	#	self.set('objectives', [])
+	#	for uo in unique_entries_obj:
+	#		row = self.append('objectives', {})
+	#		row.update(uo)
 
-		self.set('objectives', [])
-		for uo in unique_entries_obj:
-			row = self.append('objectives', {})
-			row.update(uo)
+	#	unique_emp = []
+	#	unique_entries_emp = []
+	#	for d in self.participants:
+	#		if d.employee not in unique_emp:
+	#			unique_emp.append(d.employee);
+	#			
+	#			i = {
+	#				"employee": d.employee,
+	#				"employee_name": d.employee_name,
+	#				"company": d.company,
+	#				"department": d.department
+	#			}	
+	#			unique_entries_emp.append(i);
 
-		unique_emp = []
-		unique_entries_emp = []
-		for d in self.participants:
-			if d.employee not in unique_emp:
-				unique_emp.append(d.employee);
-				
-				i = {
-					"employee": d.employee,
-					"employee_name": d.employee_name,
-					"company": d.company,
-					"department": d.department
-				}	
-				unique_entries_emp.append(i);
+	#	self.set('participants', [])
+	#	for ue in unique_entries_emp:
+	#		row = self.append('participants', {})
+	#		row.update(ue)
 
-		self.set('participants', [])
-		for ue in unique_entries_emp:
-			row = self.append('participants', {})
-			row.update(ue)
+	#def compute_participants_total_cost(self):
+	#	i = 0
+	#	for d in self.participants:
+	#		i += 1
 
-	def compute_participants_total_cost(self):
-		i = 0
-		for d in self.participants:
-			i += 1
+	#	self.total_cost_participant = flt(self.cost_per_participant, 2) * i
 
-		self.total_cost_participant = flt(self.cost_per_participant, 2) * i
-
-	def compute_total_needs_cost(self):
-		total_cost_row = 0.0
-		final_cost = 0.0
-		for d in self.needs:
-			total_cost_row = (flt(d.cost, 2) * flt(d.quantity, 2))
-			final_cost += total_cost_row
-		self.total_cost_materials = final_cost
+	#def compute_total_needs_cost(self):
+	#	total_cost_row = 0.0
+	#	final_cost = 0.0
+	#	for d in self.needs:
+	#		total_cost_row = (flt(d.cost, 2) * flt(d.quantity, 2))
+	#		final_cost += total_cost_row
+	#	self.total_cost_materials = final_cost
