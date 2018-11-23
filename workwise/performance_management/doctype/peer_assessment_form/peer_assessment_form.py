@@ -7,4 +7,13 @@ import frappe
 from frappe.model.document import Document
 
 class PeerAssessmentForm(Document):
-	pass
+	def validate(self):
+		self.check_table()
+
+	def check_table(self):
+		temp = 0 
+		for values in self.values_indicator:
+			if values.rating is None or values.evidence is None:
+				temp += 1
+		if temp > 0:
+			frappe.throw("Rating and Evidence is Mandatory")

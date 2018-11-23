@@ -1,11 +1,8 @@
 // Copyright (c) 2018, HDI Systech and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on('Peer Assessment Form', {
+frappe.ui.form.on('Level of Skills', {
 	refresh: function(frm) {
 
-	},
-	onload:function(frm,cdt, cdn) {
-	 $(".grid-add-row").hide();
 	}
 });
