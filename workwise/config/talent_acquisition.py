@@ -19,6 +19,7 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Schedules and Assessment",
+					"label": _("Schedules"),
 					"description": _("Schedules and Assessment"),
 				},	
 				{
