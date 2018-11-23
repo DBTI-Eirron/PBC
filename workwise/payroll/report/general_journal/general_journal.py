@@ -60,25 +60,29 @@ def get_accounts(filters):
 	return accounts
 
 def get_register(filters):
-	if not "Administrator" in frappe.get_roles(frappe.session.user):
-		register_list = frappe.db.sql("""SELECT PE.account, PE.amount FROM `tabPayroll Register` PR JOIN `tabPayroll Register Entries` PE JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-			WHERE
-			TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) 
-			AND PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""",{
-				"company": filters.company,
-				"from_date": filters.from_date,
-				"to_date": filters.to_date,
-				"user": frappe.session.user
-			}, as_dict=True)
-	else:
-		register_list = frappe.db.sql("""SELECT PE.account, PE.amount FROM `tabPayroll Register` PR JOIN `tabPayroll Register Entries` PE
-			WHERE PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""",{
-				"company": filters.company,
-				"from_date": filters.from_date,
-				"to_date": filters.to_date
-			}, as_dict=True)
-	
+	register_list = frappe.db.sql("""SELECT PE.pay_code, PE.amount, TT.debit_account, TT.credit_account FROM `tabPayroll Register` PR 
+		INNER JOIN `tabPayroll Register Entries` PE ON PE.parent = PR.`name`
+		INNER JOIN `tabTransaction Type` TT ON TT.code = PE.pay_code
+		WHERE PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""",{
+			"company": filters.company,
+			"from_date": filters.from_date,
+			"to_date": filters.to_date
+		}, as_dict=True)
+
 	return register_list
+
+def get_transaction_map():
+	tr_map = {}
+	tr = frappe.db.sql("""SELECT code, title, type, entry_type, account, is_taxable, is_bonus, 
+		is_government, is_standard, is_active, debit_account, credit_account
+		FROM `tabTransaction Type` """, as_dict=1)
+	for t in tr:
+		tr_map[t.code] = {"code": t.code, "title": t.title, "type": t.type, "entry_type": t.entry_type,	"account": t.account, 
+			"is_taxable": t.is_taxable, "is_standard": t.is_standard, "is_active": t.is_active, "is_bonus": t.is_bonus, "is_government": t.is_government,
+			"debit_account": t.debit_account, "credit_account": t.credit_account,
+		}
+
+	return tr_map
 
 def get_data(filters):
 	#Initialize
@@ -88,8 +92,9 @@ def get_data(filters):
 
 	accounts = get_accounts(filters)
 	register = get_register(filters)
+	tr_map = get_transaction_map()
 
-	if accounts:
+	if accounts and register:
 		for acc in accounts: 
 			entry = {
 				"account_name": acc.account_name,
@@ -101,15 +106,19 @@ def get_data(filters):
 			}
 
 			for r in register:
-				if r['account'] == entry['account']:
-					if entry['balance'] == "Debit":
+				if r.get('debit_account'):
+					if r.get('debit_account') == entry['account_code']:
 						entry['debit'] += r['amount']
-					else:
-						entry['credit'] += r['amount']
+
+				if r.get('credit_account'):
+					if r.get('credit_account') == entry['account_code']:
+						entry['credit'] += r['amount']			
 
 			total_debit += entry['debit']
 			total_credit += entry['credit']
-			data.append(entry)
+			
+			if entry['debit'] > 1 or entry['credit'] > 1:
+				data.append(entry)
 
 		data.append({
 				"account_name": _("TOTAL"),
