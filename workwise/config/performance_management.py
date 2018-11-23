@@ -62,6 +62,10 @@ def get_data():
 					"type": "doctype",
 					"name": "Peer Assessment",
 					"description": _("Peer Assessment"),
+				},{
+					"type": "doctype",
+					"name": "Peer Assessment Form",
+					"description": _("Peer Assessment Form"),
 				},
 				{
 					"type": "doctype",
