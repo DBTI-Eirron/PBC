@@ -121,8 +121,8 @@ class AdjustmentProcessing(Document):
 			WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s 
 			AND from_date <= %s AND approved_on >= %s """, (employee,  attendance_from, attendance_to, approval_cutoff), as_dict=1)
 
-		cto_list = frappe.db.sql("""SELECT `name`, use_fromtime, use_totime,  from_date FROM `tabCompensatory Time Off` 
-			WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s AND from_date <= %s
+		cto_list = frappe.db.sql("""SELECT `name`, use_fromtime, use_totime,  use_date FROM `tabCompensatory Time Off` 
+			WHERE workflow_state = 'Approved' AND employee = %s AND use_date >= %s AND use_date <= %s
 			AND `type` = 'Use' AND approved_on >= %s """, (employee,  attendance_from, attendance_to, approval_cutoff), as_dict=1)
 
 		ext_apps = frappe.db.sql("""SELECT `name`, `date`, from_time, to_time, `type` FROM `tabExcuse Tardiness Application` 
@@ -169,6 +169,16 @@ class AdjustmentProcessing(Document):
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0
+
+			overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
+				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), attendance_from, attendance_to), as_dict=1)
+			
+			for ot in overtime_list:
+				if ot.ot_code in ot_map:
+					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+				else:
+					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
+
 			for at in attendance:
 				if at.get('target_date') == add_days(attendance_from, -1):
 					if at.get('is_absent') or at.get('is_lwop'):
@@ -193,25 +203,6 @@ class AdjustmentProcessing(Document):
 					if at.get('nightdiff'):
 						nightdiff += at.get('nightdiff') * 0.10 * rates.get('hourly_rate')
 
-					if at.get('overtime') > 0:
-						is_saturday = 1 if getdate(at.get('target_date')).weekday() == 5 else 0
-						is_sunday = 1 if getdate(at.get('target_date')).weekday() == 6 else 0
-						is_excess = 1 if at.get('overtime') > 8 else 0
-						is_ndiff = 1 if at.get('nightdiff') > 8 else 0
-						is_db_holiday = at.get('is_db_holiday')
-
-						#[RD][HO][SHO][DHO][SUN][SAT][EX][ND]
-						overtime_type = [at.get('is_restday'), at.get('is_holiday'), at.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, is_excess, is_ndiff]
-						overtime_type = ''.join(str(x) for x in overtime_type)
-
-						if overtime_type in ot_map:
-							overtime += at.get('overtime') * rates.get('hourly_rate') * (ot_map[overtime_type]['rate'] / 100)
-						else:
-							overtime += at.get('overtime') * rates.get('hourly_rate')
-
-						if at.get('nightdiff'):
-							nightdiff += at.get('nightdiff') * 0.10 * rates.get('hourly_rate')
-
 					if ( at.get('is_absent') == 1 or at.get('is_lwop') == 1 ) and not at.get('is_holiday'):
 						if at.get('is_lwop') == 1 and at.get('lv_status') > 1:
 							absent += ( at.get('work_hours') / 2 ) * flt(rates.get('hourly_rate'), 8)
@@ -227,6 +218,10 @@ class AdjustmentProcessing(Document):
 
 					#check if this attendance is lwop or absent for next attendance
 					if is_uho == 1:
+						#if present
+						if at.get('work') and not at.get('at.is_lwop') and not at.get('at.absent') and not at.get('at.is_restday'):
+							is_uho = 0
+
 						if at.get('lv_status') == 1 and not at.get('is_lwop'):
 							is_uho = 0
 
@@ -234,10 +229,15 @@ class AdjustmentProcessing(Document):
 							is_uho = 0
 
 						if lwop_uho == 1:
-							if (at.get('lv_status') == 2 or at.get('lv_status') == 3) or at.get('is_halfday'):
+							if ( at.get('lv_status') == 2 or at.get('lv_status == 3') ) or at.get('is_halfday'):
 								is_uho = 0
-								if at.get('is_absent'):
+								if at.get('is_absent') and at.get('is_lwop'):
 									is_uho = 1
+						else:
+							if ( at.get('lv_status') == 2 or at.get('lv_status == 3') )  or at.get('is_halfday'):
+								if at.get('is_absent'):
+									is_uho = 0
+
 					else:
 						is_uho = 0
 						if (at.get('is_absent') or at.get('is_lwop') ) and not at.get('is_ob'):
