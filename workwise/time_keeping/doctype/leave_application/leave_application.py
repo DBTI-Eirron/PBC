@@ -130,9 +130,6 @@ class LeaveApplication(Document):
 				else:
 					add_days = 0
 			
-			if d.is_excluded == 1:
-				add_days = 0
-			
 			if d.is_second_half == 1:
 				d.is_half_day = 1
 				add_days = 0.5
@@ -142,6 +139,9 @@ class LeaveApplication(Document):
 				if lvbal_saturday > 0:
 					add_days = flt(lvbal_saturday, 8)
 
+			if d.is_excluded == 1:
+				add_days = 0
+				
 			total_leave_days += add_days
 
 		return total_leave_days
