@@ -146,15 +146,21 @@ def get_overtime(entry, ot_apps):
 				is_sunday = 1 if getdate(entry.get('target_date')).weekday() == 6 else 0
 				is_db_holiday = entry.get('is_db_holiday')
 				
+				#get Card Out if Straight OT
 				if ot_out and entry.get('straight_ot'):
 					entry['card_out'] = ot_out
 
-				#Always follow whichever is lower between card_out and time_out
-				if entry.get('card_out') and strict_otcard:
-					if entry.get('card_out') > entry.get('time_out'):
-						if ot_out > entry.get('card_out'):
-							ot_out = entry.get('card_out')
+				#get OT Start based from interval
+				if entry.get('ot_interval'):
+					ot_int_start = add_to_date(entry.get('time_out'), hours=entry.get('ot_interval') )
+					if ot_int_start > ot_in:
+						ot_in = ot_int_start
 
+				#Always follow whichever is lower between card_out and ot_out
+				if entry.get('card_out') and strict_otcard:
+					if entry.get('card_out') < ot_out:
+						ot_out = entry.get('card_out')
+				
 				#Get Normal OT before ND
 				if ot_in < nd_start:
 					if ot_out >= nd_start:
@@ -1064,7 +1070,8 @@ def get_defaults(emp, sched, shift_map):
 		#POLICIES
 		"graceperiod_late": shift_map[sched.work_shift]['graceperiod_late'],
 		"straight_ot": shift_map[sched.work_shift]['straight_ot'],
-		"flexible_type": shift_map[sched.work_shift]['flexible_type']
+		"flexible_type": shift_map[sched.work_shift]['flexible_type'],
+		"ot_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_interval'), 8),
 	}
 	return entry
 
