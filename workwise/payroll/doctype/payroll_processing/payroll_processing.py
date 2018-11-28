@@ -698,7 +698,7 @@ class PayrollProcessing(Document):
 					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
 
 			for at in attendance:
-				if at.target_date == add_days(self.attendance_from, -1):
+				if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
 					if at.is_absent or at.is_lwop:
 						is_uho = 1
 
