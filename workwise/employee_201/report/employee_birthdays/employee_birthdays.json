@@ -1,5 +1,5 @@
 {
- "add_total_row": 1, 
+ "add_total_row": 0, 
  "apply_user_permissions": 1, 
  "creation": "2017-12-04 16:10:57.894723", 
  "disabled": 0, 
@@ -7,24 +7,18 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2017-12-04 16:14:54.193682", 
+ "modified": "2018-11-28 15:20:43.208340", 
  "modified_by": "Administrator", 
  "module": "Employee 201", 
  "name": "Employee Birthdays", 
  "owner": "Administrator", 
- "query": "SELECT \nFullname::200,\nBirthday::120\nFROM `tabEmployee`", 
+ "query": "", 
  "ref_doctype": "Employee", 
  "report_name": "Employee Birthdays", 
- "report_type": "Query Report", 
+ "report_type": "Script Report", 
  "roles": [
   {
    "role": "System Manager"
-  }, 
-  {
-   "role": "Employee"
-  }, 
-  {
-   "role": "Rank and File"
   }, 
   {
    "role": "HR Manager"
