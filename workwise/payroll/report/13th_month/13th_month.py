@@ -20,11 +20,12 @@ def execute(filters=None):
 
 	data = []
 	for emp in employee_list:
-		amount = get_data(filters, emp)
-		row = [emp.employee, emp.employee_name, emp.amount]
-		total_amount += emp.amount
-		data.append(row)
-	data.append(["", "", total_amount])
+		pay = get_data(filters, emp)
+		row = [emp.employee, emp.employee_name, flt(pay[0].amount, 2)]
+		total_amount += flt(pay[0].amount, 2)
+
+		data.append(row)	
+	data.append(["<b>Total</b>", "", total_amount])
 
 	return columns, data
 
@@ -57,11 +58,11 @@ def get_employees(filters):
 	from_date, to_date = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PE.amount 
-			FROM `tabPayroll Register` PR JOIN `tabPayroll Register Entries` PE ON PR.`name` = PE.parent JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
-			WHERE PE.pay_code = "13TH_BONUS" 
+		employees = frappe.db.sql("""SELECT DISTINCT PE.employee, PE.employee_name
+			FROM `tabBatch Entry` PR JOIN `tabBatch Entry Employees` PE ON PR.`name` = PE.parent JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
+			WHERE PR.transaction_type = "13TH_BONUS" 
 			AND PR.company = %(company)s 
-			AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s 
+			AND PR.period IN (SELECT `name` FROM `tabPayroll Period` WHERE payroll_date >= %(from_date)s AND payroll_date <= %(to_date)s)
 			AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) """, { 
 				"from_date": from_date,
 				"to_date": to_date,
@@ -69,9 +70,9 @@ def get_employees(filters):
 				"user": cur_user
 			}, as_dict=1)
 	else:
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PE.amount 
-			FROM `tabPayroll Register` PR JOIN `tabPayroll Register Entries` PE ON PR.`name` = PE.parent 
-			WHERE PE.pay_code = "13TH_BONUS" AND PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""", { 
+		employees = frappe.db.sql("""SELECT DISTINCT PE.employee, PE.employee_name
+			FROM `tabBatch Entry` PR JOIN `tabBatch Entry Employees` PE ON PR.`name` = PE.parent 
+			WHERE PR.transaction_type = "13TH_BONUS" AND PR.company = %(company)s AND PR.period IN (SELECT `name` FROM `tabPayroll Period` WHERE payroll_date >= %(from_date)s AND payroll_date <= %(to_date)s)""", { 
 				"from_date": from_date,
 				"to_date": to_date,
 				"company": filters.company
@@ -84,11 +85,11 @@ def get_data(filters, emp):
 	from_date, to_date = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 
 	data_entry = frappe.db.sql("""SELECT DISTINCT SUM(PE.amount) as amount
-		FROM `tabPayroll Register` PR JOIN `tabPayroll Register Entries` PE ON PR.`name` = PE.parent
-		WHERE PE.pay_code = "13TH_BONUS" 
+		FROM `tabBatch Entry` PR JOIN `tabBatch Entry Employees` PE ON PR.`name` = PE.parent
+		WHERE PR.transaction_type = "13TH_BONUS" 
 		AND PR.company = %(company)s 
-		AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s
-		AND PR.employee = %(employee)s """, { 
+		AND PR.period IN (SELECT `name` FROM `tabPayroll Period` WHERE payroll_date >= %(from_date)s AND payroll_date <= %(to_date)s)
+		AND PE.employee = %(employee)s """, { 
 			"from_date": from_date,
 			"to_date": to_date,
 			"company": filters.company,
