@@ -35,6 +35,11 @@ class PayrollPeriod(Document):
 			self.frequency = "2nd"
 			frappe.msgprint("Frequency Changed to ( 2nd ) because Schedule was set to Monthly")
 
+		if self.schedule != "Weekly":
+			if self.frequency ==( "3rd" or "4th" or "5th"):
+				self.frequency = "2nd" 
+				frappe.msgprint("Frequency Changed to ( 2nd ) because (3rd 4th 5th) is not allowed for Monthly and Semi-Monthly")
+
 	def validate_days(self):
 		difference = date_diff(self.to_date, self.from_date)
 		if self.schedule == "Monthly":
@@ -42,6 +47,10 @@ class PayrollPeriod(Document):
 				frappe.throw(_("Monthly Schedule Should be Greater than {0} days ").format(difference))
 		if difference > 31:
 			frappe.throw("Days Should not be Greater than 31 days ")
+
+		if self.schedule == "Weekly":
+			if difference > 7:
+				frappe.throw("Days Should not be Greater than 7 days for Weekly Period")
 	
 	def remove_payslips(self):
 
