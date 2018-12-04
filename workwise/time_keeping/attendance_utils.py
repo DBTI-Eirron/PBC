@@ -630,22 +630,23 @@ def default_schedule_get_date(date, start, end, type, is_end):
 def get_default_sched_template(def_sched):
 	sched_template = {}
 	sched = frappe.db.sql("""SELECT * FROM `tabWork Schedule Template` WHERE `name` = %s LIMIT 1""",(def_sched), as_dict=1)
-	
+
 	days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-	for day in days:
-		shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched[0][day]), as_dict=1)
-		sched_template[day] = {
-			"work_shift": shift[0]['name'],
-			"work_hours": shift[0]['work_hours'],
-			"break_mins": shift[0]['break_mins'],
-			"time_in": shift[0]['time_in'],
-			"time_out": shift[0]['time_out'],				
-			"break_start": shift[0]['break_start'],
-			"break_end": shift[0]['break_end'],
-			"nd_start": shift[0]['nd_start'],
-			"nd_end": shift[0]['nd_end'],				
-			"shift_type": shift[0]['work_shift_type'],
-		}
+	if sched:
+		for day in days:
+			shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched[0][day]), as_dict=1)
+			sched_template[day] = {
+				"work_shift": shift[0]['name'],
+				"work_hours": shift[0]['work_hours'],
+				"break_mins": shift[0]['break_mins'],
+				"time_in": shift[0]['time_in'],
+				"time_out": shift[0]['time_out'],				
+				"break_start": shift[0]['break_start'],
+				"break_end": shift[0]['break_end'],
+				"nd_start": shift[0]['nd_start'],
+				"nd_end": shift[0]['nd_end'],				
+				"shift_type": shift[0]['work_shift_type'],
+			}
 
 	return sched_template
 
@@ -687,7 +688,7 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 	if exist:
 		exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (employee, pay_from, pay_to), as_dict=True)
 						
-	for d in dates:			
+	for d in dates:
 		work_sched = frappe.new_doc("Work Schedule")
 		work_sched.update({
 			"employee": employee,
@@ -698,35 +699,39 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 			"work_hours": d['work_hours'],
 			"break_mins": d['break_mins'],
 			"datetime_in": d["datetime_in"],
-			"datetime_out": d["datetime_out"],						
+			"datetime_out": d["datetime_out"],
 			"break_start": d["break_start"],
 			"break_end": d["break_end"],
 			"nd_start": d["nd_start"],
 			"nd_end": d["nd_end"],
 			"is_default_schedule": 1,
-		})	
+		})
 		work_sched.insert()
 
-def get_default_schedule(employee, pay_from, pay_to):
-	def_sched = frappe.db.get_value("Employee", employee, "default_schedule")
-
-	if def_sched:
-		assign_default_schedule(employee, pay_from, pay_to, def_sched)
-
-	schedule = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
-		datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
-		FROM `tabWork Schedule` 
-		WHERE employee = %(employee)s AND is_default_schedule = 1 AND target_date >= %(from_date)s AND target_date <= %(to_date)s
-		ORDER BY target_date ASC""",{
-			"employee": employee,
-			"from_date": pay_from,
-			"to_date": pay_to,
-		}, as_dict=True)
-
-	return schedule
-
 def get_schedule(employee, pay_from, pay_to):
+	def_sched = frappe.db.get_value("Employee", employee, "default_schedule")
+	date_list = []
+	start = datetime.datetime.strptime(str(pay_from), '%Y-%m-%d')
+	end = datetime.datetime.strptime(str(pay_to), '%Y-%m-%d')
+	step = datetime.timedelta(days=1)
+	
+	if def_sched:
+		while start <= end:
+			date_list.append(start.date())
+			start += step
 
+		for d in date_list:
+			sched = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
+				datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
+				FROM `tabWork Schedule` 
+				WHERE employee = %(employee)s AND target_date = %(target_date)s """,{
+					"employee": employee,
+					"target_date": d
+				}, as_dict=True)
+
+			if not sched:
+				assign_default_schedule(employee, d, d, def_sched)
+		
 	schedule = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
 		datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
 		FROM `tabWork Schedule` 
@@ -736,9 +741,6 @@ def get_schedule(employee, pay_from, pay_to):
 			"from_date": pay_from,
 			"to_date": pay_to,
 		}, as_dict=True)
-
-	if not schedule:
-		schedule = get_default_schedule(employee, pay_from, pay_to)
 
 	return schedule
 
