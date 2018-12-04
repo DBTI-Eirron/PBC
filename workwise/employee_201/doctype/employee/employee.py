@@ -47,6 +47,23 @@ class Employee(Document):
 			self.whtax_freq = "2nd"
 			frappe.msgprint("Government Settings Frequency Changed to ( 2nd ) because Schedule was set to Monthly")
 
+		if self.payroll_schedule == "Weekly":
+			if self.sss_freq == ("3rd" or "4th" or "5th"):
+				self.sss_freq = "2nd" 
+				frappe.msgprint("SSS Frequency Changed to ( 2nd ) because (3rd 4th 5th) is not allowed for Monthly and Semi-Monthly")
+
+			if self.hdmf_freq == ("3rd" or "4th" or "5th"):
+				self.hdmf_freq = "2nd" 
+				frappe.msgprint("HDMF Frequency Changed to ( 2nd ) because (3rd 4th 5th) is not allowed for Monthly and Semi-Monthly")
+
+			if self.phic_freq == ("3rd" or "4th" or "5th"):
+				self.phic_freq = "2nd" 
+				frappe.msgprint("PHIC Frequency Changed to ( 2nd ) because (3rd 4th 5th) is not allowed for Monthly and Semi-Monthly")
+
+			if self.whtax_freq == ("3rd" or "4th" or "5th"):
+				self.whtax_freq = "2nd" 
+				frappe.msgprint("WHTAX Frequency Changed to ( 2nd ) because (3rd 4th 5th) is not allowed for Monthly and Semi-Monthly")
+
 	def create_user(self):
 		if self.email:
 			if not self.user_id:

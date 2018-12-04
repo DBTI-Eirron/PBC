@@ -228,6 +228,7 @@ class PayrollProcessing(Document):
 		hourly_rate = 0.0
 		semi_rate = 0.0
 		daily_rate = 0.0
+		weekly_rate = 0.0
 		if emp['rate'] > 0 and  emp['total_yr_days'] > 0 and emp['no_hours'] > 0:
 			month_days = (flt(emp['total_yr_days'], 8) / 12)
 			if emp['rate_type'] == "Monthly Rate":
@@ -235,24 +236,35 @@ class PayrollProcessing(Document):
 				semi_rate = flt(emp['rate'], 8) / 2
 				daily_rate = flt(emp['rate'], 8) / month_days
 				hourly_rate = ( flt(emp['rate'], 8) / month_days ) / emp['no_hours']
+				weekly_rate = (flt(emp['rate'], 8) / month_days) * 7
 
 			elif emp['rate_type'] == "Hourly Rate":
 				monthly_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * month_days
 				semi_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * (month_days / 2)
 				daily_rate = flt(emp['rate'], 8) * emp['no_hours']
 				hourly_rate = flt(emp['rate'], 8)
+				weekly_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * 7
 
 			elif emp['rate_type'] == "Daily Rate":
 				monthly_rate = flt(emp['rate'], 8) * month_days
 				semi_rate = flt(emp['rate'], 8) * (month_days / 2)
 				daily_rate = flt(emp['rate'], 8)
 				hourly_rate = flt(emp['rate'], 8) / emp['no_hours']
+				weekly_rate = flt(emp['rate'], 8) * 7
+			
+			elif emp['rate_type'] == "Weekly Rate":
+				monthly_rate = (flt(emp['rate'], 8) / 7) * month_days
+				semi_rate = (flt(emp['rate'], 8) / 7) * (month_days / 2)
+				daily_rate = flt(emp['rate'], 8) / 7
+				hourly_rate = (flt(emp['rate'], 8) / 7) / emp['no_hours']
+				weekly_rate = flt(emp['rate'], 8)
 
 		return {
 			"monthly_rate": monthly_rate,
 			"semi_rate": semi_rate,
 			"daily_rate": daily_rate,
-			"hourly_rate": flt(hourly_rate, 8)
+			"hourly_rate": flt(hourly_rate, 8),
+			"weekly_rate": flt(weekly_rate, 8)
 		}
 
 	def get_basic(self, emp, rates, header, register):
@@ -264,6 +276,9 @@ class PayrollProcessing(Document):
 		elif emp.get('rate_type') == "Daily Rate":
 			amt = flt(rates.get('daily_rate'), 8) * header.get('present_days')
 			rates['monthly_rate'] = amt
+
+		elif emp.get('payroll_schedule') == "Weekly":
+			amt = rates.get('weekly_rate')
 
 		elif emp.get('payroll_schedule') == "Monthly":
 			amt = rates.get('monthly_rate')
@@ -282,14 +297,23 @@ class PayrollProcessing(Document):
 				sss, ssse, sssc = 0, 0, 0
 				target_amt = 0
 
-				if emp.get('sss_freq') == '2nd':
-					if emp.get('payroll_schedule') == "Semi-Monthly":
-						target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
-					elif emp.get('payroll_schedule') == "Monthly":
-						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+				if emp.get('payroll_schedule') == "Weekly":
+					if emp.get('sss_freq') == self.frequency:
+						target_amt = header.get('government_basis') * 2
 
-				elif emp.get('sss_freq') == 'Both' or emp.get('sss_freq') == '1st':
-					target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+					elif emp.get('sss_freq') == "Both" and (self.frequency == "2nd" or self.frequency == "4th"):
+						target_amt = flt(header.get('government_basis'), 8) + flt(header.get('previous_government_basis'), 8)	
+
+				else:
+					if emp.get('sss_freq') == '2nd':
+						if emp.get('payroll_schedule') == "Semi-Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
+						
+						elif emp.get('payroll_schedule') == "Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+
+					elif emp.get('sss_freq') == 'Both' or emp.get('sss_freq') == '1st':
+						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
 				table = frappe.db.sql("""SELECT employee, employer, ec FROM `tabSSS Table`
 					WHERE %s >= beginning AND %s <= ending LIMIT 1 """,( target_amt, target_amt ), as_dict=True )
@@ -316,15 +340,22 @@ class PayrollProcessing(Document):
 				mode = emp.get('phic_mode')
 				target_amt = 0
 
-				if emp.get('phic_freq') == '2nd':
-					if emp.get('payroll_schedule') == "Semi-Monthly":
-						target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
-					elif emp.get('payroll_schedule') == "Monthly":
+				if self.schedule == "Weekly":
+					if emp.get('phic_freq') == self.frequency:
+						target_amt = header.get('government_basis') * 2
+
+					elif emp.get('phic_freq') == "Both" and (self.frequency == "2nd" or self.frequency == "4th"):
+						target_amt = flt(header.get('government_basis'), 8) + flt(header.get('previous_government_basis'), 8)
+
+				else:
+					if emp.get('phic_freq') == '2nd':
+						if emp.get('payroll_schedule') == "Semi-Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
+						elif emp.get('payroll_schedule') == "Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+
+					elif emp.get('phic_freq') == 'Both' or emp.get('phic_freq') == '1st':
 						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
-
-				elif emp.get('phic_freq') == 'Both' or emp.get('phic_freq') == '1st':
-					target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
-
 
 				if mode != "None":
 					phic, phice = 0, 0
@@ -356,14 +387,22 @@ class PayrollProcessing(Document):
 				hdmf, hdmfe, hdmfm = 0, 0, 0
 				target_amt = 0
 
-				if emp.get('hdmf_freq') == '2nd':
-					if emp.get('payroll_schedule') == "Semi-Monthly":
-						target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
-					elif emp.get('payroll_schedule') == "Monthly":
-						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+				if self.schedule == "Weekly":
+					if emp.get('hdmf_freq') == self.frequency:
+						target_amt = header.get('government_basis') * 2
 
-				elif emp.get('hdmf_freq') == 'Both' or emp.get('hdmf_freq') == '1st':
-					target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+					elif emp.get('hdmf_freq') == "Both" and (self.frequency == "2nd" or self.frequency == "4th"):
+						target_amt = flt(header.get('government_basis'), 8) + flt(header.get('previous_government_basis'), 8)
+
+				else:
+					if emp.get('hdmf_freq') == '2nd':
+						if emp.get('payroll_schedule') == "Semi-Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
+						elif emp.get('payroll_schedule') == "Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+
+					elif emp.get('hdmf_freq') == 'Both' or emp.get('hdmf_freq') == '1st':
+						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
 				table = frappe.db.sql("""SELECT employee, employer FROM `tabHDMF Table` 
 					WHERE %s >= beginning AND %s <= ending LIMIT 1 """,(target_amt, target_amt), as_dict=True )
@@ -814,8 +853,21 @@ class PayrollProcessing(Document):
 		return ot_map
 
 	def get_previous_period(self):
-		before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
-			AND `schedule` = %s AND payroll_date < %s ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.schedule, self.payroll_date ))
+		previous_period = ""
+		if self.schedule == "Weekly" and (self.frequency == "2nd" or self.frequency == "4th"):
+			if self.frequency == "2nd":
+				before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
+					AND `schedule` = 'Weekly' AND payroll_date < %s AND frequency = '1st'	
+					ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.payroll_date ))
+			
+			elif self.frequency == "4th":	
+				before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
+					AND `schedule` = 'Weekly' AND payroll_date < %s AND frequency = '3rd'
+					ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.payroll_date ))
+		else:
+			before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
+				AND `schedule` = %s AND payroll_date < %s ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.schedule, self.payroll_date ))
+			
 		previous_period = before[0] if before else ""
 		return previous_period
 
