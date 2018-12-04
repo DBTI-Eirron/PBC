@@ -23,7 +23,7 @@ def execute(filters=None):
 		row = [emp.employee, emp.employee_name, emp.amount]
 		total_amount += emp.amount
 		data.append(row)
-	data.append(["", "", total_amount])
+	data.append(["<b>Total</b>", "", total_amount])
 
 	return columns, data
 
