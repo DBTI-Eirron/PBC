@@ -814,6 +814,9 @@ class PayrollProcessing(Document):
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
 				absent = 0
+				
+				if at.is_holiday:
+					work_days += 1
 
 			if emp.get('ignore_late'):
 				late = 0

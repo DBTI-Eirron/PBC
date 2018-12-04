@@ -14,6 +14,7 @@ class OfficialBusinessApplication(Document):
 	def validate(self):
 		grant_head_subordinate_access(self)
 		self.get_ob_hrs()
+		self.get_target_date()
 		change_owner(self)
 		self.get_recipients()
 		#self.change_time()
@@ -24,6 +25,13 @@ class OfficialBusinessApplication(Document):
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
+
+	def get_target_date(self):
+		for d in self.get('official_business_application_table'):
+			if d.is_previous == 1:
+				d.target_date = getdate(d.date) - datetime.timedelta(days=1)
+			else:
+				d.target_date = d.date
 
 	def get_recipients(self):
 		recipients = []
@@ -47,11 +55,11 @@ class OfficialBusinessApplication(Document):
 		for d in self.get('official_business_application_table'):
 			total_hrs = 0
 			if get_time(d.from_time) > get_time(d.to_time):
-				from_date = get_datetime(str(d.target_date)+" "+str(d.from_time))
-				to_date = get_datetime(str(add_days(d.target_date, 1))+" "+str(d.from_time))
+				from_date = get_datetime(str(d.date)+" "+str(d.from_time))
+				to_date = get_datetime(str(add_days(d.date, 1))+" "+str(d.from_time))
 			else:
-				from_date = get_datetime(str(d.target_date)+" "+str(d.from_time))
-				to_date = get_datetime(str(d.target_date)+" "+str(d.to_time))
+				from_date = get_datetime(str(d.date)+" "+str(d.from_time))
+				to_date = get_datetime(str(d.date)+" "+str(d.to_time))
 				
 			if not d.is_excluded == 1:
 				total_hrs = abs(((from_date - to_date).total_seconds()) / 60 /60)
@@ -86,17 +94,19 @@ class OfficialBusinessApplication(Document):
 			    
 			for i in dates:
 			    info = {
-			        "target_date": i,
+				    "target_date": i,
+			        "date": i,
 			        "from_time": "00:00:00",
 			        "to_time": "00:00:00",
 			        "is_holiday": self.chk_holiday(i),
-			        "is_excluded": 0
+			        "is_excluded": 0,
+			        "is_previous": 0
 			    }
 			    
 			    official_business_application_table.append(info);
 			
 			entries = sorted(list(official_business_application_table), 
-				key=lambda k: k['target_date'])		    
+				key=lambda k: k['date'])		    
 
 			self.set('official_business_application_table', [])
 			
@@ -112,24 +122,17 @@ class OfficialBusinessApplication(Document):
 			#if d.to_time == "0:00:00" or d.to_time == "00:00:00":
 			d.to_time = self.to_time
 				
-	def chk_holiday(self, target_date):
+	def chk_holiday(self, date):
 		holiday_tag  = 0
 		location = frappe.get_value("Employee", self.employee, "location")
 
 		holiday = frappe.db.sql("""SELECT `name` FROM `tabHoliday` WHERE holiday_date = %s 
-			AND company = %s AND location = %s """, (target_date, self.company, location), as_dict=True)
+			AND company = %s AND location = %s """, (date, self.company, location), as_dict=True)
 
 		if holiday:
 			holiday_tag = 1
 
 		return holiday_tag 
-
-	def make_new_ob_app(self):
-		ob_list = frappe.db.sql("""SELECT * FROM `tabOfficial Business Application`""", as_dict=True)
-		for d in ob_list:
-			frappe.db.sql("""INSERT INTO `tabOfficial Business Application Table` 
-				( target_date, from_time, to_time, is_half_day, is_holiday, is_excluded, parent, parentfield, parenttype, modified_by, owner, creation, modified, `name`,docstatus) 
-				VALUES (%s,%s,%s,0,0,0,%s,"official_business_application_table","Official Business Application","Administrator","Administrator",NOW(),NOW(),%s,1)""", (d.from_date,d.from_time,d.to_time,d.name,d.name))
 
 @frappe.whitelist()
 def update_old_obs():
@@ -139,10 +142,14 @@ def update_old_obs():
 	for d in unupdated_list:
 		oba = frappe.get_doc("Official Business Application", d.name)
 		oba.append("official_business_application_table", {
-			"target_date": d.from_date,
-			"from_time": d.from_time,
-			"to_time": d.to_time,	
 			"travel_time": d.travel_time,
-			"hrs": d.total_hrs,
+			"hrs": d.hrs,
+			"target_date": d.target_date,
+	        "date": d.date,
+	        "from_time": d.from_time,
+	        "to_time": d.to_time,
+	        "is_holiday": d.is_holiday,
+	        "is_excluded": d.is_excluded,
+	        "is_previous": d.is_previous
 		})
 		oba.save()
