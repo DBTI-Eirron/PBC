@@ -182,21 +182,24 @@ def get_result_as_list(data, filters):
 	for d in data:
 		total_amount += flt(d.amount, 2)
 		total_count += 1
+		payroll_schedule = d.payroll_schedule
+		payroll_time = d.payroll_time
 
-	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
+	if data:
+		if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
 			if filters.include_header:
 				payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
 
-				if d.payroll_time == "Pay Now":
+				if payroll_time == "Pay Now":
 					payroll_time = ""
 				else:
-					payroll_time = d.payroll_schedule
+					payroll_time = payroll_schedule
 
 				headers = [
 					{
 						"detail": "H",
 						"employee_name": "Payroll Date",
-						"employee_account": payroll_date,
+						"employee_account": datetime.datetime.strftime(payroll_date, "%B %d, %Y"),
 						"amount": "Payroll Time",
 						"remarks": payroll_time,
 						"lbl_total_amount": "Total Amount",
