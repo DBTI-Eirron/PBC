@@ -59,6 +59,9 @@ class PayrollProcessing(Document):
 		adj_settings = self.get_adjustment_settings()
 		previous_period = self.get_previous_period()
 		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
+		uho_ab_spnw = frappe.db.get_single_value('Payroll Settings', 'uho_ab_spnw')
+		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
+		ex_uho_spnw = frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw')
 
 		if employees:
 			no_emp = len(employees)
@@ -100,7 +103,11 @@ class PayrollProcessing(Document):
 					'net_payroll': 0.0,
 					'gross_payroll': 0.0,
 					'bonus': 0.0,
+					#Payroll Settings
 					'uho_ab_days': uho_ab_days,
+					'uho_ab_spnw': uho_ab_spnw,
+					'lwop_uho': lwop_uho,
+					'ex_uho_spnw': ex_uho_spnw
 				}
 
 				#Calculate Rates and Previous Entries
@@ -719,7 +726,6 @@ class PayrollProcessing(Document):
 					WHERE name = %s LIMIT 1 """,(total_unpaid, total_paid, loan_doc), as_dict=True )
 
 	def get_attendance(self, emp, rates, header, register, ot_map):
-		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		attendance_register = []
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0
@@ -741,7 +747,7 @@ class PayrollProcessing(Document):
 					if at.is_absent or at.is_lwop:
 						is_uho = 1
 
-						if lwop_uho == 1:
+						if header.get('lwop_uho') == 1:
 							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
 								is_uho = 0
 								if at.is_absent:
@@ -773,7 +779,7 @@ class PayrollProcessing(Document):
 
 					if at.is_holiday == 1 and is_uho == 1 and not at.is_ob:
 						unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
-						if header['uho_ab_days'] == 1:
+						if header.get('uho_ab_days') == 1:
 							absent_days += 1
 
 					#check if this attendance is lwop or absent for next attendance
@@ -790,7 +796,7 @@ class PayrollProcessing(Document):
 						if at.is_ob:
 							is_uho = 0	
 
-						if lwop_uho == 1:
+						if header.get('lwop_uho') == 1:
 							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
 								is_uho = 0
 								if at.is_absent and at.is_lwop:
@@ -805,18 +811,23 @@ class PayrollProcessing(Document):
 						if (at.is_absent or at.is_lwop) and not at.is_ob:
 							is_uho = 1
 
-							if lwop_uho == 1:
+							if header.get('lwop_uho') == 1:
 								if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
 									is_uho = 0
 									if at.is_absent:
 										is_uho = 1
 
+					if emp.get("rate_type") == "Daily Rate":
+						#if daily rate, holiday is considered paid
+						if at.is_holiday and not at.is_restday:
+							work_days += 1
+							#if at.is_absent and at.is_sp_holiday and header.get('uho_ab_spnw'):
+							#	work_days -= 1
+							#	unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
+
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
 				absent = 0
-				
-				if at.is_holiday:
-					work_days += 1
 
 			if emp.get('ignore_late'):
 				late = 0
