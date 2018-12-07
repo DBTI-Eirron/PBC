@@ -5,7 +5,7 @@
 from __future__ import unicode_literals
 import frappe, string
 from frappe import msgprint, _, scrub
-from frappe.utils import cint, flt, getdate, cstr, nowdate, get_datetime_str, add_days
+from frappe.utils import cint, flt, getdate, cstr, nowdate, get_datetime_str, add_days, get_datetime
 from datetime import time, datetime
 from frappe.model.document import Document
 from workwise.time_keeping.timekeeping_utils import chk_time_format, timediff_hrs, timediff_mins, str_datetime
@@ -29,12 +29,17 @@ class WorkShift(Document):
 			chk_time_format(self.get(fd), "%H:%M:%S")
 	
 	def validate_time(self):
-		if self.time_in > self.time_out:
+		time_in = get_datetime( str(nowdate() ) +" "+ str(self.time_in) )
+		time_out = get_datetime( str(nowdate() ) +" "+ str(self.time_out) )
+		break_start = get_datetime( str(nowdate() ) +" "+ str(self.break_start) )
+		break_end = get_datetime( str(nowdate() ) +" "+ str(self.break_end) )		
+
+		if time_in > time_out:
 			self.work_shift_type = "Night"
-			time_in = get_datetime_str(self.time_in)
-			time_out = add_days(get_datetime_str(self.time_out), 1)
-			break_start = add_days(get_datetime_str(self.break_start), 1) if self.time_in > self.break_start else get_datetime_str(self.break_start)
-			break_end = add_days(get_datetime_str(self.break_end), 1) if self.time_in > self.break_end else get_datetime_str(self.break_end)
+
+			time_out = add_days(get_datetime_str(time_out), 1)
+			break_start = add_days(get_datetime_str(break_start), 1) if time_in > break_start else get_datetime_str(break_start)
+			break_end = add_days(get_datetime_str(break_end), 1) if time_in > break_end else get_datetime_str(break_end)
 			if break_end > time_out:
 				frappe.throw("<b>BREAK END</b> must not be Greater than Time Out if Night Shift")
 			
@@ -45,13 +50,15 @@ class WorkShift(Document):
 			break_mins = (frappe.utils.data.time_diff_in_seconds(break_end, break_start) / 60)		
 		else:
 			self.work_shift_type = "Day"
-			if self.time_in > self.break_start or self.time_in > self.break_end or self.time_out < self.break_start or self.time_out < self.break_end:
+			
+			if time_in > break_start or time_in > break_end or time_out < break_start or time_out < break_end:
 				frappe.throw("<b>BREAK START</b> and <b>BREAK END</b> must be between Time In and Time Out")
-			if self.break_start > self.break_end:
+			
+			if break_start > break_end:
 				frappe.throw("<b>BREAK START</b> must not be Greater than Break End if Day Shift")
 
-			work_hours = frappe.utils.data.time_diff_in_hours(self.time_out, self.time_in)
-			break_mins = (frappe.utils.data.time_diff_in_seconds(self.break_end, self.break_start) / 60)
+			work_hours = frappe.utils.data.time_diff_in_hours(time_out, time_in)
+			break_mins = (frappe.utils.data.time_diff_in_seconds(break_end, break_start) / 60)
 
 		self.work_hours = work_hours - (break_mins / 60)
 		self.break_mins = break_mins
