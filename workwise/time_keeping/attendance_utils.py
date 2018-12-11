@@ -124,7 +124,7 @@ def get_overtime(entry, ot_apps):
 	ot_map = get_overtime_map()
  	strict_otcard = frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard')
 	ot_list = []
-	total_ot = 0.0
+	total_ot = 0
 
 	#Get Nigthdiff Setup
 	if entry.get('nd_start') and entry.get('nd_end'):
@@ -137,9 +137,8 @@ def get_overtime(entry, ot_apps):
 		for d in ot_apps:
 			ot_hrs, ot_nd, ot_normal = 0, 0, 0
 			if getdate(d.get('target_date')) == entry.get('target_date'):
-				ot_hrs = d.total_hrs * 60 * 60
-				total_ot += ot_hrs
-				llinked_ot = d.name
+				#total_ot += ot_hrs
+				linked_ot = d.name
 				ot_in = get_datetime( str(d.from_date) +" "+ str(d.from_time) )
 				ot_out = get_datetime( str(d.to_date) +" "+ str(d.to_time) )
 				is_saturday = 1 if getdate(entry.get('target_date')).weekday() == 5 else 0
@@ -185,6 +184,9 @@ def get_overtime(entry, ot_apps):
 					if ot_normal > 28800:
 						ot_normal = 28800
 
+					if d.break_hrs:
+						ot_normal -= flt(d.break_hrs, 8) * 60 * 60
+
 					ot_normal_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 0, 0]
 					ot_normal_code = ''.join(str(x) for x in ot_normal_code)
 					ot_list.append({
@@ -195,6 +197,7 @@ def get_overtime(entry, ot_apps):
 						"linked_ot": d.name,
 						"ot_tag": "",
 					})
+					ot_hrs += ot_normal
 
 				if ot_nd > 0: 
 					ot_nd_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 0, 1]
@@ -207,6 +210,7 @@ def get_overtime(entry, ot_apps):
 						"linked_ot": d.name,
 						"ot_tag": "",
 					})
+					ot_hrs += ot_nd
 
 				if ot_hrs > 28800:
 					ot_ex = (ot_hrs - 28800)
@@ -220,8 +224,7 @@ def get_overtime(entry, ot_apps):
 						"linked_ot": d.name,
 						"ot_tag": "",
 					})
-
-
+					ot_hrs += ot_ex
 
 	for l in ot_list:
 		overtime_type = l.get('ot_code')
@@ -231,8 +234,7 @@ def get_overtime(entry, ot_apps):
 			l["ot_tag"] += " <span class='label label-success'>OT-"+overtime_type+"</span> "	
 
 	entry['ot_list'] = ot_list
-	entry['overtime'] = total_ot
-
+	entry['overtime'] = ot_hrs
 	return entry
 
 def get_ndiff(entry):	
@@ -810,7 +812,7 @@ def get_ob_list(employee, from_date, to_date, approval_cutoff, adjustment):
 def get_ot_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
 
-	ot_apps = frappe.db.sql("""SELECT `name`, total_hrs, target_date, from_date, to_date, from_time, to_time FROM `tabOvertime Application` 
+	ot_apps = frappe.db.sql("""SELECT `name`, total_hrs, break_hrs, target_date, from_date, to_date, from_time, to_time FROM `tabOvertime Application` 
 		WHERE workflow_state = 'Approved' AND employee = %s AND target_date >= %s 
 		AND target_date <= %s {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 	return ot_apps
