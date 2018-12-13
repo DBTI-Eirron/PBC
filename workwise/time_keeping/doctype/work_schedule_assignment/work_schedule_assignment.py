@@ -102,11 +102,11 @@ class WorkScheduleAssignment(Document):
 				"work_hours": sched_map[day]['work_hours'],
 				"break_mins": sched_map[day]['break_mins'],
 				"datetime_in": self.get_date(i, sched_map[day]['time_in'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 0),
-				"datetime_out": self.get_date(i, sched_map[day]['time_out'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),
+				"datetime_out": self.get_date(i, sched_map[day]['time_in'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),
 				"break_start": self.get_date(i, sched_map[day]['break_start'], sched_map[day]['break_end'], sched_map[day]['shift_type'], 0),
 				"break_end": self.get_date(i, sched_map[day]['break_start'], sched_map[day]['break_end'], sched_map[day]['shift_type'], 1),
-				"nd_start": self.get_date(i, sched_map[day]['nd_start'], sched_map[day]['nd_end'], sched_map[day]['shift_type'], 0),
-				"nd_end": self.get_date(i, sched_map[day]['nd_start'], sched_map[day]['nd_end'], sched_map[day]['shift_type'], 1),	
+				"nd_start": self.get_date(i, sched_map[day]['nd_start'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 0),
+				"nd_end": self.get_date(i, sched_map[day]['nd_start'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),	
 			}
 			dates.append(info)
 

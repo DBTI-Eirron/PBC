@@ -124,7 +124,7 @@ def get_overtime(entry, ot_apps):
 	ot_map = get_overtime_map()
  	strict_otcard = frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard')
 	ot_list = []
-	total_ot = 0
+	total_ot = 0.0
 
 	#Get Nigthdiff Setup
 	if entry.get('nd_start') and entry.get('nd_end'):
@@ -137,7 +137,6 @@ def get_overtime(entry, ot_apps):
 		for d in ot_apps:
 			ot_hrs, ot_nd, ot_normal = 0, 0, 0
 			if getdate(d.get('target_date')) == entry.get('target_date'):
-				#total_ot += ot_hrs
 				linked_ot = d.name
 				ot_in = get_datetime( str(d.from_date) +" "+ str(d.from_time) )
 				ot_out = get_datetime( str(d.to_date) +" "+ str(d.to_time) )
@@ -225,6 +224,7 @@ def get_overtime(entry, ot_apps):
 						"ot_tag": "",
 					})
 					ot_hrs += ot_ex
+				total_ot = ot_hrs
 
 	for l in ot_list:
 		overtime_type = l.get('ot_code')
@@ -234,7 +234,7 @@ def get_overtime(entry, ot_apps):
 			l["ot_tag"] += " <span class='label label-success'>OT-"+overtime_type+"</span> "	
 
 	entry['ot_list'] = ot_list
-	entry['overtime'] = ot_hrs
+	entry['overtime'] = total_ot
 	return entry
 
 def get_ndiff(entry):	
@@ -677,11 +677,11 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 			"work_hours": sched_map[day]['work_hours'],
 			"break_mins": sched_map[day]['break_mins'],
 			"datetime_in": default_schedule_get_date(i, sched_map[day]['time_in'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 0),
-			"datetime_out": default_schedule_get_date(i, sched_map[day]['time_out'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),
+			"datetime_out": default_schedule_get_date(i, sched_map[day]['time_in'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),
 			"break_start": default_schedule_get_date(i, sched_map[day]['break_start'], sched_map[day]['break_end'], sched_map[day]['shift_type'], 0),
 			"break_end": default_schedule_get_date(i, sched_map[day]['break_start'], sched_map[day]['break_end'], sched_map[day]['shift_type'], 1),
-			"nd_start": default_schedule_get_date(i, sched_map[day]['nd_start'], sched_map[day]['nd_end'], sched_map[day]['shift_type'], 0),
-			"nd_end": default_schedule_get_date(i, sched_map[day]['nd_start'], sched_map[day]['nd_end'], sched_map[day]['shift_type'], 1),	
+			"nd_start": default_schedule_get_date(i, sched_map[day]['nd_start'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 0),
+			"nd_end": default_schedule_get_date(i, sched_map[day]['nd_start'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),	
 		}
 		dates.append(info)
 
