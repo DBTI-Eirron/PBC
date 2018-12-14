@@ -1,11 +1,3 @@
-"""
-Configuration for docs
-"""
+from __future__ import unicode_literals
 
-# source_link = "https://github.com/[org_name]/workwise"
-# docs_base_url = "https://[org_name].github.io/workwise"
-# headline = "App that does everything"
-# sub_heading = "Yes, you got that right the first time, everything"
-
-def get_context(context):
-	context.brand_html = "workwise"
+source_link = "https://github.com/frappe/frappe"
