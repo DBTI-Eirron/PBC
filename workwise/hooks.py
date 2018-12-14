@@ -10,7 +10,7 @@ app_icon = "octicon octicon-book"
 app_color = "#589494"
 app_email = "krefin.fagara@gmail.com"
 app_license = "GNU General Public License"
-app_version = "1.0.29"
+app_version = "1.0.32"
 
 # Includes in <head>
 # ------------------
@@ -45,7 +45,7 @@ web_include_css = "/assets/workwise/css/web_workwise.css"
 #	"Role": "home_page"
 # }
 
-calendars = ["Work Calendar"]
+calendars = ["Payroll Settings"]
 
 # Website user home page (by function)
 # get_website_user_home_page = "workwise.utils.get_home_page"
