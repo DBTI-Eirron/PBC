@@ -25,6 +25,11 @@ class AttendanceProcessing(Document):
 		conditions = []
 		if self.employee:
 			conditions.append("`name`=%(employee)s")
+		if self.department:
+			conditions.append("department=%(department)s")
+		if self.location:
+			conditions.append("location=%(location)s")
+
 		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
 	def process_attendance(self):

@@ -19,6 +19,14 @@ frappe.ui.form.on('Attendance Processing', {
 				}
 			};
 		});
+
+		frm.set_query("location", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
 	},
 
 	setup: function(frm) {
