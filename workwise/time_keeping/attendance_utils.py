@@ -149,8 +149,8 @@ def get_overtime(entry, ot_apps):
 					entry['card_out'] = ot_out
 
 				#get OT Start based from interval
-				if entry.get('ot_interval'):
-					ot_int_start = add_to_date(entry.get('time_out'), hours=entry.get('ot_interval') )
+				if entry.get('ot_start_delay'):
+					ot_int_start = add_to_date(entry.get('time_out'), hours=(entry.get('ot_start_delay') / 60) )
 					if ot_int_start > ot_in:
 						ot_in = ot_int_start
 
@@ -186,6 +186,9 @@ def get_overtime(entry, ot_apps):
 					if d.break_hrs:
 						ot_normal -= flt(d.break_hrs, 8) * 60 * 60
 
+					if entry.get('ot_interval'):
+						ot_normal = (entry.get('ot_interval') * 60) * int(ot_normal / (entry.get('ot_interval') * 60))
+
 					ot_normal_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 0, 0]
 					ot_normal_code = ''.join(str(x) for x in ot_normal_code)
 					ot_list.append({
@@ -199,6 +202,9 @@ def get_overtime(entry, ot_apps):
 					ot_hrs += ot_normal
 
 				if ot_nd > 0: 
+					if entry.get('ot_interval'):
+						ot_nd = (entry.get('ot_interval') * 60) * int(ot_nd / (entry.get('ot_interval') * 60))
+
 					ot_nd_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 0, 1]
 					ot_nd_code = ''.join(str(x) for x in ot_nd_code)
 					ot_list.append({
@@ -213,6 +219,9 @@ def get_overtime(entry, ot_apps):
 
 				if ot_hrs > 28800:
 					ot_ex = (ot_hrs - 28800)
+					if entry.get('ot_interval'):
+						ot_ex = (entry.get('ot_interval') * 60) * int(ot_ex / (entry.get('ot_interval') * 60))
+
 					ot_ex_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 1, 0]
 					ot_ex_code = ''.join(str(x) for x in ot_ex_code)
 					ot_list.append({
@@ -1075,6 +1084,7 @@ def get_defaults(emp, sched, shift_map):
 		"graceperiod_late": shift_map[sched.work_shift]['graceperiod_late'],
 		"straight_ot": shift_map[sched.work_shift]['straight_ot'],
 		"flexible_type": shift_map[sched.work_shift]['flexible_type'],
+		"ot_start_delay": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_start_delay'), 8),
 		"ot_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_interval'), 8),
 	}
 	return entry
