@@ -156,7 +156,7 @@ def get_data(filters):
 		obs = get_ob_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
 		uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
 		ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
-		
+
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
 			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
