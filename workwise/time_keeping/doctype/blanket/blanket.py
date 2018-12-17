@@ -94,6 +94,175 @@ class Blanket(Document):
 				frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits - %s 
 					WHERE name = %s """, (self.la_total_leave_days, emp.from_balance))
 
+	#Filter
+	def filter_reset(self):
+		if self.application_type == "Leave Application":
+			self.set('blad_table', [])
+		if self.application_type == "Change Schedule Application":
+			self.set('bcsa_table', [])
+		if self.application_type == "Compensatory Time Off":
+			self.set('bctod_table', [])
+		else:
+			self.set('bad_table', [])
+	
+	def filter_add(self):
+		if not self.company:
+			frappe.throw(_("Company is Required"))
+
+		if self.filter_value and self.filter_type:
+			entries = []
+			curr_emp = []
+			employees = empget_employees(self.filter_type, self.filter_value, self.company)
+			
+			if self.application_type == "Leave Application":
+				if self.get("blad_table"):
+					for emp in self.get("blad_table"):
+						curr_emp.append(emp.employee)
+
+				if employees:
+					for d in employees:
+						if d.name not in curr_emp:
+							row = {
+								"employee": d.name,
+								"full_name": d.full_name,
+							}
+							entries.append(row)
+
+					for d in entries:
+						row = self.append('blad_table', {})
+						row.update(d)
+
+			elif self.application_type == "Change Schedule Application":
+				if self.get("bcsa_table"):
+					for emp in self.get("bcsa_table"):
+						curr_emp.append(emp.employee)
+
+				if employees:
+					for d in employees:
+						if d.name not in curr_emp:
+							row = {
+								"employee": d.name,
+								"employee_name": d.full_name,
+							}
+							entries.append(row)
+
+					for d in entries:
+						row = self.append('bcsa_table', {})
+						row.update(d)
+
+			elif self.application_type == "Compensatory Time Off":
+				if self.get("bctod_table"):
+					for emp in self.get("bctod_table"):
+						curr_emp.append(emp.employee)
+
+				if employees:
+					for d in employees:
+						if d.name not in curr_emp:
+							row = {
+								"employee": d.name,
+								"full_name": d.full_name,
+							}
+							entries.append(row)
+
+					for d in entries:
+						row = self.append('bctod_table', {})
+						row.update(d)
+			else:
+				if self.get("bad_table"):
+					for emp in self.get("bad_table"):
+						curr_emp.append(emp.employee)
+
+				if employees:
+					for d in employees:
+						if d.name not in curr_emp:
+							row = {
+								"employee": d.name,
+								"full_name": d.full_name,
+							}
+							entries.append(row)
+
+					for d in entries:
+						row = self.append('bad_table', {})
+						row.update(d)
+		else:
+			frappe.throw(_(" Input Filter Value and Filter Type "))
+
+	def filter_subordinates(self):
+		entries = []
+		curr_emp = []
+		employees = empget_subordinates(frappe.session.user)
+
+		if self.application_type == "Leave Application":
+			if self.get("blad_table"):
+				for emp in self.get("blad_table"):
+					curr_emp.append(emp.employee)
+
+			if employees:
+				for d in employees:
+					if d.name not in curr_emp:
+						row = {
+							"employee": d.name,
+							"full_name": d.full_name,
+						}
+						entries.append(row)
+
+				for d in entries:
+					row = self.append('blad_table', {})
+					row.update(d)
+
+		elif self.application_type == "Change Schedule Application":
+			if self.get("bcsa_table"):
+				for emp in self.get("bcsa_table"):
+					curr_emp.append(emp.employee)
+
+			if employees:
+				for d in employees:
+					if d.name not in curr_emp:
+						row = {
+							"employee": d.name,
+							"employee_name": d.full_name,
+						}
+						entries.append(row)
+
+				for d in entries:
+					row = self.append('bcsa_table', {})
+					row.update(d)
+
+		elif self.application_type == "Compensatory Time Off":
+			if self.get("bctod_table"):
+				for emp in self.get("bctod_table"):
+					curr_emp.append(emp.employee)
+
+			if employees:
+				for d in employees:
+					if d.name not in curr_emp:
+						row = {
+							"employee": d.name,
+							"full_name": d.full_name,
+						}
+						entries.append(row)
+
+				for d in entries:
+					row = self.append('bctod_table', {})
+					row.update(d)
+		else:
+			if self.get("bad_table"):
+				for emp in self.get("bad_table"):
+					curr_emp.append(emp.employee)
+
+			if employees:
+				for d in employees:
+					if d.name not in curr_emp:
+						row = {
+							"employee": d.name,
+							"full_name": d.full_name,
+						}
+						entries.append(row)
+
+				for d in entries:
+					row = self.append('bad_table', {})
+					row.update(d)
+
 	#General Use
 	def validate_mandatory_fields(self):
 		if not self.company:
