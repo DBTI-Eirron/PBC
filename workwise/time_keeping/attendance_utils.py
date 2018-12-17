@@ -236,7 +236,7 @@ def get_overtime(entry, ot_apps):
 						"ot_tag": "",
 					})
 					ot_hrs += ot_ex
-				total_ot = ot_hrs
+				total_ot += ot_hrs
 
 	for l in ot_list:
 		overtime_type = l.get('ot_code')
