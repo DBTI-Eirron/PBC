@@ -12,6 +12,7 @@ from workwise.time_keeping.application_utils import grant_head_subordinate_acces
 
 class OfficialBusinessApplication(Document):
 	def validate(self):
+		self.validate_date()
 		grant_head_subordinate_access(self)
 		self.get_ob_hrs()
 		self.get_target_date()
@@ -54,18 +55,22 @@ class OfficialBusinessApplication(Document):
 		total_ob_time = 0
 		for d in self.get('official_business_application_table'):
 			total_hrs = 0
-			if get_time(d.from_time) > get_time(d.to_time):
-				from_date = get_datetime(str(d.date)+" "+str(d.from_time))
-				to_date = get_datetime(str(add_days(d.date, 1))+" "+str(d.from_time))
-			else:
-				from_date = get_datetime(str(d.date)+" "+str(d.from_time))
-				to_date = get_datetime(str(d.date)+" "+str(d.to_time))
+			#if get_time(d.from_time) > get_time(d.to_time):
+			from_date = get_datetime(str(d.date)+" "+str(d.from_time))
+			to_date = get_datetime(str(d.date)+" "+str(d.to_time))
+			#else:
+			#	from_date = get_datetime(str(d.date)+" "+str(d.from_time))
+			#	to_date = get_datetime(str(d.date)+" "+str(d.to_time))
 				
 			if not d.is_excluded == 1:
 				total_hrs = abs(((from_date - to_date).total_seconds()) / 60 /60)
 				total_ob_time += total_hrs
 				d.hrs = total_hrs
 		self.total_hrs = total_ob_time
+
+	def validate_date(self):
+		if self.from_date > self.to_date:
+			frappe.throw(_("From date must be before To date"))
 
 	def get_ob_dates(self):
 		total_balance = 0
@@ -77,7 +82,7 @@ class OfficialBusinessApplication(Document):
 			frappe.throw(_("No To Date"))
 		
 		if self.from_date > self.to_date:
-			frappe.throw(_("To From Date Should be Greater than To"))
+			frappe.throw(_("From date must be before To date"))
 			
 		else:
 			entries = [];
@@ -96,6 +101,7 @@ class OfficialBusinessApplication(Document):
 			    info = {
 				    "target_date": i,
 			        "date": i,
+			        "to_date": i,
 			        "from_time": "00:00:00",
 			        "to_time": "00:00:00",
 			        "is_holiday": self.chk_holiday(i),
@@ -133,6 +139,12 @@ class OfficialBusinessApplication(Document):
 			holiday_tag = 1
 
 		return holiday_tag 
+
+	def validate_application(self):
+		exist = frappe.db.sql("""SELECT `parent` FROM `tabOfficial Business Application Table` WHERE (target_date BETWEEN %s AND %s) AND parent != %s AND docstatus = 1 """, ( self.from_date, self.to_date, self.name), as_dict=True)
+
+		if exist:
+			frappe.throw(_("Application already exists: {0}").format(exist[0].parent))
 
 @frappe.whitelist()
 def update_old_obs():
