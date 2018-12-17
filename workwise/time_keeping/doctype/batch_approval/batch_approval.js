@@ -6,10 +6,15 @@ frappe.ui.form.on('Batch Approval', {
 		if (!frm.doc.posting_date) {
 			frm.set_value("posting_date", get_today());
 		}
+		if (!frm.doc.batch_table){
+			cur_frm.toggle_display('batch_table',false);
+		}
 	},
 	
 	refresh: function(frm) {
-
+		if (!frm.doc.batch_table){
+			cur_frm.toggle_display('batch_table',false);
+		}
 	},
 
 	company: function(frm) {
@@ -39,6 +44,9 @@ frappe.ui.form.on('Batch Approval', {
 				doc: frm.doc,
 				callback: function(r) {
 					frm.refresh_field("batch_table");
+					if (r){
+						cur_frm.toggle_display('batch_table',true);
+					}
 					frm.refresh_fields();
 				}
 			});
