@@ -259,7 +259,7 @@ def get_ndiff(entry):
 			nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )		
 		
 		# check if schedule is for nd
-		if nd_start <= entry.get('time_in') <= nd_end and nd_start <= entry.get('time_out') <= nd_end:
+		if entry.get('time_in') >= nd_start:
 			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
 				if entry.get('card_in') and entry.get('card_out'):
 					if entry.get('card_out') > nd_start:
@@ -267,10 +267,11 @@ def get_ndiff(entry):
 						if entry.get('card_out') > nd_end:
 							entry['nightdiff'] = abs( (nd_start - nd_end).total_seconds())
 
-					#early nightdiff
-					nd_early = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
-					if get_datetime(entry.get('card_in')) < nd_early :
-						entry['nightdiff'] = abs((get_datetime(entry.get('card_in')) - nd_early).total_seconds())
+			#early nightdiff
+		nd_early = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
+		if entry.get('time_in') <= nd_early:
+			if get_datetime(entry.get('card_in')) < nd_early :
+				entry['nightdiff'] = abs((get_datetime(entry.get('card_in')) - nd_early).total_seconds())
 		#else:
 		#	#get normal ot if approved nightdiff OT
 		#	for d in entry.get('ot_list'):
