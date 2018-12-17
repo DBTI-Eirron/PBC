@@ -80,6 +80,7 @@ class Employee(Document):
 					user.flags.ignore_permissions = True
 					user.add_roles(self.role)
 					user.save()
+					frappe.defaults.set_user_default("Employee", self.name, self.user_id)
 
 	def update_user(self):
 		if self.user_id:
