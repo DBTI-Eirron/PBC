@@ -104,8 +104,16 @@ def get_data():
 				},		
 				{
 					"type": "doctype",
+					"name": "Biometrics Device",
+				},
+				{
+					"type": "doctype",
+					"name": "Biometrics Log",
+				},	
+				{
+					"type": "doctype",
 					"name": "Biometrics Upload",
-				},			
+				},				
 				{
 					"type": "doctype",
 					"name": "Leave Balance",
