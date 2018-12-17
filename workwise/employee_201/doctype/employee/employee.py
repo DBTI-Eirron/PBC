@@ -137,12 +137,17 @@ class Employee(Document):
 	def get_user_sensitivity_level(self):
 		cur_user = frappe.session.user
 		if not "Administrator" in frappe.get_roles(cur_user):
-			sensitivy_user = frappe.db.sql(""" SELECT count(*) as `result` FROM `tabSensitivity Users` WHERE `allow_user` = %s AND `parent` = %s """,( cur_user, self.sensitivity ), as_dict=1)
-			for user in sensitivy_user:
-				if user.result != 0:
-					return "access_granted"
-				else:
-					return "access_denied"
+			if self.sensitivity:
+				sensitivy_user = frappe.db.sql(""" SELECT count(*) as `result` FROM `tabSensitivity Users` WHERE `allow_user` = %s AND `parent` = %s """,( cur_user, self.sensitivity ), as_dict=1)
+				for user in sensitivy_user:
+					if user.result != 0:
+						return "access_granted"
+					else:
+						return "access_denied"
+			else:
+				return "access_denied"
+		else:
+			return "access_granted"
 
 	def validate_is_qualified_dependent(self):
 		for emp in self.get("family_members"):
