@@ -38,6 +38,9 @@ class PayrollProcessing(Document):
 		if self.department:
 			conditions.append("department=%(department)s")
 
+		if self.location:
+			conditions.append("location=%(location)s")
+
 		return employees
 
 	def validate_period(self):

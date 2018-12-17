@@ -24,7 +24,8 @@ class AdjustmentProcessing(Document):
 				AND payroll_schedule = %(pay_sched)s 
 				AND is_active = 1 
 				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-				ORDER BY last_name, first_name""",{ 
+				{conditions}
+				ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),{ 
 					"company": self.company,
 					"pay_sched": self.schedule,
 					"employee": self.employee
@@ -38,10 +39,24 @@ class AdjustmentProcessing(Document):
 				AND payroll_schedule = %(pay_sched)s 
 				AND is_active = 1 
 				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-				ORDER BY last_name, first_name""",{ 
+				{conditions}
+				ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),{ 
 					"company": self.company,
 					"pay_sched": self.schedule
 				}, as_dict=True)
+
+		return employees
+
+	def get_conditions(self):
+		conditions = []
+		#if self.employee:
+		#	conditions.append("`name`=%(employee)s")
+
+		if self.department:
+			conditions.append("department=%(department)s")
+
+		if self.location:
+			conditions.append("location=%(location)s")
 
 		return employees
 
