@@ -343,6 +343,9 @@ def get_late(entry):
 					entry['late'] += b_diff.total_seconds()
 					entry['work'] -= b_diff.total_seconds()
 					entry['break'] -= b_diff.total_seconds()
+		
+		if entry.get('late_interval'):
+			entry['late'] = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
 
 	return entry
 
@@ -388,6 +391,9 @@ def get_undertime(entry):
 					else:
 						if entry.get('ob_out') < entry.get('time_out'): #if OB is wholeday
 							entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
+		
+		if entry.get('ut_interval'):
+			entry['undertime'] = (entry.get('ut_interval') * 60) * int( entry.get('undertime') / (entry.get('ut_interval') * 60))
 
 	return entry
 
@@ -1095,6 +1101,7 @@ def get_defaults(emp, sched, shift_map):
 		"flexible_type": shift_map[sched.work_shift]['flexible_type'],
 		"ot_start_delay": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_start_delay'), 8),
 		"ot_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_interval'), 8),
+		"late_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'late_interval'), 8),
 	}
 	return entry
 
