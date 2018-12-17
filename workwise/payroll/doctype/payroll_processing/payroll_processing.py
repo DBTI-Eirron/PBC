@@ -11,34 +11,32 @@ from frappe.model.document import Document
 
 class PayrollProcessing(Document):
 	def get_employees(self):
+		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
+			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
+			whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
+				FROM tabEmployee
+			WHERE company = %(company)s
+			AND payroll_schedule = %(pay_sched)s 
+			AND is_active = 1 
+			AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+			{conditions}
+			ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),
+			({ 
+				"company": self.company,
+				"pay_sched": self.schedule,
+				"employee": self.employee,
+				"department": self.department,
+			}), as_dict=True)
+
+		return employees
+
+	def get_conditions(self):
+		conditions = []
 		if self.employee:
-			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
-				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-				whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
-					FROM tabEmployee
-					WHERE company = %(company)s
-				AND `name` = %(employee)s
-				AND payroll_schedule = %(pay_sched)s 
-				AND is_active = 1 
-				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-				ORDER BY last_name, first_name""",{ 
-					"company": self.company,
-					"pay_sched": self.schedule,
-					"employee": self.employee
-				}, as_dict=True)
-		else:
-			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
-				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-				whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
-					FROM tabEmployee
-					WHERE company = %(company)s
-				AND payroll_schedule = %(pay_sched)s 
-				AND is_active = 1 
-				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-				ORDER BY last_name, first_name""",{ 
-					"company": self.company,
-					"pay_sched": self.schedule
-				}, as_dict=True)
+			conditions.append("`name`=%(employee)s")
+
+		if self.department:
+			conditions.append("department=%(department)s")
 
 		return employees
 
