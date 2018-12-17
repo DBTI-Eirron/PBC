@@ -28,7 +28,9 @@ class AdjustmentProcessing(Document):
 				ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),{ 
 					"company": self.company,
 					"pay_sched": self.schedule,
-					"employee": self.employee
+					"employee": self.employee,
+					"department": self.department,
+					"location": self.location
 				}, as_dict=True)
 		else:
 			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
@@ -42,15 +44,17 @@ class AdjustmentProcessing(Document):
 				{conditions}
 				ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),{ 
 					"company": self.company,
-					"pay_sched": self.schedule
+					"pay_sched": self.schedule,
+					"department": self.department,
+					"location": self.location
 				}, as_dict=True)
 
 		return employees
 
 	def get_conditions(self):
 		conditions = []
-		#if self.employee:
-		#	conditions.append("`name`=%(employee)s")
+		if self.employee:
+			conditions.append("`name`=%(employee)s")
 
 		if self.department:
 			conditions.append("department=%(department)s")
