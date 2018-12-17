@@ -31,7 +31,7 @@ def get_columns(filters):
 		{
 			"fieldname": "amount",
 			"label": _("Amount"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 120
 		},
 		{
@@ -178,12 +178,18 @@ def get_result_as_list(data, filters):
 	result = []
 	total_count = 0
 	total_amount = 0.00
+	payroll_schedule = ""
+	payroll_time = ""
 
 	for d in data:
-		total_amount += flt(d.amount, 2)
+		if d.amount < 1:
+			d.amount = 0.00
+		total_amount += flt(d.amount, 8)
 		total_count += 1
-		payroll_schedule = d.payroll_schedule
-		payroll_time = d.payroll_time
+
+		if d.payroll_time:
+			payroll_schedule = d.payroll_schedule
+			payroll_time = d.payroll_time
 
 	if data:
 		if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
@@ -203,7 +209,7 @@ def get_result_as_list(data, filters):
 						"amount": "Payroll Time",
 						"remarks": payroll_time,
 						"lbl_total_amount": "Total Amount",
-						"total_amount": flt(total_amount, 2),
+						"total_amount": '{:,.2f}'.format(total_amount),
 						"lbl_total_count": "Total Count",
 						"total_count": total_count,
 						"lbl_funding_account": "Funding Account",
@@ -230,7 +236,7 @@ def get_result_as_list(data, filters):
 			"detail": "D",
 			"employee_name": d.get("employee_name"),
 			"employee_account": d.get("employee_account"),
-			"amount": flt(d.get("amount"), 2),
+			"amount": '{:,.2f}'.format(d.get("amount")),
 			"remarks": d.get("remarks"),
 		}
 
@@ -239,7 +245,7 @@ def get_result_as_list(data, filters):
 	if filters.bank != "Bank of the Philippine Islands" and filters.bank != "BPI":
 
 		total = {
-			"amount": flt(total_amount, 2),
+			"amount": '{:,.2f}'.format(total_amount),
 			"employee": "TOTAL",
 			"employee_name": total_count
 		}

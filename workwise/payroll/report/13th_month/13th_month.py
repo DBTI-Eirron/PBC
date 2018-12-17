@@ -21,11 +21,11 @@ def execute(filters=None):
 	data = []
 	for emp in employee_list:
 		pay = get_data(filters, emp)
-		row = [emp.employee, emp.employee_name, flt(pay[0].amount, 2)]
-		total_amount += flt(pay[0].amount, 2)
+		row = [emp.employee, emp.employee_name, '{:,.2f}'.format(pay[0].amount)]
+		total_amount += flt(pay[0].amount, 8)
 
 		data.append(row)	
-	data.append(["<b>Total</b>", "", total_amount])
+	data.append(["<b>Total</b>", "", '{:,.2f}'.format(total_amount)])
 
 	return columns, data
 

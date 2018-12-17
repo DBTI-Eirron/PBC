@@ -79,19 +79,19 @@ def get_columns(employee_list):
 		{
 			"fieldname": "PHIC",
 			"label": _("Employee"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 120
 		},
 		{
 			"fieldname": "PHICE",
 			"label": _("Employer"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width":120
 		},
 		{
 			"fieldname": "total_PHIC",
 			"label": _("Total"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 100
 		},
 	]

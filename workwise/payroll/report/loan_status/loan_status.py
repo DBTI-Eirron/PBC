@@ -44,31 +44,31 @@ def get_columns(filters):
 		{
 			"fieldname": "loan_amount",
 			"label": _("Loan Amount"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 140
 		},		
 		{
 			"fieldname": "interest",
 			"label": _("Interest"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 140
 		},
 		{
 			"fieldname": "total_loan",
 			"label": _("Total Loan"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 140
 		},
 		{
 			"fieldname": "total_paid",
 			"label": _("Total Paid Amount"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 140
 		},
 		{
 			"fieldname": "total_unpaid",
 			"label": _("Total Unpaid Amount"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 140
 		},		
 	]

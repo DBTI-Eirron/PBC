@@ -97,19 +97,19 @@ def get_columns(employee_list):
 		{
 			"fieldname": "HDMF",
 			"label": _("Employee"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 120
 		},
 		{
 			"fieldname": "HDMFE",
 			"label": _("Employer"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width":120
 		},
 		{
 			"fieldname": "total_HDMF",
 			"label": _("Total"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 100
 		},
 	]

@@ -30,7 +30,7 @@ def get_columns(filters):
 		{
 			"fieldname": "net_payroll",
 			"label": _("Net Payroll"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 120
 		},	
 	]

@@ -31,13 +31,13 @@ def get_columns(filters):
 		{
 			"fieldname": "debit",
 			"label": _("Debit"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 140
 		},
 		{
 			"fieldname": "credit",
 			"label": _("Credit"),
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 140
 		},		
 	]

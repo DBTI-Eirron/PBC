@@ -134,7 +134,7 @@ def get_columns(income_types, deduction_types):
 		columns.append({			
 			"fieldname": pay_code,
 			"label": pay_title,
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 100
 		})
 
@@ -143,7 +143,7 @@ def get_columns(income_types, deduction_types):
 		columns.append({			
 			"fieldname": pay_code,
 			"label": pay_title,
-			"fieldtype": "Float",
+			"fieldtype": "Currency",
 			"width": 100
 		})
 
