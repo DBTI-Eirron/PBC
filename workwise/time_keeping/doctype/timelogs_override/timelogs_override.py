@@ -50,12 +50,12 @@ class TimelogsOverride(Document):
 				"work_shift": d.work_shift,
 				"datetime_in": self.get_date(target_date, ws.time_in, ws.time_out, ws.shift_type, 0),
 				"datetime_out": self.get_date(target_date, ws.time_in, ws.time_out, ws.shift_type, 1),
-				"pre_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 0),
-				"post_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 1),							
+				#"pre_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 0),
+				#"post_shift": self.get_date(target_date, ws.pre_shift, ws.post_shift, ws.shift_type, 1),							
 				"break_start": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 0),
 				"break_end": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 1),
-				"nd_start": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 0),
-				"nd_end": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 1),	
+				"nd_start": self.get_date(target_date, ws.nd_start, ws.time_out, ws.shift_type, 0),
+				"nd_end": self.get_date(target_date, ws.nd_start, ws.time_out, ws.shift_type, 1),	
 				"shift_type": ws.shift_type
 			})
 			work_sched.insert()
