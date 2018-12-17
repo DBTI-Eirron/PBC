@@ -26,6 +26,7 @@ class PayrollProcessing(Document):
 				"pay_sched": self.schedule,
 				"employee": self.employee,
 				"department": self.department,
+				"location": self.location,
 			}), as_dict=True)
 
 		return employees
@@ -41,7 +42,7 @@ class PayrollProcessing(Document):
 		if self.location:
 			conditions.append("location=%(location)s")
 
-		return employees
+		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
 	def validate_period(self):
 		period_stats = frappe.db.get_value("Payroll Period", self.period, "status")

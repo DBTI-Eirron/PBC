@@ -16,7 +16,9 @@ class AttendanceProcessing(Document):
 		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location,is_attendance_base, no_hours FROM tabEmployee WHERE company = %(company)s {conditions}
 			AND is_active = 1 ORDER BY `full_name` """.format(conditions=self.get_employee_conditions()),{ 
 				"company": self.company,
-				"employee": self.employee
+				"employee": self.employee,
+				"department": self.department,
+				"location": self.location,
 			}, as_dict=True)
 
 		return employees
