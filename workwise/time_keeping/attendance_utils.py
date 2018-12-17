@@ -194,6 +194,7 @@ def get_overtime(entry, ot_apps):
 					ot_list.append({
 						"employee": entry.get('employee'),
 						"target_date": entry.get('target_date'),
+						"ot_type": "OT_NORMAL",
 						"ot_code": ot_normal_code,
 						"ot_hrs": ot_normal / 60 / 60,
 						"linked_ot": d.name,
@@ -210,6 +211,7 @@ def get_overtime(entry, ot_apps):
 					ot_list.append({
 						"employee": entry.get('employee'),
 						"target_date": entry.get('target_date'),
+						"ot_type": "OT_ND",
 						"ot_code": ot_nd_code,
 						"ot_hrs": ot_nd  / 60 / 60,
 						"linked_ot": d.name,
@@ -227,6 +229,7 @@ def get_overtime(entry, ot_apps):
 					ot_list.append({
 						"employee": entry.get('employee'),
 						"target_date": entry.get('target_date'),
+						"ot_type": "OT_EX",
 						"ot_code": ot_ex_code,
 						"ot_hrs": ot_ex / 60 / 60,
 						"linked_ot": d.name,
@@ -252,21 +255,27 @@ def get_ndiff(entry):
 	if entry.get('nd_start') and entry.get('nd_end'):
 		nd_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) )
 		nd_end = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
-
 		if entry.get('nd_start') > entry.get('nd_end'):
-			nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )
+			nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )		
+		
+		# check if schedule is for nd
+		if nd_start <= entry.get('time_in') <= nd_end and nd_start <= entry.get('time_out') <= nd_end:
+			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
+				if entry.get('card_in') and entry.get('card_out'):
+					if entry.get('card_out') > nd_start:
+						entry['nightdiff'] = abs((entry.get('card_out') - nd_start).total_seconds())
+						if entry.get('card_out') > nd_end:
+							entry['nightdiff'] = abs( (nd_start - nd_end).total_seconds())
 
-		if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
-			if entry.get('card_in') and entry.get('card_out'):
-				if entry.get('card_out') > nd_start:
-					entry['nightdiff'] = abs((entry.get('card_out') - nd_start).total_seconds())
-					if entry.get('card_out') > nd_end:
-						entry['nightdiff'] = abs( (nd_start - nd_end).total_seconds())
-
-				#early nightdiff
-				nd_early = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
-				if get_datetime(entry.get('card_in')) < nd_early :
-					entry['nightdiff'] = abs((get_datetime(entry.get('card_in')) - nd_early).total_seconds())
+					#early nightdiff
+					nd_early = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
+					if get_datetime(entry.get('card_in')) < nd_early :
+						entry['nightdiff'] = abs((get_datetime(entry.get('card_in')) - nd_early).total_seconds())
+		#else:
+		#	#get normal ot if approved nightdiff OT
+		#	for d in entry.get('ot_list'):
+		#		if d.get('ot_type') == "OT_ND":
+		#			entry['nightdiff'] += d.get('ot_hrs')
 
 		#OLD ND Code
 		#if entry.get('time_out') > entry.get('nd_start'):
