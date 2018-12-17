@@ -87,6 +87,12 @@ class OvertimeApplication(Document):
 				self.total_hrs = total_hrs
 
 	def validate_overtime(self):
+		ot_req_hours = frappe.db.get_single_value('Timekeeping Settings', 'req_ot')
+		if ot_req_hours:
+			if flt(self.total_hrs, 2) < flt(ot_req_hours, 2):
+				frappe.throw(_("Required work hours for Overtime Application: {0}").format(ot_req_hours))	
+
+		#Removed from timekeeping settings but still waiting for code removal confirmation
 		ot_req_break = frappe.db.get_single_value('Timekeeping Settings', 'ot_req_break')
 		if ot_req_break:
 			if flt(self.total_hrs, 2) > flt(ot_req_break, 2) and flt(self.break_hrs, 	2) < 1:
