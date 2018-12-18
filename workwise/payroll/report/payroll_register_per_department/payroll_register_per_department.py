@@ -67,7 +67,7 @@ def execute(filters=None):
 					i += 1
 
 				total_payroll = flt(total_income, 8) - flt(total_deduction, 8)
-				row += [flt(total_income, 2), flt(total_deduction, 2), flt(total_payroll, 2)]
+				row += ['{:,.2f}'.format(total_income), '{:,.2f}'.format(total_deduction), '{:,.2f}'.format(total_payroll)]
 				dtotal_income += flt(total_income, 2)
 				dtotal_deduction += flt(total_deduction, 2)
 				dtotal_payroll += flt(total_payroll, 2)
@@ -85,7 +85,7 @@ def execute(filters=None):
 				f_deduction_total[i] += flt(deduction_total[i], 8)
 				i += 1
 
-			total_row += [flt(dtotal_income, 2), flt(dtotal_deduction, 2), flt(dtotal_payroll, 2)]
+			total_row += ['{:,.2f}'.format(dtotal_income), '{:,.2f}'.format(dtotal_deduction), '{:,.2f}'.format(dtotal_payroll)]
 			f_total_income += flt(dtotal_income, 2)
 			f_total_deduction += flt(dtotal_deduction, 2)
 			f_total_payroll += flt(dtotal_payroll, 2)
@@ -102,7 +102,7 @@ def execute(filters=None):
 		for deduction in deduction_types:
 			final_total_row.append(f_deduction_total[i])
 			i += 1
-		final_total_row += [flt(f_total_income, 2), flt(f_total_deduction, 2), flt(f_total_payroll, 2)]
+		final_total_row += ['{:,.2f}'.format(f_total_income), '{:,.2f}'.format(f_total_deduction), '{:,.2f}'.format(f_total_payroll)]
 		data.append("")
 		data.append(final_total_row)
 
@@ -134,7 +134,7 @@ def get_columns(income_types, deduction_types):
 		columns.append({			
 			"fieldname": pay_code,
 			"label": pay_title,
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		})
 
@@ -143,7 +143,7 @@ def get_columns(income_types, deduction_types):
 		columns.append({			
 			"fieldname": pay_code,
 			"label": pay_title,
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		})
 
@@ -151,19 +151,19 @@ def get_columns(income_types, deduction_types):
 		{
 			"fieldname": "total_income",
 			"label": _("Total Income"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		},
 		{
 			"fieldname": "total_deduction",
 			"label": _("Total Deduction"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		},
 		{
 			"fieldname": "total_payroll",
 			"label": _("Total Payroll"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 100
 		},
 	]

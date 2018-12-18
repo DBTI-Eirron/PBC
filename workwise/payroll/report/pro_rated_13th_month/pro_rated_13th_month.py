@@ -20,10 +20,10 @@ def execute(filters=None):
 
 	data = []
 	for emp in employee_list:
-		row = [emp.employee, emp.employee_name, emp.amount]
+		row = [emp.employee, emp.employee_name, '{:,.2f}'.format(emp.amount)]
 		total_amount += emp.amount
 		data.append(row)
-	data.append(["<b>Total</b>", "", total_amount])
+	data.append(["<b>Total</b>", "", '{:,.2f}'.format(total_amount)])
 
 	return columns, data
 

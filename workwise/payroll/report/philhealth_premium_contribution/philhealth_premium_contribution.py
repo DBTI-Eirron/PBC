@@ -30,17 +30,17 @@ def execute(filters=None):
 		for PHIC in PHIC_types:
 			PHIC_amount = flt(PHIC_map.get(emp.name, {}).get(PHIC))
 			total_PHIC += PHIC_amount
-			row.append(PHIC_amount)
+			row.append('{:,.2f}'.format(PHIC_amount))
 
 		if total_PHIC > 0:
 			final_employee += flt(PHIC_map.get(emp.name, {}).get("PHIC"))
 			final_employer += flt(PHIC_map.get(emp.name, {}).get("PHICE"))
 			final_total += total_PHIC
-			row += [total_PHIC]
+			row += ['{:,.2f}'.format(total_PHIC)]
 
 			data.append(row)
 
-	final = ["<b>Total: </b>","", "", final_employee, final_employer, final_total]
+	final = ["<b>Total: </b>","", "", '{:,.2f}'.format(final_employee), '{:,.2f}'.format(final_employer), '{:,.2f}'.format(final_total)]
 	data.append(final)
 
 	i = 0

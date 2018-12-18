@@ -134,8 +134,8 @@ def get_result_as_list(data, filters):
 		row = {
 			"account_name": d.get("account_name"),
 			"account_code": d.get("account_code"),
-			"debit": d.get("debit"),
-			"credit": d.get("credit"),
+			"debit": '{:,.2f}'.format(d.get("debit")),
+			"credit": '{:,.2f}'.format(d.get("credit")),
 		}
 		
 		result.append(row)

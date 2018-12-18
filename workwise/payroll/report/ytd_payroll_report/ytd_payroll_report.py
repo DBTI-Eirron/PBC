@@ -35,8 +35,8 @@ def execute(filters=None):
 		for p in periods:
 			period_amount = flt(period_map.get(emp.name, {}).get(p))
 			total_grosspay += period_amount
-			row.append(period_amount)
-		row += [total_grosspay]
+			row.append('{:,.2f}'.format(period_amount))
+		row += ['{:,.2f}'.format(total_grosspay)]
 		data.append(row)
 
 	return columns, data

@@ -44,31 +44,31 @@ def get_columns(filters):
 		{
 			"fieldname": "loan_amount",
 			"label": _("Loan Amount"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 140
 		},		
 		{
 			"fieldname": "interest",
 			"label": _("Interest"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 140
 		},
 		{
 			"fieldname": "total_loan",
 			"label": _("Total Loan"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 140
 		},
 		{
 			"fieldname": "total_paid",
 			"label": _("Total Paid Amount"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 140
 		},
 		{
 			"fieldname": "total_unpaid",
 			"label": _("Total Unpaid Amount"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 140
 		},		
 	]
@@ -157,11 +157,11 @@ def get_result_as_list(data, filters):
 			"employee_name": d.get("employee_name"),
 			"posting_date": d.get("posting_date"),
 			"loan_type": d.get("loan_type"),
-			"loan_amount": d.get("loan_amount"),
-			"interest": d.get("interest"),
-			"total_loan": d.get("total_loan"),			
-			"total_paid": d.get("total_paid"),
-			"total_unpaid": flt(d.get("total_loan"), 2) - flt(d.get("total_paid"), 2)
+			"loan_amount": '{:,.2f}'.format(d.get("loan_amount")),
+			"interest": '{:,.2f}'.format(d.get("interest")),
+			"total_loan": '{:,.2f}'.format(d.get("total_loan")),			
+			"total_paid": '{:,.2f}'.format(d.get("total_paid")),
+			"total_unpaid": '{:,.2f}'.format(d.get("total_loan") - d.get("total_paid"))
 		}
 		
 		result.append(row)

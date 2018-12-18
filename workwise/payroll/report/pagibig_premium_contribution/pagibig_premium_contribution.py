@@ -54,17 +54,17 @@ def execute(filters=None):
 		for d in HDMF_types:
 			HDMF_amount = flt(HDMF_map.get(emp.name, {}).get(d))
 			total_HDMF += HDMF_amount
-			row.append(HDMF_amount)
+			row.append('{:,.2f}'.format(HDMF_amount))
 
 		if total_HDMF > 0:
 			final_employee += flt(HDMF_map.get(emp.name, {}).get("HDMF"))
 			final_employer += flt(HDMF_map.get(emp.name, {}).get("HDMFE"))
 			final_total += total_HDMF
-			row += [total_HDMF]
+			row += ['{:,.2f}'.format(total_HDMF)]
 
 			data.append(row)
 
-	final = ["<b>Total: </b>","" , "", final_employee, final_employer, final_total]
+	final = ["<b>Total: </b>","" , "", '{:,.2f}'.format(final_employee), '{:,.2f}'.format(final_employer), '{:,.2f}'.format(final_total)]
 	data.append(final)
 
 	return columns, data

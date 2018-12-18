@@ -80,7 +80,7 @@ def get_result_as_list(data, filters):
 		row = {
 			"employee": d.get("employee"),
 			"employee_name": d.get("employee_name"),
-			"net_payroll": d.get("net_payroll"),
+			"net_payroll": '{:,.2f}'.format(d.get("net_payroll")),
 		}
 		result.append(row)
 	return result

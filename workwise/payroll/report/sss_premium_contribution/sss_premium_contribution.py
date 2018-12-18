@@ -29,18 +29,18 @@ def execute(filters=None):
 		for sss in sss_types:
 			sss_amount = flt(sss_map.get(emp.name, {}).get(sss))
 			total_sss += sss_amount
-			row.append(sss_amount)
+			row.append('{:,.2f}'.format(sss_amount))
 
 		if total_sss > 0:
 			final_employee += flt(sss_map.get(emp.name, {}).get("SSS"))
 			final_employer += flt(sss_map.get(emp.name, {}).get("SSSE"))
 			final_ec += flt(sss_map.get(emp.name, {}).get("SSSC"))
 			final_total += total_sss
-			row += [total_sss]
+			row += ['{:,.2f}'.format(total_sss)]
 			
 			data.append(row)
 
-	final = ["<b>Total: </b>","", "", final_employee, final_employer, final_ec, final_total]
+	final = ["<b>Total: </b>","", "", '{:,.2f}'.format(final_employee), '{:,.2f}'.format(final_employer), '{:,.2f}'.format(final_ec), '{:,.2f}'.format(final_total)]
 	data.append(final)
 
 	return columns, data
