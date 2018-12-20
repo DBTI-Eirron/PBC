@@ -1,8 +1,9 @@
 from __future__ import unicode_literals
 import frappe, datetime
-from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
+from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_to_date, cstr
 from frappe import _
 
+#APPLICATION PATCHES
 def update_approved_on_and_by():
 	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application"]
 	for app in application_type_list:
@@ -22,6 +23,7 @@ def oba_update_table():
 	frappe.db.sql("""UPDATE `tabOfficial Business Application Table` SET travel_time = travel_time, hrs = hrs, target_date = target_date, `date` = `target_date`, from_time = from_time, to_time = to_time, is_holiday = is_holiday, is_excluded = is_excluded, is_previous = 0 WHERE `date` IS NULL AND docstatus != 2 """)
 	frappe.db.commit()
 
+#DELETE COMPANY RECORDS
 def qetquery_delete_company_records():
 	query_list = []
 	format2 = ""
@@ -81,4 +83,51 @@ def delete_company_records():
 					frappe.db.commit()
 
 				frappe.db.sql("""DELETE FROM `tabCompany` WHERE `name` = %s """,(com))
+				frappe.db.commit()
+
+#REASSIGN WORK SCHEDULE
+def delta_to_time(delta_obj):
+	return (datetime.datetime.min + delta_obj).time()
+
+def get_date(date, start, end, type, is_end):
+	if is_end == 1:
+		if delta_to_time(start) > delta_to_time(end):
+			dt = (datetime.datetime.combine(date, delta_to_time(end) ) + datetime.timedelta(days=1) ).strftime('%Y-%m-%d %H:%M:%S')
+		else:
+			dt = datetime.datetime.combine(date, delta_to_time(end) ).strftime('%Y-%m-%d %H:%M:%S') 
+	else:
+		dt = datetime.datetime.combine(date, delta_to_time(start) ).strftime('%Y-%m-%d %H:%M:%S') 
+
+	return dt
+
+def reassign_work_schedule():
+	existing = frappe.db.sql("""SELECT `name`, target_date, work_shift FROM `tabWork Schedule` """, as_dict=True)
+	if existing:
+		for d in existing:
+			shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(d.work_shift), as_dict=True)
+			if shift:
+				frappe.db.sql(""" UPDATE `tabWork Schedule` SET 
+					work_shift = %(work_shift)s,
+					shift_type = %(shift_type)s,
+					work_hours = %(work_hours)s,
+					break_mins = %(break_mins)s,
+					datetime_in = %(datetime_in)s,
+					datetime_out = %(datetime_out)s,
+					break_start = %(break_start)s,
+					break_end = %(break_end)s,
+					nd_start = %(nd_start)s,
+					nd_end = %(nd_end)s
+					WHERE `name` = %(doc_name)s """, { 
+					"work_shift": shift[0]['name'],
+					"shift_type": shift[0]['work_shift_type'],
+					"work_hours": shift[0]['work_hours'],
+					"break_mins": shift[0]['break_mins'],
+					"datetime_in": get_date(d.target_date, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 0), 
+					"datetime_out": get_date(d.target_date, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 1),
+					"break_start": get_date(d.target_date, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 0),
+					"break_end": get_date(d.target_date, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 1),
+					"nd_start": get_date(d.target_date, shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 0),
+					"nd_end": get_date(d.target_date, shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 1),
+					"doc_name": d.name
+				}, as_dict=True)
 				frappe.db.commit()
