@@ -3,6 +3,12 @@
 
 frappe.ui.form.on('Special Processing', {
 	onload: function(frm){
+		//Button Style
+		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.backgroundColor ="#81da63";
+		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.height ="30px";
+		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.width ="105px";
+		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.color ="white";
+
 		frm.set_query("employee", function() {
 			return {
 				"filters": {
