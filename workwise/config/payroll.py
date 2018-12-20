@@ -228,6 +228,11 @@ def get_data():
 					"type": "doctype",
 					"name": "Payroll Process Logs",
 				},
+				{
+					"type": "doctype",
+					"name": "Payroll Register",
+					"label": "Payroll Registers",
+				},
 			]
 		},
 
