@@ -57,7 +57,7 @@ class OfficialBusinessApplication(Document):
 			total_hrs = 0
 			#if get_time(d.from_time) > get_time(d.to_time):
 			from_date = get_datetime(str(d.date)+" "+str(d.from_time))
-			to_date = get_datetime(str(d.date)+" "+str(d.to_time))
+			to_date = get_datetime(str(d.to_date)+" "+str(d.to_time))
 			#else:
 			#	from_date = get_datetime(str(d.date)+" "+str(d.from_time))
 			#	to_date = get_datetime(str(d.date)+" "+str(d.to_time))
