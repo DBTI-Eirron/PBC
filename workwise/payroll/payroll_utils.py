@@ -48,3 +48,15 @@ def get_overtime_map():
 			"rate": t.ot_rate,
 		}
 	return ot_map
+
+def get_transaction_map():
+	tr_map = {}
+	tr = frappe.db.sql("""SELECT code, title, type, entry_type, account, is_taxable, 
+		is_bonus, is_government, is_standard, is_active, bir_type FROM `tabTransaction Type` """, as_dict=1)
+
+	for t in tr:
+		tr_map[t.code] = {"code": t.code, "title": t.title, "type": t.type, "bir_type": t.bir_type, "entry_type": t.entry_type,	"account": t.account, 
+			"is_taxable": t.is_taxable, "is_standard": t.is_standard, "is_active": t.is_active, "is_bonus": t.is_bonus, "is_government": t.is_government,
+		}
+
+	return tr_map
