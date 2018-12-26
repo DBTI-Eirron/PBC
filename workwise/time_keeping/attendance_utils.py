@@ -264,8 +264,7 @@ def get_overtime(entry, ot_apps):
 	return entry
 
 def get_ndiff(entry):	
-	#late nightdiff
-	# Get Night Diff Datetime based from time
+	#late nightdiff and Get Night Diff Datetime based from time
 	if entry.get('nd_start') and entry.get('nd_end') and frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
 		nd_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) )
 		nd_end = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
@@ -306,11 +305,11 @@ def get_ndiff(entry):
 def get_late(entry):
 	if not entry.get('ex_tardiness'):
 		if entry.get('lv_status') == 2 and entry['card_in']: #get late if leave is 1sthalf halfday
-			if entry.get('card_in') > entry.get('break_end'):
+			if entry.get('card_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('b_grace')):
 				entry['late'] += (entry.get('card_in') - entry.get('break_end')).total_seconds()
 
 		elif entry.get('lv_status') == 3 and entry['card_in']: #get late if leave is 2ndhalf halfday
-			if entry.get('card_in') > entry.get('time_in'):
+			if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 				entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 
 		else: #get normal late if no leave
