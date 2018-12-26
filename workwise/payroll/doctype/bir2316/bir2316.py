@@ -107,12 +107,16 @@ class BIR2316(Document):
 				"tax_transpo": 0.0,
 				"tax_cola": 0.0,
 				"tax_housing": 0.0,
+				"other_reg_a": 0.0,
+				"other_reg_b": 0.0,
 				"tax_commission": 0.0,
 				"tax_sharing": 0.0,
 				"tax_fees": 0.0,
 				"tax_bonus": 0.0,
 				"tax_ot": 0.0,
 				"tax_hazard": 0.0,
+				"other_supp_a": 0.0,
+				"other_supp_b": 0.0,
 
 				"ntax_total": 0.0,
 				"tax_total": 0.0,
@@ -203,8 +207,8 @@ class BIR2316(Document):
 			self.prev_employ_zip = entry.get('prev_employ_zip')
 
 	def set_summary(self, e, entry):
-		self.get_last_pay(e, entry)
 		self.get_whtax_info(e, entry)
+		self.get_last_pay(e, entry)
 
 		self.sum_gcipe = flt(self.ntax_total, 2) + flt(self.tax_total, 2)	
 		self.sum_tnt = flt(self.ntax_total, 2)	
@@ -240,53 +244,36 @@ class BIR2316(Document):
 		self.get_salary_info(e, entry, tr_map)
 		self.get_bonus_ceiling_info(e, entry)
 
-		if self.ntax_bs == 0.000:
-			self.ntax_bs = entry.get('ntax_bs')
-		if self.ntax_ho == 0.000:
-			self.ntax_ho = entry.get('ntax_ho')
-		if self.ntax_ot == 0.000:
-			self.ntax_ot = entry.get('ntax_ot')
-		if self.ntax_nd == 0.000:
-			self.ntax_nd = entry.get('ntax_nd')
-		if self.ntax_bonus == 0.000:
-			self.ntax_bonus = entry.get('ntax_bonus')
-		if self.ntax_demi == 0.000:
-			self.ntax_demi = entry.get('ntax_demi')
-		if self.ntax_contrib == 0.000:
-			self.ntax_contrib = entry.get('ntax_contrib')
-		if self.ntax_other == 0.000:
-			self.ntax_other = entry.get('ntax_other')
-		if self.ntax_hazard == 0.000:
-			self.ntax_hazard = entry.get('ntax_hazard')
-	
-		if self.tax_bs == 0.000:
-			self.tax_bs = entry.get('tax_bs')
-		if self.tax_rep == 0.000:
-			self.tax_rep = entry.get('tax_rep')
-		if self.tax_transpo == 0.000:
-			self.tax_transpo = entry.get('tax_transpo')
-		if self.tax_cola == 0.000:
-			self.tax_cola = entry.get('tax_cola')
-		if self.tax_housing == 0.000:
-			self.tax_housing = entry.get('tax_housing')
-		if self.tax_commission == 0.000:
-			self.tax_commission = entry.get('tax_commission')
-		if self.tax_sharing == 0.000:
-			self.tax_sharing = entry.get('tax_sharing')
-		if self.tax_fees == 0.000:
-			self.tax_fees = entry.get('tax_fees')
-		if self.tax_bonus == 0.000:
-			self.tax_bonus = entry.get('tax_bonus')
-		if self.tax_ot == 0.000:
-			self.tax_ot = entry.get('tax_ot')
-		if self.tax_hazard == 0.000:
-			self.tax_hazard = entry.get('tax_hazard')
+		self.ntax_bs = entry.get('ntax_bs')
+		self.ntax_ho = entry.get('ntax_ho')
+		self.ntax_ot = entry.get('ntax_ot')
+		self.ntax_nd = entry.get('ntax_nd')
+		self.ntax_bonus = entry.get('ntax_bonus')
+		self.ntax_demi = entry.get('ntax_demi')
+		self.ntax_contrib = entry.get('ntax_contrib')
+		self.ntax_other = entry.get('ntax_other')
+		self.ntax_hazard = entry.get('ntax_hazard')
+		self.tax_bs = entry.get('tax_bs')
+		self.tax_rep = entry.get('tax_rep')
+		self.tax_transpo = entry.get('tax_transpo')
+		self.tax_cola = entry.get('tax_cola')
+		self.tax_housing = entry.get('tax_housing')
+		self.other_reg_a = entry.get('other_reg_a')
+		self.other_reg_b = entry.get('other_reg_b')
+		self.tax_commission = entry.get('tax_commission')
+		self.tax_sharing = entry.get('tax_sharing')
+		self.tax_fees = entry.get('tax_fees')
+		self.tax_bonus = entry.get('tax_bonus')
+		self.tax_ot = entry.get('tax_ot')
+		self.tax_hazard = entry.get('tax_hazard')
+		self.other_supp_a = entry.get('other_supp_a')
+		self.other_supp_b = entry.get('other_supp_b')
 
 		self.compute_total_ntax_and_tax()
 
 	def compute_total_ntax_and_tax(self):
 		self.ntax_total = flt(self.ntax_bs, 2) + flt(self.ntax_ho, 2) + flt(self.ntax_ot, 2) + flt(self.ntax_nd, 2) + flt(self.ntax_bonus, 2) + flt(self.ntax_demi, 2) + flt(self.ntax_contrib, 2) + flt(self.ntax_other, 2) + flt(self.ntax_hazard, 2)
-		self.tax_total = flt(self.tax_bs, 2) + flt(self.tax_rep, 2) + flt(self.tax_transpo, 2) + flt(self.tax_cola, 2) + flt(self.tax_housing, 2) + flt(self.tax_commission, 2) + flt(self.tax_sharing, 2) + flt(self.tax_fees, 2) + flt(self.tax_bonus, 2) + flt(self.tax_ot, 2) + flt(self.tax_hazard, 2)
+		self.tax_total = flt(self.tax_bs, 2) + flt(self.tax_rep, 2) + flt(self.tax_transpo, 2) + flt(self.tax_cola, 2) + flt(self.tax_housing, 2) + flt(self.other_reg_a, 2) + flt(self.other_reg_b, 2) + flt(self.tax_commission, 2) + flt(self.tax_sharing, 2) + flt(self.tax_fees, 2) + flt(self.tax_bonus, 2) + flt(self.tax_ot, 2) + flt(self.tax_hazard, 2) + flt(self.other_supp_a, 2) + flt(self.other_supp_b, 2)
 	
 	def load_tax_id(self, e, entry):
 		if self.tax_id:
@@ -465,6 +452,12 @@ class BIR2316(Document):
 			if bir_type == "Housing Allowance" and is_taxable:
 				entry['tax_housing'] += d.amount
 
+			if bir_type == "Other Regular (A)" and is_taxable:
+				entry['other_reg_a'] += d.amount
+
+			if bir_type == "Other Regular (B)" and is_taxable:
+				entry['other_reg_b'] += d.amount
+
 			if bir_type == "Commission" and is_taxable:
 				entry['tax_commission'] += d.amount
 
@@ -479,6 +472,12 @@ class BIR2316(Document):
 
 			if bir_type == "Hazard" and is_taxable:
 				entry['tax_hazard'] += d.amount
+
+			if bir_type == "Other Supplementary (A)" and is_taxable:
+				entry['other_supp_a'] += d.amount
+
+			if bir_type == "Other Supplementary (B)" and is_taxable:
+				entry['other_supp_b'] += d.amount
 
 			#NON-TAXABLE
 			if bir_type == "Basic" and not is_taxable:
@@ -508,13 +507,19 @@ class BIR2316(Document):
 		return entry
 
 	def get_last_pay(self, e, entry):
+		total_notyetpaid = 0.0
 		last_pay = frappe.db.sql("""SELECT DISTINCT `tax_due`, `not_yet_paid` 
 			FROM `tabLast Pay Entry` WHERE `employee` = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 		if last_pay:
 			for d in last_pay:
 				entry['sum_td'] += d.tax_due
-				entry['sum_atw_pres'] += d.not_yet_paid
-		
+				total_notyetpaid += d.not_yet_paid
+			if total_notyetpaid <= 0:
+				entry['sum_atw_pres'] = 0.00
+				entry['sum_atw_prev'] = 0.00
+			else:
+				entry['sum_atw_pres'] += total_notyetpaid
+
 		return entry
 
 	def get_bonus_ceiling_info(self, e, entry):
