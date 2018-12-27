@@ -10,7 +10,7 @@ from workwise.payroll.payroll_utils import get_transaction_map
 def execute(filters=None):
 	employees = frappe.db.sql("""select `name`, tin, full_name from tabEmployee 
 			WHERE company = %(company)s and payroll_schedule = %(schedule)s 
-			and `name` NOT IN (SELECT DISTINCT employee FROM `tabBIR2316` WHERE document_type = "Previous" AND docstatus = 1) {conditions} """.format( conditions=get_employee_conditions(filters) ), filters, as_dict=1)
+			and `name` IN (SELECT DISTINCT employee FROM `tabBIR2316` WHERE document_type = "Previous" AND docstatus = 1) {conditions} """.format( conditions=get_employee_conditions(filters) ), filters, as_dict=1)
 	pay_from, pay_to = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 
 	if not filters: filters = frappe._dict({})
@@ -38,7 +38,7 @@ def get_data_with_opening_closing(filters, employees, registers, bir_registers):
 
 	get_headers(filters, data)
 	seq = 0
-	for emp, emp_dict in emp_map.items():
+	for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 		seq += 1
 		tax_due, amt_withheld, over_withheld, withheld = 0, 0, 0, 0
 

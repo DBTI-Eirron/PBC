@@ -8,7 +8,7 @@ from frappe import _
 from workwise.payroll.payroll_utils import get_transaction_map
 
 def execute(filters=None):
-	employees = frappe.db.sql("""select `name`, tin, full_name from tabEmployee WHERE company = %(company)s and payroll_schedule = %(schedule)s and `name` NOT IN (SELECT DISTINCT employee FROM `tabBIR2316` WHERE document_type = "Previous" AND docstatus = 1) {conditions} """.format( conditions=get_employee_conditions(filters) ), filters, as_dict=1)
+	employees = frappe.db.sql("""select `name`, tin, full_name from tabEmployee WHERE company = %(company)s and payroll_schedule = %(schedule)s {conditions} and `name` NOT IN (SELECT DISTINCT employee FROM `tabBIR2316` WHERE document_type = "Previous" AND docstatus = 1) ORDER BY full_name ASC """.format( conditions=get_employee_conditions(filters) ), filters, as_dict=1)
 	pay_from, pay_to = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 
 	if not filters: filters = frappe._dict({})
@@ -34,7 +34,7 @@ def get_data_with_opening_closing(filters, employees, registers):
 	get_headers(filters, data)
 
 	seq = 0
-	for emp, emp_dict in emp_map.items():
+	for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 		seq += 1
 		ntax_bonus, tax_bonus, tax_due = 0, 0, 0
 		ntax_total = 0
@@ -175,7 +175,7 @@ def get_registers(filters):
 	registers = frappe.db.sql("""SELECT PR.name, PR.employee, PR.employee_name, PR.company, PR.posting_date, PR.schedule, PR.gross_payroll,
 			PRE.pay_code, PRE.entry_type, PRE.is_taxable, PRE.amount FROM `tabPayroll Register` PR
 		INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
-		WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s {conditions} AND YEAR(posting_date) = %(year)s  """.format( conditions=get_conditions(filters) ), filters, as_dict=1)
+		WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s {conditions} AND YEAR(posting_date) = %(year)s ORDER BY PR.employee_name ASC  """.format( conditions=get_conditions(filters) ), filters, as_dict=1)
 
 	return registers
 
