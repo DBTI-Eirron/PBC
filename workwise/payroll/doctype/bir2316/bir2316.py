@@ -459,75 +459,76 @@ class BIR2316(Document):
 
 		for d in salary:
 			bir_type = tr_map[d.get("pay_code")]['bir_type']
+			_type = tr_map[d.get("pay_code")]['type']
 			is_taxable = tr_map[d.get("pay_code")]['is_taxable']
 
 			#TAXABLE
 			#if bir_type == "Basic" and is_taxable:
 			#	entry['tax_bs'] += d.amount
+			if _type != "None":
+				if bir_type == "Representation" and is_taxable:
+					entry['tax_rep'] += d.amount
 
-			if bir_type == "Representation" and is_taxable:
-				entry['tax_rep'] += d.amount
+				if bir_type == "Transportation" and is_taxable:
+					entry['tax_transpo'] += d.amount
 
-			if bir_type == "Transportation" and is_taxable:
-				entry['tax_transpo'] += d.amount
+				if bir_type == "COLA" and is_taxable:
+					entry['tax_cola'] += d.amount
 
-			if bir_type == "COLA" and is_taxable:
-				entry['tax_cola'] += d.amount
+				if bir_type == "Housing Allowance" and is_taxable:
+					entry['tax_housing'] += d.amount
 
-			if bir_type == "Housing Allowance" and is_taxable:
-				entry['tax_housing'] += d.amount
+				if bir_type == "Other Regular (A)" and is_taxable:
+					entry['other_reg_a'] += d.amount
 
-			if bir_type == "Other Regular (A)" and is_taxable:
-				entry['other_reg_a'] += d.amount
+				if bir_type == "Other Regular (B)" and is_taxable:
+					entry['other_reg_b'] += d.amount
 
-			if bir_type == "Other Regular (B)" and is_taxable:
-				entry['other_reg_b'] += d.amount
+				if bir_type == "Commission" and is_taxable:
+					entry['tax_commission'] += d.amount
 
-			if bir_type == "Commission" and is_taxable:
-				entry['tax_commission'] += d.amount
+				if bir_type == "Profit Sharing" and is_taxable:
+					entry['tax_sharing'] += d.amount
 
-			if bir_type == "Profit Sharing" and is_taxable:
-				entry['tax_sharing'] += d.amount
+				if bir_type == "Fees" and is_taxable:
+					entry['tax_fees'] += d.amount
 
-			if bir_type == "Fees" and is_taxable:
-				entry['tax_fees'] += d.amount
+				if bir_type == "Overtime" and is_taxable:
+					entry['tax_ot'] += d.amount
 
-			if bir_type == "Overtime" and is_taxable:
-				entry['tax_ot'] += d.amount
+				if bir_type == "Hazard" and is_taxable:
+					entry['tax_hazard'] += d.amount
 
-			if bir_type == "Hazard" and is_taxable:
-				entry['tax_hazard'] += d.amount
+				if bir_type == "Other Supplementary (A)" and is_taxable:
+					entry['other_supp_a'] += d.amount
 
-			if bir_type == "Other Supplementary (A)" and is_taxable:
-				entry['other_supp_a'] += d.amount
+				if bir_type == "Other Supplementary (B)" and is_taxable:
+					entry['other_supp_b'] += d.amount
 
-			if bir_type == "Other Supplementary (B)" and is_taxable:
-				entry['other_supp_b'] += d.amount
+				#NON-TAXABLE
+				if bir_type == "Basic" and not is_taxable:
+					entry['ntax_bs'] += d.amount
 
-			#NON-TAXABLE
-			if bir_type == "Basic" and not is_taxable:
-				entry['ntax_bs'] += d.amount
+				if bir_type == "Holiday" and not is_taxable:
+					entry['ntax_ho'] += d.amount
 
-			if bir_type == "Holiday" and not is_taxable:
-				entry['ntax_ho'] += d.amount
+				if bir_type == "Overtime" and not is_taxable:
+					entry['ntax_ot'] += d.amount
 
-			if bir_type == "Overtime" and not is_taxable:
-				entry['ntax_ot'] += d.amount
+				if bir_type == "Night Differential" and not is_taxable:
+					entry['ntax_nd'] += d.amount
 
-			if bir_type == "Night Differential" and not is_taxable:
-				entry['ntax_nd'] += d.amount
+				if bir_type == "Deminimis" and not is_taxable:
+					entry['ntax_demi'] += d.amount
 
-			if bir_type == "Deminimis" and not is_taxable:
-				entry['ntax_demi'] += d.amount
+				if bir_type == "Other" and not is_taxable:
+					entry['ntax_other'] += d.amount
 
-			if bir_type == "Other" and not is_taxable:
-				entry['ntax_other'] += d.amount
-
-			if bir_type == "Hazard" and not is_taxable:
-				entry['ntax_hazard'] += d.amount
-			
-			if bir_type == "Contribution":
-				entry['ntax_contrib'] += d.amount
+				if bir_type == "Hazard" and not is_taxable:
+					entry['ntax_hazard'] += d.amount
+				
+				if bir_type == "Contribution":
+					entry['ntax_contrib'] += d.amount
 
 		return entry
 

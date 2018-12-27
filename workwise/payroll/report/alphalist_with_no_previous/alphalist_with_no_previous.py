@@ -92,94 +92,102 @@ def get_data_with_opening_closing(filters, employees, registers):
 
 def get_employee_wise_register(filters, registers, emp_map):
 	tr_map = get_transaction_map()
+	test_list = []
+
 	for reg in registers:
 		if reg.employee in emp_map:
 			if reg.pay_code in tr_map:
 				total_bonus, tax_income, tax_deduction = 0, 0, 0
 				#GROSS COMPENSATION
-				if tr_map[reg.pay_code]['type'] == "Income":
-					emp_map[reg.employee].gross_compensation += reg.amount
-				
-				#NON-TAXABLE 13TH MONTH & OTHER BENEFITS
-				if tr_map[reg.pay_code]['bir_type'] == "13th Month" and not tr_map[reg.pay_code]['type'] == "None":
-					emp_map[reg.employee].ntax_bonus += reg.amount
 
-				#DEMINIMIS BENEFITS
-				if tr_map[reg.pay_code]['bir_type'] == "Deminimis" and not tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].ntax_deminimis += reg.amount
+				if tr_map[reg.pay_code]['type'] != "None":
+					if tr_map[reg.pay_code]['type'] == "Income":
+						emp_map[reg.employee].gross_compensation += reg.amount
+					
+					#NON-TAXABLE 13TH MONTH & OTHER BENEFITS
+					if tr_map[reg.pay_code]['bir_type'] == "13th Month" :
+						emp_map[reg.employee].ntax_bonus += reg.amount
 
-				# SSS, HDMF, PHIC & UNION DUES
-				if tr_map[reg.pay_code]['bir_type'] == "Contribution":
-					emp_map[reg.employee].ntax_contribution += reg.amount
+					#DEMINIMIS BENEFITS
+					if tr_map[reg.pay_code]['bir_type'] == "Deminimis" and not tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].ntax_deminimis += reg.amount
 
-				#NON-TAXABLE SALARIES AND OTHER OF COMPENSATION
-				if tr_map[reg.pay_code]['bir_type'] == "Other" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].ntax_other += reg.amount
+					# SSS, HDMF, PHIC & UNION DUES + ADD CONTRIBUTIONS to GROSS COMPENSATION
+					if tr_map[reg.pay_code]['bir_type'] == "Contribution":
+						emp_map[reg.employee].ntax_contribution += reg.amount
+						emp_map[reg.employee].gross_compensation += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Hazard" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					#NON-TAXABLE SALARIES AND OTHER OF COMPENSATION
+					if tr_map[reg.pay_code]['bir_type'] == "Other" and not tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].ntax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Overtime" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Hazard" and not tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Night Differential" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Overtime" and not tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				#TAXABLE BASIC SALARY
-				if tr_map[reg.pay_code]['bir_type'] == "Basic" and tr_map[reg.pay_code]['type'] == "Income" and tr_map[reg.pay_code]['is_taxable']:
-					tax_income += reg.amount
-				if tr_map[reg.pay_code]['bir_type'] == "Basic" and tr_map[reg.pay_code]['type'] == "Deduction" and tr_map[reg.pay_code]['is_taxable']:
-					tax_deduction += reg.amount
-				if tr_map[reg.pay_code]['bir_type'] == "Contribution" and tr_map[reg.pay_code]['type'] == "Deduction" and tr_map[reg.pay_code]['is_taxable']:
-					tax_deduction += reg.amount
-				emp_map[reg.employee].tax_basic += tax_income - tax_deduction
+					if tr_map[reg.pay_code]['bir_type'] == "Night Differential" and not tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				#TAXABLE SALARIES AND OTHER OF COMPENSATION
-				if tr_map[reg.pay_code]['bir_type'] == "Other" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].ntax_other += reg.amount
+					#TAXABLE BASIC SALARY
+					if tr_map[reg.pay_code]['bir_type'] == "Basic" and tr_map[reg.pay_code]['type'] == "Income" and tr_map[reg.pay_code]['is_taxable']:
+						tax_income += reg.amount
+					
+					#if tr_map[reg.pay_code]['bir_type'] == "Basic" and tr_map[reg.pay_code]['type'] == "Deduction" and tr_map[reg.pay_code]['is_taxable']:
+					#	tax_deduction += reg.amount
+					
+					#if tr_map[reg.pay_code]['bir_type'] == "Contribution" and tr_map[reg.pay_code]['type'] == "Deduction" and tr_map[reg.pay_code]['is_taxable']:
+					#	tax_deduction += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Hazard" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					emp_map[reg.employee].tax_basic += tax_income - tax_deduction
 
-				if tr_map[reg.pay_code]['bir_type'] == "Overtime" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					#TAXABLE SALARIES AND OTHER OF COMPENSATION
+					if tr_map[reg.pay_code]['bir_type'] == "Other" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].ntax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Night Differential" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Hazard" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Profit Sharing" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Overtime" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Housing Allowance" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Night Differential" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "COLA" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Profit Sharing" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Representation" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Housing Allowance" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Transportation" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "COLA" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Other Regular (A)" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Representation" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Other Regular (B)" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Transportation" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Other Supplementary (A)" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Other Regular (A)" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Other Supplementary (B)" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Other Regular (B)" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
 
-				#TAX DUE
-				if tr_map[reg.pay_code]['bir_type'] == "TAX":
-					emp_map[reg.employee].tax_withheld += reg.amount
+					if tr_map[reg.pay_code]['bir_type'] == "Other Supplementary (A)" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
+
+					if tr_map[reg.pay_code]['bir_type'] == "Other Supplementary (B)" and tr_map[reg.pay_code]['is_taxable']:
+						emp_map[reg.employee].tax_other += reg.amount
+
+					#TAX DUE
+					if tr_map[reg.pay_code]['bir_type'] == "TAX":
+						emp_map[reg.employee].tax_withheld += reg.amount
 			#else:
 			#	frappe.throw("Cannot Generate Alphalist for Year {0} Missing Transaction Type {1} ".format( filters.year, reg.pay_code ))
-
+	#frappe.throw(_(test_list))
 	return emp_map
 
 def get_registers(filters):
@@ -194,7 +202,14 @@ def get_conditions(filters):
 	conditions = []
 
 	if filters.get("employee"):
-		conditions.append("PR.employee=%(employee)s")
+		conditions.append("employee=%(employee)s")
+
+	from_year, to_year = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
+	if from_year:
+		conditions.append( "posting_date >= '{0}' ".format(from_year) )
+
+	if to_year:
+		conditions.append( "posting_date <= '{0}' ".format(to_year) )
 
 	return "and {}".format(" and ".join(conditions)) if conditions else ""
 
