@@ -244,7 +244,7 @@ def get_registers(filters):
 def get_bir_registers(filters):
 	bir_registers = frappe.db.sql("""SELECT BIR.* FROM `tabBIR2316` BIR
 		INNER JOIN `tabEmployee` EMP ON EMP.`name` = BIR.employee 
-		WHERE EMP.company=%(company)s AND document_type = "Previous" AND BIR.payroll_year=%(year)s {conditions} """.format( conditions=get_bir_conditions(filters) ), filters, as_dict=1)
+		WHERE EMP.company=%(company)s AND BIR.document_type = "Previous" AND BIR.payroll_year=%(year)s {conditions} AND BIR.docstatus = 1 """.format( conditions=get_bir_conditions(filters) ), filters, as_dict=1)
 
 	return bir_registers	
 
