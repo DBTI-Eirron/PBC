@@ -206,7 +206,7 @@ def get_conditions(filters):
 	conditions = []
 
 	if filters.get("employee"):
-		conditions.append("PR.employee=%(employee)s")
+		conditions.append("employee=%(employee)s")
 
 	from_year, to_year = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 	if from_year:

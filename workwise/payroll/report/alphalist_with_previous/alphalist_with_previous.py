@@ -168,18 +168,6 @@ def get_employee_wise_register(filters, registers, gross_registers, emp_map, tr_
 				if tr_map[reg.pay_code]['bir_type'] == "Other" and tr_map[reg.pay_code]['is_taxable']:
 					emp_map[reg.employee].tax_other += reg.amount
 
-				if tr_map[reg.pay_code]['bir_type'] == "Other Regular (A)" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
-
-				if tr_map[reg.pay_code]['bir_type'] == "Other Regular (B)" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
-
-				if tr_map[reg.pay_code]['bir_type'] == "Other Supplementary (A)" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
-
-				if tr_map[reg.pay_code]['bir_type'] == "Other Supplementary (B)" and tr_map[reg.pay_code]['is_taxable']:
-					emp_map[reg.employee].tax_other += reg.amount
-
 				#TAXABLE SALARIES AND OTHER OF COMPENSATION
 				if tr_map[reg.pay_code]['bir_type'] == "Hazard" and tr_map[reg.pay_code]['is_taxable']:
 					emp_map[reg.employee].tax_other += reg.amount
