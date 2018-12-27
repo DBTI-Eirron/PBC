@@ -432,11 +432,12 @@ class BIR2316(Document):
 		return entry
 
 	def get_tax_basic(self, e, entry):
-		basic_salary = frappe.db.sql("""SELECT SUM(gross_payroll) as gp FROM `tabPayroll Register`
-			WHERE employee = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
+		basic_salary = frappe.db.sql(""" SELECT PRE.amount FROM `tabPayroll Register` PR 
+			INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
+			WHERE PR.pay_code = "BS" AND PR.employee = %(employee)s AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s """,(e.name, self.from_date, self.to_date), as_dict=True)
 
 		for d in basic_salary:
-			entry['tax_bs'] = d.gp
+			entry['tax_bs'] = d.amount
 
 		return entry
 
