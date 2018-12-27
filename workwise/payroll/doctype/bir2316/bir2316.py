@@ -220,6 +220,7 @@ class BIR2316(Document):
 	def set_summary(self, e, entry):
 		self.get_whtax_info(e, entry)
 		self.get_last_pay(e, entry)
+		self.compute_tax_due(e, entry)
 
 		self.sum_gcipe = flt(self.ntax_total, 2) + flt(self.tax_total, 2)	
 		self.sum_tnt = flt(self.ntax_total, 2)	
@@ -280,12 +281,24 @@ class BIR2316(Document):
 		self.other_supp_a = entry.get('other_supp_a')
 		self.other_supp_b = entry.get('other_supp_b')
 
-		self.compute_total_ntax_and_tax()
+		self.compute_total_ntax_and_tax(entry)
 
-	def compute_total_ntax_and_tax(self):
-		self.ntax_total = flt(self.ntax_bs, 2) + flt(self.ntax_ho, 2) + flt(self.ntax_ot, 2) + flt(self.ntax_nd, 2) + flt(self.ntax_bonus, 2) + flt(self.ntax_demi, 2) + flt(self.ntax_contrib, 2) + flt(self.ntax_other, 2) + flt(self.ntax_hazard, 2)
-		self.tax_total = flt(self.tax_bs, 2) + flt(self.tax_rep, 2) + flt(self.tax_transpo, 2) + flt(self.tax_cola, 2) + flt(self.tax_housing, 2) + flt(self.other_reg_a, 2) + flt(self.other_reg_b, 2) + flt(self.tax_commission, 2) + flt(self.tax_sharing, 2) + flt(self.tax_fees, 2) + flt(self.tax_bonus, 2) + flt(self.tax_ot, 2) + flt(self.tax_hazard, 2) + flt(self.other_supp_a, 2) + flt(self.other_supp_b, 2)
-	
+	def compute_total_ntax_and_tax(self, entry):
+		ntax_total = 0.0
+		tax_total = 0.0
+
+		ntax_total = flt(self.ntax_bs, 2) + flt(self.ntax_ho, 2) + flt(self.ntax_ot, 2) + flt(self.ntax_nd, 2) + flt(self.ntax_bonus, 2) + flt(self.ntax_demi, 2) + flt(self.ntax_contrib, 2) + flt(self.ntax_other, 2) + flt(self.ntax_hazard, 2)
+		tax_total = flt(self.tax_bs, 2) + flt(self.tax_rep, 2) + flt(self.tax_transpo, 2) + flt(self.tax_cola, 2) + flt(self.tax_housing, 2) + flt(self.other_reg_a, 2) + flt(self.other_reg_b, 2) + flt(self.tax_commission, 2) + flt(self.tax_sharing, 2) + flt(self.tax_fees, 2) + flt(self.tax_bonus, 2) + flt(self.tax_ot, 2) + flt(self.tax_hazard, 2) + flt(self.other_supp_a, 2) + flt(self.other_supp_b, 2)
+
+		self.ntax_total = ntax_total
+		self.tax_total = tax_total
+		
+		if self.document_type == "Current":
+			entry['ntax_total'] = ntax_total
+			entry['tax_total'] = tax_total
+
+		return entry
+
 	def load_tax_id(self, e, entry):
 		if self.tax_id:
 			tax_id = self.tax_id.replace("-","")
@@ -523,15 +536,13 @@ class BIR2316(Document):
 			FROM `tabLast Pay Entry` WHERE `employee` = %s AND posting_date >= %s AND posting_date <= %s """,(e.name, self.from_date, self.to_date), as_dict=True)
 		if last_pay:
 			for d in last_pay:
-				entry['sum_td'] += d.tax_due
+				#entry['sum_td'] += d.tax_due
 				total_notyetpaid += d.not_yet_paid
 			if total_notyetpaid <= 0:
 				entry['sum_atw_pres'] = 0.00
 				entry['sum_atw_prev'] = 0.00
 			else:
 				entry['sum_atw_pres'] += total_notyetpaid
-
-		self.td_get_register(e, entry)
 
 		return entry
 
@@ -592,17 +603,24 @@ class BIR2316(Document):
 		return entry
 
 	#GET TAX DUE
-	def td_get_register(self, e, entry):
+	def compute_tax_due(self, e, entry):
+		prev_tax_paid = 0.0
+		prev_total_tax = 0.0
+		prev_bir = frappe.db.sql(""" SELECT DISTINCT `name`, tax_total FROM `tabBIR2316` WHERE `docstatus` = 1 AND `document_type` = "Previous" AND `employee` = %(employee)s  AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s  """,{ 
+			"employee": self.employee,
+			"from_year": self.from_date,
+			"to_year": self.to_date,
+		}, as_dict=True)
 
-		self.td_get_on_hold(e, entry)
-		self.td_get_pro_rated(e, entry)
-		self.td_get_leave_conversion(e, entry)
-		self.td_get_loan(e, entry)
-		self.td_get_previous_bir(e, entry)
-		self.td_get_paid_payroll(e, entry)
-		self.td_compute_summary(e, entry)
+		if prev_bir:
+			for d in prev_bir:
+				if d.name:
+					prev_total_tax += d.tax_total
+				else:
+					break;
 
-	def td_compute_summary(self, e, entry):
+		entry["prev_total_tax"] += prev_total_tax
+		entry["pres_total_tax"] += entry["tax_total"]
 		entry["gross_taxable"] = entry["prev_total_tax"] + entry["pres_total_tax"]
 
 		tax_due = 0.0
@@ -610,7 +628,6 @@ class BIR2316(Document):
 		train_prescribed = 0.0
 		train_percentage = 0.0
 		
-		rates = self.td_get_rates(e)
 		bracket = frappe.db.sql(""" SELECT DISTINCT `compensatory`, `prescribed`, `percentage` FROM `tabTRAIN Table` WHERE `frequency` = "Yearly" AND %(amount)s BETWEEN `beginning` AND `ending` LIMIT 1 """,{
 			"amount": entry["gross_taxable"],
 		}, as_dict=True)
@@ -627,173 +644,4 @@ class BIR2316(Document):
 
 		entry['sum_td'] += tax_due
 
-	#prev_total_tax
-	def td_get_previous_bir(self, e, entry):
-		prev_tax_paid = 0.0
-		prev_total_tax = 0.0
-		prev_bir = frappe.db.sql(""" SELECT DISTINCT `name`, tax_bs+tax_bonus as total_taxable, sum_atw_prev as tax_paid FROM `tabBIR2316` WHERE `docstatus` = 1 AND `document_type` = "Previous" AND `employee` = %(employee)s  AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s  """,{ 
-			"employee": self.employee,
-			"from_year": self.from_date,
-			"to_year": self.to_date,
-		}, as_dict=True)
-
-		if prev_bir:
-			for d in prev_bir:
-				if d.name:
-					prev_total_tax += d.total_taxable
-				else:
-					break;
-
-		entry["prev_total_tax"] += prev_total_tax
-
-	#pres_total_tax
-	def td_get_on_hold(self, e, entry):
-		total_bonus = 0
-		net_payroll = 0.0
-		pres_total_tax = 0.0
-		bonus = frappe.db.sql(""" SELECT period, net_payroll, gross_payroll FROM `tabPayroll Register` WHERE employee = %(employee)s 
-			AND on_hold = 1 AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
-			"employee": self.employee,
-			"from_year": self.from_date,
-			"to_year": self.to_date,
-		}, as_dict=True)
-
-		for d in bonus:
-			pres_total_tax += d.gross_payroll
-
-		entry["pres_total_tax"] += pres_total_tax
-
-	def td_get_paid_payroll(self, e, entry):
-		pres_total_tax = 0.0
-		paid_payroll = frappe.db.sql(""" SELECT period, net_payroll, gross_payroll FROM `tabPayroll Register` WHERE employee = %(employee)s 
-			AND on_hold = 0 AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
-			"employee": self.employee,
-			"from_year": self.from_date,
-			"to_year": self.to_date,
-		}, as_dict=True)
-
-		for d in paid_payroll:
-			pres_total_tax += d.gross_payroll
-
-		entry["pres_total_tax"] += pres_total_tax
-
-	def td_get_pro_rated(self, e, entry):
-		present_days = 0
-		total_bonus = 0
-		remarks = ""
-		rates = self.td_get_rates(e)
-		bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method")
-
-		if bonus_method == "Standard":
-			registerx = frappe.db.sql(""" SELECT schedule, bonus, monthly_rate FROM `tabPayroll Register` WHERE employee = %(employee)s 
-				AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s AND schedule = %(schedule)s """,{ 
-				"employee": self.employee,
-				"from_year": self.from_date,
-				"to_year": self.to_date,
-				"schedule": e.payroll_schedule,
-			}, as_dict=True)
-
-			total_rate = 0.0
-			months = 0.0
-			for d in registerx:
-				if d.schedule == "Semi-Monthly":
-					months += 0.5
-					total_rate = d.monthly_rate
-				if d.schedule == "Monthly":
-					months += 1
-					total_rate = d.monthly_rate
-
-			total_bonus += total_rate * months / 12
-
-		if bonus_method == "Bonus Basis":
-			register = frappe.db.sql(""" SELECT schedule, bonus FROM `tabPayroll Register` WHERE employee = %(employee)s 
-				AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s AND schedule = %(schedule)s """,{ 
-				"employee": self.employee,
-				"from_year": self.from_date,
-				"to_year": self.to_date,
-				"schedule": e.payroll_schedule,
-			}, as_dict=True)
-
-			total_rate = 0.0
-			months = 0.0
-			for d in register:
-				if d.schedule == "Semi-Monthly":
-					months += 0.5
-					total_rate += d.bonus
-				elif d.schedule == "Monthly":
-					months += 1
-					total_rate += d.bonus
-
-			total_bonus += total_rate / 12
-
-		if bonus_method == "Attendance Base":
-			att = frappe.db.sql(""" SELECT bonus, present_days FROM `tabPayroll Register` WHERE employee = %(employee)s AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
-				"employee": self.employee,
-				"from_year": self.from_date,
-				"to_year": self.to_date,
-			}, as_dict=True)
-			present_days = 0
-			for d in att:
-				present_days += d.present_days
-
-			total_bonus = ( present_days / e.get('total_yr_days')) * flt(rates.get('monthly_rate'), 8)
-
-		entry["pres_total_tax"] += total_bonus
-
-	def td_get_loan(self, e, entry):
-		total = 0
-		loans = frappe.db.sql(""" SELECT * FROM `tabLoan Application` WHERE employee = %(employee)s """,{ 
-			"employee": self.employee,
-		}, as_dict=True)
-
-		for d in loans:
-			total += d.unpaid_amount
-
-		entry["pres_total_tax"] -= total
-
-	def td_get_leave_conversion(self, e, entry):
-		rates = self.td_get_rates(e)
-		convertible_leaves = frappe.db.sql(""" SELECT leave_name, leave_code FROM `tabLeave Type` WHERE convertible = 1 """, as_dict=True)
-		for d in convertible_leaves:
-			total_amt = 0
-			balances = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE employee = %(employee)s AND leave_type = %(leave_type)s """,{ 
-				"employee": self.employee,
-				"leave_type": d.leave_name,
-			}, as_dict=True)
-			for b in balances:
-				credits = (b.credits - b.used_credits)
-				total_amt += rates.get('daily_rate') * (credits)
-
-			entry["pres_total_tax"] += total_amt
-
-	def td_get_rates(self, e):
-		monthly_rate = 0.0
-		hourly_rate = 0.0
-		semi_rate = 0.0
-		daily_rate = 0.0
-		if e.rate > 0 and e.total_yr_days > 0 and e.no_hours > 0:
-			month_days = (flt(e.total_yr_days, 8) / 12)
-			if e.rate_type == "Monthly Rate":
-				monthly_rate = flt(e.rate, 8)
-				semi_rate = flt(e.rate, 8) / 2
-				daily_rate = flt(e.rate, 8) / month_days
-				hourly_rate = ( flt(e.rate, 8) / month_days ) / e.no_hours
-
-			elif e.rate_type == "Hourly Rate":
-				monthly_rate = ( flt(e.rate, 8) * e.no_hours ) * month_days
-				semi_rate = ( flt(e.rate, 8) * e.no_hours ) * (month_days / 2)
-				daily_rate = flt(e.rate, 8) * e.no_hours
-				hourly_rate = flt(e.rate, 8)
-
-			elif e.rate_type == "Daily Rate":
-				monthly_rate = flt(e.rate, 8) * month_days
-				semi_rate = flt(e.rate, 8) * (month_days / 2)
-				daily_rate = flt(e.rate, 8)
-				hourly_rate = flt(e.rate, 8) / e.no_hours
-
-		return {
-			"monthly_rate": monthly_rate,
-			"semi_rate": semi_rate,
-			"daily_rate": daily_rate,
-			"hourly_rate": flt(hourly_rate, 8)
-		}
+		return entry
