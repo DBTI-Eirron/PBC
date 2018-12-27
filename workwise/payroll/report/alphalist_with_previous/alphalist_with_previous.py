@@ -22,18 +22,19 @@ def execute(filters=None):
 
 def get_result(filters, employees):
 	registers = get_registers(filters)
+	gross_registers = get_gross_registers(filters)
 	bir_registers = get_bir_registers(filters)
 
-	data = get_data_with_opening_closing(filters, employees, registers, bir_registers)
+	data = get_data_with_opening_closing(filters, employees, registers, gross_registers, bir_registers)
 	result = get_result_as_list(data, filters)
 
 	return result
 
-def get_data_with_opening_closing(filters, employees, registers, bir_registers):
+def get_data_with_opening_closing(filters, employees, registers, gross_registers, bir_registers):
 	data = []
 	tr_map = get_transaction_map()
 	emp_map = init_register_map(registers, employees)
-	emp_map = get_employee_wise_register(filters, registers, emp_map, tr_map)
+	emp_map = get_employee_wise_register(filters, registers, gross_registers, emp_map, tr_map)
 	emp_map = get_employee_wise_bir(filters, bir_registers, emp_map, tr_map)
 
 	get_headers(filters, data)
@@ -46,8 +47,6 @@ def get_data_with_opening_closing(filters, employees, registers, bir_registers):
 		prev_ntax_bonus, prev_tax_bonus, prev_ntax_total = 0, 0, 0
 		prev_ntax_total = (emp_dict.prev_ntax_bonus + emp_dict.prev_ntax_deminimis + emp_dict.prev_ntax_contribution + emp_dict.prev_ntax_other)
 		prev_tax_total = (prev_tax_bonus + emp_dict.prev_tax_basic + emp_dict.prev_tax_other)
-		#(4j=4g+4h+4i)
-
 
 		#PRESENT
 		ntax_bonus, tax_bonus, ntax_total = 0, 0, 0
@@ -114,14 +113,19 @@ def get_data_with_opening_closing(filters, employees, registers, bir_registers):
 
 	return data
 
-def get_employee_wise_register(filters, registers, emp_map, tr_map):
+def get_employee_wise_register(filters, registers, gross_registers, emp_map, tr_map):
+	for gross in gross_registers:
+		if gross.employee in emp_map:
+			#GROSS COMPENSATION
+			emp_map[gross.employee].gross_compensation += gross.gross_payroll
+
 	for reg in registers:
 		if reg.employee in emp_map:
 			if reg.pay_code in tr_map:
 				total_bonus, tax_income, tax_deduction = 0, 0, 0
 				#GROSS COMPENSATION
-				if tr_map[reg.pay_code]['type'] == "Income":
-					emp_map[reg.employee].gross_compensation += reg.amount
+				#if tr_map[reg.pay_code]['type'] == "Income":
+				#	emp_map[reg.employee].gross_compensation += reg.amount
 				
 				#NON-TAXABLE 13TH MONTH & OTHER BENEFITS
 				if tr_map[reg.pay_code]['bir_type'] == "13th Month" and not tr_map[reg.pay_code]['type'] == "None":
@@ -241,6 +245,12 @@ def get_registers(filters):
 
 	return registers
 
+def get_gross_registers(filters):
+	gross_registers = frappe.db.sql("""SELECT name, employee, gross_payroll FROM `tabPayroll Register`
+		WHERE company=%(company)s AND schedule=%(schedule)s {conditions} """.format( conditions=get_conditions(filters) ), filters, as_dict=1)
+
+	return gross_registers
+
 def get_bir_registers(filters):
 	bir_registers = frappe.db.sql("""SELECT BIR.* FROM `tabBIR2316` BIR
 		INNER JOIN `tabEmployee` EMP ON EMP.`name` = BIR.employee 
@@ -252,14 +262,14 @@ def get_conditions(filters):
 	conditions = []
 
 	if filters.get("employee"):
-		conditions.append("PR.employee=%(employee)s")
+		conditions.append("employee=%(employee)s")
 
 	from_year, to_year = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 	if from_year:
-		conditions.append( "PR.posting_date>= '{0}' ".format(from_year) )
+		conditions.append( "posting_date >= '{0}' ".format(from_year) )
 
 	if to_year:
-		conditions.append( "PR.posting_date<= '{0}' ".format(to_year) )
+		conditions.append( "posting_date <= '{0}' ".format(to_year) )
 
 	return "and {}".format(" and ".join(conditions)) if conditions else ""
 
