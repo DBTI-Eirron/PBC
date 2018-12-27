@@ -147,6 +147,11 @@ def get_data():
 			"items": [
 				{
 					"type": "report",
+					"name": "Alphalist With Previous",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "Alphalist With No Previous",	
 					"is_query_report": True
 				},

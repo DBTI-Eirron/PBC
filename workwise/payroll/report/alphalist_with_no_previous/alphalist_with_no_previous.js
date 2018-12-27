@@ -19,10 +19,25 @@ frappe.query_reports["Alphalist With No Previous"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "schedule",
+			"label": __("Schedule"),
+			"fieldtype": "Select",
+			"options": "\nSemi-Monthly\nMonthly\nWeekly",
+			"reqd": 1
+		},
+		{
 			"fieldname": "employee",
 			"label": __("Employee"),
 			"fieldtype": "Link",
 			"options": "Employee",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company
+					}
+				};
+			}
 		},	
 	]
 }
