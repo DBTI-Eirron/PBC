@@ -249,7 +249,7 @@ def get_overtime(entry, ot_apps):
 						"linked_ot": d.name,
 						"ot_tag": "",
 					})
-					ot_hrs += ot_ex
+					#ot_hrs += ot_ex
 				total_ot += ot_hrs
 
 	for l in ot_list:
