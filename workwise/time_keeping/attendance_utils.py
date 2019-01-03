@@ -263,16 +263,16 @@ def get_overtime(entry, ot_apps):
 	entry['overtime'] = total_ot
 	return entry
 
-def get_ndiff(entry):	
-	#late nightdiff and Get Night Diff Datetime based from time
-	if entry.get('nd_start') and entry.get('nd_end') and frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
+def get_ndiff(entry):
+	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
+		#get nightdiff start and end
 		nd_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) )
 		nd_end = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
 		if entry.get('nd_start') > entry.get('nd_end'):
 			nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )		
 
 		#normal nightdiff
-		if entry.get('time_in') >= nd_start:	
+		if entry.get('time_out') >= nd_start:
 			if entry.get('card_in') and entry.get('card_out'):
 				if entry.get('card_out') > nd_start:
 					entry['nightdiff'] = abs((entry.get('card_out') - nd_start).total_seconds())
@@ -287,6 +287,8 @@ def get_ndiff(entry):
 					entry['nightdiff'] = abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())
 				else:
 					entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())	
+
+		
 
 		#else:
 		#	#get normal ot if approved nightdiff OT
@@ -638,6 +640,9 @@ def get_tags(entry):
 		entry["tags"] += " <span class='label label-danger'> Approved Undertime </span> "
 	elif entry.get('undertime') > 0:
 		entry["tags"] += " <span class='label label-danger'> Undertime </span> "
+
+	if entry.get('nightdiff') > 0:
+		entry["tags"] += " <span class='label label-info'> Nightdiff </span> "
 
 	entry["tags"] += " <span class='label label-success'> Excused Tardiness </span> " if entry.get('ex_tardiness') else ""
 	entry["tags"] += " <span class='label label-danger'> Absent </span> " if entry['is_absent'] == 1 else ""
