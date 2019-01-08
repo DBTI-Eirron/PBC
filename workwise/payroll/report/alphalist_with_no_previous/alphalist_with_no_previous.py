@@ -8,7 +8,8 @@ from frappe import _
 from workwise.payroll.payroll_utils import get_transaction_map
 
 def execute(filters=None):
-	employees = frappe.db.sql("""select `name`, tin, full_name from tabEmployee WHERE company = %(company)s and payroll_schedule = %(schedule)s {conditions} and `name` NOT IN (SELECT DISTINCT employee FROM `tabBIR2316` WHERE document_type = "Previous" AND docstatus = 1) ORDER BY full_name ASC """.format( conditions=get_employee_conditions(filters) ), filters, as_dict=1)
+	employees = frappe.db.sql("""select `name`, tin, full_name from tabEmployee WHERE company = %(company)s AND payroll_schedule = %(schedule)s {conditions} 
+		AND `name` NOT IN (SELECT DISTINCT employee FROM `tabBIR2316` WHERE document_type = "Previous" AND docstatus = 1) ORDER BY full_name ASC """.format( conditions=get_employee_conditions(filters) ), filters, as_dict=1)
 	pay_from, pay_to = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 
 	if not filters: filters = frappe._dict({})
@@ -35,18 +36,19 @@ def get_data_with_opening_closing(filters, employees, registers):
 	seq = 0
 	for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 		seq += 1
-		ntax_bonus, tax_bonus, tax_due = 0, 0, 0
+		ntax_benefits, tax_benefits, tax_due, adj_tax = 0, 0, 0, 0
 		ntax_total = 0
 		amt_withheld, over_withheld = 0, 0
 		
-		if emp_dict.ntax_bonus > 90000:
-			ntax_bonus = 90000
-			tax_bonus = (emp_dict.ntax_bonus - 90000)
+		if emp_dict.ntax_benefits > 90000:
+			ntax_benefits = 90000
+			tax_benefits = (emp_dict.ntax_benefits - 90000)
 		else:
-			ntax_bonus = emp_dict.ntax_bonus
+			ntax_benefits = emp_dict.ntax_benefits
 
-		ntax_total = (ntax_bonus + emp_dict.ntax_deminimis + emp_dict.ntax_contribution + emp_dict.ntax_other)
-		tax_total = (tax_bonus + emp_dict.tax_basic + emp_dict.tax_other)
+		ntax_total = (ntax_benefits + emp_dict.ntax_deminimis + emp_dict.ntax_contribution + emp_dict.ntax_other)
+		tax_total = (tax_benefits + emp_dict.tax_basic + emp_dict.tax_other)
+		gross_compensation = ntax_total + tax_total
 
 		table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
 			WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(( tax_total ), ( tax_total ), 'Yearly'), as_dict=True )
@@ -59,135 +61,102 @@ def get_data_with_opening_closing(filters, employees, registers):
 		withheld = tax_due - emp_dict.tax_withheld
 		if withheld > 1:
 			amt_withheld = abs(withheld)
+			adj_tax = emp_dict.tax_withheld + amt_withheld
 		else:	
 			over_withheld = abs(withheld)
+			adj_tax = tax_due - over_withheld
 
-		data.append({
-			"1": seq,
-			"2": emp_dict.tin,
-			"3": emp_dict.employee_name,
-			"4a": '{:0,.2f}'.format( emp_dict.gross_compensation ),
-			"4b": '{:0,.2f}'.format( ntax_bonus ),
-			"4c": '{:0,.2f}'.format( emp_dict.ntax_deminimis ),
-			"4d": '{:0,.2f}'.format( emp_dict.ntax_contribution ),
-			"4e": '{:0,.2f}'.format( emp_dict.ntax_other ),
-			"4f": '{:0,.2f}'.format( ntax_total ),  
-			"4g": '{:0,.2f}'.format( emp_dict.tax_basic ),
-			"4h": '{:0,.2f}'.format( tax_bonus ),
-			"4i": '{:0,.2f}'.format( emp_dict.tax_other ),
-			"4j": '{:0,.2f}'.format( tax_total ),
-			"5a":  "",
-			"5b": '{:0,.2f}'.format( 0.0 ),
-			"6a": '{:0,.2f}'.format( 0.0 ),
-			"5":  '{:0,.2f}'.format( tax_total ),
-			"6b": '{:0,.2f}'.format( tax_due ),
-			"7": '{:0,.2f}'.format( emp_dict.tax_withheld ),
-			"8a": '{:0,.2f}'.format( amt_withheld ),
-			"8b": '{:0,.2f}'.format( over_withheld ),
-			"9": '{:0,.2f}'.format( emp_dict.tax_withheld - 0.0 ),
-			"10": "",
-		})
+		if gross_compensation > 250000:
+			data.append({
+				"1": seq,
+				"2": emp_dict.tin,
+				"3": emp_dict.employee_name,
+				"4a": '{:0,.2f}'.format( gross_compensation ),
+				"4b": '{:0,.2f}'.format( ntax_benefits ),
+				"4c": '{:0,.2f}'.format( emp_dict.ntax_deminimis ),
+				"4d": '{:0,.2f}'.format( emp_dict.ntax_contribution ),
+				"4e": '{:0,.2f}'.format( emp_dict.ntax_other ),
+				"4f": '{:0,.2f}'.format( ntax_total ),  
+				"4g": '{:0,.2f}'.format( emp_dict.tax_basic ),
+				"4h": '{:0,.2f}'.format( tax_benefits ),
+				"4i": '{:0,.2f}'.format( emp_dict.tax_other ),
+				"4j": '{:0,.2f}'.format( tax_total ),
+				"5a":  "",
+				"5b": '{:0,.2f}'.format( 0.0 ),
+				"6a": '{:0,.2f}'.format( 0.0 ),
+				"5":  '{:0,.2f}'.format( tax_total ),
+				"6b": '{:0,.2f}'.format( tax_due ),
+				"7": '{:0,.2f}'.format( emp_dict.tax_withheld ),
+				"8a": '{:0,.2f}'.format( amt_withheld ),
+				"8b": '{:0,.2f}'.format( over_withheld ),
+				"9": '{:0,.2f}'.format( abs(adj_tax) ),
+				"10": "",
+			})
 
 	return data
 
 def get_employee_wise_register(filters, registers, emp_map):
 	tr_map = get_transaction_map()
 	test_list = []
-
 	for reg in registers:
 		if reg.employee in emp_map:
 			if reg.pay_code in tr_map:
-				total_bonus, tax_income, tax_deduction = 0, 0, 0
-				#GROSS COMPENSATION
-
-				if tr_map[reg.pay_code]['type'] != "None":
+				tax_basic, tax_other, tax_other = 0, 0, 0
+				total_benefits, tax_income, tax_deduction = 0, 0, 0
+				btype = tr_map[reg.pay_code]['bir_type']
+				_type = tr_map[reg.pay_code]['type'] 
+				if _type != "None":
+					#GROSS COMPENSATION
 					if tr_map[reg.pay_code]['type'] == "Income":
 						emp_map[reg.employee].gross_compensation += reg.amount
 					
 					#NON-TAXABLE 13TH MONTH & OTHER BENEFITS
 					if tr_map[reg.pay_code]['bir_type'] == "13th Month" :
-						emp_map[reg.employee].ntax_bonus += reg.amount
+						emp_map[reg.employee].ntax_benefits += reg.amount
 
 					#DEMINIMIS BENEFITS
-					if tr_map[reg.pay_code]['bir_type'] == "Deminimis" and not tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].ntax_deminimis += reg.amount
+					if (btype == "Deminimis") and not tr_map[reg.pay_code]['is_taxable']:
+						if _type == "Income":
+							emp_map[reg.employee].ntax_deminimis += reg.amount
+						else:
+							emp_map[reg.employee].ntax_deminimis -= reg.amount						
 
-					# SSS, HDMF, PHIC & UNION DUES + ADD CONTRIBUTIONS to GROSS COMPENSATION
-					if tr_map[reg.pay_code]['bir_type'] == "Contribution":
-						emp_map[reg.employee].ntax_contribution += reg.amount
-						emp_map[reg.employee].gross_compensation += reg.amount
+					# SSS, HDMF, PHIC & UNION DUES + ADD CONTRIBUTIONS to GROSS COMPENSATION NOTE: reg.amount FORMULA
+					if (btype == "Contribution") and tr_map[reg.pay_code]['is_taxable']:
+						if _type == "Income":
+							emp_map[reg.employee].ntax_contribution -= reg.amount
+						else:
+							emp_map[reg.employee].ntax_contribution += reg.amount
 
 					#NON-TAXABLE SALARIES AND OTHER OF COMPENSATION
-					if tr_map[reg.pay_code]['bir_type'] == "Other" and not tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].ntax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Hazard" and not tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Overtime" and not tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Night Differential" and not tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
+					if (btype == "Other" or btype == "Hazard" or btype == "Overtime" or btype == "Night Differential" ) and \
+						not tr_map[reg.pay_code]['is_taxable']:
+							if _type == "Income":
+								emp_map[reg.employee].ntax_other += reg.amount
+							else:
+								emp_map[reg.employee].ntax_other -= reg.amount
 
 					#TAXABLE BASIC SALARY
-					if tr_map[reg.pay_code]['bir_type'] == "Basic" and tr_map[reg.pay_code]['type'] == "Income" and tr_map[reg.pay_code]['is_taxable']:
-						tax_income += reg.amount
-					
-					#if tr_map[reg.pay_code]['bir_type'] == "Basic" and tr_map[reg.pay_code]['type'] == "Deduction" and tr_map[reg.pay_code]['is_taxable']:
-					#	tax_deduction += reg.amount
-					
-					#if tr_map[reg.pay_code]['bir_type'] == "Contribution" and tr_map[reg.pay_code]['type'] == "Deduction" and tr_map[reg.pay_code]['is_taxable']:
-					#	tax_deduction += reg.amount
-
-					emp_map[reg.employee].tax_basic += tax_income - tax_deduction
+					if (btype == "Basic" or btype == "Overtime" or btype == "Holiday" or btype == "Night Differential" or btype == "Contribution") and \
+						tr_map[reg.pay_code]['is_taxable']:
+							if _type == "Income":
+								emp_map[reg.employee].tax_basic += reg.amount
+							else:
+								emp_map[reg.employee].tax_basic -= reg.amount
 
 					#TAXABLE SALARIES AND OTHER OF COMPENSATION
-					if tr_map[reg.pay_code]['bir_type'] == "Other" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].ntax_other += reg.amount
+					if (btype == "Other" or btype == "Hazard" or btype == "Profit Sharing" or btype == "Housing Allowance" or btype == "COLA" or btype == "Representation" or \
+						btype == "Transportation" or btype == "Other Regular (A)" or btype == "Other Regular (B)" or \
+						btype == "Other Supplementary (A)" or btype == "Other Supplementary (B)" ) and tr_map[reg.pay_code]['is_taxable']:
+							if _type == "Income":
+								emp_map[reg.employee].tax_other += reg.amount
+							else:
+								emp_map[reg.employee].tax_other -= reg.amount
 
-					if tr_map[reg.pay_code]['bir_type'] == "Hazard" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Overtime" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Night Differential" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Profit Sharing" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Housing Allowance" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "COLA" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Representation" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Transportation" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Other Regular (A)" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Other Regular (B)" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Other Supplementary (A)" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					if tr_map[reg.pay_code]['bir_type'] == "Other Supplementary (B)" and tr_map[reg.pay_code]['is_taxable']:
-						emp_map[reg.employee].tax_other += reg.amount
-
-					#TAX DUE
-					if tr_map[reg.pay_code]['bir_type'] == "TAX":
+					#TAX WITHHELD
+					if btype == "TAX":
 						emp_map[reg.employee].tax_withheld += reg.amount
-			#else:
-			#	frappe.throw("Cannot Generate Alphalist for Year {0} Missing Transaction Type {1} ".format( filters.year, reg.pay_code ))
-	#frappe.throw(_(test_list))
+
 	return emp_map
 
 def get_registers(filters):
@@ -232,14 +201,14 @@ def init_register_map(registers, employees):
 				"employee_name": emp.full_name,
 				"gross_compensation": 0,
 				#NON-TAXABLE
-				"ntax_bonus": 0,
+				"ntax_benefits": 0,
 				"ntax_deminimis": 0,
 				"ntax_contribution": 0,
 				"ntax_other": 0,
 				"ntax_total": 0,
 				#TAXABLE
 				"tax_basic": 0,
-				"tax_bonus": 0,
+				"tax_benefits": 0,
 				"tax_other": 0,
 				"tax_total": 0,
 				#EXEMPTION
