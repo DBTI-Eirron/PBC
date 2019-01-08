@@ -15,10 +15,10 @@ class LeaveBalance(Document):
 
 	def validate_range(self):
 		from_exist = frappe.db.sql("""SELECT `name` FROM `tabLeave Balance` WHERE `name`!= %s AND employee = %s 
-			AND leave_type = %s AND from_date >= %s <= to_date """, (self.name, self.employee, self.leave_type, self.from_date))
+			AND leave_type = %s AND (%s BETWEEN from_date AND to_date) """, (self.name, self.employee, self.leave_type, self.from_date))
 
 		to_exist = frappe.db.sql("""SELECT `name` FROM `tabLeave Balance` WHERE `name`!= %s AND employee = %s 
-			AND leave_type = %s AND from_date >= %s <= to_date """, (self.name, self.employee, self.leave_type, self.to_date))
+			AND leave_type = %s AND (%s BETWEEN from_date AND to_date) """, (self.name, self.employee, self.leave_type, self.to_date))
 
 		if from_exist:
 			frappe.throw(_("Leave Balance Already Exist for From Date"))
