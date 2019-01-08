@@ -64,7 +64,7 @@ def get_data_with_opening_closing(filters, employees, registers):
 			adj_tax = emp_dict.tax_withheld + amt_withheld
 		else:	
 			over_withheld = abs(withheld)
-			adj_tax = tax_due - over_withheld
+			adj_tax = emp_dict.tax_withheld - over_withheld
 
 		if gross_compensation > 250000:
 			data.append({

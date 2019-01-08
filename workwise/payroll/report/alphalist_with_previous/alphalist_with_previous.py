@@ -77,10 +77,10 @@ def get_data_with_opening_closing(filters, employees, registers, bir_registers):
 		withheld = tax_due - ( emp_dict.tax_withheld + emp_dict.prev_tax_withheld)
 		if withheld > 1:
 			amt_withheld = abs(withheld)
-			adj_tax = emp_dict.tax_withheld + amt_withheld
+			adj_tax = ( emp_dict.tax_withheld + emp_dict.prev_tax_withheld) + amt_withheld
 		else:	
 			over_withheld = abs(withheld)
-			adj_tax = tax_due - over_withheld
+			adj_tax = ( emp_dict.tax_withheld + emp_dict.prev_tax_withheld) - over_withheld
 
 
 		#APPEND DATA
