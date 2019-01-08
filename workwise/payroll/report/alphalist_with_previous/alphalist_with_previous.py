@@ -187,7 +187,7 @@ def get_employee_wise_bir(filters, bir_registers, emp_map, tr_map):
 	for reg in bir_registers:
 		if reg.employee in emp_map:
 			#NON-TAXABLE 13TH MONTH AND OTHER BENEFITS
-			emp_map[reg.employee].prev_ntax_benefits += reg.ntax_benefits
+			emp_map[reg.employee].prev_ntax_benefits += reg.ntax_bonus
 			# SSS, HDMF, PHIC & UNION DUES
 			emp_map[reg.employee].prev_ntax_contribution += reg.ntax_contrib
 			#DEMINIMIS BENEFITS
@@ -203,7 +203,7 @@ def get_employee_wise_bir(filters, bir_registers, emp_map, tr_map):
 			#TAXABLE BASIC SALARY
 			emp_map[reg.employee].prev_tax_basic += reg.tax_bs 
 			#TAXABLE 13TH MONTH AND OTHER BENEFITS
-			emp_map[reg.employee].prev_tax_benefits += reg.tax_benefits
+			emp_map[reg.employee].prev_tax_benefits += reg.tax_bonus
 			#TAXABLE SALARIES AND OTHER OF COMPENSATION
 			emp_map[reg.employee].prev_tax_other += reg.tax_rep 
 			emp_map[reg.employee].prev_tax_other += reg.tax_transpo 
