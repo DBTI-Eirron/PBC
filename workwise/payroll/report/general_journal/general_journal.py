@@ -122,8 +122,8 @@ def get_data(filters):
 
 		data.append({
 				"account_name": _("TOTAL"),
-				"debit": total_debit,
-				"credit": total_credit,
+				"debit": '{:,.2f}'.format(total_debit),
+				"credit": '{:,.2f}'.format(total_credit),
 			})
 
 	return data
@@ -134,8 +134,8 @@ def get_result_as_list(data, filters):
 		row = {
 			"account_name": d.get("account_name"),
 			"account_code": d.get("account_code"),
-			"debit": '{:,.2f}'.format(d.get("debit")),
-			"credit": '{:,.2f}'.format(d.get("credit")),
+			"debit": d.get("debit"),
+			"credit": d.get("credit"),
 		}
 		
 		result.append(row)
