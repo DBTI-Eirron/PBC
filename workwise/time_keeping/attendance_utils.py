@@ -1126,6 +1126,7 @@ def get_defaults(emp, sched, shift_map):
 		"ot_start_delay": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_start_delay'), 8),
 		"ot_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_interval'), 8),
 		"late_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'late_interval'), 8),
+		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
 	}
 	return entry
 
