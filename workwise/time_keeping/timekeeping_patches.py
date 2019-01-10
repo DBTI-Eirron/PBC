@@ -23,6 +23,9 @@ def oba_update_table():
 	frappe.db.sql("""UPDATE `tabOfficial Business Application Table` SET travel_time = travel_time, hrs = hrs, target_date = target_date, `date` = `target_date`, from_time = from_time, to_time = to_time, is_holiday = is_holiday, is_excluded = is_excluded, is_previous = 0 WHERE `date` IS NULL AND docstatus != 2 """)
 	frappe.db.commit()
 
+	frappe.db.sql("""UPDATE `tabOfficial Business Application Table`  SET `to_date` = `date` WHERE to_date IS NULL """)
+	frappe.db.commit()
+
 #DELETE COMPANY RECORDS
 def qetquery_delete_company_records():
 	query_list = []
