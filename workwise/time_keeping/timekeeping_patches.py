@@ -26,6 +26,7 @@ def oba_update_table():
 	frappe.db.sql("""UPDATE `tabOfficial Business Application Table`  SET `to_date` = `date` WHERE to_date IS NULL """)
 	frappe.db.commit()
 
+def oba_trigger_save():
 	oba = frappe.db.sql(""" SELECT `name` FROM `tabOfficial Business Application` WHERE docstatus = 0 AND workflow_state = "Pending" """, as_dict=1)
 	for b in oba:
 		application = frappe.get_doc("Official Business Application", b.name)
