@@ -42,8 +42,35 @@ def get_columns(filters):
 		},
 	]
 
+	if filters.bank == "EastWest Bank":
+		columns = [
+			{
+				"fieldname": "hdr",
+				"label": _("HDR"),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "account_number",
+				"label": _("Account Number"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "amount",
+				"label": _("Amount"),
+				"fieldtype": "Currency",
+				"width": 120
+			},
+			{
+				"fieldname": "remarks",
+				"label": _("Remarks"),
+				"fieldtype": "Data",
+				"width": 250
+			},
+		]
+
 	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI" :
-		columns = []
 		columns = [
 			{
 				"fieldname": "detail",
@@ -125,13 +152,17 @@ def get_result(filters):
 def get_net_pay(filters):
 	if not "Administrator" in frappe.get_roles(frappe.session.user):
 		document = frappe.db.sql(""" SELECT DISTINCT
+			TE.last_name,
+			TE.first_name,
+			TE.middle_name,
 			BT.employee,
 			BT.employee_name,
 			BT.employee_account,
 			BT.amount,
 			BT.remarks,
 			BR.payroll_time,
-			BR.payroll_schedule
+			BR.payroll_schedule,
+			BR.funding_account
 			FROM
 			`tabBank Remittance Setup` BR
 			JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
@@ -145,6 +176,9 @@ def get_net_pay(filters):
 		}, as_dict=True)
 	else:
 		document = frappe.db.sql(""" SELECT DISTINCT
+			TE.last_name,
+			TE.first_name,
+			TE.middle_name,
 			BT.employee,
 			BT.employee_name,
 			BT.employee_account,
@@ -180,6 +214,7 @@ def get_result_as_list(data, filters):
 	total_amount = 0.00
 	payroll_schedule = ""
 	payroll_time = ""
+	funding_account = ""
 
 	for d in data:
 		if d.amount < 1:
@@ -191,36 +226,20 @@ def get_result_as_list(data, filters):
 			payroll_schedule = d.payroll_schedule
 			payroll_time = d.payroll_time
 
-	if data:
-		if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
-			if filters.include_header:
-				payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
-
-				if payroll_time == "Pay Now":
-					payroll_time = ""
-				else:
-					payroll_time = payroll_schedule
-
-				headers = [
-					{
-						"detail": "H",
-						"employee_name": "Payroll Date",
-						"employee_account": datetime.datetime.strftime(payroll_date, "%B %d, %Y"),
-						"amount": "Payroll Time",
-						"remarks": payroll_time,
-						"lbl_total_amount": "Total Amount",
-						"total_amount": '{:,.2f}'.format(total_amount),
-						"lbl_total_count": "Total Count",
-						"total_count": total_count,
-						"lbl_funding_account": "Funding Account",
-						"funding_account": d.funding_account,
-					},
-				]
-
-				for h in headers:
-					result.append(h)
+		funding_account = d.funding_account
 
 	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
+		if filters.include_header:
+			payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
+
+			if payroll_time == "Pay Now":
+				payroll_time = ""
+			else:
+				payroll_time = payroll_schedule
+
+			headers = ["H", "Payroll Date", datetime.datetime.strftime(payroll_date, "%B %d, %Y"), "Payroll Time", payroll_time, "Total Amount", '{:,.2f}'.format(total_amount), "Total Count", total_count, "Funding Account", funding_account]
+			result.append(headers)
+
 		fields = {
 			"detail": "DETAIL CONSTANT",
 			"employee_name": "EMPLOYEE NAME",
@@ -231,23 +250,59 @@ def get_result_as_list(data, filters):
 
 		result.append(fields)
 
-	for d in data:
-		row = {
-			"detail": "D",
-			"employee_name": d.get("employee_name"),
-			"employee_account": d.get("employee_account"),
-			"amount": '{:,.2f}'.format(d.get("amount")),
-			"remarks": d.get("remarks"),
-		}
+		for d in data:
+			row = {
+				"detail": "D",
+				"employee_name": d.get("employee_name"),
+				"employee_account": d.get("employee_account"),
+				"amount": '{:,.2f}'.format(d.get("amount")),
+				"remarks": d.get("remarks"),
+			}
 
-		result.append(row)
-
-	if filters.bank != "Bank of the Philippine Islands" and filters.bank != "BPI":
+			result.append(row)
 
 		total = {
 			"amount": '{:,.2f}'.format(total_amount),
 			"employee": "TOTAL",
 			"employee_name": total_count
+		}
+
+		result.append(total)
+
+	elif filters.bank == "EastWest Bank":
+		for d in data:
+			row = {
+				"hdr": "DTL",
+				"account_number": d.get("employee_account"),
+				"amount": '{:,.2f}'.format(d.get("amount")),
+				"remarks": str(d.get("last_name"))+", "+str(d.get("first_name"))+", "+str(d.get("middle_name")),
+			}
+			result.append(row)
+
+		total = {
+			"hdr": "TLR",
+			"account_number": total_count,
+			"amount": '{:,.2f}'.format(total_amount),
+			"remarks": "",
+		}
+		result.append(total)
+
+	else:
+		for d in data:
+			row = {
+				"employee": d.get("employee"),
+				"employee_name": d.get("employee_name"),
+				"amount": '{:,.2f}'.format(d.get("amount")),
+				"remarks": d.get("remarks"),
+			}
+
+			result.append(row)
+
+		total = {
+			"employee": "TOTAL",
+			"employee_name": total_count,
+			"amount": '{:,.2f}'.format(total_amount),
+			"remarks": "",
 		}
 
 		result.append(total)
