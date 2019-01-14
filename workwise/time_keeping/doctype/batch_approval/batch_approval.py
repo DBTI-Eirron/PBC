@@ -54,6 +54,7 @@ class BatchApproval(Document):
 					"approved_by": frappe.session.user,
 					"approved_on": nowdate(),
 				})
+				application.save()
 				application.submit()
 			if b.action == "Rejected":
 				frappe.db.sql("""UPDATE """+table+""" SET docstatus = 2, workflow_state = "Rejected" WHERE `name` = %s """, (b.application))
