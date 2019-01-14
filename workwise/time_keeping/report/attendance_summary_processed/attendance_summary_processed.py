@@ -88,6 +88,18 @@ def get_columns(filters):
 			"width": 60
 		},
 		{
+			"fieldname": "overtime_nd",
+			"label": _("OT ND"),
+			"fieldtype": "Float",
+			"width": 60
+		},
+		{
+			"fieldname": "overtime_ex",
+			"label": _("OT EX"),
+			"fieldtype": "Float",
+			"width": 60
+		},
+		{
 			"fieldname": "nightdiff",
 			"label": _("ND"),
 			"fieldtype": "Float",
@@ -152,6 +164,8 @@ def get_data(filters):
 			total_break = 0
 			total_late = 0
 			total_ot = 0
+			total_ot_nd = 0
+			total_ot_ex = 0
 			total_ut = 0
 			total_nd = 0
 			data.append({
@@ -163,6 +177,8 @@ def get_data(filters):
 				total_break += r['break']
 				total_late += r['late']
 				total_ot += r['overtime']
+				total_ot_nd += r['overtime_nd']
+				total_ot_ex += r['overtime_ex']
 				total_nd += r['nightdiff']
 				total_ut += r['undertime']
 				data.append(r)
@@ -173,6 +189,8 @@ def get_data(filters):
 					"break": total_break,
 					"late": total_late,
 					"overtime": total_ot,
+					"overtime_nd": total_ot_nd,
+					"overtime_ex": total_ot_ex,
 					"nightdiff": total_nd,
 					"undertime": total_ut,
 				})

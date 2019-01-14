@@ -85,6 +85,18 @@ def get_columns(filters):
 			"width": 60
 		},
 		{
+			"fieldname": "overtime_nd",
+			"label": _("OT ND"),
+			"fieldtype": "Float",
+			"width": 60
+		},
+		{
+			"fieldname": "overtime_ex",
+			"label": _("OT EX"),
+			"fieldtype": "Float",
+			"width": 60
+		},
+		{
 			"fieldname": "nightdiff",
 			"label": _("ND"),
 			"fieldtype": "Float",
@@ -144,7 +156,9 @@ def get_data(filters):
 		'work': 0,
 		'late': 0,
 		'undertime': 0,
-		'overtime': 0, 
+		'overtime': 0,
+		'overtime_nd': 0, 
+		'overtime_ex': 0, 
 		'nightdiff': 0,
 	}
 	for emp in employees:
@@ -174,6 +188,10 @@ def get_data(filters):
 			totals['undertime'] += entry['undertime']
 			entry['overtime'] = convert_secs(filters, entry['overtime'])
 			totals['overtime'] += entry['overtime']
+			entry['overtime_nd'] = convert_secs(filters, entry['overtime_nd'])
+			totals['overtime_nd'] += entry['overtime_nd']
+			entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
+			totals['overtime_ex'] += entry['overtime_ex']
 			entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
 			totals['nightdiff'] += entry['nightdiff']
 			data.append(entry)

@@ -121,10 +121,9 @@ def get_work(entry):
 	return entry
 
 def get_overtime(entry, ot_apps):
-	ot_map = get_overtime_map()
- 	strict_otcard = frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard')
 	ot_list = []
-	total_ot = 0.0
+	ot_map = get_overtime_map()
+	total_ot, total_brk, total_ot_n, total_ot_nd, total_ot_ex = 0.0, 0.0, 0.0, 0.0, 0.0
 
 	#Get Nigthdiff Setup
 	if entry.get('nd_start') and entry.get('nd_end'):
@@ -157,26 +156,12 @@ def get_overtime(entry, ot_apps):
 						ot_in = ot_int_start
 
 				#Always follow whichever is lower between card_out and ot_out
-				if entry.get('card_out') and strict_otcard:
+				if entry.get('card_out') and entry.get('strict_otcard'):
 					if entry.get('card_out') < ot_out:
 						ot_out = entry.get('card_out')
 				
 				#Get Normal OT before ND and Should also consider early ND OT
-				if ot_in < nd_start:
-					if ot_out >= nd_start:
-						if ot_in < nd_early_start:
-							ot_normal += abs((nd_early_start - ot_out).total_seconds())
-						else:
-							ot_normal += abs((ot_in - nd_start).total_seconds())
-					else:
-						if ot_in < nd_early_start:
-							ot_normal += abs((nd_early_start - ot_out).total_seconds())
-						else:
-							ot_normal += abs((ot_in - ot_out).total_seconds())
-
-				#Get Additional Normal OT After ND
-				if ot_out >= nd_end:
-					ot_normal += abs((nd_end - ot_out).total_seconds())
+				ot_normal += abs((ot_in - ot_out).total_seconds())
 
 				#Get ND OT
 				if ot_out > nd_start:
@@ -192,75 +177,82 @@ def get_overtime(entry, ot_apps):
 					else:
 						ot_nd = abs((ot_in - ot_out).total_seconds())
 
-				#[RD][HO][SHO][DHO][SUN][SAT][EX][ND]
-				if ot_normal > 0:					
-					if ot_normal > 28800:
-						ot_normal = 28800
+				if d.break_hrs:
+					total_brk += flt(d.break_hrs, 8) * 60 * 60
+				total_ot += ot_normal
+				total_ot_nd += ot_nd
 
-					if d.break_hrs:
-						ot_normal -= flt(d.break_hrs, 8) * 60 * 60
+		# REDUCE BREAK HRS ON REGULAR OT
+		if total_brk:
+			total_ot -= total_brk
 
-					if entry.get('ot_interval'):
-						ot_normal = (entry.get('ot_interval') * 60) * int(ot_normal / (entry.get('ot_interval') * 60))
+		# GET REGULAR OT
+		if total_ot > 0:
+			total_ot_n = total_ot
 
-					ot_normal_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 0, 0]
-					ot_normal_code = ''.join(str(x) for x in ot_normal_code)
-					ot_list.append({
-						"employee": entry.get('employee'),
-						"target_date": entry.get('target_date'),
-						"ot_type": "OT_NORMAL",
-						"ot_code": ot_normal_code,
-						"ot_hrs": ot_normal / 60 / 60,
-						"linked_ot": d.name,
-						"ot_tag": "",
-					})
-					ot_hrs += ot_normal
+			if total_ot_n > 28800:
+				total_ot_n = 28800
 
-				if ot_nd > 0: 
-					if entry.get('ot_interval'):
-						ot_nd = (entry.get('ot_interval') * 60) * int(ot_nd / (entry.get('ot_interval') * 60))
+			if entry.get('ot_interval'):
+				total_ot_n = (entry.get('ot_interval') * 60) * int(total_ot_n / (entry.get('ot_interval') * 60))
 
-					ot_nd_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 0, 1]
-					ot_nd_code = ''.join(str(x) for x in ot_nd_code)
-					ot_list.append({
-						"employee": entry.get('employee'),
-						"target_date": entry.get('target_date'),
-						"ot_type": "OT_ND",
-						"ot_code": ot_nd_code,
-						"ot_hrs": ot_nd  / 60 / 60,
-						"linked_ot": d.name,
-						"ot_tag": "",
-					})
-					ot_hrs += ot_nd
+			ot_normal_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 0, 0]
+			ot_normal_code = ''.join(str(x) for x in ot_normal_code)
+			ot_list.append({
+				"employee": entry.get('employee'),
+				"target_date": entry.get('target_date'),
+				"ot_type": "OT_NORMAL",
+				"ot_code": ot_normal_code,
+				"ot_hrs": total_ot_n / 60 / 60,
+				#"linked_ot": d.name,
+				"ot_tag": "",
+			})
+			entry['overtime'] = total_ot_n
 
-				if ot_hrs > 28800:
-					ot_ex = (ot_hrs - 28800)
-					if entry.get('ot_interval'):
-						ot_ex = (entry.get('ot_interval') * 60) * int(ot_ex / (entry.get('ot_interval') * 60))
+		# GET NIGHTDIFF OT
+		if total_ot_nd > 0:
+			if entry.get('ot_interval'):
+				total_ot_nd = (entry.get('ot_interval') * 60) * int(total_ot_nd / (entry.get('ot_interval') * 60))
+			ot_nd_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 0, 1]
+			ot_nd_code = ''.join(str(x) for x in ot_nd_code)
+			ot_list.append({
+				"employee": entry.get('employee'),
+				"target_date": entry.get('target_date'),
+				"ot_type": "OT_ND",
+				"ot_code": ot_nd_code,
+				"ot_hrs": total_ot_nd  / 60 / 60,
+				#"linked_ot": d.name,
+				"ot_tag": "",
+			})
+			entry['overtime_nd'] = total_ot_nd
 
-					ot_ex_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 1, 0]
-					ot_ex_code = ''.join(str(x) for x in ot_ex_code)
-					ot_list.append({
-						"employee": entry.get('employee'),
-						"target_date": entry.get('target_date'),
-						"ot_type": "OT_EX",
-						"ot_code": ot_ex_code,
-						"ot_hrs": ot_ex / 60 / 60,
-						"linked_ot": d.name,
-						"ot_tag": "",
-					})
-					#ot_hrs += ot_ex
-				total_ot += ot_hrs
+		# GET EXCESS OT
+		if total_ot > 28800:
+			ot_ex = (total_ot - 28800)
+			if entry.get('ot_interval'):
+				ot_ex = (entry.get('ot_interval') * 60) * int(ot_ex / (entry.get('ot_interval') * 60))
+			ot_ex_code = [entry.get('is_restday'), entry.get('is_holiday'), entry.get('is_sp_holiday'), is_db_holiday, is_sunday, is_saturday, 1, 0]
+			ot_ex_code = ''.join(str(x) for x in ot_ex_code)
+			ot_list.append({
+				"employee": entry.get('employee'),
+				"target_date": entry.get('target_date'),
+				"ot_type": "OT_EX",
+				"ot_code": ot_ex_code,
+				"ot_hrs": ot_ex / 60 / 60,
+				#"linked_ot": d.name,
+				"ot_tag": "",
+			})
+			entry['overtime_ex'] = ot_ex
 
-	for l in ot_list:
-		overtime_type = l.get('ot_code')
-		if overtime_type in ot_map:
-			l["ot_tag"] += " <span class='label label-success'>"+ot_map[overtime_type]['name']+" "+cstr(l.get('ot_hrs')) +" Hrs </span> "
-		else:
-			l["ot_tag"] += " <span class='label label-success'>OT-"+overtime_type+"</span> "	
+		# CREATE OT TAGS
+		for l in ot_list:
+			overtime_type = l.get('ot_code')
+			if overtime_type in ot_map:
+				l["ot_tag"] += " <span class='label label-success'>"+ot_map[overtime_type]['name']+" "+cstr(l.get('ot_hrs')) +" Hrs </span> "
+			else:
+				l["ot_tag"] += " <span class='label label-success'>OT-"+overtime_type+"</span> "	
 
-	entry['ot_list'] = ot_list
-	entry['overtime'] = total_ot
+		entry['ot_list'] = ot_list
 	return entry
 
 def get_ndiff(entry):
@@ -1088,6 +1080,8 @@ def get_defaults(emp, sched, shift_map):
 		#OT
 		"linked_ot": "",
 		"overtime": 0.0,
+		"overtime_nd": 0.0,
+		"overtime_ex": 0.0,
 		"ot_in": "",
 		"ot_out": "",
 		"ot_list": "",
@@ -1127,6 +1121,7 @@ def get_defaults(emp, sched, shift_map):
 		"ot_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_interval'), 8),
 		"late_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'late_interval'), 8),
 		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
+		"strict_otcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard'), 8),
 	}
 	return entry
 
