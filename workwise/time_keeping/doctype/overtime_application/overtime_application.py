@@ -104,12 +104,7 @@ class OvertimeApplication(Document):
 				frappe.throw(_("Max Overtime hours per application is {0} , Did not save").format(ot_max_hours))
 
 	def validate_duplicate_ot_application(self):
-		application = frappe.db.sql(""" SELECT `name` FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `from_date` = %s AND `to_date` = %s AND `to_time` = %s AND `from_time` = %s """,(self.employee, self.from_date, self.to_date, self.to_time, self.from_time), as_dict=True)
+		application = frappe.db.sql(""" SELECT `name` FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)
 		for d in application:
 			if d.name:
 				frappe.throw(_("Application already exists, {0}.").format(d.name))
-
-		ot_application = frappe.db.sql(""" SELECT `name` FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `from_date` = %s AND `to_date` = %s AND (%s BETWEEN from_time AND to_time) AND (%s BETWEEN from_time AND to_time) """,(self.employee, self.from_date, self.to_date, self.to_time, self.from_time), as_dict=True)
-		for e in ot_application:
-			if e.name:
-				frappe.throw(_("Application already exists, {0}.").format(e.name))
