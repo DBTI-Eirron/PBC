@@ -588,12 +588,18 @@ def get_final_processing(entry):
 		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
-
-	strict_card = flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_nocard'), 8)	
+	
 	if entry.get('lv_status') != 1 and not entry.get('card_in') and strict_card:
 		entry['is_absent'] = 1
 		entry["is_halfday"] = 0
 		entry["work"] = 0
+		entry["late"] = 0
+		entry["undertime"] = 0
+
+	if entry.get('lv_status') != 1 and entry.get('hd_halfcard') and ( not entry.get('card_in') or not entry.get('card_out') ):
+		entry['is_absent'] = 0
+		entry["is_halfday"] = 1
+		entry["work"] = 4
 		entry["late"] = 0
 		entry["undertime"] = 0
 
@@ -1122,6 +1128,7 @@ def get_defaults(emp, sched, shift_map):
 		"late_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'late_interval'), 8),
 		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
 		"strict_otcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard'), 8),
+		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
 	}
 	return entry
 
