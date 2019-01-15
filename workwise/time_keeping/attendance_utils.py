@@ -596,12 +596,19 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["undertime"] = 0
 
-	if entry.get('lv_status') != 1 and entry.get('hd_halfcard') and ( not entry.get('card_in') or not entry.get('card_out') ):
-		entry['is_absent'] = 0
-		entry["is_halfday"] = 1
-		entry["work"] = 4
-		entry["late"] = 0
-		entry["undertime"] = 0
+	if entry.get('lv_status') != 1 and entry.get('hd_halfcard') and not entry.get('is_restday'):
+		if entry.get('card_in') and not entry.get('card_out'): 
+			entry['is_absent'] = 0
+			entry["is_halfday"] = 1
+			entry["work"] = 4
+			entry["late"] = 0
+			entry["undertime"] = 0
+		if entry.get('card_out') and not entry.get('card_in'): 
+			entry['is_absent'] = 0
+			entry["is_halfday"] = 1
+			entry["work"] = 4
+			entry["late"] = 0
+			entry["undertime"] = 0
 
 	if entry.get('is_holiday'):
 		entry["undertime"] = 0
