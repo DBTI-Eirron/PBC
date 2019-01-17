@@ -9,7 +9,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_suspension_map, get_suspension, insert_overtime)
+get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_suspension_map, get_suspension, insert_overtime)
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
@@ -59,13 +59,14 @@ class AttendanceProcessing(Document):
 				obs = get_ob_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
 				uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
 				ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
+				cto = get_cto_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
 
 				for sched in schedule:
 					entry = get_defaults(emp, sched, shift_map)
 					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
 					get_sorted_card(entry, cards_in, cards_out)
 					get_suspension(emp, suspension_map, entry)
-					get_attendance(entry, leaves, holidays, obs, ots, uts, ext)
+					get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto)
 					entry['break'] = self.convert_secs(entry['break'])
 					entry['work'] = self.convert_secs(entry['work'])
 					entry['late'] = self.convert_secs(entry['late'])
@@ -74,6 +75,7 @@ class AttendanceProcessing(Document):
 					entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
 					entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
 					entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
+					entry['cto'] = self.convert_secs(entry['cto'])
 					insert_overtime(entry)
 					register = frappe.new_doc("Attendance Register")
 					register.update(entry)

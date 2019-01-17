@@ -14,6 +14,7 @@ get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_lis
 
 class AdjustmentProcessing(Document):
 	def get_employees(self):
+		employees = []
 		if self.employee:
 			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
 				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
@@ -62,7 +63,7 @@ class AdjustmentProcessing(Document):
 		if self.location:
 			conditions.append("location=%(location)s")
 
-		return employees
+		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
 	def validate_period(self):
 		period_stats = frappe.db.get_value("Payroll Period", self.period, "status")

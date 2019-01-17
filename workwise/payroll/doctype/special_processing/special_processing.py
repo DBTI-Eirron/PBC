@@ -66,6 +66,7 @@ class SpecialProcessing(Document):
 
 		switcher = {
 			"13th Month": self.bonus_pay,
+			"Leave Balance to Cash": self.leave_to_cash,
 		}
 
 		func = switcher.get(self.method, lambda: frapp.throw(_("Invalid Method")))
@@ -128,6 +129,45 @@ class SpecialProcessing(Document):
 						present_days += d.present_days
 
 					total_bonus = ( present_days / emp.get('total_yr_days')) * flt(rates.get('monthly_rate'), 8)
+
+				entries.append({
+					"employee": emp.name,
+					"employee_name": emp.full_name, 
+					"amount": total_bonus,
+				})
+
+		return header, entries
+
+	def leave_to_cash(self, header, entries):
+		header['transaction_type'] = frappe.db.get_single_value("Payroll Settings", "tr_leave_to_cash") 
+		header['remarks'] = ("Leave to cash for year {0}").format(self.payroll_year)
+
+		bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method") 
+		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
+		employees = self.get_employees()
+		if employees:
+			for emp in employees:
+				total_bonus = 0
+	
+				registerx = frappe.db.sql(""" SELECT credits, used_credits `tabLeave Balance` WHERE employee = %(employee)s 
+					AND from_date >= %(from_year)s AND to_date <= %(to_year)s AND schedule = %(schedule)s """,{ 
+						"employee": emp.name,
+						"from_year": from_year,
+						"to_year": to_year,
+						"schedule": emp.payroll_schedule,
+				}, as_dict=True)
+
+				total_rate = 0.0
+				months = 0.0
+				for d in registerx:
+					if d.schedule == "Semi-Monthly":
+						months += 0.5
+						total_rate = d.monthly_rate
+					if d.schedule == "Monthly":
+						months += 1
+						total_rate = d.monthly_rate
+
+				total_bonus += total_rate * months / 12
 
 				entries.append({
 					"employee": emp.name,
