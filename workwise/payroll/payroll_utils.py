@@ -39,6 +39,20 @@ def get_rates(emp):
 		"hourly_rate": flt(hourly_rate, 8)
 	}
 
+def validate_fifth(company, period):
+	status = 0
+
+
+	freq = frappe.db.get_value("Payroll Period", period, "frequency")
+	if freq == "4th":
+		fifth = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
+			AND previous_period = %s AND `schedule` = 'Weekly' AND frequency = "5th"
+			ORDER BY payroll_date DESC LIMIT 1 """,(company, period ))
+
+		if fifth:
+			status = 1
+
+	return status
 
 def get_overtime_map():
 	ot_map = {}
@@ -53,10 +67,17 @@ def get_transaction_map():
 	tr_map = {}
 	tr = frappe.db.sql("""SELECT code, title, type, entry_type, account, is_taxable, 
 		is_bonus, is_government, is_standard, is_active, bir_type FROM `tabTransaction Type` """, as_dict=1)
-
 	for t in tr:
 		tr_map[t.code] = {"code": t.code, "title": t.title, "type": t.type, "bir_type": t.bir_type, "entry_type": t.entry_type,	"account": t.account, 
 			"is_taxable": t.is_taxable, "is_standard": t.is_standard, "is_active": t.is_active, "is_bonus": t.is_bonus, "is_government": t.is_government,
 		}
 
 	return tr_map
+
+def get_location_map():
+	loc_map = {}
+	loc = frappe.db.sql("""SELECT `name`, company, min_wage FROM `tabLocation` """, as_dict=1)
+	for l in loc:
+		loc_map[l.name] = { "name": l.name, "company": l.company, "min_wage": l.min_wage }
+
+	return loc_map
