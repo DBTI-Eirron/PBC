@@ -106,6 +106,12 @@ def get_columns(filters):
 			"width": 60
 		},
 		{
+			"fieldname": "cto",
+			"label": _("CTO"),
+			"fieldtype": "Float",
+			"width": 60
+		},
+		{
 			"fieldname": "undertime",
 			"label": _("UT"),
 			"fieldtype": "Float",
@@ -168,6 +174,7 @@ def get_data(filters):
 			total_ot_ex = 0
 			total_ut = 0
 			total_nd = 0
+			total_cto = 0
 			data.append({
 					"target_date":"<b>"+emp.full_name+"</b>",
 				})

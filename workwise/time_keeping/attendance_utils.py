@@ -3,7 +3,7 @@ import frappe, datetime, math
 from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
 from frappe import _
 
-def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
+def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	if entry.get("override_in"):
 		entry['card_in'] = entry.get("override_in")
 
@@ -92,6 +92,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext):
 	get_ndiff(entry)
 	get_absent(entry)
 	get_work(entry)
+	get_cto(entry, cto)
 	get_final_processing(entry)
 	get_tags(entry)
 
@@ -408,6 +409,14 @@ def get_undertime(entry):
 
 	return entry
 
+def get_cto(entry, cto):
+	if cto:
+		for d in cto:
+			if d['use_date'] == entry['target_date']:
+				entry['cto'] = d.use_total_hours * 60 * 60
+
+	return entry
+
 def get_absent(entry):
 	if not entry.get('is_restday') and not entry['is_holiday'] and not entry.get('ob_status'):
 		if not entry.get('card_in') and not entry.get('card_out'):
@@ -596,24 +605,24 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["undertime"] = 0
 
-	if entry.get('lv_status') != 1 and entry.get('hd_halfcard') and not entry.get('is_restday'):
-		if entry.get('card_in') and not entry.get('card_out'): 
-			entry['is_absent'] = 0
-			entry["is_halfday"] = 1
-			entry["work"] = 4
-			entry["late"] = 0
-			entry["undertime"] = 0
-		if entry.get('card_out') and not entry.get('card_in'): 
-			entry['is_absent'] = 0
-			entry["is_halfday"] = 1
-			entry["work"] = 4
-			entry["late"] = 0
-			entry["undertime"] = 0
-
 	if entry.get('is_holiday'):
 		entry["undertime"] = 0
 		entry["late"] = 0
 		entry["absent"] = 0
+
+	if entry.get('lv_status') != 1 and entry.get('hd_halfcard') and not entry.get('is_restday'):
+		if entry.get('card_in') and not entry.get('card_out'): 
+			entry['is_absent'] = 1
+			entry["is_halfday"] = 1
+			entry["work"] = 28800 / 2
+			entry["late"] = 0
+			entry["undertime"] = 0
+		if entry.get('card_out') and not entry.get('card_in'): 
+			entry['is_absent'] = 1
+			entry["is_halfday"] = 1
+			entry["work"] = 28800 / 2
+			entry["late"] = 0
+			entry["undertime"] = 0
 
 	return entry
 
@@ -648,6 +657,9 @@ def get_tags(entry):
 
 	if entry.get('nightdiff') > 0:
 		entry["tags"] += " <span class='label label-info'> Nightdiff </span> "
+
+	if entry.get('cto') > 0:
+		entry["tags"] += " <span class='label label-info'> CTO </span> "
 
 	entry["tags"] += " <span class='label label-success'> Excused Tardiness </span> " if entry.get('ex_tardiness') else ""
 	entry["tags"] += " <span class='label label-danger'> Absent </span> " if entry['is_absent'] == 1 else ""
@@ -880,10 +892,10 @@ def get_ut_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	return ut_apps
 
 def get_cto_list(employee, from_date, to_date, approval_cutoff, adjustment):
-	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
+	by_adjustment = ""
 
-	cto_apps = frappe.db.sql("""SELECT `name`, use_fromtime, use_totime,  from_date FROM `tabCompensatory Time Off` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s AND from_date <= %s
+	cto_apps = frappe.db.sql("""SELECT `name`, use_total_hours, use_date FROM `tabCompensatory Time Off` 
+		WHERE workflow_state = 'Approved' AND employee = %s AND use_date >= %s AND use_date <= %s
 		AND `type` = 'Use' {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 	
 	return cto_apps
@@ -1122,6 +1134,8 @@ def get_defaults(emp, sched, shift_map):
 		"linked_holiday": "",
 		"ex_tardiness": 0,
 		"tags": "",
+		#CTO
+		"cto": 0.0,
 		#SUSPENSION
 		"suspension": 0,
 		"suspension_start": "",
