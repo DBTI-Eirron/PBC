@@ -140,6 +140,12 @@ def get_data():
 					"doctype": "Payroll Register",	
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "Hold Salaries Report",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},
 			],
 		},
 		{
