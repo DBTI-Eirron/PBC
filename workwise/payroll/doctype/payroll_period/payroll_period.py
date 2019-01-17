@@ -40,6 +40,9 @@ class PayrollPeriod(Document):
 				self.frequency = "2nd" 
 				frappe.msgprint("Frequency Changed to ( 2nd ) because (3rd 4th 5th) is not allowed for Monthly and Semi-Monthly")
 
+		if self.frequency == "5th" and not self.previous_period:
+			frappe.throw(_("Previous Period is Required if 5th Frequency"))
+			
 	def validate_days(self):
 		difference = date_diff(self.to_date, self.from_date)
 		if self.schedule == "Monthly":
