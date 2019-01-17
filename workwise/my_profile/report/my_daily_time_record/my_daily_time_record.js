@@ -52,5 +52,10 @@ frappe.query_reports["My Daily Time Record"] = {
 			"default": "Mins",
 			"reqd": 1
 		},
+		{
+			"fieldname": "show_adjusted",
+			"label": __("Show Adjusted"),
+			"fieldtype": "Check",
+		}
 	]
 }
