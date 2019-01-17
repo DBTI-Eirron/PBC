@@ -30,6 +30,7 @@ class Blanket(Document):
 		elif self.application_type == "Official Business Application":
 			self.validate_mandatory_fields()
 			self.ob_get_ob_hrs()
+			self.ob_get_target_date()
 			self.validate_employee_company()
 			self.validate_duplicate_table_entries()
 
@@ -707,11 +708,14 @@ class Blanket(Document):
 			    
 			for i in dates:
 			    info = {
-			        "target_date": i,
+				    "target_date": i,
+			        "date": i,
+			        "to_date": i,
 			        "from_time": "00:00:00",
 			        "to_time": "00:00:00",
 			        "is_holiday": self.get_holiday(i),
-			        "is_excluded": 0
+			        "is_excluded": 0,
+			        "is_previous": 0
 			    }
 			    
 			    official_business_application_table.append(info);
@@ -729,23 +733,27 @@ class Blanket(Document):
 		total_ob_time = 0
 		for d in self.get('official_business_application_table'):
 			total_hrs = 0
-			if get_time(d.from_time) > get_time(d.to_time):
-				from_date = get_datetime(str(d.target_date)+" "+str(d.from_time))
-				to_date = get_datetime(str(add_days(d.target_date, 1))+" "+str(d.from_time))
-			else:
-				from_date = get_datetime(str(d.target_date)+" "+str(d.from_time))
-				to_date = get_datetime(str(d.target_date)+" "+str(d.to_time))
+			from_date = get_datetime(str(d.date)+" "+str(d.from_time))
+			to_date = get_datetime(str(d.to_date)+" "+str(d.to_time))
 				
 			if not d.is_excluded == 1:
 				total_hrs = abs(((from_date - to_date).total_seconds()) / 60 /60)
 				total_ob_time += total_hrs
 				d.hrs = total_hrs
+
 		self.ob_total_hrs = total_ob_time
 
 	def ob_change_time(self):
 		for d in self.get('official_business_application_table'):
 			d.from_time = self.ob_from_time
 			d.to_time = self.ob_to_time
+
+	def ob_get_target_date(self):
+		for d in self.get('official_business_application_table'):
+			if d.is_previous == 1:
+				d.target_date = getdate(d.date) - datetime.timedelta(days=1)
+			else:
+				d.target_date = d.date
 
 	#Make Official Business Application(s)
 	def make_official_business_application(self):
@@ -778,11 +786,14 @@ class Blanket(Document):
 
 			for a in self.get("official_business_application_table"):
 				new_ob_app.append('official_business_application_table',{
-					"target_date": a.target_date, 
+				    "target_date": a.target_date, 
+			        "date": a.date,
+			        "to_date": a.to_date,
 					"from_time": a.from_time,
 					"to_time": a.to_time,
 					"is_holiday": a.is_holiday,
-					"is_excluded": a.is_excluded
+					"is_excluded": a.is_excluded,
+					"is_previous": a.is_previous
 				})
 
 			new_ob_app.insert()
@@ -957,8 +968,13 @@ class Blanket(Document):
 
 	#Compensatory Time Off
 	def cto_validate_file_cto(self):
-		total_hrs =  datetime.datetime.strptime(str(self.cto_to_time), '%H:%M:%S') -  datetime.datetime.strptime(str(self.cto_from_time), '%H:%M:%S')
-		self.cto_total_hours = flt((total_hrs.total_seconds() / 60.0 / 60.0),2)
+		from_date = datetime.datetime.strptime(str(self.cto_date) + ' ' + str(self.cto_from_time), '%Y-%m-%d %H:%M:%S')
+		to_date = datetime.datetime.strptime(str(self.cto_date) + ' ' + str(self.cto_to_time), '%Y-%m-%d %H:%M:%S')
+		if from_date <= to_date:
+			total_hrs = to_date - from_date
+		else:
+			total_hrs = to_date - from_date + datetime.timedelta(days=1)
+		self.cto_total_hours = abs(flt(total_hrs.total_seconds() /60 /60, 2))
 		self.cto_credits_earned = flt(self.cto_total_hours,2)/8
 		if self.cto_credits_earned > 1:
 			self.cto_credits_earned = 1.0
