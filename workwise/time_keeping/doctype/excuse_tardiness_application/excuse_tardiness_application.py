@@ -11,13 +11,13 @@ from workwise.time_keeping.application_utils import grant_head_subordinate_acces
 
 class ExcuseTardinessApplication(Document):
 	def validate(self):
+		time_in, time_out = self.get_timelogs()
+		if not time_in and not time_out:
+			frappe.throw(("No timelogs for employee"))
 		grant_head_subordinate_access(self)
 		change_owner(self)
 
 	def on_submit(self):
-		time_in, time_out = self.get_timelogs()
-		if not time_in and not time_out:
-			frappe.throw(("No timelogs for employee"))
 		validate_approve_own_application(self)
 		get_approver_and_date(self)
 
