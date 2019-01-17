@@ -4,10 +4,11 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
-from datetime import datetime
+from datetime import datetime, timedelta
 from frappe import _
 from frappe.utils import nowdate, get_time, flt, getdate
 from frappe.model.document import Document
+from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
 from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
 
 class CompensatoryTimeOff(Document):
@@ -17,6 +18,7 @@ class CompensatoryTimeOff(Document):
 			self.validate_fields_file_cto()
 			self.validate_duplicate_file_cto()
 			self.validate_file_cto()
+			self.get_timekeeping_settings()
 		if self.type == "Use":
 			self.validate_fields_use_cto()
 			self.validate_use_cto()
@@ -36,10 +38,34 @@ class CompensatoryTimeOff(Document):
 		if self.type == "Use":
 			self.revert_credit_deductions()
 
+	def get_timekeeping_settings_for_cto_use_type(self):
+		cto_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
+		if cto_type == "Day":
+			return 'day'
+		else:
+			return 'hour'
+
+	def get_timekeeping_settings(self):
+		total_hrs = flt(self.total_hours, 2)
+		cto_min_hrs = frappe.db.get_single_value('Timekeeping Settings', 'cto_min_hrs')
+		if cto_min_hrs != 0:
+			if total_hrs < flt(cto_min_hrs, 2):
+				frappe.throw(_("Minimum hours of filing is {0}").format( cto_min_hrs ))
+				
+		cto_max_hrs = frappe.db.get_single_value('Timekeeping Settings', 'cto_max_hrs')
+		if cto_max_hrs != 0:
+			if total_hrs > flt(cto_max_hrs, 2):
+				frappe.throw(_("Maximum hours of filing is {0}").format( cto_max_hrs ))
+
 	#File CTO
 	def validate_file_cto(self):
-		total_hrs = datetime.strptime(str(self.to_time), '%H:%M:%S') - datetime.strptime(str(self.from_time), '%H:%M:%S')
-		self.total_hours = flt((total_hrs.total_seconds() / 60.0 / 60.0),2)
+		from_date = datetime.strptime(str(self.date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S')
+		to_date = datetime.strptime(str(self.date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S')
+		if from_date <= to_date:
+			total_hrs = to_date - from_date
+		else:
+			total_hrs = to_date - from_date + timedelta(days=1)
+		self.total_hours = abs(flt(total_hrs.total_seconds() /60 /60, 2))
 		self.credits_earned = flt(self.total_hours,2)/8
 		if self.credits_earned > 1:
 			self.credits_earned = 1.0
@@ -48,7 +74,7 @@ class CompensatoryTimeOff(Document):
 
 	def validate_fields_file_cto(self):
 		if not self.date:
-			frappe.throw(_("No Date"))
+			frappe.throw(_("Date is required"))
 
 	def validate_duplicate_file_cto(self):
 		existing_application = frappe.db.sql("""SELECT DISTINCT `name` FROM `tabCompensatory Time Off` WHERE `employee` = %s AND `type` = "File" AND `date` = %s AND `docstatus` = 1 LIMIT 1""",( self.employee, self.date ), as_dict=1)
@@ -59,11 +85,22 @@ class CompensatoryTimeOff(Document):
 	#Use CTO
 	def validate_fields_use_cto(self):
 		if not self.use_date:
-			frappe.throw(_("No Date"))
+			frappe.throw(_("Date is required"))
+
+		cto_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
+		if cto_type == "Day":
+			if not self.filed_cto:
+				frappe.throw(_("Filed CTO is required"))
 
 	def validate_use_cto(self):
-		total_hrs = datetime.strptime(str(self.use_totime), '%H:%M:%S') - datetime.strptime(str(self.use_fromtime), '%H:%M:%S')
-		total_hours = flt((total_hrs.total_seconds() / 60.0 / 60.0),2)
+		from_date = datetime.strptime(str(self.use_date) + ' ' + str(self.use_fromtime), '%Y-%m-%d %H:%M:%S')
+		to_date = datetime.strptime(str(self.use_date) + ' ' + str(self.use_totime), '%Y-%m-%d %H:%M:%S')
+		if from_date <= to_date:
+			total_hrs = to_date - from_date
+		else:
+			total_hrs = to_date - from_date + timedelta(days=1)
+		total_hours = abs(flt(total_hrs.total_seconds() /60 /60, 2))
+		self.use_total_hours = total_hours
 		self.required_credits = flt(total_hours,2)/8
 		if self.required_credits > 1:
 			self.required_credits = 1.0
@@ -71,7 +108,14 @@ class CompensatoryTimeOff(Document):
 		total_credits_earned = 0.00
 		date_list = []
 		last_date = ""
-		current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 ORDER BY `date` DESC""",( self.employee ), as_dict=1)
+		
+		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
+		if cto_use_type == "Day":
+			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
+				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `name` = %s ORDER BY `date` DESC""",( self.employee, self.filed_cto ), as_dict=1)
+		else:
+			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
+				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 ORDER BY `date` DESC""",( self.employee ), as_dict=1)
 
 		if current_credits:
 			for d in current_credits:
@@ -81,6 +125,9 @@ class CompensatoryTimeOff(Document):
 			last_date = date_list[-1]
 
 		self.total_credits_earned = total_credits_earned
+
+		if flt(self.required_credits, 2) > flt(self.total_credits_earned, 2):
+			frappe.throw(_("You dont have enough credits"))
 		
 		return last_date
 
@@ -92,39 +139,44 @@ class CompensatoryTimeOff(Document):
 	def deduct_use_cto(self):
 		entries = [] 
 		req_credits = flt(self.required_credits, 2)
-		filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `balance` > 0 ORDER BY `date` ASC""",( self.employee ), as_dict=1)
 
-		if req_credits > self.total_credits_earned:
-			frappe.throw(_("You dont have enough credits"))
+		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
+		if cto_use_type == "Day":
+			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` 
+				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `name` = %s """,( self.employee, self.filed_cto ), as_dict=1)
+		else:
+			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` 
+				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `balance` > 0 ORDER BY `date` ASC""",( self.employee ), as_dict=1)
 
-		for a in filed_cto:
-			if req_credits > 0: 
-				if a.balance >= req_credits:
-					remain_bal = a.balance - req_credits
-					cred_used = a.credits_used + req_credits
-					req_credits = 0.0
-				if req_credits > a.balance:
-					remain_bal = 0.0
-					req_credits = req_credits - a.balance
-					cred_used = a.credits_used + req_credits
-				
-				row = {
-					"filed_cto": a.name,
-					"date": a.date,
-					"balance": a.balance,
-					"credits_used": cred_used
-				}
-				entries.append(row);
+		if filed_cto:
+			for a in filed_cto:
+				if req_credits > 0: 
+					if a.balance >= req_credits:
+						remain_bal = a.balance - req_credits
+						cred_used = a.credits_used + req_credits
+						req_credits = 0.0
+					if req_credits > a.balance:
+						remain_bal = 0.0
+						req_credits = req_credits - a.balance
+						cred_used = a.credits_used + req_credits
+					
+					row = {
+						"filed_cto": a.name,
+						"date": a.date,
+						"balance": a.balance,
+						"credits_used": cred_used
+					}
+					entries.append(row);
 
-				for d in entries:
-					row = self.append('use_cto_table', {})
-					row.update(d)
-					row.save(d)
-				
-				frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 """, (remain_bal, cred_used, a.name))
-				frappe.db.commit()
-			else:
-				break
+					for d in entries:
+						row = self.append('use_cto_table', {})
+						row.update(d)
+						row.save(d)
+					
+					frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 """, (remain_bal, cred_used, a.name))
+					frappe.db.commit()
+				else:
+					break
 
 	#Cancel Use CTO
 	def revert_credit_deductions(self):

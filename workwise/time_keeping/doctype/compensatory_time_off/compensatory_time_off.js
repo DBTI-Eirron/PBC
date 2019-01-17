@@ -8,6 +8,36 @@ frappe.ui.form.on('Compensatory Time Off', {
 		if (!frm.doc.posting_date) {
 			frm.set_value("posting_date", get_today());
 		}
+
+		frm.set_query('filed_cto', function(doc) {
+			if(frm.doc.employee && frm.doc.type == "Use"){
+				return {
+					filters: {
+						"docstatus": 1,
+						"type": "File",
+						"employee": doc.employee
+					}
+				};
+			}else{
+				return {
+					filters: {
+						"type": "",
+					}
+				};
+			}
+		});
+			
+		frappe.call({
+			method: "get_timekeeping_settings_for_cto_use_type",
+			doc: frm.doc,
+			callback: function(r) {
+				if (r.message == "hour"){
+					cur_frm.toggle_display('filed_cto', false);
+				}
+				frm.refresh_fields();
+			}
+		});	
+		
 	},
 
 	from_time: function(frm) {
@@ -47,6 +77,10 @@ frappe.ui.form.on('Compensatory Time Off', {
 	},
 
 	employee: function(frm) {
+		frm.trigger("validate_use_cto");
+	},
+
+	filed_cto: function(frm) {
 		frm.trigger("validate_use_cto");
 	},
 
