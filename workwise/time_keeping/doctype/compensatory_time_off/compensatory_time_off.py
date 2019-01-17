@@ -150,15 +150,16 @@ class CompensatoryTimeOff(Document):
 
 		if filed_cto:
 			for a in filed_cto:
+				cred_used = 0.0
 				if req_credits > 0: 
 					if a.balance >= req_credits:
 						remain_bal = a.balance - req_credits
 						cred_used = a.credits_used + req_credits
 						req_credits = 0.0
-					if req_credits > a.balance:
+					else:
 						remain_bal = 0.0
 						req_credits = req_credits - a.balance
-						cred_used = a.credits_used + req_credits
+						cred_used = a.balance
 					
 					row = {
 						"filed_cto": a.name,
@@ -167,16 +168,16 @@ class CompensatoryTimeOff(Document):
 						"credits_used": cred_used
 					}
 					entries.append(row);
-
-					for d in entries:
-						row = self.append('use_cto_table', {})
-						row.update(d)
-						row.save(d)
 					
 					frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 """, (remain_bal, cred_used, a.name))
 					frappe.db.commit()
 				else:
 					break
+
+			for d in entries:
+				row = self.append('use_cto_table', {})
+				row.update(d)
+				row.save(d)
 
 	#Cancel Use CTO
 	def revert_credit_deductions(self):
