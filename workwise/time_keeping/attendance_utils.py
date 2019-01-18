@@ -257,7 +257,7 @@ def get_overtime(entry, ot_apps):
 	return entry
 
 def get_ndiff(entry):
-	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
+	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') and entry.get('work_shift_type') == "Night":
 		#get nightdiff start and end
 		nd_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) )
 		nd_end = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
@@ -373,7 +373,7 @@ def get_undertime(entry):
 					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 			else:
 				if entry.get('card_out') < entry.get('time_out'):
-					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+					entry['undertime'] += abs((entry.get('card_out') - entry.get('break_end')).total_seconds())
 
 		elif entry.get('lv_status') == 3 and entry['card_out']: #get undertime if leave is 2ndhalf halfday
 			if entry.get('ob_status') == 1:
@@ -815,7 +815,7 @@ def get_shift_map():
 	shift_map = {}
 	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
 			is_flexible, setup_preshift, setup_postshift, flex_from, flex_to, 
-			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type, nd_end, nd_start
+			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type, nd_end, nd_start, work_shift_type
 		FROM `tabWork Shift` """, as_dict=True)
 	
 	for d in shifts:
@@ -840,7 +840,8 @@ def get_shift_map():
 			"straight_ot": d.straight_ot,
 			"flexible_type": d.flexible_type,
 			"nd_start": d.nd_start,
-			"nd_end": d.nd_end
+			"nd_end": d.nd_end,
+			"work_shift_type": d.work_shift_type
 		}
 
 	return shift_map
@@ -1075,6 +1076,7 @@ def get_defaults(emp, sched, shift_map):
 		"break_end": sched.break_end,
 		"nd_start": shift_map[sched.work_shift]['nd_start'],
 		"nd_end": shift_map[sched.work_shift]['nd_end'],
+		"work_shift_type": shift_map[sched.work_shift]['work_shift_type'],
 		#shift policy
 		"work_hours": shift_map[sched.work_shift]['work_hours'],
 		"break_mins": sched.break_mins,
