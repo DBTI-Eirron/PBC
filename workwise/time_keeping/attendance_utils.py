@@ -555,9 +555,15 @@ def get_final_processing(entry):
 				diff = abs((flex_start - flex_end).total_seconds())  - (entry.get('break_mins') * 60)	
 				
 				#Get Undertime
-				if diff < entry.get('worker_secs'):
-					entry['undertime'] = entry.get('worker_secs') - diff
-					entry['work'] = diff
+				if entry.get('lv_status') > 1:
+					diff += (entry.get('worker_secs') / 2)
+					if diff < entry.get('worker_secs'):
+						entry['undertime'] = (entry.get('worker_secs')) - diff
+						entry['work'] = diff
+				else:
+					if diff < entry.get('worker_secs'):
+						entry['undertime'] = entry.get('worker_secs') - diff
+						entry['work'] = diff
 
 		#entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())		
 		#if entry.get('work') < (entry.get('worker_secs')):
