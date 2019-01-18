@@ -372,8 +372,9 @@ def get_undertime(entry):
 				if entry.get('ob_out') < entry.get('time_out'):
 					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 			else:
-				if entry.get('card_out') < entry.get('time_out'):
-					entry['undertime'] += abs((entry.get('card_out') - entry.get('break_end')).total_seconds())
+				if entry.get('card_out') < entry.get('break_end'):
+					if entry.get('card_out') < entry.get('time_out'):
+						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
 
 		elif entry.get('lv_status') == 3 and entry['card_out']: #get undertime if leave is 2ndhalf halfday
 			if entry.get('ob_status') == 1:
