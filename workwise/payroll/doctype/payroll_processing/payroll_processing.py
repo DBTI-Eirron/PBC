@@ -8,7 +8,7 @@ import frappe
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
-from workwise.payroll.payroll_utils import get_adjustment_settings, get_rates, get_sss_table, get_sss_amount
+from workwise.payroll.payroll_utils import get_adjustment_settings, get_rates, get_sss_table, get_sss_amount, get_hdmf_table, get_hdmf_amount
 from workwise.payroll.weekly_utils import get_weekly_prev_map, get_weekly_basis
 
 class PayrollProcessing(Document):
@@ -64,6 +64,7 @@ class PayrollProcessing(Document):
 		ss_list = []
 		employees = self.get_employees()
 		sss_table = get_sss_table()
+		hdmf_table = get_hdmf_table()
 	
 		tr_map = self.get_transaction_map()
 		ot_map = self.get_overtime_map()
@@ -143,8 +144,8 @@ class PayrollProcessing(Document):
 
 				#Calculate Special Entries
 				self.get_sss(emp, rates, header, register, tr_map, sss_table, weekly_prev_map)
-				self.get_phic(emp, rates, header, register, tr_map)
-				self.get_hdmf(emp, rates, header, register, tr_map)
+				self.get_phic(emp, rates, header, register, tr_map, weekly_prev_map)
+				self.get_hdmf(emp, rates, header, register, tr_map, hdmf_table, weekly_prev_map)
 				self.get_whtax(emp, rates, header, register)
 
 				#Calculate Totals
@@ -276,8 +277,13 @@ class PayrollProcessing(Document):
 				sss, ssse, sssc = 0, 0, 0
 				target_amt = 0
 
-				if emp.get('payroll_schedule') == "Weekly":
-					target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
+				if self.schedule == "Weekly":
+					if emp.get('sss_mode') == "ME Table":
+						if emp.get('sss_freq') == 'Both' and (self.frequency == '2nd' or self.frequency == '4th') :
+							target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+					else:
+						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
+ 
 				else:
 					if emp.get('sss_freq') == '2nd':
 						if emp.get('payroll_schedule') == "Semi-Monthly":
@@ -291,18 +297,20 @@ class PayrollProcessing(Document):
 
 				sss, ssse, sssc = get_sss_amount(target_amt, sss_table)
 				for l in sss_list:
-					if self.schedule == "Weekly":
-						amt = flt(eval(l), 8)
+					if emp.get('sss_freq') == "Both":
+						amt = flt(eval(l), 8) / 2
+					elif emp.get('sss_freq') == "All":
+						amt = flt(eval(l), 8) / 4
 					else:
-						amt = flt(eval(l), 8) / 2 if emp.get('sss_freq') == "Both" else flt(eval(l), 8)
-					
+						amt = flt(eval(l), 8)
+
 					sss_register.append({"pay_code": l.upper(), "amount": amt })
 
 			for d in sss_register:
 				register.append(d)
 				self.calculate_special_header(d, header, tr_map)
 
-	def get_phic(self, emp, rates, header, register, tr_map):
+	def get_phic(self, emp, rates, header, register, tr_map, weekly_prev_map):
 		phic_register = []
 		if self.frequency == emp.get('phic_freq') or emp.get('phic_freq') == 'Both':
 			if emp.get('phic_freq') != "None":
@@ -313,11 +321,11 @@ class PayrollProcessing(Document):
 				target_amt = 0
 
 				if self.schedule == "Weekly":
-					if emp.get('phic_freq') == self.frequency:
-						target_amt = header.get('government_basis') * 2
-
-					elif emp.get('phic_freq') == "Both" and (self.frequency == "2nd" or self.frequency == "4th"):
-						target_amt = flt(header.get('government_basis'), 8) + flt(header.get('previous_government_basis'), 8)
+					if emp.get('phic_mode') == "ME Table":
+						if emp.get('phic_freq') == 'Both' and (self.frequency == '2nd' or self.frequency == '4th') :
+							target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+					else:
+						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
 
 				else:
 					if emp.get('phic_freq') == '2nd':
@@ -343,14 +351,20 @@ class PayrollProcessing(Document):
 						phice = percent_rate 
 					
 					for l in phic_list:
-						amt = flt(eval(l), 8) / 2 if emp.get('phic_freq') == "Both" else flt(eval(l), 8)
+						if emp.get('phic_freq') == "Both":
+							amt = flt(eval(l), 8) / 2
+						elif emp.get('phic_freq') == "All":
+							amt = flt(eval(l), 8) / 4
+						else:
+							amt = flt(eval(l), 8)
+
 						phic_register.append({"pay_code": l.upper(), "amount": amt })
 
 			for d in phic_register:
 				register.append(d)
 				self.calculate_special_header(d, header, tr_map)
 
-	def get_hdmf(self, emp, rates, header, register, tr_map):
+	def get_hdmf(self, emp, rates, header, register, tr_map, hdmf_table, weekly_prev_map):
 		hdmf_register = []
 		if self.frequency == emp.get('hdmf_freq') or emp.get('hdmf_freq') == 'Both':
 			if emp['hdmf_mode'] != "None":
@@ -360,11 +374,12 @@ class PayrollProcessing(Document):
 				target_amt = 0
 
 				if self.schedule == "Weekly":
-					if emp.get('hdmf_freq') == self.frequency:
-						target_amt = header.get('government_basis') * 2
+					if emp.get('hdmf_mode') == "ME Table":
+						if emp.get('hdmf_freq') == 'Both' and (self.frequency == '2nd' or self.frequency == '4th') :
+							target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
 
-					elif emp.get('hdmf_freq') == "Both" and (self.frequency == "2nd" or self.frequency == "4th"):
-						target_amt = flt(header.get('government_basis'), 8) + flt(header.get('previous_government_basis'), 8)
+					else:
+						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('hdmf_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
 
 				else:
 					if emp.get('hdmf_freq') == '2nd':
@@ -377,19 +392,20 @@ class PayrollProcessing(Document):
 					elif emp.get('hdmf_freq') == 'Both' or emp.get('hdmf_freq') == '1st':
 						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
-				table = frappe.db.sql("""SELECT employee, employer FROM `tabHDMF Table` 
-					WHERE %s >= beginning AND %s <= ending LIMIT 1 """,(target_amt, target_amt), as_dict=True )
-
-				for t in table:
-					hdmf = t.employee
-					hdmfe = t.employer
-					if emp.get('hdmf_mode') == "Manual":
-						hdmfm = flt(emp.get("hdmf_manual"), 8) - hdmf
+				hdmf, hdmfe = get_hdmf_amount(target_amt, hdmf_table)
+				if emp.get('hdmf_mode') == "Manual":
+					hdmfm = flt(emp.get("hdmf_manual"), 8) - hdmf
 						
 				for l in hdmf_list:
-					amt = flt(eval(l), 8) / 2 if emp.get('hdmf_freq') == "Both" else flt(eval(l), 8)
+					if emp.get('hdmf_freq') == "Both":
+						amt = flt(eval(l), 8) / 2
+					elif emp.get('hdmf_freq') == "All":
+						amt = flt(eval(l), 8) / 4
+					else:
+						amt = flt(eval(l), 8)
+
 					hdmf_register.append({"pay_code": l.upper(), "amount": amt })
-		
+	
 			for d in hdmf_register:
 				register.append(d)
 				if d.get("pay_code") == "HDMF" or d.get("pay_code") == "HDMFM":

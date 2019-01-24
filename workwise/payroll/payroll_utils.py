@@ -113,3 +113,13 @@ def get_sss_amount(amount, sss_table):
 		sss, ssse, sssc = d.employee, d.employer, d.ec
 
 	return sss, ssse, sssc
+
+def get_hdmf_table():
+	sss_table = frappe.db.sql(""" SELECT beginning, ending, employee, employer FROM `tabHDMF Table` """, as_dict=True )
+	return sss_table
+
+def get_hdmf_amount(amount, hdmf_table):
+	hdmf, hdmfe = 0, 0
+	for d in list(filter(lambda x: x['beginning'] <= amount <= x['ending'], hdmf_table)):
+		hdmf, hdmfe = d.employee, d.employer
+	return hdmf, hdmfe
