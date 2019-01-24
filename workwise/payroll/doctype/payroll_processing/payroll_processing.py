@@ -8,7 +8,8 @@ import frappe
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
-from workwise.payroll.payroll_utils import validate_fifth
+from workwise.payroll.payroll_utils import get_adjustment_settings, get_rates, get_sss_table, get_sss_amount
+from workwise.payroll.weekly_utils import get_weekly_prev_map, get_weekly_basis
 
 class PayrollProcessing(Document):
 	def get_employees(self):
@@ -55,17 +56,27 @@ class PayrollProcessing(Document):
 
 	def process_payroll(self):
 		self.validate_period()
+		weekly_set = frappe.db.get_value("Payroll Period", self.period, "weekly_set")
+		no_weeks = ""
+		if weekly_set:
+			no_weeks = frappe.db.get_value("Weekly Set", weekly_set, "no_weeks")
+
 		ss_list = []
 		employees = self.get_employees()
+		sss_table = get_sss_table()
+	
 		tr_map = self.get_transaction_map()
 		ot_map = self.get_overtime_map()
-		adj_settings = self.get_adjustment_settings()
-		has_fifth = validate_fifth(self.company, self.period)
-		previous_period, extended_period = self.get_previous_period()
+		adj_settings = get_adjustment_settings()
+		previous_period = self.get_previous_period()
 		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
 		uho_ab_spnw = frappe.db.get_single_value('Payroll Settings', 'uho_ab_spnw')
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		ex_uho_spnw = frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw')
+		weekly_prev_map = frappe._dict() 
+		if self.schedule == "Weekly":
+			weekly_prev_map = get_weekly_prev_map(employees, weekly_set)
+		
 		if employees:
 			no_emp = len(employees)
 			proc_emp = 0
@@ -80,10 +91,11 @@ class PayrollProcessing(Document):
 					'posting_date': self.payroll_date,
 					'process_date': nowdate(),
 					'period': self.period,
+					'weekly_set': weekly_set,
+					'no_weeks': no_weeks,
 					'schedule': self.schedule,
 					'frequency': self.frequency,
 					'previous_period': previous_period,
-					'extended_period': extended_period,
 					'previous_taxable_income': 0.0,
 					'previous_work_days': 0.0,
 					'previous_absent_days': 0.0,
@@ -108,7 +120,6 @@ class PayrollProcessing(Document):
 					'gross_payroll': 0.0,
 					'bonus': 0.0,
 					#Payroll Settings
-					'has_fifth': has_fifth,
 					'uho_ab_days': uho_ab_days,
 					'uho_ab_spnw': uho_ab_spnw,
 					'lwop_uho': lwop_uho,
@@ -116,11 +127,8 @@ class PayrollProcessing(Document):
 				}
 
 				#Calculate Rates and Previous Entries
-				rates = self.get_rates(emp)
+				rates = get_rates(emp)
 				self.get_previous(emp, header)
-
-				if self.frequency == "5th":
-					self.get_add_previous(emp, header, extended_period)
 
 				#Calculate Basic Entries
 				self.get_attendance(emp, rates, header, register, ot_map)
@@ -131,10 +139,10 @@ class PayrollProcessing(Document):
 				self.get_loans(emp, rates, register)
 
 				#Calculate Basic Entries to Header
-				self.calculate_basic_header(register, header, tr_map) 
+				self.calculate_basic_header(register, header, tr_map)
 
 				#Calculate Special Entries
-				self.get_sss(emp, rates, header, register, tr_map)
+				self.get_sss(emp, rates, header, register, tr_map, sss_table, weekly_prev_map)
 				self.get_phic(emp, rates, header, register, tr_map)
 				self.get_hdmf(emp, rates, header, register, tr_map)
 				self.get_whtax(emp, rates, header, register)
@@ -238,50 +246,6 @@ class PayrollProcessing(Document):
 		header['daily_rate'] = rates.get("daily_rate")
 		header['hourly_rate'] = rates.get("hourly_rate")
 
-	def get_rates(self, emp):
-		monthly_rate = 0.0
-		hourly_rate = 0.0
-		semi_rate = 0.0
-		daily_rate = 0.0
-		weekly_rate = 0.0
-		if emp['rate'] > 0 and  emp['total_yr_days'] > 0 and emp['no_hours'] > 0:
-			month_days = (flt(emp['total_yr_days'], 8) / 12)
-			if emp['rate_type'] == "Monthly Rate":
-				monthly_rate = flt(emp['rate'], 8)
-				semi_rate = flt(emp['rate'], 8) / 2
-				daily_rate = flt(emp['rate'], 8) / month_days
-				hourly_rate = ( flt(emp['rate'], 8) / month_days ) / emp['no_hours']
-				weekly_rate = (flt(emp['rate'], 8) / month_days) * 7
-
-			elif emp['rate_type'] == "Hourly Rate":
-				monthly_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * month_days
-				semi_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * (month_days / 2)
-				daily_rate = flt(emp['rate'], 8) * emp['no_hours']
-				hourly_rate = flt(emp['rate'], 8)
-				weekly_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * 7
-
-			elif emp['rate_type'] == "Daily Rate":
-				monthly_rate = flt(emp['rate'], 8) * month_days
-				semi_rate = flt(emp['rate'], 8) * (month_days / 2)
-				daily_rate = flt(emp['rate'], 8)
-				hourly_rate = flt(emp['rate'], 8) / emp['no_hours']
-				weekly_rate = flt(emp['rate'], 8) * 7
-			
-			elif emp['rate_type'] == "Weekly Rate":
-				monthly_rate = (flt(emp['rate'], 8) / 7) * month_days
-				semi_rate = (flt(emp['rate'], 8) / 7) * (month_days / 2)
-				daily_rate = flt(emp['rate'], 8) / 7
-				hourly_rate = (flt(emp['rate'], 8) / 7) / emp['no_hours']
-				weekly_rate = flt(emp['rate'], 8)
-
-		return {
-			"monthly_rate": monthly_rate,
-			"semi_rate": semi_rate,
-			"daily_rate": daily_rate,
-			"hourly_rate": flt(hourly_rate, 8),
-			"weekly_rate": flt(weekly_rate, 8)
-		}
-
 	def get_basic(self, emp, rates, header, register):
 		amt = 0
 		if emp.get('rate_type') == "Hourly Rate":
@@ -303,7 +267,7 @@ class PayrollProcessing(Document):
 
 		register.append({"pay_code": "BS", "amount": amt})
 
-	def get_sss(self, emp, rates, header, register, tr_map):
+	def get_sss(self, emp, rates, header, register, tr_map, sss_table, weekly_prev_map):
 		sss_register = []
 		if self.frequency == emp.get('sss_freq') or emp.get('sss_freq') == "Both":
 			if emp.get('sss_mode') != "None":
@@ -313,12 +277,7 @@ class PayrollProcessing(Document):
 				target_amt = 0
 
 				if emp.get('payroll_schedule') == "Weekly":
-					if emp.get('sss_freq') == self.frequency:
-						target_amt = header.get('government_basis') * 2
-
-					elif emp.get('sss_freq') == "Both" and (self.frequency == "2nd" or self.frequency == "4th"):
-						target_amt = flt(header.get('government_basis'), 8) + flt(header.get('previous_government_basis'), 8)	
-
+					target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
 				else:
 					if emp.get('sss_freq') == '2nd':
 						if emp.get('payroll_schedule') == "Semi-Monthly":
@@ -330,15 +289,13 @@ class PayrollProcessing(Document):
 					elif emp.get('sss_freq') == 'Both' or emp.get('sss_freq') == '1st':
 						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
-				table = frappe.db.sql("""SELECT employee, employer, ec FROM `tabSSS Table`
-					WHERE %s >= beginning AND %s <= ending LIMIT 1 """,( target_amt, target_amt ), as_dict=True )
-
-				for t in table:
-					sss = flt( emp.get('sss_manual') , 8) if emp.get('sss_mode') == "Manual" and flt( emp.get('sss_manual') , 8) > t.employee else t.employee
-					ssse, sssc = t.employer, t.ec
-
+				sss, ssse, sssc = get_sss_amount(target_amt, sss_table)
 				for l in sss_list:
-					amt = flt(eval(l), 8) / 2 if emp.get('sss_freq') == "Both" else flt(eval(l), 8)
+					if self.schedule == "Weekly":
+						amt = flt(eval(l), 8)
+					else:
+						amt = flt(eval(l), 8) / 2 if emp.get('sss_freq') == "Both" else flt(eval(l), 8)
+					
 					sss_register.append({"pay_code": l.upper(), "amount": amt })
 
 			for d in sss_register:
@@ -542,39 +499,13 @@ class PayrollProcessing(Document):
 		for d in batch_register:
 			register.append(d)
 
-	def get_adjustment_settings(self):
-		settings = {
-			"inc_ab": "", "inc_uho": "", "inc_ot": "", "inc_nd": "", "inc_lt": "", "inc_ut": "",
-			"ded_ab": "", "ded_uho": "", "ded_ot": "", "ded_nd": "", "ded_lt": "", "ded_ut": "",
-		}
-
-		inc_ab = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ab')
-		inc_uho = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_uho')
-		inc_ot = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ot')
-		inc_nd = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_nd')
-		inc_lt = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_lt')
-		inc_ut = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ut')
-
-		ded_ab = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ab')
-		ded_uho = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_uho')
-		ded_ot = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ot')
-		ded_nd = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_nd')
-		ded_lt = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_lt')
-		ded_ut = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ut')
-
-		settings.update({
-			"inc_ab": inc_ab, "inc_uho": inc_uho, "inc_ot": inc_ot, "inc_nd": inc_nd, "inc_lt": inc_lt, "inc_ut": inc_ut,
-			"ded_ab": ded_ab, "ded_uho": ded_uho, "ded_ot": ded_ot, "ded_nd": ded_nd, "ded_lt": ded_lt, "ded_ut": ded_ut,
-		})
-
-		return settings 			
+		
 
 	def get_adjustment(self, emp, rates, header, register, adjset):
 		adjustment_register = []
 		adjustment = frappe.db.sql("""SELECT name, absent, unpaid_holiday, overtime, nightdiff, late, undertime 
 			FROM `tabAdjustment Register`WHERE employee = %s AND payroll_period = %s """,(emp.get('name'), self.period), as_dict=True )
 		
-
 		for d in adjustment:
 			if d.absent != 0:
 				if d.absent < 0:
@@ -893,64 +824,28 @@ class PayrollProcessing(Document):
 
 	def get_previous_period(self):
 		previous_period = ""
-		extended_period = ""
-		extend = ""
-		if self.schedule == "Weekly" and (self.frequency == "2nd" or self.frequency == "4th"):
-			if self.frequency == "2nd":
-				before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
-					AND `schedule` = 'Weekly' AND payroll_date < %s AND frequency = '1st'	
-					ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.payroll_date ))
-
-			elif self.frequency == "4th":	
-				before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
-					AND `schedule` = 'Weekly' AND payroll_date < %s AND frequency = '3rd'
-					ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.payroll_date ))
-			
-			elif self.frequency == "5th":
-					before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
-						AND `schedule` = 'Weekly' AND payroll_date < %s AND frequency = '4th'
-						ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.payroll_date ))
-
-					extend = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
-						AND `schedule` = 'Weekly' AND payroll_date < %s AND frequency = '3rd'
-						ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.payroll_date ))
-		else:
+		if self.schedule != "Weekly":
 			before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
 				AND `schedule` = %s AND payroll_date < %s ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.schedule, self.payroll_date ))
 			
-		previous_period = before[0] if before else ""
-		extended_period = extend[0] if extend else ""
+			previous_period = before[0] if before else ""
 
-		return previous_period, extended_period
+		return previous_period
 
 	def get_previous(self, emp, header):
-		previous = frappe.db.sql(""" SELECT government_basis, taxable_income, gross_payroll, 
-		present_days, work_days, absent_days, govt_income, govt_deduction FROM `tabPayroll Register` 
-		WHERE period = %s AND employee = %s LIMIT 1 """,(header.get('previous_period'), emp.get('name')), as_dict=True)		
-		for d in previous:
-			header['previous_taxable_income'] = d.taxable_income if d.taxable_income else 0
-			header['previous_gross_payroll'] = d.gross_payroll if d.gross_payroll else 0
-			header['previous_present_days'] = d.present_days if d.present_days else 0
-			header['previous_work_days'] = d.work_days if d.work_days else 0
-			header['previous_absent_days'] = d.absent_days if d.absent_days else 0
-			header['previous_government_basis'] = d.government_basis if d.government_basis else 0
-			header['prev_govt_deduction'] = d.govt_deduction if d.govt_deduction else 0
-			header['prev_govt_income'] = d.govt_income if d.govt_income else 0
-
-
-	def get_extended(self, emp, header, period):
-		previous = frappe.db.sql(""" SELECT government_basis, taxable_income, gross_payroll, 
-		present_days, work_days, absent_days, govt_income, govt_deduction FROM `tabPayroll Register` 
-		WHERE period = %s AND employee = %s LIMIT 1 """,(period, emp.get('name')), as_dict=True)		
-		for d in previous:
-			header['previous_taxable_income'] += d.taxable_income if d.taxable_income else 0
-			header['previous_gross_payroll'] += d.gross_payroll if d.gross_payroll else 0
-			header['previous_present_days'] += d.present_days if d.present_days else 0
-			header['previous_work_days'] += d.work_days if d.work_days else 0
-			header['previous_absent_days'] += d.absent_days if d.absent_days else 0
-			header['previous_government_basis'] += d.government_basis if d.government_basis else 0
-			header['prev_govt_deduction'] += d.govt_deduction if d.govt_deduction else 0
-			header['prev_govt_income'] += d.govt_income if d.govt_income else 0
+		if self.schedule != "Weekly":
+			previous = frappe.db.sql(""" SELECT government_basis, taxable_income, gross_payroll, 
+				present_days, work_days, absent_days, govt_income, govt_deduction FROM `tabPayroll Register` 
+				WHERE period = %s AND employee = %s LIMIT 1 """,(header.get('previous_period'), emp.get('name')), as_dict=True)		
+			for d in previous:
+				header['previous_taxable_income'] = d.taxable_income if d.taxable_income else 0
+				header['previous_gross_payroll'] = d.gross_payroll if d.gross_payroll else 0
+				header['previous_present_days'] = d.present_days if d.present_days else 0
+				header['previous_work_days'] = d.work_days if d.work_days else 0
+				header['previous_absent_days'] = d.absent_days if d.absent_days else 0
+				header['previous_government_basis'] = d.government_basis if d.government_basis else 0
+				header['prev_govt_deduction'] = d.govt_deduction if d.govt_deduction else 0
+				header['prev_govt_income'] = d.govt_income if d.govt_income else 0
 
 	def create_log(self, ss_list):
 		log = "<p>" + _("No Employee for the above selected criteria Payroll or Already Created") + "</p>"

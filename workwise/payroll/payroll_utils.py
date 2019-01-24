@@ -3,15 +3,13 @@ import frappe, datetime
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
-from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
-from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_suspension_map, get_suspension)
 
 def get_rates(emp):
 	monthly_rate = 0.0
 	hourly_rate = 0.0
 	semi_rate = 0.0
 	daily_rate = 0.0
+	weekly_rate = 0.0
 	if emp['rate'] > 0 and  emp['total_yr_days'] > 0 and emp['no_hours'] > 0:
 		month_days = (flt(emp['total_yr_days'], 8) / 12)
 		if emp['rate_type'] == "Monthly Rate":
@@ -19,40 +17,36 @@ def get_rates(emp):
 			semi_rate = flt(emp['rate'], 8) / 2
 			daily_rate = flt(emp['rate'], 8) / month_days
 			hourly_rate = ( flt(emp['rate'], 8) / month_days ) / emp['no_hours']
+			weekly_rate = (flt(emp['rate'], 8) / month_days) * 7
 
 		elif emp['rate_type'] == "Hourly Rate":
 			monthly_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * month_days
 			semi_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * (month_days / 2)
 			daily_rate = flt(emp['rate'], 8) * emp['no_hours']
 			hourly_rate = flt(emp['rate'], 8)
+			weekly_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * 7
 
 		elif emp['rate_type'] == "Daily Rate":
 			monthly_rate = flt(emp['rate'], 8) * month_days
 			semi_rate = flt(emp['rate'], 8) * (month_days / 2)
 			daily_rate = flt(emp['rate'], 8)
 			hourly_rate = flt(emp['rate'], 8) / emp['no_hours']
+			weekly_rate = flt(emp['rate'], 8) * 7
+		
+		elif emp['rate_type'] == "Weekly Rate":
+			monthly_rate = (flt(emp['rate'], 8) / 7) * month_days
+			semi_rate = (flt(emp['rate'], 8) / 7) * (month_days / 2)
+			daily_rate = flt(emp['rate'], 8) / 7
+			hourly_rate = (flt(emp['rate'], 8) / 7) / emp['no_hours']
+			weekly_rate = flt(emp['rate'], 8)
 
 	return {
 		"monthly_rate": monthly_rate,
 		"semi_rate": semi_rate,
 		"daily_rate": daily_rate,
-		"hourly_rate": flt(hourly_rate, 8)
+		"hourly_rate": flt(hourly_rate, 8),
+		"weekly_rate": flt(weekly_rate, 8)
 	}
-
-def validate_fifth(company, period):
-	status = 0
-
-
-	freq = frappe.db.get_value("Payroll Period", period, "frequency")
-	if freq == "4th":
-		fifth = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
-			AND previous_period = %s AND `schedule` = 'Weekly' AND frequency = "5th"
-			ORDER BY payroll_date DESC LIMIT 1 """,(company, period ))
-
-		if fifth:
-			status = 1
-
-	return status
 
 def get_overtime_map():
 	ot_map = {}
@@ -81,3 +75,41 @@ def get_location_map():
 		loc_map[l.name] = { "name": l.name, "company": l.company, "min_wage": l.min_wage }
 
 	return loc_map
+
+def get_adjustment_settings():
+	settings = {
+		"inc_ab": "", "inc_uho": "", "inc_ot": "", "inc_nd": "", "inc_lt": "", "inc_ut": "",
+		"ded_ab": "", "ded_uho": "", "ded_ot": "", "ded_nd": "", "ded_lt": "", "ded_ut": "",
+	}
+
+	inc_ab = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ab')
+	inc_uho = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_uho')
+	inc_ot = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ot')
+	inc_nd = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_nd')
+	inc_lt = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_lt')
+	inc_ut = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ut')
+
+	ded_ab = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ab')
+	ded_uho = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_uho')
+	ded_ot = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ot')
+	ded_nd = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_nd')
+	ded_lt = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_lt')
+	ded_ut = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ut')
+
+	settings.update({
+		"inc_ab": inc_ab, "inc_uho": inc_uho, "inc_ot": inc_ot, "inc_nd": inc_nd, "inc_lt": inc_lt, "inc_ut": inc_ut,
+		"ded_ab": ded_ab, "ded_uho": ded_uho, "ded_ot": ded_ot, "ded_nd": ded_nd, "ded_lt": ded_lt, "ded_ut": ded_ut,
+	})
+
+	return settings
+
+def get_sss_table():
+	sss_table = frappe.db.sql(""" SELECT beginning, ending, employee, employer, ec FROM `tabSSS Table` """, as_dict=True )
+	return sss_table
+
+def get_sss_amount(amount, sss_table):
+	sss, ssse, sssc = 0, 0, 0
+	for d in list(filter(lambda x: x['beginning'] <= amount <= x['ending'], sss_table)):
+		sss, ssse, sssc = d.employee, d.employer, d.ec
+
+	return sss, ssse, sssc

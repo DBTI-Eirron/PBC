@@ -40,8 +40,18 @@ class PayrollPeriod(Document):
 				self.frequency = "2nd" 
 				frappe.msgprint("Frequency Changed to ( 2nd ) because (3rd 4th 5th) is not allowed for Monthly and Semi-Monthly")
 
-		if self.frequency == "5th" and not self.previous_period:
-			frappe.throw(_("Previous Period is Required if 5th Frequency"))
+		if self.schedule == "Weekly":
+			if not self.weekly_set:
+				frappe.throw(_("Weekly Set is Required if Weekly Schedule"))
+
+			self.validate_duplicate_set()
+
+	def validate_duplicate_set(self):
+		duplicate = frappe.db.sql(""" SELECT `name` FROM `tabPayroll Period` 
+			WHERE name != %s AND company = %s AND frequency = %s AND weekly_set = %s AND schedule = "Weekly" """, (self.name, self.company, self.frequency, self.weekly_set),as_dict=1)
+		if duplicate:
+			frappe.throw(_("{0} Frequency already exist in {1} Weekly Set").format(self.frequency ,self.weekly_set))
+
 			
 	def validate_days(self):
 		difference = date_diff(self.to_date, self.from_date)

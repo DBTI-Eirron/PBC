@@ -38,10 +38,12 @@ frappe.ui.form.on('Attendance Processing', {
 	setup: function(frm) {
 		frm.add_fetch("period", "from_date", "period_from");
 		frm.add_fetch("period", "to_date", "period_to");
+		frm.add_fetch("period", "schedule", "schedule");
 	},
 	refresh: function(frm) {
 		frm.disable_save();
 	},
+	
 	onload_post_render: function() {
 
 	},
@@ -50,6 +52,7 @@ frappe.ui.form.on('Attendance Processing', {
 		frm.set_value("period", null);
 		frm.set_value("period_from", null);
 		frm.set_value("period_to", null);
+		//frm.set_value("schedule", null);
 	}
 });
 

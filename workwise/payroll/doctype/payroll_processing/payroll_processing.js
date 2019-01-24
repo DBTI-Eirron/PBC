@@ -25,6 +25,14 @@ frappe.ui.form.on('Payroll Processing', {
 				}
 			};
 		});
+
+		frm.set_query("location", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
 	},
 
 	setup: function(frm) {
@@ -34,15 +42,11 @@ frappe.ui.form.on('Payroll Processing', {
 		frm.add_fetch("period", "attendance_from", "attendance_from");
 		frm.add_fetch("period", "attendance_to", "attendance_to");
 		frm.add_fetch("period", "payroll_date", "payroll_date");	
-		frm.add_fetch("period", "schedule", "schedule");	
+		frm.add_fetch("period", "schedule", "schedule");
 	},
 
 	refresh: function(frm) {
 		frm.disable_save();
-	},
-	
-	onload_post_render: function() {
-
 	},
 
 	company: function(frm){

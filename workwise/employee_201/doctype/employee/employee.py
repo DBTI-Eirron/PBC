@@ -47,6 +47,9 @@ class Employee(Document):
 			self.whtax_freq = "2nd"
 			frappe.msgprint("Government Settings Frequency Changed to ( 2nd ) because Schedule was set to Monthly")
 
+		if self.payroll_schedule != "Weekly" and (self.sss_freq == "All" or self.hdmf_freq == "All" or self.phic_freq == "All" or self.whtax_freq == "All"):
+			frappe.throw(" 'All' Frequency in SSS, HDMF, PHIC and WHTAX is only allowed for 'Weekly' Employees ")
+
 		if self.payroll_schedule == "Weekly":
 			if self.sss_freq == ("3rd" or "4th" or "5th"):
 				self.sss_freq = "2nd" 
