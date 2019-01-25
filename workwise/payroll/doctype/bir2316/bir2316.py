@@ -783,7 +783,7 @@ class BIR2316(Document):
 		prev_bir = frappe.db.sql(""" SELECT DISTINCT * FROM `tabBIR2316` WHERE document_type = "Previous" AND `employee` = %s AND docstatus = 1 """, (self.employee), as_dict=1)
 		if prev_bir:
 			for d in prev_bir:
-				entry['sum_tcipe'] += d.sum_tcipe
+				entry['sum_tcipe'] += d.tax_total
 
 		return entry
 
