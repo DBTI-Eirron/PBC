@@ -23,10 +23,11 @@ class EmployeeSubordinates(Document):
 	def remove_all_permissions(self):
 		user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 		if user_id:
-			perms = frappe.db.sql("""SELECT `name`, for_value FROM `tabUser Permission` WHERE allow = 'Employee' AND user = %s AND for_value != %s """, (user_id, self.employee), as_dict=1)
-			for d in perms:
-				frappe.permissions.remove_user_permission("Employee", d.for_value, user_id)
-			frappe.cache().delete_value('user_permissions')
+			perms = frappe.db.sql("""SELECT `name`, for_value FROM `tabUser Permission` WHERE allow = 'Employee' AND `user` = %s AND for_value != %s """, (user_id, self.employee), as_dict=1)
+			if perms:
+				for d in perms:
+					frappe.permissions.remove_user_permission("Employee", d.for_value, user_id)
+				frappe.cache().delete_value('user_permissions')
 		else:
 			frappe.throw(_("This Employee has no User ID."))
 
@@ -60,46 +61,19 @@ class EmployeeSubordinates(Document):
 			entries = []
 			employees = ""
 			if self.filter_type == 'Employee':
-				if not "Administrator" in frappe.get_roles(cur_user):
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND `name` = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
-						"company": self.company,
-						"filter_value": self.filter_value,
-						"user": frappe.session.user,
-					}, as_dict=True)
-				else:
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND `name` = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
+					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s AND `name` = %(filter_value)s ORDER BY last_name, first_name""",{ 
 						"company": self.company,
 						"filter_value": self.filter_value,
 					}, as_dict=True)
 			elif self.filter_type == 'Department':
-				if not "Administrator" in frappe.get_roles(cur_user):
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND department = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
-						"company": self.company,
-						"filter_value": self.filter_value,
-						"user": frappe.session.user,
-					}, as_dict=True)
-				else:
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND department = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
+					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s AND department = %(filter_value)s ORDER BY last_name, first_name""",{ 
 						"company": self.company,
 						"filter_value": self.filter_value,
 					}, as_dict=True)
 			elif self.filter_type == 'Location':
-				if not "Administrator" in frappe.get_roles(cur_user):
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND location = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
+					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s AND location = %(filter_value)s ORDER BY last_name, first_name""",{ 
 						"company": self.company,
 						"filter_value": self.filter_value,
-					}, as_dict=True)
-				else:
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND location = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
-						"company": self.company,
-						"filter_value": self.filter_value,
-						"user": frappe.session.user,
 					}, as_dict=True)
 			
 			if employees:
