@@ -106,8 +106,7 @@ def get_data(filters):
 			for r in register:
 				emp_late = 0
 				schedule = ""
-				schedule = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
-					datetime_in, datetime_out, pre_shift, post_shift, break_start, break_end, nd_start, nd_end
+				schedule = frappe.db.sql("""SELECT *
 					FROM `tabWork Schedule` 
 					WHERE employee = %(employee)s AND target_date = %(date)s
 					ORDER BY target_date ASC""",{
@@ -116,7 +115,7 @@ def get_data(filters):
 				}, as_dict=True)
 				for s in schedule:
 					shift = ""
-					shift = frappe.db.sql("""SELECT `name`, grace_period, b_grace_period, is_restday, is_flexible, setup_preshift, setup_postshift, ignore_late
+					shift = frappe.db.sql("""SELECT *
 						FROM `tabWork Shift` WHERE `name` = %(w_shift)s """,{
 						"w_shift": r.work_shift,
 					}, as_dict=True)
