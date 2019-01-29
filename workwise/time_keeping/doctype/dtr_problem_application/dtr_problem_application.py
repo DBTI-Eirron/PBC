@@ -28,8 +28,8 @@ class DTRProblemApplication(Document):
 		self.revert_request()
 
 	def validate_application(self):
-		if self.target_date < nowdate():
-			frappe.throw(_("Date must not be later than today"))
+		if self.target_date > nowdate():
+			frappe.throw(_("You cannot file in advance for DTR Problem Application"))
 
 	def get_timekeeping_settings(self):
 		cur_month = datetime.strptime(self.target_date, '%Y-%m-%d').month
