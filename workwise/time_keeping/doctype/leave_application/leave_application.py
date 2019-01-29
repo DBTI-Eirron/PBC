@@ -19,6 +19,7 @@ class LeaveApplication(Document):
 		self.validate_employee()
 		self.validate_balance()
 		self.validate_medical()
+		self.validate_leave()
 		change_owner(self)
 		self.get_recipients()
 
@@ -26,7 +27,6 @@ class LeaveApplication(Document):
 		self.set_lwop()
 		validate_approve_own_application(self)
 		self.validate_medical()
-		self.validate_leave()
 		self.validate_balance()
 		self.update_leave_credits()
 		get_approver_and_date(self)
@@ -75,7 +75,7 @@ class LeaveApplication(Document):
 	def validate_employee(self):
 		access_list = []
 		solo, gender, civil_status, employment_status = frappe.get_value("Employee", self.employee, ["is_solo_parent", "gender", "civil_status", "employment_status"])
-		f_only, m_only, mr_only, sp_only = frappe.get_value("Leave Type", self.leave_type, ["female_only", "male_only", "married_only", "solo_parent_only"])
+		f_only, m_only, mr_only, sp_only, allow_advance_filing, leave_code, filed_on_bday = frappe.get_value("Leave Type", self.leave_type, ["female_only", "male_only", "married_only", "solo_parent_only", "allow_advance_filing", "leave_code", "filed_on_bday"])
 
 		if f_only == 1 and gender != 'Female':
 			frappe.throw(_("Leave Type is for Female Only"))
@@ -97,6 +97,19 @@ class LeaveApplication(Document):
 
 			if employment_status not in access_list:
 				frappe.throw(_("Employement Status {0} is not allowed for {1}").format(employment_status ,self.leave_type))
+
+		if allow_advance_filing == 0:
+			if self.from_date > nowdate() or self.to_date > nowdate():
+				frappe.throw(_("You cannot file in advance for {0}").format( self.leave_type ))
+
+		if leave_code == "BL":
+			if filed_on_bday == 1:
+				emp_bday = frappe.db.get_value("Employee", self.employee, "birthday")
+				if emp_bday:
+					emp_bday = datetime.datetime.strptime(str(emp_bday), '%Y-%m-%d')
+					from_date = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
+					if emp_bday.strftime('%m-%d') != from_date.strftime('%m-%d'):
+						frappe.throw(("You can only file Birthday Leave on your birthday"))
 
 	def validate_days(self):
 		self.total_leave_days = self.get_total_leave_days()
