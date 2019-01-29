@@ -22,6 +22,12 @@ frappe.query_reports["Leave Summary Report"] = {
 			"label": __("To Date"),
 			"fieldtype": "Date",
 			"reqd": 1
+		},
+		{
+			"fieldname": "leave_type",
+			"label": __("Leave Type"),
+			"fieldtype": "Link",
+			"options": "Leave Type",
 		}
 	]
 }

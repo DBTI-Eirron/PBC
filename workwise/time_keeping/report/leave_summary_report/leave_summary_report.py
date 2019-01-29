@@ -73,11 +73,15 @@ def get_data(filters):
 			`tabLeave Application Table` LT
 			JOIN `tabLeave Application` LA 
 		WHERE
-			LT.`parent` = LA.`name` AND LA.`docstatus`= 1 AND LA.`employee` = %(employee)s AND LT.`leave_date` >= %(from)s AND LT.`leave_date` <= %(to)s """,{
-			"to": filters.to_date,
-			"from": filters.from_date,
-			"employee": emp.name,
-		}, as_dict=True)
+			LT.`parent` = LA.`name` AND LA.`docstatus`= 1 
+			AND LA.`employee` = %(employee)s 
+			AND LT.`leave_date` >= %(from)s 
+			AND LT.`leave_date` <= %(to)s {conditions} """.format(conditions=get_query_conditions(filters)),{ 
+				"to": filters.to_date,
+				"from": filters.from_date,
+				"employee": emp.name,
+				"leave_type": filters.leave_type
+			}, as_dict=True)
 
 		if l_app:
 			data.append({
@@ -120,3 +124,10 @@ def get_conditions(filters):
 		conditions.append("`name`=%(employee)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
+
+def get_query_conditions(filters):
+	conditions = []
+	if filters.leave_type:
+		conditions.append("`leave_type`=%(leave_type)s")
+
+	return "and {}".format(" and ".join(conditions)) if conditions else ""
