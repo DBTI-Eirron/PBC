@@ -157,6 +157,10 @@ def get_data(filters):
 		data.append({
 			"target_date":"<b>Department: </b>"+filters.department+"</b>",
 		})
+	if filters.location:
+		data.append({
+			"target_date":"<b>Location: </b>"+filters.location+"</b>",
+		})
 	data.append({
 		"target_date":"<b>Period: </b>"+cstr(filters.payroll_period)+"</b>",
 	})
@@ -220,6 +224,9 @@ def get_conditions(filters):
 
 	if filters.get("department"):
 		conditions.append("department=%(department)s")
+
+	if filters.get("location"):
+		conditions.append("location=%(location)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 
