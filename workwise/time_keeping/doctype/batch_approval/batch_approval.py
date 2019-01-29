@@ -10,9 +10,44 @@ from frappe.model.document import Document
 
 class BatchApproval(Document):
 	def validate(self):
-		pass
+		self.validate_entires()
+
+	def validate_entires(self):
+		table = "`tab"+self.application_type+"`"
+		table = str(table)
+		if self.employee:
+			record = frappe.db.sql("""SELECT AP.`name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND AP.`employee` = %s """, (getdate(self.from_date), getdate(self.to_date), self.employee), as_dict=True)
+		else:
+			cur_user = frappe.session.user
+			if not "Administrator" in frappe.get_roles(cur_user):
+				record = frappe.db.sql(""" SELECT DISTINCT AP.`name` FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` WHERE AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND TE.`name` IN (SELECT `for_value` FROM `tabUser Permission` WHERE `allow` = "Employee" AND `user` = %s) """, (getdate(self.from_date), getdate(self.to_date), cur_user), as_dict=True)
+			else:
+				record = frappe.db.sql("""SELECT AP.`name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) """, (getdate(self.from_date), getdate(self.to_date)), as_dict=True)
+
+		record_list = []
+		for a in record:
+			record_list.append(a.name);
+
+		entries = []
+		for b in self.get("batch_table"):
+			if b.application in record_list:
+				row = {
+					"apptype": b.apptype,
+					"application": b.application,
+					"date": b.date,
+					"employee": b.employee,
+					"employee_name": b.employee_name,
+					"action": b.action
+				}
+				entries.append(row);
+
+		self.set('batch_table', [])
+		for d in entries:
+			row = self.append('batch_table', {})
+			row.update(d)
 
 	def on_submit(self):
+		self.validate_entires()
 		self.approve_applications()
 
 	def map_applications_on_table(self):
