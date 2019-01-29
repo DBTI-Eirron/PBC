@@ -12,6 +12,8 @@ from workwise.time_keeping.application_utils import grant_head_subordinate_acces
 
 class DTRProblemApplication(Document):
 	def validate(self):
+		self.validate_application()
+		self.get_timekeeping_settings()
 		grant_head_subordinate_access(self)
 		self.get_request()
 		change_owner(self)
@@ -19,12 +21,35 @@ class DTRProblemApplication(Document):
 	def on_submit(self):
 		validate_approve_own_application(self)
 		self.approve_request()
-		self.get_approver_details()
 		get_approver_and_date(self)
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
 		self.revert_request()
+
+	def validate_application(self):
+		if self.target_date < nowdate():
+			frappe.throw(_("Date must not be later than today"))
+
+	def get_timekeeping_settings(self):
+		cur_month = datetime.strptime(self.target_date, '%Y-%m-%d').month
+		cur_year = datetime.strptime(self.target_date, '%Y-%m-%d').year
+		max_month = frappe.db.get_single_value('Timekeeping Settings', 'dtrp_max_monthly')
+		max_year = frappe.db.get_single_value('Timekeeping Settings', 'dtrp_max_yearly')
+
+		dtrp_record_month = frappe.db.sql("""SELECT count(`name`) as count FROM `tabDTR Problem Application` 
+			WHERE docstatus = 1 AND employee = %s AND company = %s AND MONTH(`target_date`) = %s AND YEAR(`target_date`) = %s """, (self.employee, self.company, cur_month, cur_year), as_dict=True)
+		if dtrp_record_month:
+			if max_month != 0:
+				if int(dtrp_record_month[0].count) > int(max_month):
+					frappe.throw(_("You have reached the maximum number of filing per month"))
+
+		dtrp_record_year = frappe.db.sql("""SELECT count(`name`) as count FROM `tabDTR Problem Application` 
+			WHERE docstatus = 1 AND employee = %s AND company = %s AND YEAR(`target_date`) = %s """, (self.employee, self.company, cur_year), as_dict=True)
+		if dtrp_record_year:
+			if max_year != 0:
+				if int(dtrp_record_year[0].count) > int(max_year):
+					frappe.throw(_("You have reached the maximum number of filing per year"))
 
 	def get_request(self):
 		for req in self.get("time_record_request"):
@@ -81,10 +106,6 @@ class DTRProblemApplication(Document):
 	def get_timecard(self, card):
 		timecard_sel = frappe.db.sql("""SELECT TC.`name` FROM `tabTime Card` TC JOIN `tabEmployee` TE WHERE TC.biometrics_id = TE.biometrics_id  AND TC.`date` = %s AND TC.`card_type` = %s AND TE.`name` = %s LIMIT 1 """, (self.target_date, card, self.employee), as_dict=True)
 		return timecard_sel
-
-	def get_approver_details(self):
-		self.approved_by = frappe.session.user
-		self.approved_on = nowdate()
 
 	def update_target_date(self):
 		target_date = datetime.strptime(str(self.target_date) + ' ' + '00:00:00', '%Y-%m-%d %H:%M:%S').date()
