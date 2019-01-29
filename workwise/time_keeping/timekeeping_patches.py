@@ -37,7 +37,7 @@ def qetquery_delete_company_records():
 	query_list = []
 	format2 = ""
 	format1 = ""
-	company = ["Direc Business Solutions Inc.", "Direc Business Technologies Inc."]
+	company = ["Opensoft Solutions Inc.", "Triplewell Construction Corporation"]
 	doctype_list = frappe.db.sql(""" SELECT DISTINCT `name` FROM `tabDocType` WHERE issingle = 0 AND istable = 0 AND `name` IN (SELECT DISTINCT parent FROM `tabDocField` WHERE fieldname = "company") """, as_dict=1)
 
 	if doctype_list:
@@ -68,7 +68,7 @@ def qetquery_delete_company_records():
 	frappe.throw(_(''.join(query_list)))
 
 def delete_company_records():
-	company = ["Direc Business Solutions Inc.", "Direc Business Technologies Inc."]
+	company = ["Opensoft Solutions Inc.", "Triplewell Construction Corporation"]
 	doctype_list = frappe.db.sql(""" SELECT DISTINCT `name` FROM `tabDocType` WHERE issingle = 0 AND istable = 0 AND `name` IN (SELECT DISTINCT parent FROM `tabDocField` WHERE fieldname = "company") """, as_dict=1)
 
 	if doctype_list:
