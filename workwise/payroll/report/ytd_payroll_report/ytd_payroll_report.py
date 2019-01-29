@@ -1,39 +1,34 @@
 # Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and Contributors
 # License: GNU General Public License v3. See license.txt
 from __future__ import unicode_literals
-import frappe, datetime
+import frappe, datetime, calendar
 from frappe.utils import cint, flt, getdate, cstr
 from frappe import _, msgprint
 
 def execute(filters=None):
 	if not filters: filters = frappe._dict({})
 	employee_list = get_employees(filters)
-
-	from_date, to_date = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
-	periods = frappe.db.sql_list("""SELECT `name`
-	 	FROM `tabPayroll Period` WHERE company = %(company)s
-		AND payroll_date >= %(from_date)s
-		AND payroll_date <= %(to_date)s ORDER BY payroll_date""",{ 
-			"company": filters.company,
-			"from_date": getdate(from_date),
-			"to_date": getdate(to_date)
-		})
+	from_date, to_date = "", ""
+	months = [ "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ]
 	
-	columns = get_columns(employee_list, periods)
+	columns = get_columns(employee_list, months)
 
 	if not employee_list:
 		msgprint(_("No record found"))
 		return columns, employee_list
 
-	period_map = get_period_map(filters, employee_list, from_date, to_date)
-
 	data = []
 	for emp in employee_list:
+		month_count = 0
 		row = [emp.name, emp.full_name]
 
 		total_grosspay = 0
-		for p in periods:
-			period_amount = flt(period_map.get(emp.name, {}).get(p))
+		for p in months:
+			month_count += 1
+			from_date = str(filters.year)+"-"+str(month_count)+"-01"
+			to_date = str(filters.year)+"-"+str(month_count)+"-"+str(calendar.monthrange(int(filters.year), int(month_count))[1])
+
+			period_amount = get_period_map(filters, emp.name, from_date, to_date)
 			total_grosspay += period_amount
 			row.append('{:,.2f}'.format(period_amount))
 		row += ['{:,.2f}'.format(total_grosspay)]
@@ -41,7 +36,7 @@ def execute(filters=None):
 
 	return columns, data
 
-def get_columns(employee_list, periods):
+def get_columns(employee_list, months):
 	columns = [
 		{
 			"fieldname": "employee",
@@ -57,7 +52,7 @@ def get_columns(employee_list, periods):
 			"width": 220
 		}]
 
-	for row in periods:
+	for row in months:
 		columns += [{
 				"fieldname": row,
 				"label": row,
@@ -97,18 +92,13 @@ def get_employees(filters):
 
 	return employees
 	
-def get_period_map(filters, employee_list, from_date, to_date):
-	period_details = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PR.gross_payroll, PR.period
-		FROM `tabPayroll Register` PR
-		WHERE PR.posting_date >= %s AND PR.posting_date <= %s AND PR.company = (%s) AND PR.employee in (%s) GROUP BY PR.`name` """ %
-		 ('%s','%s','%s',', '.join(['%s']*len(employee_list))), tuple([from_date, to_date, filters.company] + [emp.name for emp in employee_list]), as_dict=1)
+def get_period_map(filters, emp, from_date, to_date):
+	amount = 0.00
+	period_details = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PR.gross_payroll, PR.period FROM `tabPayroll Register` PR 
+		WHERE PR.posting_date >= %s AND PR.posting_date <= %s AND PR.company = %s AND PR.employee = %s """,(str(from_date), str(to_date), filters.company, emp ), as_dict=True)
 
-	period_map = {}
-	for d in period_details:
-		period_map.setdefault(d.employee, frappe._dict()).setdefault(d.period, [])
-		if period_map[d.employee][d.period]:
-			period_map[d.employee][d.period] += flt(d.gross_payroll, 2)
-		else:
-			period_map[d.employee][d.period] = flt(d.gross_payroll, 2)
+	if period_details:
+		for d in period_details:
+			amount += flt(d.gross_payroll, 2)
 
-	return period_map
+	return amount
