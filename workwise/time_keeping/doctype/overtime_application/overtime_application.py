@@ -50,7 +50,6 @@ class OvertimeApplication(Document):
 
 	def update_target_date(self):
 		target_date = datetime.datetime.strptime(str(self.from_date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S').date()
-		#frappe.throw(_("{0}").format(nowdate()))
 		if self.is_previous:
 			self.target_date = target_date - datetime.timedelta(days=1)
 		else:
@@ -71,7 +70,6 @@ class OvertimeApplication(Document):
 
 	def calculate_totals(self):
 		self.validate_time_format()
-		#self.total_hrs = 0
 		from_date = str(self.from_date) + ' ' + str(self.from_time)
 		to_date = str(self.to_date) + ' ' + str(self.to_time)
 		
@@ -90,18 +88,23 @@ class OvertimeApplication(Document):
 		ot_req_hours = frappe.db.get_single_value('Timekeeping Settings', 'req_ot')
 		if ot_req_hours:
 			if flt(self.total_hrs, 2) < flt(ot_req_hours, 2):
-				frappe.throw(_("Required work hours for Overtime Application: {0}").format(ot_req_hours))	
+				frappe.throw(_("Required work hours for Overtime Application: {0}").format(ot_req_hours))
+
+		ot_max_hours = frappe.db.get_single_value('Timekeeping Settings', 'ot_max_hours')
+		if ot_max_hours:
+			if flt(self.total_hrs, 2) > flt(ot_max_hours, 2):
+				frappe.throw(_("Max Overtime hours per application is {0} , Did not save").format(ot_max_hours))
+
+		ot_max_break = frappe.db.get_single_value('Timekeeping Settings', 'ot_max_break')
+		if ot_max_break:
+			if flt(self.break_hrs*60, 2) > flt(ot_max_break, 2):
+				frappe.throw(_("Max Overtime Break is {0} , Did not save").format(ot_max_break))
 
 		#Removed from timekeeping settings but still waiting for code removal confirmation
 		ot_req_break = frappe.db.get_single_value('Timekeeping Settings', 'ot_req_break')
 		if ot_req_break:
 			if flt(self.total_hrs, 2) > flt(ot_req_break, 2) and flt(self.break_hrs, 	2) < 1:
 				frappe.throw(_("Total Overtime hours is greater than {0} Break Time is required").format(ot_req_break))	
-
-		ot_max_hours = frappe.db.get_single_value('Timekeeping Settings', 'ot_max_hours')
-		if ot_max_hours:
-			if flt(self.total_hrs, 2) > flt(ot_max_hours, 2):
-				frappe.throw(_("Max Overtime hours per application is {0} , Did not save").format(ot_max_hours))
 
 	def validate_duplicate_ot_application(self):
 		application = frappe.db.sql(""" SELECT `name` FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)
