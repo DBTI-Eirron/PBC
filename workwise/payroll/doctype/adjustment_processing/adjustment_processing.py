@@ -205,7 +205,7 @@ class AdjustmentProcessing(Document):
 					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
 
 			for at in attendance:
-				if at.get('target_date') == add_days(attendance_from, -1):
+				if getdate(at.get('target_date')) == getdate(add_days(attendance_from, -1)):
 					if at.get('is_absent') or at.get('is_lwop'):
 						is_uho = 1
 						if lwop_uho == 1:
