@@ -17,6 +17,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 				entry['is_ob'] = 1
 
 				entry['ob_status'] = 1
+				entry['ob_stat'] = 1
 				entry["is_absent"] = 0
 				entry['is_lwop'] = 0
 
@@ -35,7 +36,12 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 				if entry['ob_out']  < entry['ob_in']:
 					ob_date = add_days(entry.get('target_date'), 1)
 					entry['ob_out'] = get_datetime( str(ob_date)+" "+ str(ob.to_time) )
-		
+
+				if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
+					entry['ob_stat'] = 3
+				else: #if OB is in first half
+					if entry.get('ob_out') <= entry.get('break_end'):
+						entry['ob_stat'] = 2
 	if uts:
 		for ut in uts:
 			if ut['from_date'] == entry['target_date']:
@@ -436,7 +442,7 @@ def get_absent(entry):
 					entry["work"] = 0
 			else:
 				if entry.get('lv_status') != 1 or entry.get('suspension') != 1:
-					entry['is_absent'] = 1
+					entry["is_absent"] = 1
 					entry["work"] = 0
 					entry["late"] = 0
 					entry["undertime"] = 0
@@ -478,6 +484,9 @@ def get_absent(entry):
 		entry["work"] = 0
 		entry["is_absent"] = 1
 		entry["is_halfday"] = 1
+		if entry.get('lv_status') == 2 and entry.get('ob_stat') == 3 and not entry.get('is_lwop'):
+			entry["is_absent"] = 0
+			entry["is_halfday"] = 0
 
 	if not entry.get('card_out') and not entry.get('is_restday') and not entry.get('is_holiday') and not entry.get('lv_status') and not entry.get('ob_status'):
 		entry["work"] = 0
@@ -1130,6 +1139,7 @@ def get_defaults(emp, sched, shift_map):
 		"ob_in": "",
 		"ob_out": "",
 		"ob": 0.0,
+		"ob_stat": 0,
 		#UT
 		"linked_ut": "",
 		"ut_from": "",
