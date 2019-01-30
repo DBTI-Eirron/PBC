@@ -10,7 +10,7 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date, add_days
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.payroll.payroll_utils import get_rates, get_overtime_map
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_suspension_map, get_suspension)
+get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_suspension_map, get_suspension, insert_overtime)
 
 class AdjustmentProcessing(Document):
 	def get_employees(self):
@@ -141,7 +141,7 @@ class AdjustmentProcessing(Document):
 			WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s 
 			AND from_date <= %s AND approved_on >= %s """, (employee,  attendance_from, attendance_to, approval_cutoff), as_dict=1)
 
-		cto_list = frappe.db.sql("""SELECT `name`, use_fromtime, use_totime,  use_date FROM `tabCompensatory Time Off` 
+		cto_list = frappe.db.sql("""SELECT `name`, use_total_hours, use_date FROM `tabCompensatory Time Off` 
 			WHERE workflow_state = 'Approved' AND employee = %s AND use_date >= %s AND use_date <= %s
 			AND `type` = 'Use' AND approved_on >= %s """, (employee,  attendance_from, attendance_to, approval_cutoff), as_dict=1)
 
@@ -166,19 +166,23 @@ class AdjustmentProcessing(Document):
 		obs = get_ob_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
+		cto = get_cto_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
 			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
 			get_sorted_card(entry, cards_in, cards_out)
 			get_suspension(emp, suspension_map, entry)
-			get_attendance(entry, leaves, holidays, obs, ots, uts, ext)
+			get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto)
 			entry['break'] = self.convert_secs(entry['break'])
 			entry['work'] = self.convert_secs(entry['work'])
 			entry['late'] = self.convert_secs(entry['late'])
 			entry['undertime'] = self.convert_secs(entry['undertime'])
 			entry['overtime'] = self.convert_secs(entry['overtime'])
+			entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
+			entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
 			entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
+			entry['cto'] = self.convert_secs(entry['cto'])
 			adjustment_schedule.append(entry)
 		
 		return adjustment_schedule
@@ -187,6 +191,7 @@ class AdjustmentProcessing(Document):
 		rates = get_rates(emp)
 		attendance_result = { "ab": 0.0, "uho": 0.0, "ot": 0.0, "nd": 0.0, "lt": 0.0, "ut": 0.0 }
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
+		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0
 
@@ -233,7 +238,7 @@ class AdjustmentProcessing(Document):
 
 					if at.get('is_holiday') == 1 and is_uho == 1 and not at.get('is_ob'):
 						unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
-						if header['uho_ab_days'] == 1:
+						if uho_ab_days == 1:
 							absent_days += 1
 
 					#check if this attendance is lwop or absent for next attendance
