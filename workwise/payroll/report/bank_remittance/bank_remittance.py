@@ -275,9 +275,22 @@ def get_result_as_list(data, filters):
 			if payroll_time == "Pay Now":
 				payroll_time = ""
 			else:
-				payroll_time = payroll_schedule
+				payroll_time = payroll_schedule 
 
-			headers = ["H", "Payroll Date", datetime.datetime.strftime(payroll_date, "%B %d, %Y"), "Payroll Time", payroll_time, "Total Amount", '{:,.2f}'.format(total_amount), "Total Count", total_count, "Funding Account", funding_account]
+			headers = {
+				"detail": "H", 
+				"employee_name": "Payroll Date",
+				"employee_account": datetime.datetime.strftime(payroll_date, "%B %d, %Y"),
+				"amount": "Payroll Time",
+				"remarks": payroll_time,
+				"lbl_total_amount": "Total Amount",
+				"total_amount": '{:,.2f}'.format(total_amount),
+				"lbl_total_count": "Total Count",
+				"total_count": total_count, 
+				"lbl_funding_account": "Funding Account", 
+				"funding_account": funding_account
+			}
+
 			result.append(headers)
 
 		fields = {
