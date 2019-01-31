@@ -107,7 +107,14 @@ class OvertimeApplication(Document):
 				frappe.throw(_("Total Overtime hours is greater than {0} Break Time is required").format(ot_req_break))	
 
 	def validate_duplicate_ot_application(self):
-		application = frappe.db.sql(""" SELECT `name` FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)
-		for d in application:
-			if d.name:
-				frappe.throw(_("Application already exists, {0}.").format(d.name))
+		application = frappe.db.sql(""" SELECT `name`, to_date, to_time, from_date, from_time FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)
+		if application:
+			for d in application:
+				existing_ot_from = datetime.datetime.strptime(str(d.from_date) + ' ' + str(d.from_time), '%Y-%m-%d %H:%M:%S')
+				existing_ot_to = datetime.datetime.strptime(str(d.to_date) + ' ' + str(d.to_time), '%Y-%m-%d %H:%M:%S')
+				
+				cur_from = datetime.datetime.strptime(str(self.from_date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S')
+				cur_to = datetime.datetime.strptime(str(self.to_date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S')
+
+				if existing_ot_from <= cur_from <= existing_ot_to or existing_ot_from <= cur_to <= existing_ot_to:
+					frappe.throw(_("Application already exists, {0}").format(d.name))
