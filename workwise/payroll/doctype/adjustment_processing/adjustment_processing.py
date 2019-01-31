@@ -15,40 +15,22 @@ get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_lis
 class AdjustmentProcessing(Document):
 	def get_employees(self):
 		employees = []
-		if self.employee:
-			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
-				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-				whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
-					FROM tabEmployee
-					WHERE company = %(company)s
-				AND `name` = %(employee)s
-				AND payroll_schedule = %(pay_sched)s 
-				AND is_active = 1 
-				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-				{conditions}
-				ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),{ 
-					"company": self.company,
-					"pay_sched": self.schedule,
-					"employee": self.employee,
-					"department": self.department,
-					"location": self.location
-				}, as_dict=True)
-		else:
-			employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
-				sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-				whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
-					FROM tabEmployee
-					WHERE company = %(company)s
-				AND payroll_schedule = %(pay_sched)s 
-				AND is_active = 1 
-				AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-				{conditions}
-				ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),{ 
-					"company": self.company,
-					"pay_sched": self.schedule,
-					"department": self.department,
-					"location": self.location
-				}, as_dict=True)
+		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
+			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
+			whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
+				FROM tabEmployee
+				WHERE company = %(company)s
+			AND payroll_schedule = %(pay_sched)s 
+			AND is_active = 1 
+			AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+			{conditions}
+			ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),{ 
+				"company": self.company,
+				"employee": self.employee,
+				"pay_sched": self.schedule,
+				"department": self.department,
+				"location": self.location
+			}, as_dict=True)
 
 		return employees
 
@@ -87,34 +69,35 @@ class AdjustmentProcessing(Document):
 		prev_attendance_from, prev_attendance_to, prev_approval_cutoff = frappe.db.get_value("Payroll Period", prev_period, ["attendance_from", "attendance_to", "approval_cutoff"])
 		employees = self.get_employees()
 		ot_map = get_overtime_map()
-
-		for d in employees:
-			if self.validate_for_adjustment(d.name, prev_attendance_from, prev_attendance_to, prev_approval_cutoff):
+		if employees:
+			for d in employees:
 				frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s 
 					AND payroll_period = %s  """,(d.name, self.period), as_dict=1)
-				
-				adjustment_sched = self.get_adjustment_schedule(d, prev_attendance_from, prev_attendance_to, prev_approval_cutoff)
-				original_sched = frappe.db.sql("""SELECT * FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s 
-					ORDER BY target_date """,(d.name, add_days(prev_attendance_from, -1), prev_attendance_to), as_dict=1)
 
-				adjustment = self.get_attendance_result(d, adjustment_sched, prev_attendance_from, prev_attendance_to, ot_map)
-				original = self.get_attendance_result(d, original_sched, prev_attendance_from, prev_attendance_to, ot_map)
+					adjustment_sched, ot_list = self.get_adjustment_schedule(d, prev_attendance_from, prev_attendance_to, prev_approval_cutoff)
+					original_sched = frappe.db.sql("""SELECT * FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s 
+						ORDER BY target_date """,(d.name, add_days(prev_attendance_from, -1), prev_attendance_to), as_dict=1)
 				
-				register = {
-					"employee": d.name,
-					"employee_name": d.full_name,
-					"payroll_period": self.period,
-					"absent": adjustment.get('ab') - original.get('ab'),
-					"unpaid_holiday": adjustment.get('uho') - original.get('uho'),
-					"overtime": adjustment.get('ot') - original.get('ot'),
-					"nightdiff": adjustment.get('nd') - original.get('nd'),
-					"late": adjustment.get('lt') - original.get('lt'),
-					"undertime":  adjustment.get('ut') - original.get('ut')
-				}
+					blank_ot = []
+					adjustment = self.get_attendance_result(d, adjustment_sched, prev_attendance_from, prev_attendance_to, ot_list, ot_map, "adjustment")
+					original = self.get_attendance_result(d, original_sched, prev_attendance_from, prev_attendance_to, blank_ot, ot_map, "original")
+					register = {
+						"employee": d.name,
+						"employee_name": d.full_name,
+						"payroll_period": self.period,
+						"absent": adjustment.get('ab') - original.get('ab'),
+						"unpaid_holiday": adjustment.get('uho') - original.get('uho'),
+						"overtime": adjustment.get('ot') - original.get('ot'),
+						"nightdiff": adjustment.get('nd') - original.get('nd'),
+						"late": adjustment.get('lt') - original.get('lt'),
+						"undertime":  adjustment.get('ut') - original.get('ut')
+					}
 				
-				adjr = frappe.new_doc("Adjustment Register")
-				adjr.update(register)
-				adjr.insert()
+					adjr = frappe.new_doc("Adjustment Register")
+					adjr.update(register)
+					adjr.insert()
+		else:
+			frappe.throw(_( "No Employees" ))
 
 		return self.create_log(ss_list)
 
@@ -167,7 +150,7 @@ class AdjustmentProcessing(Document):
 		uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		cto = get_cto_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
-
+		ot_list = []
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
 			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
@@ -184,35 +167,47 @@ class AdjustmentProcessing(Document):
 			entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
 			entry['cto'] = self.convert_secs(entry['cto'])
 			adjustment_schedule.append(entry)
+			ot_list.extend(entry['ot_list'])
 		
-		return adjustment_schedule
+		return adjustment_schedule, ot_list
 
-	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_map):
+	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map, ot_schema):
 		rates = get_rates(emp)
 		attendance_result = { "ab": 0.0, "uho": 0.0, "ot": 0.0, "nd": 0.0, "lt": 0.0, "ut": 0.0 }
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0
-
-			overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
-				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), attendance_from, attendance_to), as_dict=1)
 			
-			for ot in overtime_list:
-				if ot.ot_code in ot_map:
-					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
-				else:
-					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
-
+			if ot_schema == "adjustment":
+				for ot in ot_list:
+					if ot.get('ot_code') in ot_map:
+						overtime += flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+					else:
+						overtime += flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate')
+				#frappe.throw(_(ot_list))
+			elif ot_schema == "original": 
+				overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
+					WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), getdate(attendance_from), getdate(attendance_to)), as_dict=1)
+				
+				#frappe.throw(_(overtime_list))
+				for ot in overtime_list:
+					if ot.ot_code in ot_map:
+						overtime += flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+					else:
+						overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
+						
+				
+				
 			for at in attendance:
 				if getdate(at.get('target_date')) == getdate(add_days(attendance_from, -1)):
 					if at.get('is_absent') or at.get('is_lwop'):
-						is_uho = 1
+						is_uho = 0
 						if lwop_uho == 1:
 							if (at.get('lv_status') == 2 or at.get('lv_status') == 3) or at.get('is_halfday'):
 								is_uho = 0
 								if at.get('is_absent'):
-									is_uho = 1
+									is_uho = 0
 				else: 
 					if (emp.get("rate_type") == "Daily Rate" and at.get('is_holiday') == 1 and at.get('is_absent') != 1):
 						work_days += 0
@@ -236,11 +231,11 @@ class AdjustmentProcessing(Document):
 							absent += ( at.get('work_hours') / 2 ) * flt(rates.get('hourly_rate'), 8) if at.get('is_halfday') == 1 else ( at.get('work_hours') ) * flt(rates.get('hourly_rate'), 8)
 							absent_days += 0.5 if at.get('is_halfday') == 1 else 1
 
-					if at.get('is_holiday') == 1 and is_uho == 1 and not at.get('is_ob'):
+					if at.get('is_holiday') == 1 and is_uho == 1 and not at.get('is_ob')  and not at.get('is_restday'):
 						unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
 						if uho_ab_days == 1:
 							absent_days += 1
-
+					
 					#check if this attendance is lwop or absent for next attendance
 					if is_uho == 1:
 						#if present
@@ -257,7 +252,7 @@ class AdjustmentProcessing(Document):
 							if ( at.get('lv_status') == 2 or at.get('lv_status == 3') ) or at.get('is_halfday'):
 								is_uho = 0
 								if at.get('is_absent') and at.get('is_lwop'):
-									is_uho = 1
+									is_uho = 0
 						else:
 							if ( at.get('lv_status') == 2 or at.get('lv_status == 3') )  or at.get('is_halfday'):
 								if at.get('is_absent'):
@@ -266,22 +261,22 @@ class AdjustmentProcessing(Document):
 					else:
 						is_uho = 0
 						if (at.get('is_absent') or at.get('is_lwop') ) and not at.get('is_ob'):
-							is_uho = 1
+							is_uho = 0
 
 							if lwop_uho == 1:
 								if (at.get('lv_status') == 2 or at.get('lv_status') == 3) or at.get('is_halfday'):
 									is_uho = 0
 									if at.get('is_absent'):
-										is_uho = 1
+										is_uho = 0
 
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
 				absent = 0
 			if emp.get('ignore_late'):
 				late = 0
-				
-			attendance_result.update({ "ab": flt(absent, 8), "uho": flt(unpaid_holiday, 8), "ot": flt(overtime, 8), "nd": flt(nightdiff, 8), "lt": flt(late, 8), "ut":flt(undertime, 8) })
 
+			attendance_result.update({ "ab": flt(absent, 8), "uho": flt(unpaid_holiday, 8), "ot": flt(overtime, 8), "nd": flt(nightdiff, 8), "lt": flt(late, 8), "ut":flt(undertime, 8) })
+		
 			return attendance_result
 
 	def create_log(self, ss_list):

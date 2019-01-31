@@ -544,14 +544,14 @@ class PayrollProcessing(Document):
 					adjustment_register.append({
 						"linked_document": d.name,
 						"linked_doctype": "Adjustment Register",
-						"pay_code": adjset.get('inc_ab'),
+						"pay_code": adjset.get('inc_uho'),
 						"amount": abs(flt(d.unpaid_holiday, 8)),
 					})
 				else:
 					adjustment_register.append({
 						"linked_document": d.name,
 						"linked_doctype": "Adjustment Register",
-						"pay_code": adjset.get('ded_ab'),
+						"pay_code": adjset.get('ded_uho'),
 						"amount": abs(flt(d.unpaid_holiday, 8)),
 					})
 
@@ -560,14 +560,14 @@ class PayrollProcessing(Document):
 					adjustment_register.append({
 						"linked_document": d.name,
 						"linked_doctype": "Adjustment Register",
-						"pay_code": adjset.get('ded_ab'),
+						"pay_code": adjset.get('ded_ot'),
 						"amount": abs(flt(d.overtime, 8)),
 					})
 				else:
 					adjustment_register.append({
 						"linked_document": d.name,
 						"linked_doctype": "Adjustment Register",
-						"pay_code": adjset.get('inc_ab'),
+						"pay_code": adjset.get('inc_ot'),
 						"amount": abs(flt(d.overtime, 8)),
 					})
 
@@ -577,14 +577,14 @@ class PayrollProcessing(Document):
 						adjustment_register.append({
 							"linked_document": d.name,
 							"linked_doctype": "Adjustment Register",
-							"pay_code": adjset.get('ded_ab'),
+							"pay_code": adjset.get('ded_nd'),
 							"amount": abs(flt(d.nightdiff, 8)),
 						})
 					else:
 						adjustment_register.append({
 							"linked_document": d.name,
 							"linked_doctype": "Adjustment Register",
-							"pay_code": adjset.get('inc_ab'),
+							"pay_code": adjset.get('inc_nd'),
 							"amount": abs(flt(d.nightdiff, 8)),
 						})
 
@@ -593,14 +593,14 @@ class PayrollProcessing(Document):
 					adjustment_register.append({
 						"linked_document": d.name,
 						"linked_doctype": "Adjustment Register",
-						"pay_code": adjset.get('inc_ab'),
+						"pay_code": adjset.get('inc_lt'),
 						"amount": abs(flt(d.late, 8)),
 					})
 				else:
 					adjustment_register.append({
 						"linked_document": d.name,
 						"linked_doctype": "Adjustment Register",
-						"pay_code": adjset.get('ded_ab'),
+						"pay_code": adjset.get('ded_lt'),
 						"amount": abs(flt(d.late, 8)),
 					})
 
@@ -609,14 +609,14 @@ class PayrollProcessing(Document):
 					adjustment_register.append({
 						"linked_document": d.name,
 						"linked_doctype": "Adjustment Register",
-						"pay_code": adjset.get('inc_ab'),
+						"pay_code": adjset.get('inc_ut'),
 						"amount": abs(flt(d.undertime, 8)),
 					})
 				else:
 					adjustment_register.append({
 						"linked_document": d.name,
 						"linked_doctype": "Adjustment Register",
-						"pay_code": adjset.get('ded_ab'),
+						"pay_code": adjset.get('ded_ut'),
 						"amount": abs(flt(d.undertime, 8)),
 					})
 
