@@ -13,6 +13,34 @@ frappe.query_reports["YTD Payroll Report"] = {
 			"fieldtype": "Link",
 			"options": "Payroll Year",
 			"reqd": 1
+		},
+		{
+			"fieldname": "employee",
+			"label": __("Employee"),
+			"fieldtype": "Link",
+			"options": "Employee",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company
+					}
+				};
+			},
+		},	
+		{
+			"fieldname": "department",
+			"label": __("Department"),
+			"fieldtype": "Link",
+			"options": "Department",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company
+					}
+				};
+			},
 		},	
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {

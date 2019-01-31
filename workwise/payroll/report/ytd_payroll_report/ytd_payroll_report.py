@@ -77,18 +77,22 @@ def get_employees(filters):
 			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
 				WHERE SU.allow_user = %(user)s)
-			AND company = %(company)s ORDER BY last_name, first_name""",{ 
+			AND company = %(company)s {conditions} ORDER BY last_name, first_name""".format(conditions=get_conditions(filters)), { 
 				"company": filters.company,
+				"employee": filters.employee,
+				"department": filters.department,
 				"user": frappe.session.user
-			}, as_dict=True)
+			}, as_dict=1)
 	else:
 		employees = frappe.db.sql("""SELECT `name`, full_name, first_name, middle_name, last_name, sensitivity
 		 	FROM tabEmployee
 			WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 				INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-			AND company = %(company)s ORDER BY last_name, first_name""",{ 
-				"company": filters.company
-			}, as_dict=True)
+			AND company = %(company)s {conditions} ORDER BY last_name, first_name""".format(conditions=get_conditions(filters)), { 
+				"company": filters.company,
+				"employee": filters.employee,
+				"department": filters.department
+			}, as_dict=1)
 
 	return employees
 	
@@ -102,3 +106,13 @@ def get_period_map(filters, emp, from_date, to_date):
 			amount += flt(d.gross_payroll, 2)
 
 	return amount
+
+def get_conditions(filters):
+	conditions = []
+	if filters.employee:
+		conditions.append("`name`=%(employee)s")
+
+	if filters.department:
+		conditions.append("`department`=%(department)s")
+
+	return "and {}".format(" and ".join(conditions)) if conditions else ""
