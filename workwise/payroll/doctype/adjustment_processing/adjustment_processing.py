@@ -71,31 +71,30 @@ class AdjustmentProcessing(Document):
 		ot_map = get_overtime_map()
 		if employees:
 			for d in employees:
-				frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s 
-					AND payroll_period = %s  """,(d.name, self.period), as_dict=1)
-
-					adjustment_sched, ot_list = self.get_adjustment_schedule(d, prev_attendance_from, prev_attendance_to, prev_approval_cutoff)
-					original_sched = frappe.db.sql("""SELECT * FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s 
-						ORDER BY target_date """,(d.name, add_days(prev_attendance_from, -1), prev_attendance_to), as_dict=1)
+				frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s AND payroll_period = %s  """,(d.name, self.period), as_dict=1)
 				
-					blank_ot = []
-					adjustment = self.get_attendance_result(d, adjustment_sched, prev_attendance_from, prev_attendance_to, ot_list, ot_map, "adjustment")
-					original = self.get_attendance_result(d, original_sched, prev_attendance_from, prev_attendance_to, blank_ot, ot_map, "original")
-					register = {
-						"employee": d.name,
-						"employee_name": d.full_name,
-						"payroll_period": self.period,
-						"absent": adjustment.get('ab') - original.get('ab'),
-						"unpaid_holiday": adjustment.get('uho') - original.get('uho'),
-						"overtime": adjustment.get('ot') - original.get('ot'),
-						"nightdiff": adjustment.get('nd') - original.get('nd'),
-						"late": adjustment.get('lt') - original.get('lt'),
-						"undertime":  adjustment.get('ut') - original.get('ut')
-					}
-				
-					adjr = frappe.new_doc("Adjustment Register")
-					adjr.update(register)
-					adjr.insert()
+				adjustment_sched, ot_list = self.get_adjustment_schedule(d, prev_attendance_from, prev_attendance_to, prev_approval_cutoff)
+				original_sched = frappe.db.sql("""SELECT * FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s 
+					ORDER BY target_date """,(d.name, add_days(prev_attendance_from, -1), prev_attendance_to), as_dict=1)
+			
+				blank_ot = []
+				adjustment = self.get_attendance_result(d, adjustment_sched, prev_attendance_from, prev_attendance_to, ot_list, ot_map, "adjustment")
+				original = self.get_attendance_result(d, original_sched, prev_attendance_from, prev_attendance_to, blank_ot, ot_map, "original")
+				register = {
+					"employee": d.name,
+					"employee_name": d.full_name,
+					"payroll_period": self.period,
+					"absent": adjustment.get('ab') - original.get('ab'),
+					"unpaid_holiday": adjustment.get('uho') - original.get('uho'),
+					"overtime": adjustment.get('ot') - original.get('ot'),
+					"nightdiff": adjustment.get('nd') - original.get('nd'),
+					"late": adjustment.get('lt') - original.get('lt'),
+					"undertime":  adjustment.get('ut') - original.get('ut')
+				}
+			
+				adjr = frappe.new_doc("Adjustment Register")
+				adjr.update(register)
+				adjr.insert()
 		else:
 			frappe.throw(_( "No Employees" ))
 
