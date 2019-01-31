@@ -70,6 +70,39 @@ def get_columns(filters):
 			},
 		]
 
+	if filters.bank == "China Banking Corporation" or filters.bank == "Chinabank" or filters.bank == "China Bank" or filters.bank == "CBC":
+		columns = [
+			{
+				"fieldname": "last_name",
+				"label": _("Last Name"),
+				"fieldtype": "Data",
+				"width": 160
+			},
+			{
+				"fieldname": "first_name",
+				"label": _("First Name"),
+				"fieldtype": "Data",
+				"width": 160
+			},
+			{
+				"fieldname": "account_number",
+				"label": _("Account Number"),
+				"fieldtype": "Data",
+				"width": 160
+			},{
+				"fieldname": "account_type",
+				"label": _("Account Type"),
+				"fieldtype": "Data",
+				"width": 140
+			},
+			{
+				"fieldname": "amount",
+				"label": _("Amount"),
+				"fieldtype": "Currency",
+				"width": 140
+			},
+		]
+
 	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI" :
 		columns = [
 			{
@@ -158,6 +191,7 @@ def get_net_pay(filters):
 			BT.employee,
 			BT.employee_name,
 			BT.employee_account,
+			BT.bank_type,
 			BT.amount,
 			BT.remarks,
 			BR.payroll_time,
@@ -165,10 +199,13 @@ def get_net_pay(filters):
 			BR.funding_account
 			FROM
 			`tabBank Remittance Setup` BR
-			JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
-			WHERE 
-			TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
-			AND BR.payroll_period = %(period)s AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s """,{
+			JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent 
+			JOIN `tabEmployee` TE ON BT.employee = TE.`name`
+			WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
+			AND BR.payroll_period = %(period)s 
+			AND BR.docstatus = 1 
+			AND BR.company = %(company)s 
+			AND BR.bank = %(bank)s """,{
 			"period": filters.payroll_period,
 			"company": filters.company,
 			"bank": filters.bank,
@@ -182,6 +219,7 @@ def get_net_pay(filters):
 			BT.employee,
 			BT.employee_name,
 			BT.employee_account,
+			BT.bank_type,
 			BT.amount,
 			BT.remarks,
 			BR.payroll_time,
@@ -190,8 +228,10 @@ def get_net_pay(filters):
 			FROM
 			`tabBank Remittance Setup` BR
 			JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
-			WHERE 
-			BR.payroll_period = %(period)s AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s """,{
+			WHERE BR.payroll_period = %(period)s 
+			AND BR.docstatus = 1 
+			AND BR.company = %(company)s 
+			AND BR.bank = %(bank)s """,{
 			"period": filters.payroll_period,
 			"company": filters.company,
 			"bank": filters.bank,
@@ -285,6 +325,28 @@ def get_result_as_list(data, filters):
 			"amount": '{:,.2f}'.format(total_amount),
 			"remarks": "",
 		}
+		result.append(total)
+
+	elif filters.bank == "China Banking Corporation" or filters.bank == "Chinabank" or filters.bank == "China Bank" or filters.bank == "CBC":
+		for d in data:
+			row = {
+				"last_name" : d.get("last_name"),
+				"first_name" : d.get("first_name"),
+				"account_number" : d.get("employee_account"),
+				"account_type" : d.get("bank_type"),
+				"amount": '{:,.2f}'.format(d.get("amount")),
+			}
+
+			result.append(row)
+
+		total = {
+			"last_name" : "",
+			"first_name" : "",
+			"account_number" : "",
+			"account_type" : "Total",
+			"amount": '{:,.2f}'.format(total_amount),
+		}
+
 		result.append(total)
 
 	else:
