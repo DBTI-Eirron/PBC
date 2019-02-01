@@ -16,13 +16,13 @@ class BatchApproval(Document):
 		table = "`tab"+self.application_type+"`"
 		table = str(table)
 		if self.employee:
-			record = frappe.db.sql("""SELECT AP.`name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND AP.`employee` = %s """, (getdate(self.from_date), getdate(self.to_date), self.employee), as_dict=True)
+			record = frappe.db.sql("""SELECT AP.`name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND AP.`employee` = %s AND TE.company = %s """, (getdate(self.from_date), getdate(self.to_date), self.employee, self.company), as_dict=True)
 		else:
 			cur_user = frappe.session.user
 			if not "Administrator" in frappe.get_roles(cur_user):
-				record = frappe.db.sql(""" SELECT DISTINCT AP.`name` FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` WHERE AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND TE.`name` IN (SELECT `for_value` FROM `tabUser Permission` WHERE `allow` = "Employee" AND `user` = %s) """, (getdate(self.from_date), getdate(self.to_date), cur_user), as_dict=True)
+				record = frappe.db.sql(""" SELECT DISTINCT AP.`name` FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` WHERE AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND TE.`name` IN (SELECT `for_value` FROM `tabUser Permission` WHERE `allow` = "Employee" AND `user` = %s) AND TE.company = %s """, (getdate(self.from_date), getdate(self.to_date), cur_user, self.company), as_dict=True)
 			else:
-				record = frappe.db.sql("""SELECT AP.`name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) """, (getdate(self.from_date), getdate(self.to_date)), as_dict=True)
+				record = frappe.db.sql("""SELECT AP.`name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND TE.company = %s """, (getdate(self.from_date), getdate(self.to_date), self.company), as_dict=True)
 
 		record_list = []
 		for a in record:
@@ -55,13 +55,13 @@ class BatchApproval(Document):
 		table = "`tab"+self.application_type+"`"
 		table = str(table)
 		if self.employee:
-			record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND AP.`employee` = %s """, (getdate(self.from_date), getdate(self.to_date), self.employee), as_dict=True)
+			record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND AP.`employee` = %s AND TE.company = %s """, (getdate(self.from_date), getdate(self.to_date), self.employee, self.company), as_dict=True)
 		else:
 			cur_user = frappe.session.user
 			if not "Administrator" in frappe.get_roles(cur_user):
-				record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name` FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` WHERE AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND TE.`name` IN (SELECT `for_value` FROM `tabUser Permission` WHERE `allow` = "Employee" AND `user` = %s) """, (getdate(self.from_date), getdate(self.to_date), cur_user), as_dict=True)
+				record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name` FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` WHERE AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND TE.`name` IN (SELECT `for_value` FROM `tabUser Permission` WHERE `allow` = "Employee" AND `user` = %s) AND TE.company = %s """, (getdate(self.from_date), getdate(self.to_date), cur_user, self.company), as_dict=True)
 			else:
-				record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) """, (getdate(self.from_date), getdate(self.to_date)), as_dict=True)
+				record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name` FROM """+table+""" AP JOIN `tabEmployee` TE WHERE AP.`employee` = TE.`name` AND AP.`docstatus` = 0 AND (AP.`posting_date` BETWEEN %s AND %s) AND TE.company = %s """, (getdate(self.from_date), getdate(self.to_date), self.company), as_dict=True)
 
 		entries = []
 		for a in record:
