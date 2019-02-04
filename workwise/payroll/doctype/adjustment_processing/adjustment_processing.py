@@ -194,9 +194,7 @@ class AdjustmentProcessing(Document):
 					if ot.ot_code in ot_map:
 						overtime += flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
 					else:
-						overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
-						
-				
+						overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')				
 				
 			for at in attendance:
 				if getdate(at.get('target_date')) == getdate(add_days(attendance_from, -1)):
@@ -276,7 +274,7 @@ class AdjustmentProcessing(Document):
 
 			attendance_result.update({ "ab": flt(absent, 8), "uho": flt(unpaid_holiday, 8), "ot": flt(overtime, 8), "nd": flt(nightdiff, 8), "lt": flt(late, 8), "ut":flt(undertime, 8) })
 		
-			return attendance_result
+		return attendance_result
 
 	def create_log(self, ss_list):
 		log = "<p>" + _("Adjustment Entries Created") + "</p>"
