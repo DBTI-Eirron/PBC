@@ -38,7 +38,7 @@ def get_columns(filters):
 def get_data(filters):
 	from_date = getdate(filters.from_date)
 	to_date = getdate(filters.to_date)
-	entries = frappe.db.sql("""SELECT name AS xname, biometrics_id, full_name, (SELECT sum(`is_absent`) FROM `tabAttendance Register` WHERE `employee`= xname AND target_date >= %s AND target_date <= %s) AS abs FROM `tabEmployee` WHERE `company` = %s""",(from_date,to_date,filters.company),as_dict=True)
+	entries = frappe.db.sql("""SELECT name AS xname, biometrics_id, full_name, (SELECT COUNT(`name`) FROM `tabAttendance Register` WHERE work_hours <> work AND `employee`= xname AND target_date >= %s AND target_date <= %s) AS abs FROM `tabEmployee` WHERE `company` = %s""",(from_date,to_date,filters.company),as_dict=True)
 	data = format_entries(filters,entries)
 	return data
 
