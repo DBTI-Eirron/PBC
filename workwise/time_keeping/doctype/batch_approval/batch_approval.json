@@ -255,7 +255,7 @@
    "unique": 0
   }, 
   {
-   "allow_bulk_edit": 0, 
+   "allow_bulk_edit": 1, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -443,7 +443,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2019-01-17 16:38:41.367693", 
+ "modified": "2019-02-01 11:59:57.311284", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Batch Approval", 
