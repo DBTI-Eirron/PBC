@@ -11,6 +11,7 @@ from workwise.employee_201.emp_filters_utils import empget_employees, empget_sub
 
 class WorkScheduleAssignment(Document):
 	def assign_schedule(self):
+		self.validate_self_scheduling()
 		self.check_permission('write')
 		ss_list = []
 
@@ -142,8 +143,6 @@ class WorkScheduleAssignment(Document):
 		
 		return ss_list
 
-	
-
 	def create_log(self, ss_list):
 		log = "<p>" + _("No Employee for the above selected criteria Created") + "</p>"
 		if ss_list:
@@ -263,3 +262,11 @@ class WorkScheduleAssignment(Document):
 		else:
 			frappe.throw(_(" Input Filter Value and Filter Type "))
 
+	def validate_self_scheduling(self):
+		self_scheduling = frappe.db.get_single_value('Timekeeping Settings', 'self_scheduling')
+		if self_scheduling != 1:
+			emp = frappe.db.sql(""" SELECT name, `user_id` FROM `tabEmployee` WHERE user_id = %s AND user_id != "" AND user_id is not null LIMIT 1""",( frappe.session.user ), as_dict=1)
+			if emp:
+				for d in self.get("employees"):
+					if emp[0].name == d.employee:
+						frappe.throw(_("Self Scheduling is not allowed"))
