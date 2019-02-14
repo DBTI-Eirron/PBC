@@ -71,7 +71,7 @@ def get_result(filters):
 
 def get_register(emp, pay_from, pay_to):
 	register = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
-		WHERE employee = %(employee)s AND target_date >= %(from_date)s AND target_date <= %(to_date)s AND work < 8 
+		WHERE employee = %(employee)s AND target_date >= %(from_date)s AND target_date <= %(to_date)s
 		AND is_restday != 1 
 		AND is_leave != 1
 		AND is_holiday != 1
@@ -125,7 +125,6 @@ def get_data(filters):
 				tags += " <span class='label label-danger'> Undertime </span> " if 	r['undertime'] > 0 else ""
 				if 	r['is_leave'] == 1:
 					tags += " <span class='label label-success'>"+ cstr(r['leave_name']) +" </span> "
-
 
 				if 	r['is_halfday'] == 1:
 					tags += " <span class='label label-info'> Halfday </span> "
