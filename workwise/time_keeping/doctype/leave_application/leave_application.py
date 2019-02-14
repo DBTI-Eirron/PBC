@@ -6,7 +6,7 @@ from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_li
 from frappe.email import queue
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
 from workwise.payroll.policy_utils import get_policy
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
 from frappe.model.document import Document
 
 class LeaveApplication(Document):
@@ -31,8 +31,12 @@ class LeaveApplication(Document):
 		self.update_leave_credits()
 		get_approver_and_date(self)
 
+	def before_update_after_submit(self):
+		get_levelled_approval(self)
+
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
+		get_levelled_approval_rejection(self)
 		frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits - %s 
 			WHERE name = %s """, (self.total_leave_days, self.from_balance))
 

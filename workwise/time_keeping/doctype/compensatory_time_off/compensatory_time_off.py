@@ -9,7 +9,7 @@ from frappe import _
 from frappe.utils import nowdate, get_time, flt, getdate
 from frappe.model.document import Document
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
@@ -31,8 +31,12 @@ class CompensatoryTimeOff(Document):
 			self.deduct_use_cto()
 		get_approver_and_date(self)
 
+	def before_update_after_submit(self):
+		get_levelled_approval(self)
+
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
+		get_levelled_approval_rejection(self)
 		if self.type == "File":
 			self.validate_cancel_file_cto()
 		if self.type == "Use":

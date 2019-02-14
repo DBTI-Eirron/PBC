@@ -22,6 +22,7 @@ class Employee(Document):
 		self.validate_salary()
 		self.create_user()
 		self.validate_is_qualified_dependent()
+		self.validate_employee_approvers()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 			
@@ -163,3 +164,25 @@ class Employee(Document):
 		bday = getdate(self.birthday)
 		age = today.year - bday.year - ((today.month, today.day) < (bday.month, bday.day))
 		self.age = age
+
+	def validate_employee_approvers(self):
+		unique_emp = []
+		unique_entries = []
+
+		for d in self.get("approvers"):
+			if str(d.approver+d.application+d.level) not in unique_emp:
+				unique_emp.append(str(d.approver+d.application+d.level));
+
+				i = {
+					"approver": d.approver,
+					"approver_name": d.approver_name,
+					"approver_userid": d.approver_userid,
+					"application": d.application,
+					"level": d.level
+				}	
+				unique_entries.append(i);
+
+			self.set('approvers', [])
+			for ue in unique_entries:
+				row = self.append('approvers', {})
+				row.update(ue)

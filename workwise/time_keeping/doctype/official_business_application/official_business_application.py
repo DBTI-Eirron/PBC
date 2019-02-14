@@ -8,7 +8,7 @@ from frappe import _
 from frappe.utils import cint, flt, getdate, cstr, nowdate, get_datetime, add_days, get_datetime_str, get_time
 from frappe.model.document import Document
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, timediff_hrs
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
 
 class OfficialBusinessApplication(Document):
 	def validate(self):
@@ -24,8 +24,12 @@ class OfficialBusinessApplication(Document):
 		validate_approve_own_application(self)
 		get_approver_and_date(self)
 
+	def before_update_after_submit(self):
+		get_levelled_approval(self)
+
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
+		get_levelled_approval_rejection(self)
 
 	def get_target_date(self):
 		for d in self.get('official_business_application_table'):

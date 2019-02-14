@@ -7,16 +7,25 @@ import frappe
 from frappe import _
 from frappe.utils import nowdate
 from frappe.model.document import Document
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
 
 class ChangeRequestApplication(Document):
 	def validate(self):
 		self.get_request()
+		grant_head_subordinate_access(self)
+		change_owner(self)
 
 	def on_submit(self):
+		validate_approve_own_application(self)
+		get_approver_and_date(self)
 		self.approve_request()
-		self.get_approver_and_date()
+
+	def before_update_after_submit(self):
+		get_levelled_approval(self)
 
 	def on_cancel(self):
+		validate_reject_cancel_own_application(self)
+		get_levelled_approval_rejection(self)
 		doc = frappe.get_doc("Change Request Application", self.name)
 		if doc.docstatus == 2:
 			for item_req in self.get("change_request"):
@@ -41,7 +50,3 @@ class ChangeRequestApplication(Document):
 
 				if item_req.action == "Approved":
 					frappe.client.set_value("Employee", self.employee, item.fieldname, item_req.request)
-
-	def get_approver_and_date(self):
-		self.approved_by = frappe.session.user
-		self.date_approved = nowdate()

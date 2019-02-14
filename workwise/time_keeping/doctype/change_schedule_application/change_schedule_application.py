@@ -7,7 +7,7 @@ import frappe, datetime
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
 
 class ChangeScheduleApplication(Document):
 	def on_submit(self):
@@ -18,8 +18,12 @@ class ChangeScheduleApplication(Document):
 		self.get_recipients()
 		get_approver_and_date(self)
 
+	def before_update_after_submit(self):
+		get_levelled_approval(self)
+
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
+		get_levelled_approval_rejection(self)
 		self.revert_change_sched()
 
 	def validate(self):

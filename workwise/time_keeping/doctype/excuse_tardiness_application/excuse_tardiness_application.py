@@ -7,7 +7,7 @@ import frappe
 from frappe import _
 from frappe.utils import nowdate
 from frappe.model.document import Document
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
 
 class ExcuseTardinessApplication(Document):
 	def validate(self):
@@ -21,8 +21,12 @@ class ExcuseTardinessApplication(Document):
 		validate_approve_own_application(self)
 		get_approver_and_date(self)
 
+	def before_update_after_submit(self):
+		get_levelled_approval(self)
+
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
+		get_levelled_approval_rejection(self)
 
 	def load_timecard(self):
 		time_in, time_out = self.get_timelogs()
