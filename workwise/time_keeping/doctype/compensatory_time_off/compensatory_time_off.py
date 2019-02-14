@@ -81,7 +81,7 @@ class CompensatoryTimeOff(Document):
 			frappe.throw(_("Date is required"))
 
 	def validate_duplicate_file_cto(self):
-		existing_application = frappe.db.sql("""SELECT DISTINCT `name` FROM `tabCompensatory Time Off` WHERE `employee` = %s AND `type` = "File" AND `date` = %s AND `docstatus` = 1 LIMIT 1""",( self.employee, self.date ), as_dict=1)
+		existing_application = frappe.db.sql("""SELECT DISTINCT `name` FROM `tabCompensatory Time Off` WHERE `employee` = %s AND `type` = "File" AND `date` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" LIMIT 1""",( self.employee, self.date ), as_dict=1)
 
 		if existing_application:
 			frappe.throw(_("Application already exists"))
@@ -116,10 +116,10 @@ class CompensatoryTimeOff(Document):
 		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
 		if cto_use_type == "Day":
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `name` = %s ORDER BY `date` DESC""",( self.employee, self.filed_cto ), as_dict=1)
+				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %s ORDER BY `date` DESC""",( self.employee, self.filed_cto ), as_dict=1)
 		else:
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 ORDER BY `date` DESC""",( self.employee ), as_dict=1)
+				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" ORDER BY `date` DESC""",( self.employee ), as_dict=1)
 
 		if current_credits:
 			for d in current_credits:
@@ -147,10 +147,10 @@ class CompensatoryTimeOff(Document):
 		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
 		if cto_use_type == "Day":
 			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `name` = %s """,( self.employee, self.filed_cto ), as_dict=1)
+				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %s """,( self.employee, self.filed_cto ), as_dict=1)
 		else:
 			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `balance` > 0 ORDER BY `date` ASC""",( self.employee ), as_dict=1)
+				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `balance` > 0 ORDER BY `date` ASC""",( self.employee ), as_dict=1)
 
 		if filed_cto:
 			for a in filed_cto:
@@ -173,7 +173,7 @@ class CompensatoryTimeOff(Document):
 					}
 					entries.append(row);
 					
-					frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 """, (remain_bal, cred_used, a.name))
+					frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (remain_bal, cred_used, a.name))
 					frappe.db.commit()
 				else:
 					break
@@ -186,10 +186,10 @@ class CompensatoryTimeOff(Document):
 	#Cancel Use CTO
 	def revert_credit_deductions(self):
 		for a in self.get('use_cto_table'):
-			frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET credits_used = credits_used - %s WHERE `name` = %s AND docstatus = 1 """, (a.credits_used, a.filed_cto))
+			frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET credits_used = credits_used - %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (a.credits_used, a.filed_cto))
 			frappe.db.commit()
 
-			frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = (credits_earned - credits_used) WHERE `name` = %s AND docstatus = 1 """, (a.filed_cto))
+			frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = (credits_earned - credits_used) WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (a.filed_cto))
 			frappe.db.commit()
 
 			frappe.db.sql(""" DELETE FROM `tabCompensatory Time Off Table` WHERE filed_cto = %s AND `date` = %s """, (a.filed_cto, a.date))
