@@ -162,10 +162,18 @@ def get_overtime(entry, ot_apps):
 					if ot_int_start > ot_in:
 						ot_in = ot_int_start
 
+				#get OT Start Deduct Late
+				if entry.get('ot_deduct_late'):
+					ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
+
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('card_out') and entry.get('strict_otcard'):
 					if entry.get('card_out') < ot_out:
 						ot_out = entry.get('card_out')
+
+				# OT IN should not be greater than OT Out
+				if ot_in > ot_out:
+					ot_in = ot_out
 				
 				#Get Normal OT before ND and Should also consider early ND OT
 				ot_normal += abs((ot_in - ot_out).total_seconds())
@@ -1164,10 +1172,12 @@ def get_defaults(emp, sched, shift_map):
 		"suspension": 0,
 		"suspension_start": "",
 		"suspension_end": "",
-		#POLICIES
+		#SHIFT POLICIES
 		"graceperiod_late": shift_map[sched.work_shift]['graceperiod_late'],
 		"straight_ot": shift_map[sched.work_shift]['straight_ot'],
 		"flexible_type": shift_map[sched.work_shift]['flexible_type'],
+		#GLOBAL POLICIES
+		"ot_deduct_late": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_deduct_late'), 8),
 		"ot_start_delay": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_start_delay'), 8),
 		"ot_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_interval'), 8),
 		"late_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'late_interval'), 8),
