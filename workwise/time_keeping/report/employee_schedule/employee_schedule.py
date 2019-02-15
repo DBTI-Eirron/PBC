@@ -6,6 +6,7 @@ import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
+from workwise.time_keeping.attendance_utils import get_schedule
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -70,23 +71,12 @@ def get_result(filters):
 
 	return result
 
-def get_schedule(filters, pay_from, pay_to):
-	schedule = frappe.db.sql("""SELECT * FROM `tabWork Schedule` 
-		WHERE employee = %(employee)s AND target_date >= %(from_date)s AND target_date <= %(to_date)s
-		ORDER BY target_date ASC""",{
-			"employee": filters.employee,
-			"from_date": pay_from,
-			"to_date": pay_to,
-		}, as_dict=True)
-
-	return schedule
-
 def get_data(filters):
 	#Initialize
 	data = []
 
 	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
-	schedule = get_schedule(filters, pay_from, pay_to)
+	schedule = get_schedule(filters.employee, pay_from, pay_to)
 	for sched in schedule: 
 		entry = {
 			"work_shift": sched.work_shift,
