@@ -7,6 +7,7 @@ import frappe, datetime
 from frappe import _
 from frappe.utils import cint, flt, getdate, cstr, nowdate 
 from frappe.model.document import Document
+from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, chk_time_format, timediff_hrs, timediff_mins, str_datetime
 from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
 
@@ -15,6 +16,7 @@ class OvertimeApplication(Document):
 		grant_head_subordinate_access(self)
 		self.validate_time_format()
 		self.update_target_date()
+		self.get_autobreak_hrs()
 		self.validate_date()
 		self.calculate_totals()
 		change_owner(self)
@@ -88,27 +90,37 @@ class OvertimeApplication(Document):
 				total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
 				self.total_hrs = total_hrs
 
+	def get_autobreak_hrs(self):
+		schedule = get_schedule(self.employee, self.target_date, self.target_date)
+		if schedule:
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			if shifts:
+				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabOvertime Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
+				if autobreak_setup:
+					for a in autobreak_setup:
+						if a.from_hrs <= self.total_hrs <= a.to_hrs:
+							self.break_hrs = flt(a.break_mins, 2)/60
+
 	def validate_overtime(self):
-		ot_req_hours = frappe.db.get_single_value('Timekeeping Settings', 'req_ot')
-		if ot_req_hours:
-			if flt(self.total_hrs, 2) < flt(ot_req_hours, 2):
-				frappe.throw(_("Required work hours for Overtime Application: {0}").format(ot_req_hours))
-
-		ot_max_hours = frappe.db.get_single_value('Timekeeping Settings', 'ot_max_hours')
-		if ot_max_hours:
-			if flt(self.total_hrs, 2) > flt(ot_max_hours, 2):
-				frappe.throw(_("Max Overtime hours per application is {0} , Did not save").format(ot_max_hours))
-
-		ot_max_break = frappe.db.get_single_value('Timekeeping Settings', 'ot_max_break')
-		if ot_max_break:
-			if flt(self.break_hrs*60, 2) > flt(ot_max_break, 2):
-				frappe.throw(_("Max Overtime Break is {0} , Did not save").format(ot_max_break))
+		schedule = get_schedule(self.employee, self.target_date, self.target_date)
+		if schedule:
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			if shifts:
+				if shifts[0].min_ot_hrs > 0:
+					if flt(self.total_hrs, 2) < flt(shifts[0].min_ot_hrs, 2):
+						frappe.throw(_("Minimum Overtime Hours is {0} Hours, Did not save").format(shifts[0].min_ot_hrs))
+				if shifts[0].max_ot_hrs > 0:
+					if flt(self.total_hrs, 2) > flt(shifts[0].max_ot_hrs, 2):
+						frappe.throw(_("Maximum Overtime Hours is {0} Hours, Did not save").format(shifts[0].max_ot_hrs))
+				if shifts[0].max_ot_break > 0:
+					if flt(self.break_hrs, 2) > flt(shifts[0].max_ot_break, 2):
+						frappe.throw(_("Maximum Overtime Break is {0} Hours, Did not save").format(shifts[0].max_ot_break))
 
 		#Removed from timekeeping settings but still waiting for code removal confirmation
-		ot_req_break = frappe.db.get_single_value('Timekeeping Settings', 'ot_req_break')
-		if ot_req_break:
-			if flt(self.total_hrs, 2) > flt(ot_req_break, 2) and flt(self.break_hrs, 	2) < 1:
-				frappe.throw(_("Total Overtime hours is greater than {0} Break Time is required").format(ot_req_break))	
+		#ot_req_break = frappe.db.get_single_value('Timekeeping Settings', 'ot_req_break')
+		#if ot_req_break:
+		#	if flt(self.total_hrs, 2) > flt(ot_req_break, 2) and flt(self.break_hrs, 	2) < 1:
+		#		frappe.throw(_("Total Overtime hours is greater than {0} Break Time is required").format(ot_req_break))	
 
 	def validate_duplicate_ot_application(self):
 		application = frappe.db.sql(""" SELECT `name`, to_date, to_time, from_date, from_time FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)

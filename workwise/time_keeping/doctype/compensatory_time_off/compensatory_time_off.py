@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from frappe import _
 from frappe.utils import nowdate, get_time, flt, getdate
 from frappe.model.document import Document
+from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
 from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
 
@@ -18,11 +19,12 @@ class CompensatoryTimeOff(Document):
 			self.validate_fields_file_cto()
 			self.validate_duplicate_file_cto()
 			self.validate_file_cto()
-			self.get_timekeeping_settings()
+			self.get_cto_workshift_file_setup()
 		if self.type == "Use":
 			self.validate_fields_use_cto()
 			self.validate_use_cto()
 			self.validate_date_use_cto()
+			self.get_cto_workshift_use_setup()
 		change_owner(self)
 
 	def on_submit(self):
@@ -49,17 +51,31 @@ class CompensatoryTimeOff(Document):
 		else:
 			return 'hour'
 
-	def get_timekeeping_settings(self):
-		total_hrs = flt(self.total_hours, 2)
-		cto_min_hrs = frappe.db.get_single_value('Timekeeping Settings', 'cto_min_hrs')
-		if cto_min_hrs != 0:
-			if total_hrs < flt(cto_min_hrs, 2):
-				frappe.throw(_("Minimum hours of filing is {0}").format( cto_min_hrs ))
-				
-		cto_max_hrs = frappe.db.get_single_value('Timekeeping Settings', 'cto_max_hrs')
-		if cto_max_hrs != 0:
-			if total_hrs > flt(cto_max_hrs, 2):
-				frappe.throw(_("Maximum hours of filing is {0}").format( cto_max_hrs ))
+	def get_cto_workshift_file_setup(self):
+		schedule = get_schedule(self.employee, self.date, self.date)
+		if schedule:
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			if shifts:
+				if self.type == "File":
+					if shifts[0].cto_min_filing_hrs > 0:
+						if self.total_hours < shifts[0].cto_min_filing_hrs:
+							frappe.throw(_("Minimum hours of filing is {0}").format( shifts[0].cto_min_filing_hrs ))
+					if shifts[0].cto_max_filing_hrs > 0:
+						if self.total_hours > shifts[0].cto_max_filing_hrs:
+							frappe.throw(_("Maximum hours of filing is {0}").format( shifts[0].cto_max_filing_hrs ))
+
+	def get_cto_workshift_use_setup(self):
+		schedule = get_schedule(self.employee, self.use_date, self.use_date)
+		if schedule:
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			if shifts:
+				if self.type == "Use":
+					if shifts[0].cto_min_usage_hrs > 0:
+						if self.use_total_hours < shifts[0].cto_min_usage_hrs:
+							frappe.throw(_("Minimum hours of usage is {0}").format( shifts[0].cto_min_usage_hrs ))
+					if shifts[0].cto_max_usage_hrs > 0:
+						if self.use_total_hours > shifts[0].cto_max_usage_hrs:
+							frappe.throw(_("Maximum hours of usage is {0}").format( shifts[0].cto_max_usage_hrs ))
 
 	#File CTO
 	def validate_file_cto(self):
@@ -70,7 +86,14 @@ class CompensatoryTimeOff(Document):
 		else:
 			total_hrs = to_date - from_date + timedelta(days=1)
 		self.total_hours = abs(flt(total_hrs.total_seconds() /60 /60, 2))
-		self.credits_earned = flt(self.total_hours,2)/8
+
+		work_hours = 8
+		schedule = get_schedule(self.employee, self.date, self.date)
+		if schedule:
+			for d in schedule:
+				work_hours = d.work_hours
+
+		self.credits_earned = flt(self.total_hours,2)/flt(work_hours, 2)
 		if self.credits_earned > 1:
 			self.credits_earned = 1.0
 
@@ -105,7 +128,14 @@ class CompensatoryTimeOff(Document):
 			total_hrs = to_date - from_date + timedelta(days=1)
 		total_hours = abs(flt(total_hrs.total_seconds() /60 /60, 2))
 		self.use_total_hours = total_hours
-		self.required_credits = flt(total_hours,2)/8
+
+		work_hours = 8
+		schedule = get_schedule(self.employee, self.use_date, self.use_date)
+		if schedule:
+			for d in schedule:
+				work_hours = d.work_hours
+
+		self.required_credits = flt(total_hours,2)/flt(work_hours, 2)
 		if self.required_credits > 1:
 			self.required_credits = 1.0
 
