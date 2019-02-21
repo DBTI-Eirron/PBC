@@ -551,7 +551,12 @@ def get_final_processing(entry):
 			if entry.get('flexible_type') == "In-Out":		
 				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds()  - (entry.get('break_mins') * 60)
 				if diff < entry.get('worker_secs'):
-					entry['undertime'] = (entry.get('worker_secs') - diff)
+					if entry.get('ut_interval'):
+						ut = (entry.get('worker_secs') - diff) 
+						entry['undertime'] = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
+					else:
+						entry['undertime'] = (entry.get('worker_secs') - diff) 
+					
 					entry['late'] = 0
 					entry['work'] = abs(diff)
 			else:
@@ -581,11 +586,19 @@ def get_final_processing(entry):
 				if entry.get('lv_status') > 1:
 					diff += (entry.get('worker_secs') / 2)
 					if diff < entry.get('worker_secs'):
-						entry['undertime'] = (entry.get('worker_secs')) - diff
+						if entry.get('ut_interval'):
+							ut = (entry.get('worker_secs') - diff) 
+							entry['undertime'] = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
+						else:
+							entry['undertime'] = (entry.get('worker_secs') - diff) 
 						entry['work'] = diff
 				else:
 					if diff < entry.get('worker_secs'):
-						entry['undertime'] = entry.get('worker_secs') - diff
+						if entry.get('ut_interval'):
+							ut = (entry.get('worker_secs') - diff) 
+							entry['undertime'] = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
+						else:
+							entry['undertime'] = (entry.get('worker_secs') - diff) 
 						entry['work'] = diff
 
 		#entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())		
@@ -643,13 +656,13 @@ def get_final_processing(entry):
 		if entry.get('card_in') and not entry.get('card_out'): 
 			entry['is_absent'] = 1
 			entry["is_halfday"] = 1
-			entry["work"] = 28800 / 2
+			entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 			entry["late"] = 0
 			entry["undertime"] = 0
 		if entry.get('card_out') and not entry.get('card_in'): 
 			entry['is_absent'] = 1
 			entry["is_halfday"] = 1
-			entry["work"] = 28800 / 2
+			entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 			entry["late"] = 0
 			entry["undertime"] = 0
 
