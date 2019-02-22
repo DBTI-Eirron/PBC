@@ -4,6 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
+from frappe.model.naming import make_autoname
 from frappe import throw, _, scrub
 from frappe.utils import getdate, validate_email_add, today, add_years, nowdate, cstr, getdate
 from datetime import date
@@ -13,6 +14,19 @@ from frappe.model.document import Document
 class Employee(Document):
 	def onload(self):
 		load_address_and_contact(self, "employee")
+
+	def autoname(self):
+		employee_naming = frappe.db.get_single_value('Employee Record Settings', 'employee_naming')
+		series_format = frappe.db.get_single_value('Employee Record Settings', 'series_format')
+		if employee_naming == 'Employee ID':
+			if not self.employee_id:
+				frappe.throw(_("Employee ID is mandatory"), frappe.MandatoryError)
+			self.name = self.employee_id
+		else:
+			if not series_format:
+				frappe.throw(_("Series Format is mandatory"), frappe.MandatoryError)
+			self.name = make_autoname(cstr(series_format))
+			self.employee_id = self.name
 
 	def validate(self):
 		self.update_fullname()
