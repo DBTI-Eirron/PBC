@@ -13,13 +13,9 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
+				entry['ob_links'].append(ob.name) 
 				entry['linked_ob'] = ob.name
-				entry['is_ob'] = 1
-
-				entry['ob_status'] = 1
-				entry['ob_stat'] = 1
-				entry["is_absent"] = 0
-				entry['is_lwop'] = 0
+				entry['is_ob'], entry['ob_status'], entry['ob_stat'], entry["is_absent"], entry['is_lwop']  = 1, 1, 1, 0, 0
 
 				ob_in = get_datetime( str(entry.get('target_date'))+" "+ str(ob.from_time) )
 				if not entry['ob_in']:
@@ -76,6 +72,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	#leaves	
 	for l in leaves:
 		if l['leave_date'] == entry['target_date']:
+			entry['lv_links'].append(l.name) 
 			if l['is_excluded'] != 1:
 				entry['leave_name'] = l.leave_type
 				entry['linked_leave'] = l.name
@@ -101,6 +98,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	get_cto(entry, cto)
 	get_final_processing(entry)
 	get_tags(entry)
+	get_links(entry)
 
 def get_work(entry):
 	if not entry.get('is_restday') and entry['card_in'] and entry['card_out']:
@@ -108,7 +106,6 @@ def get_work(entry):
 
 		if entry["lv_status"] == 3:
 			entry['work'] = entry['work'] / 2
-		
 		
 		elif entry["lv_status"] == 2:
 			entry['work'] = entry['work'] / 2
@@ -145,6 +142,7 @@ def get_overtime(entry, ot_apps):
 		for d in ot_apps:
 			ot_hrs, ot_nd, ot_normal = 0, 0, 0
 			if getdate(d.get('target_date')) == entry.get('target_date'):
+				entry['ot_links'].append(d.get("name")) 
 				linked_ot = d.name
 				ot_in = get_datetime( str(d.from_date) +" "+ str(d.from_time) )
 				ot_out = get_datetime( str(d.to_date) +" "+ str(d.to_time) )
@@ -293,10 +291,7 @@ def get_ndiff(entry):
 				if get_datetime(entry.get('card_in')) < get_datetime(entry.get('time_in')):
 					entry['nightdiff'] = abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())
 				else:
-					entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())	
-
-		
-
+					entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())
 		#else:
 		#	#get normal ot if approved nightdiff OT
 		#	for d in entry.get('ot_list'):
@@ -521,10 +516,14 @@ def get_absent(entry):
 
 	if not entry.get('card_out') and not entry.get('ob_status'):
 		entry['overtime'] = 0
+		entry['overtime_nd'] = 0
+		entry['overtime_ex'] = 0
 		entry['ot_list'] = ""
 
 	if not entry.get('card_in') and not entry.get('ob_status'):
 		entry['overtime'] = 0
+		entry['overtime_nd'] = 0
+		entry['overtime_ex'] = 0
 		entry['ot_list'] = ""
 
 	return entry
@@ -718,6 +717,18 @@ def get_tags(entry):
 
 		if not entry['card_out'] and entry['is_attendance_base']:
 			entry["tags"] += " <span class='label label-warning'> No Card OUT </span> "
+
+	return entry
+
+def get_links(entry):
+	for d in entry.get('ot_links'):
+		entry["links"] += "<span class='label label-success'><a href='/desk#Form/Overtime Application/"+d+"'> "+d+" </a></span>"
+
+	for d in entry.get('lv_links'):
+		entry["links"] += "<span class='label label-info'><a href='/desk#Form/Leave Application/"+d+"'> "+d+" </a></span>"
+
+	for d in entry.get('ob_links'):
+		entry["links"] += "<span class='label label-info'><a href='/desk#Form/Official Business Application/"+d+"'> "+d+" </a></span>"
 
 	return entry
 
@@ -1093,7 +1104,10 @@ def insert_overtime(entry):
 		ot.insert()
 
 	entry['ot_list'] = 0.0
-
+	entry['ot_links'] = None
+	entry['lv_links'] = None
+	entry['ob_links'] = None
+	
 def get_defaults(emp, sched, shift_map):
 	entry = {
 		#employe settings
@@ -1153,10 +1167,12 @@ def get_defaults(emp, sched, shift_map):
 		"ot_in": "",
 		"ot_out": "",
 		"ot_list": "",
+		
 		#LEAVE
 		"linked_leave": "",
 		"leave_name": "",
 		"lv_status": 0,
+
 		"is_leave": 0,
 		"is_lwop": 0,
 		#OB
@@ -1178,12 +1194,17 @@ def get_defaults(emp, sched, shift_map):
 		"linked_holiday": "",
 		"ex_tardiness": 0,
 		"tags": "",
+		"links": "",
 		#CTO
 		"cto": 0.0,
 		#SUSPENSION
 		"suspension": 0,
 		"suspension_start": "",
 		"suspension_end": "",
+		#LINKs
+		"lv_links": [],
+		"ot_links": [],
+		"ob_links": [],
 		#SHIFT POLICIES
 		"graceperiod_late": shift_map[sched.work_shift]['graceperiod_late'],
 		"straight_ot": shift_map[sched.work_shift]['straight_ot'],
