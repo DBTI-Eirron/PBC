@@ -32,6 +32,12 @@ def oba_trigger_save():
 		application = frappe.get_doc("Official Business Application", b.name)
 		application.save()
 
+def transfer_tksettings_to_workshift():
+	tk_settings = frappe.db.sql(""" SELECT DISTINCT * FROM `tabSingles` WHERE `doctype` = "Timekeeping Settings" """, as_dict=1)
+	if tk_settings:
+		frappe.db.sql(""" UPDATE `tabWork Shift` SET min_ot_hrs = %s, max_ot_hrs = %s, max_ot_break = %s, cto_min_filing_hrs = %s, cto_max_filing_hrs = %s """, (tk_settings[0].req_ot, tk_settings[0].ot_max_hours, tk_settings[0].ot_max_break, tk_settings[0].cto_min_hrs, tk_settings[0].cto_max_hrs))
+		frappe.db.commit()
+
 #DELETE COMPANY RECORDS
 def qetquery_delete_company_records():
 	query_list = []
