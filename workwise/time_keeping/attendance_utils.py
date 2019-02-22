@@ -549,16 +549,19 @@ def get_final_processing(entry):
 			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
 
 			if entry.get('flexible_type') == "In-Out":		
-				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds()  - (entry.get('break_mins') * 60)
+				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds() - (entry.get('break_mins') * 60)
+				
 				if diff < entry.get('worker_secs'):
+					ut = 0
 					if entry.get('ut_interval'):
 						ut = (entry.get('worker_secs') - diff) 
-						entry['undertime'] = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
+						ut = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
 					else:
-						entry['undertime'] = (entry.get('worker_secs') - diff) 
+						ut = (entry.get('worker_secs') - diff) 
 					
 					entry['late'] = 0
-					entry['work'] = abs(diff)
+					entry['undertime'] = ut
+					entry['work'] = entry.get('worker_secs') - ut
 			else:
 				#gete late base from flexible start time
 				flex_start = entry.get('card_in')
@@ -585,21 +588,17 @@ def get_final_processing(entry):
 				#Get Undertime
 				if entry.get('lv_status') > 1:
 					diff += (entry.get('worker_secs') / 2)
-					if diff < entry.get('worker_secs'):
-						if entry.get('ut_interval'):
-							ut = (entry.get('worker_secs') - diff) 
-							entry['undertime'] = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
-						else:
-							entry['undertime'] = (entry.get('worker_secs') - diff) 
-						entry['work'] = diff
-				else:
-					if diff < entry.get('worker_secs'):
-						if entry.get('ut_interval'):
-							ut = (entry.get('worker_secs') - diff) 
-							entry['undertime'] = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
-						else:
-							entry['undertime'] = (entry.get('worker_secs') - diff) 
-						entry['work'] = diff
+				
+				if diff < entry.get('worker_secs'):
+					ut = 0
+					if entry.get('ut_interval'):
+						ut = (entry.get('worker_secs') - diff) 
+						ut = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
+					else:
+						ut = (entry.get('worker_secs') - diff) 
+					
+					entry['undertime'] = ut
+					entry['work'] = entry.get('worker_secs') - ut
 
 		#entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())		
 		#if entry.get('work') < (entry.get('worker_secs')):
