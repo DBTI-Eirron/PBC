@@ -205,7 +205,8 @@ def get_net_pay(filters):
 			AND BR.payroll_period = %(period)s 
 			AND BR.docstatus = 1 
 			AND BR.company = %(company)s 
-			AND BR.bank = %(bank)s """,{
+			AND BR.bank = %(bank)s 
+			ORDER BY BT.employee_name ASC""",{
 			"period": filters.payroll_period,
 			"company": filters.company,
 			"bank": filters.bank,
@@ -231,7 +232,8 @@ def get_net_pay(filters):
 			WHERE BR.payroll_period = %(period)s 
 			AND BR.docstatus = 1 
 			AND BR.company = %(company)s 
-			AND BR.bank = %(bank)s """,{
+			AND BR.bank = %(bank)s 
+			ORDER BY BT.employee_name ASC""",{
 			"period": filters.payroll_period,
 			"company": filters.company,
 			"bank": filters.bank,
