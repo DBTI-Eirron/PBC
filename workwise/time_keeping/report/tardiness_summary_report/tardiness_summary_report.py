@@ -47,7 +47,7 @@ def get_result_as_list(data, filters):
 def get_data(filters):
 	#Initialize
 	data = []
-	company, att_from, att_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["company", "attendance_from", "attendance_to"])
+	company, att_from, att_to = filters.company, filters.from_date, filters.to_date
 
 	data.append({
 		"data":"<b>Company: </b>"+filters.company+"",
@@ -57,17 +57,6 @@ def get_data(filters):
 	employees = get_employees(filters)
 	for emp in employees:
 		included = 0
-		absent_result = frappe.db.sql(""" SELECT `target_date` FROM `tabAttendance Register` WHERE is_absent != 0 AND target_date >= %(from)s AND target_date <= %(to)s AND `employee` = %(employee)s ORDER BY `target_date` """,{
-			"to": att_to,
-			"from": att_from,
-			"employee": emp.name,
-		}, as_dict=True)
-
-		if absent_result:
-			included = 1
-		else:
-			if included == 0:
-				included = 0
 
 		late_result = frappe.db.sql(""" SELECT `target_date`,`late` FROM `tabAttendance Register` WHERE late != 0 AND target_date >= %(from)s AND target_date <= %(to)s AND `employee` = %(employee)s ORDER BY `target_date` """,{
 				"to": att_to,
@@ -94,22 +83,8 @@ def get_data(filters):
 				included = 0
 
 		if included == 1:
-			data.append({
-					"data":"<b>Employee: </b>"+emp.full_name+"",
-			})
-			data.append({
-					"data":"<b>Absent</b>",
-			})
-
-			for absents in absent_result:
-				entry = {
-					"data": absents.target_date,
-				}
-
-				data.append(entry)
-			data.append({
-				"data":"<b>Late</b>",
-			})
+			data.append({"data":"<b>Employee: </b>"+emp.full_name+"",})
+			data.append({"data":"<b>Late</b>",})
 			
 			total_late = 0.0
 
@@ -128,9 +103,7 @@ def get_data(filters):
 				"time": total_late
 			}
 			data.append(total_late_data)
-			data.append({
-					"data":"<b>Undertime</b>",
-			})
+			data.append({"data":"<b>Undertime</b>",})
 
 			total_undertime = 0.0
 

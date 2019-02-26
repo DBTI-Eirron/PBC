@@ -5,10 +5,15 @@
 frappe.query_reports["Tardiness Frequency Report"] = {
 	"filters": [
 		{
-			"fieldname": "payroll_period",
-			"label": __("Payroll Period"),
-			"fieldtype": "Link",
-			"options": "Payroll Period",
+			"fieldname": "from_date",
+			"label": __("From Date"),
+			"fieldtype": "Date",
+			"reqd": 1
+		},
+		{
+			"fieldname": "to_date",
+			"label": __("To Date"),
+			"fieldtype": "Date",
 			"reqd": 1
 		},
 		{
