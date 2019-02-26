@@ -179,6 +179,12 @@ def get_data():
 				},
 				{
 					"type": "report",
+					"name": "Absences Summary Report",
+					"doctype": "Attendance Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "Overtime Summary Report",
 					"doctype": "Attendance Register",	
 					"is_query_report": True
