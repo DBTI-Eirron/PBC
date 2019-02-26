@@ -45,7 +45,7 @@ def get_levelled_approval(self):
 		highest_level = frappe.db.sql(""" SELECT MAX(`level`) as level FROM `tabEmployee Approvers` WHERE parenttype = "Employee" AND application = %s AND parent = %s """,(self.doctype, self.employee), as_dict=True)	
 		if not "Administrator" in frappe.get_roles(frappe.session.user):
 			if int(self.last_approval_level) == 0:
-				approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(`level`), 0) as `level` FROM `tabEmployee Approvers` WHERE parenttype = "Employee" AND application = %s AND parent = %s AND approver_userid = %s AND `level` = 1 """,(self.doctype, self.employee, frappe.session.user), as_dict=True)
+				approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` WHERE EA.parenttype = "Employee" AND EA.application = %s AND EA.parent = %s AND TE.user_id = %s AND EA.`level` = 1 """,(self.doctype, self.employee, frappe.session.user), as_dict=True)
 				if approver_level:
 					if int(approver_level[0].level) == 1:
 						if int(approver_level[0].level) == int(highest_level[0].level):
@@ -58,7 +58,7 @@ def get_levelled_approval(self):
 					frappe.throw(_("Insufficient permission to approve this application"))
 			else:
 				last_approval_level = int(self.last_approval_level+1)
-				approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(`level`), 0) as `level` FROM `tabEmployee Approvers` WHERE parenttype = "Employee" AND application = %s AND parent = %s AND approver_userid = %s AND `level` = %s """,(self.doctype, self.employee, frappe.session.user, last_approval_level), as_dict=True)
+				approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` WHERE EA.parenttype = "Employee" AND EA.application = %s AND EA.parent = %s AND TE.user_id = %s AND EA.`level` = %s """,(self.doctype, self.employee, frappe.session.user, last_approval_level), as_dict=True)
 				if approver_level:
 					if int(approver_level[0].level) == int(highest_level[0].level):
 						set_levelled_approval_to_approved(self, highest_level)
