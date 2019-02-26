@@ -59,10 +59,10 @@ class CompensatoryTimeOff(Document):
 				if self.type == "File":
 					if shifts[0].cto_min_filing_hrs > 0:
 						if self.total_hours < shifts[0].cto_min_filing_hrs:
-							frappe.throw(_("Minimum hours of filing is {0}").format( shifts[0].cto_min_filing_hrs ))
+							frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Minimum hours of filing is {1}").format(self.name, shifts[0].cto_min_filing_hrs))
 					if shifts[0].cto_max_filing_hrs > 0:
 						if self.total_hours > shifts[0].cto_max_filing_hrs:
-							frappe.throw(_("Maximum hours of filing is {0}").format( shifts[0].cto_max_filing_hrs ))
+							frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Maximum hours of filing is {1}").format(self.name, shifts[0].cto_max_filing_hrs))
 
 	def get_cto_workshift_use_setup(self):
 		schedule = get_schedule(self.employee, self.use_date, self.use_date)
@@ -72,10 +72,10 @@ class CompensatoryTimeOff(Document):
 				if self.type == "Use":
 					if shifts[0].cto_min_usage_hrs > 0:
 						if self.use_total_hours < shifts[0].cto_min_usage_hrs:
-							frappe.throw(_("Minimum hours of usage is {0}").format( shifts[0].cto_min_usage_hrs ))
+							frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Minimum hours of usage is {1}").format(self.name, shifts[0].cto_min_usage_hrs))
 					if shifts[0].cto_max_usage_hrs > 0:
 						if self.use_total_hours > shifts[0].cto_max_usage_hrs:
-							frappe.throw(_("Maximum hours of usage is {0}").format( shifts[0].cto_max_usage_hrs ))
+							frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Maximum hours of usage is {1}").format(self.name, shifts[0].cto_max_usage_hrs))
 
 	#File CTO
 	def validate_file_cto(self):
@@ -101,23 +101,31 @@ class CompensatoryTimeOff(Document):
 
 	def validate_fields_file_cto(self):
 		if not self.date:
-			frappe.throw(_("Date is required"))
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Date is required").format(self.name))
 
 	def validate_duplicate_file_cto(self):
-		existing_application = frappe.db.sql("""SELECT DISTINCT `name` FROM `tabCompensatory Time Off` WHERE `employee` = %s AND `type` = "File" AND `date` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" LIMIT 1""",( self.employee, self.date ), as_dict=1)
-
+		existing_application = frappe.db.sql("""SELECT DISTINCT `name`, `date`, from_time, to_time FROM `tabCompensatory Time Off` WHERE `employee` = %s AND `type` = "File" AND `date` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" LIMIT 1""",( self.employee, self.date ), as_dict=1)
 		if existing_application:
-			frappe.throw(_("Application already exists"))
+			for d in existing_application:
+				#frappe.throw(_(d.date))
+				existing_from = datetime.strptime(str(d.date) + ' ' + str(d.from_time), '%Y-%m-%d %H:%M:%S')
+				existing_to = datetime.strptime(str(d.date) + ' ' + str(d.to_time), '%Y-%m-%d %H:%M:%S')
+				
+				cur_from = datetime.strptime(str(self.date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S')
+				cur_to = datetime.strptime(str(self.date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S')
+
+				if existing_from <= cur_from <= existing_to or existing_from <= cur_to <= existing_to:
+					frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Compensatory Time Off Application already exists, {1}").format(self.name, d.name))
 
 	#Use CTO
 	def validate_fields_use_cto(self):
 		if not self.use_date:
-			frappe.throw(_("Date is required"))
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Date is required").format(self.name))
 
 		cto_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
 		if cto_type == "Day":
 			if not self.filed_cto:
-				frappe.throw(_("Filed CTO is required"))
+				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Filed CTO is required").format(self.name))
 
 	def validate_use_cto(self):
 		from_date = datetime.strptime(str(self.use_date) + ' ' + str(self.use_fromtime), '%Y-%m-%d %H:%M:%S')
@@ -161,14 +169,14 @@ class CompensatoryTimeOff(Document):
 		self.total_credits_earned = total_credits_earned
 
 		if flt(self.required_credits, 2) > flt(self.total_credits_earned, 2):
-			frappe.throw(_("You dont have enough credits"))
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You dont have enough credits").format(self.name))
 		
 		return last_date
 
 	def validate_date_use_cto(self):
 		last_date = self.validate_use_cto()
 		if getdate(self.use_date) < getdate(last_date):
-			frappe.throw(_("Cannot Use CTO Application for date {0} because last Filed CTO Application date is {1}").format(self.use_date, last_date))
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Cannot Use CTO Application for date {1} because last Filed CTO Application date is {2}").format(self.name, self.use_date, last_date))
 
 	def deduct_use_cto(self):
 		entries = [] 
@@ -230,4 +238,4 @@ class CompensatoryTimeOff(Document):
 		filed_cto = frappe.db.sql(""" SELECT `parent` FROM `tabCompensatory Time Off Table` WHERE `filed_cto` = %s """,( self.name ), as_dict=1)
 		if filed_cto:
 			for d in filed_cto:
-				frappe.throw(_("Cannot cancel because CTO Application {0} is linked with CTO Application {1}").format(self.name, d.parent))
+				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Cannot cancel because CTO Application {1} is linked with CTO Application {2}").format(self.name, self.name, d.parent))
