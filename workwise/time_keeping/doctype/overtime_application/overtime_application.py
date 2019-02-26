@@ -69,10 +69,10 @@ class OvertimeApplication(Document):
 		new_to_date = datetime.datetime.strptime(str(self.to_date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S').date()
 
 		if target_date != from_date and not self.is_previous:
-			frappe.throw(_("From Date should be equal to Target Date"))
+			frappe.throw(_("<b>Overtime Application: {0}</b><hr> From Date should be equal to Target Date").format(self.name))
 
 		if new_from_date > new_to_date:
-			frappe.throw(_("From Date must be before To Date"))
+			frappe.throw(_("<b>Overtime Application: {0}</b><hr> From Date must be before To Date").format(self.name))
 
 	def calculate_totals(self):
 		self.validate_time_format()
@@ -108,13 +108,22 @@ class OvertimeApplication(Document):
 			if shifts:
 				if shifts[0].min_ot_hrs > 0:
 					if flt(self.total_hrs, 2) < flt(shifts[0].min_ot_hrs, 2):
-						frappe.throw(_("Minimum Overtime Hours is {0} Hours, Did not save").format(shifts[0].min_ot_hrs))
+						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Minimum Overtime Hours is {1} Hours, Did not save").format(self.name, shifts[0].min_ot_hrs))
 				if shifts[0].max_ot_hrs > 0:
 					if flt(self.total_hrs, 2) > flt(shifts[0].max_ot_hrs, 2):
-						frappe.throw(_("Maximum Overtime Hours is {0} Hours, Did not save").format(shifts[0].max_ot_hrs))
+						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Hours is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_hrs))
 				if shifts[0].max_ot_break > 0:
 					if flt(self.break_hrs, 2) > flt(shifts[0].max_ot_break, 2):
-						frappe.throw(_("Maximum Overtime Break is {0} Hours, Did not save").format(shifts[0].max_ot_break))
+						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Break is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_break))
+				if shifts[0].ot_only_within_shift < 1:
+					shift_from = datetime.datetime.strptime(str(self.from_date) + ' ' + str(shifts[0].time_in), '%Y-%m-%d %H:%M:%S')
+					shift_to = datetime.datetime.strptime(str(self.to_date) + ' ' + str(shifts[0].time_out), '%Y-%m-%d %H:%M:%S')
+
+					cur_from = datetime.datetime.strptime(str(self.from_date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S')
+					cur_to = datetime.datetime.strptime(str(self.to_date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S')
+
+					if shift_from < cur_from < shift_to or shift_from < cur_to < shift_to:
+						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Overtime Filing Only Allowed Within The Shift, Did not save").format(self.name))
 
 		#Removed from timekeeping settings but still waiting for code removal confirmation
 		#ot_req_break = frappe.db.get_single_value('Timekeeping Settings', 'ot_req_break')
@@ -133,4 +142,4 @@ class OvertimeApplication(Document):
 				cur_to = datetime.datetime.strptime(str(self.to_date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S')
 
 				if existing_ot_from <= cur_from <= existing_ot_to or existing_ot_from <= cur_to <= existing_ot_to:
-					frappe.throw(_("Application already exists, {0}").format(d.name))
+					frappe.throw(_("<b>Overtime Application: {0}</b><hr> Application already exists, {1}").format(self.name, d.name))
