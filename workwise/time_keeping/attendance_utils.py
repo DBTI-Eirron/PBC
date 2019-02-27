@@ -49,8 +49,8 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	if ext:
 		for et in ext:
 			if et['date'] == entry['target_date']:
-				entry['ext_links'].append(et.name)
 				entry['ex_tardiness'] = 1
+				entry['ext_links'].append(et.name)
 
 	if holidays:
 		dbh = 0
