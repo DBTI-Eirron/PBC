@@ -16,6 +16,10 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Loan Restructure",
+				},
+				{
+					"type": "doctype",
 					"name": "Recurring Entry",
 				},
 				{
@@ -175,10 +179,25 @@ def get_data():
 					"type": "report",
 					"name": "PagIbig Loan Report",	
 					"is_query_report": True
-				},	
+				},
+				{
+					"type": "report",
+					"name": "PagIbig Summary Loan Report",
+					"is_query_report": True
+				},
 				{
 					"type": "report",
 					"name": "PagIbig Premium Contribution",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "PagIbig Contribution Summary Report",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "SSS Loan Report",	
 					"is_query_report": True
 				},
 				{
