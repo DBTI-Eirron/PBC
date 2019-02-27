@@ -21,7 +21,10 @@ frappe.ui.form.on('Loan Application', {
 	},
 
 	refresh: function(frm) {
-
+		if(frm.doc.docstatus == 1) {
+			cur_frm.add_custom_button(__('Make Restructure'), cur_frm.cscript['Make Restructure'], __("Make"));
+			cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
+		}
 	},
 
 	loan_amount: function(frm) {
@@ -44,3 +47,21 @@ frappe.ui.form.on('Loan Application', {
 		} 
 	},
 });
+
+frappe.ui.form.on('Loan Application Payments', {
+	before_payments_remove: function (frm, cdt, cdn) {
+		if (frm.doc.docstatus == 1){
+		let ch = locals[cdt][cdn];
+			if(ch.payment_status == "Paid") {
+				frappe.throw(__("Cannot delete Paid Row."));
+			}	
+		}
+	}
+});
+
+cur_frm.cscript['Make Restructure'] = function() {
+	frappe.model.open_mapped_doc({
+		method: "workwise.payroll.doctype.loan_application.loan_application.make_restructure",
+		frm: cur_frm
+	})
+}

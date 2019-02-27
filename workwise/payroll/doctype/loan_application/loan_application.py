@@ -3,18 +3,21 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, datetime
+from dateutil import relativedelta
+from dateutil.rrule import *
 from frappe import _
 from frappe.utils import cint, flt, getdate, cstr, nowdate
 from frappe.model.document import Document
+from frappe.model.mapper import get_mapped_doc
 
 class LoanApplication(Document):
 	def validate(self):
 		self.update_missing_names()
-		self.update_amounts()
 		self.update_paid_unpaid()
 		self.validate_date()
 		self.validate_user_sensitivity_level()
+		self.update_amounts()
 
 	def update_missing_names(self):
 		self.employee_name = frappe.db.get_value("Employee", self.employee, "full_name")
@@ -25,42 +28,129 @@ class LoanApplication(Document):
 			frappe.throw(("Release Date should not be greater than Payment Start")) 
 
 	def update_amounts(self):
-		if self.loan_amount and self.amortization:
-			multiplier = 2 if self.payment_frequency == 'Both' else 1
-
-			total_loan =  self.loan_amount + (self.loan_amount * (flt(self.interest,2) / 100)) if self.interest > 0 else self.loan_amount
-			self.total_loan = total_loan
-
-			unpaid_amount = total_loan - self.beginning_balance if self.beginning_balance > 0 else total_loan
-
-			entries = []
+		entries = []
+		if self.docstatus == 0 and self.loan_amount and self.amortization:
 			self.set('payments', [])
-			if self.beginning_balance >= total_loan:
-				frappe.throw(("Beginning Balance should not be greater than Total Loan")) 
+			if self.freq_method == "Automatic":
+				multiplier = 2 if self.payment_frequency == 'Both' else 1
+
+				total_loan =  self.loan_amount + (self.loan_amount * (flt(self.interest,2) / 100)) if self.interest > 0 else self.loan_amount
+				self.total_loan = total_loan
+
+				unpaid_amount = total_loan - self.beginning_balance if self.beginning_balance > 0 else total_loan
+
+				entries = []
+				self.set('payments', [])
+				if self.beginning_balance >= total_loan:
+					frappe.throw(("Beginning Balance should not be greater than Total Loan")) 
+					
+				total_payables = unpaid_amount
+				if self.beginning_balance:
+					entries.append({
+						"payment_amount": self.beginning_balance,
+						"payment_status": "Paid",
+						"payment_date": self.release_date,
+					});
+
+				while total_payables > 0:
+					pay_amount = self.amortization / multiplier
+					if not total_payables >= pay_amount:
+						pay_amount = total_payables
+
+					info = {"payment_amount": pay_amount, "payment_status": "Unpaid", "payment_date": None}
+
+					total_payables -= pay_amount
+					entries.append(info);
+
+			elif self.freq_method == "Relative Month" or self.freq_method == "Relative Days":
+				multiplier = 1
+
+				total_loan =  self.loan_amount + (self.loan_amount * (flt(self.interest,2) / 100)) if self.interest > 0 else self.loan_amount
+				self.total_loan = total_loan
+
+				unpaid_amount = total_loan - self.beginning_balance if self.beginning_balance > 0 else total_loan
+
+				if self.beginning_balance >= total_loan:
+					frappe.throw(("Beginning Balance should not be greater than Total Loan")) 
+					
+				total_payables = unpaid_amount 
+				actual_beginning_balance = self.beginning_balance
+				start = datetime.datetime.strptime(self.payment_start, '%Y-%m-%d')
 				
-			total_payables = unpaid_amount
-			if self.beginning_balance:
-				entries.append({
-					"payment_amount": self.beginning_balance,
-					"payment_status": "Paid",
-					"payment_date": self.posting_date,
-				});
+				if self.freq_method == "Relative Month":
+					relative = cint(self.relative_month) or 1 
+					step = relativedelta.relativedelta(months=relative)
+				elif self.freq_method == "Relative Days":
+					relative = cint(self.relative_days) or 1 
+					step = relativedelta.relativedelta(days=relative)
 
-			while total_payables > 0:
-				pay_amount = self.amortization / multiplier
-				if not total_payables >= pay_amount:
-					pay_amount = total_payables
 
-				info = {"payment_amount": pay_amount, "payment_status": "Unpaid", "payment_date": None}
+				if self.beginning_balance:
+					entries.append({
+						"payment_amount": self.beginning_balance,
+						"payment_status": "Paid",
+						"payment_date": self.release_date,
+					});
 
-				total_payables -= pay_amount
-				entries.append(info);
+				while total_payables > 0:
+					pay_amount = self.amortization / multiplier
+					if not total_payables >= pay_amount:
+						pay_amount = total_payables
+						
+					info = {"due_date": getdate(start), "payment_amount": pay_amount, "payment_status": "Unpaid", "payment_date": None}
+					total_payables -= pay_amount
 
-			for d in entries:
-				row = self.append('payments', {})
-				row.update(d)
-		else:
-			frappe.throw(("Loan Amount and No of Payments is Required"))
+					start += step
+					
+					entries.append(info);
+
+			elif self.freq_method == "Date":
+				multiplier = 1
+
+				total_loan =  self.loan_amount + (self.loan_amount * (flt(self.interest, 2) / 100)) if self.interest > 0 else self.loan_amount
+				self.total_loan = total_loan
+
+				unpaid_amount = total_loan - self.beginning_balance if self.beginning_balance > 0 else total_loan
+
+				if self.beginning_balance >= total_loan:
+					frappe.throw(("Beginning Balance should not be greater than Total Loan")) 
+					
+				total_payables = unpaid_amount
+				actual_beginning_balance = self.beginning_balance
+				start = datetime.datetime.strptime(self.payment_start, '%Y-%m-%d')
+				bymonthday = self.first_date
+
+				if self.second_date in [29, 30, 31]:
+					second_date = -1
+				else:
+					second_date = self.second_date
+
+				days = rrule(MONTHLY, dtstart=start, bymonthday=(self.first_date, second_date))				
+				count = 0
+
+				if self.beginning_balance:
+					entries.append({
+						"payment_amount": self.beginning_balance,
+						"payment_status": "Paid",
+						"payment_date": self.release_date,
+					});
+
+				while total_payables > 0:
+					pay_amount = self.amortization / multiplier
+					if not total_payables >= pay_amount:
+						pay_amount = total_payables
+						
+					info = {"due_date": getdate(days[count]), "payment_amount": pay_amount, "payment_status": "Unpaid", "payment_date": None}
+					total_payables -= pay_amount
+
+					entries.append(info)
+					count += 1
+
+		for d in entries:
+			row = self.append('payments', {})
+			row.update(d)
+
+
 
 	def update_paid_unpaid(self):
 		total_paid, total_unpaid = 0, 0
@@ -97,3 +187,42 @@ class LoanApplication(Document):
 			emp_sensitivity = frappe.db.get_value("Employee", self.employee, "sensitivity")
 			if emp_sensitivity not in employeee_list:
 				frappe.throw(_(" You dont have access to this employee "))
+
+@frappe.whitelist()
+def make_restructure(source_name, target_doc=None):
+	def add_entries(source, target):
+		entries = []
+		target.set("accounts", [])
+		for d in source.payments:
+			if d.payment_status == "Unpaid":
+				pay = { 
+					"target_idx": d.idx,
+					"old_due_date": d.due_date,
+					"new_due_date": d.due_date,
+					"old_amount": d.payment_amount,
+					"new_amount": d.payment_amount,
+				}
+				entries.append(pay)
+
+		for d in entries:
+			row = target.append('payments', {})
+			row.update(d)
+
+	def update_target(source_doc, target_doc, source_parent):
+		target_doc.loan_id = source_doc.name
+		target_doc.total_loan_amount = source_doc.loan_amount
+		target_doc.employee = source_doc.employee
+		target_doc.employee_name = source_doc.employee_name
+		target_doc.freq_method = source_doc.freq_method
+
+	doclist = get_mapped_doc("Loan Application", source_name, {
+		"Loan Application": {
+			"doctype": "Loan Restructure",
+			"validation": {
+				"docstatus": ["=", 1]
+			},
+			"postprocess": update_target
+		}
+	}, target_doc, add_entries)
+
+	return doclist
