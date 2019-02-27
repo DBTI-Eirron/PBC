@@ -10,6 +10,7 @@ from frappe import _
 from frappe.model.document import Document
 from workwise.payroll.payroll_utils import get_adjustment_settings, get_rates, get_sss_table, get_sss_amount, get_hdmf_table, get_hdmf_amount
 from workwise.payroll.weekly_utils import get_weekly_prev_map, get_weekly_basis
+from workwise.payroll.loans_utils import get_loans_map, get_employee_loan, update_loans
 
 class PayrollProcessing(Document):
 	def get_employees(self):
@@ -74,7 +75,9 @@ class PayrollProcessing(Document):
 		uho_ab_spnw = frappe.db.get_single_value('Payroll Settings', 'uho_ab_spnw')
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		ex_uho_spnw = frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw')
-		weekly_prev_map = frappe._dict() 
+		mo_amt_smdl = frappe.db.get_single_value('Payroll Settings', 'mo_amt_smdl')
+		weekly_prev_map = frappe._dict()
+		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
 		if self.schedule == "Weekly":
 			weekly_prev_map = get_weekly_prev_map(employees, weekly_set)
 		
@@ -124,7 +127,8 @@ class PayrollProcessing(Document):
 					'uho_ab_days': uho_ab_days,
 					'uho_ab_spnw': uho_ab_spnw,
 					'lwop_uho': lwop_uho,
-					'ex_uho_spnw': ex_uho_spnw
+					'ex_uho_spnw': ex_uho_spnw,
+					'mo_amt_smdl': mo_amt_smdl
 				}
 
 				#Calculate Rates and Previous Entries
@@ -137,7 +141,7 @@ class PayrollProcessing(Document):
 				self.get_recurring(emp, rates, header, register)
 				self.get_batch(emp, rates, header, register)
 				self.get_adjustment(emp, rates, header, register, adj_settings)
-				self.get_loans(emp, rates, register)
+				get_employee_loan(emp, register, loans_map, self.frequency)
 
 				#Calculate Basic Entries to Header
 				self.calculate_basic_header(register, header, tr_map)
@@ -176,7 +180,7 @@ class PayrollProcessing(Document):
 					proc_emp += 1
 					for d in register:
 						if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
-							self.update_loans(d.get('linked_document'))
+							update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
 				payslip_label = " " + emp.full_name +""
 				if emp.on_hold:
 					payslip_label += " <span class='label label-danger'> On-Hold </span>"
@@ -255,7 +259,10 @@ class PayrollProcessing(Document):
 		
 		elif emp.get('rate_type') == "Daily Rate":
 			amt = flt(rates.get('daily_rate'), 8) * header.get('present_days')
-			rates['monthly_rate'] = amt
+			if (emp.get('payroll_schedule') == "Semi-Monthly" or emp.get('payroll_schedule') == "Monthly") and header.get('mo_amt_smdl'):
+				rates['monthly_rate'] = rates.get('monthly_rate')
+			else:
+				rates['monthly_rate'] = amt
 
 		elif emp.get('payroll_schedule') == "Weekly":
 			amt = rates.get('weekly_rate')
@@ -637,51 +644,6 @@ class PayrollProcessing(Document):
 				hourly_rate = flt(amt , 8) / emp.get('no_hours')
 
 		return hourly_rate
-
-	def get_loans(self, emp, rates, register):
-		loans_register = []
-		frappe.db.sql("""UPDATE `tabLoan Application Payments` LAP INNER JOIN `tabLoan Application` LA ON LAP.parent = LA.name
-			SET LAP.payment_status = 'Unpaid', 
-			LAP.payment_date = NULL
-			WHERE LA.employee = %s AND LAP.payment_date = %s AND LAP.payment_status = 'Paid' """,(emp['name'], self.payroll_date), as_dict=True )
-
-		loans = frappe.db.sql("""SELECT LA.`name`, LA.release_date, LA.loan_type, LA.loan_amount, MAX(LAP.payment_amount) as payment_amount, LA.payment_frequency
-			FROM `tabLoan Application` LA INNER JOIN `tabLoan Application Payments` LAP ON LA.`name` = LAP.parent
-			WHERE LA.employee = %s AND LA.payment_start <= %s AND LAP.payment_status = 'Unpaid' AND LA.docstatus = 1 AND on_hold != 1 
-			GROUP BY LA.`name` """,(emp['name'], self.payroll_date), as_dict=True )
-
-		for l in loans:
-			if l.payment_frequency == self.frequency or l.payment_frequency == 'Both':
-				loans_register.append({
-						"linked_document": l.name,
-						"linked_doctype": "Loan Application",
-						"pay_code": l.loan_type,
-						"amount": flt(l.payment_amount, 8),
-					})
-
-		for d in loans_register:
-			register.append(d)
-
-	def update_loans(self, loan_doc):
-		if loan_doc:
-			payment = frappe.db.sql("""SELECT `name` FROM `tabLoan Application Payments`
-				WHERE parent = %s AND payment_date = %s AND payment_status = 'Paid' """,(loan_doc, self.payroll_date), as_dict=True )
-			
-			if not payment:
-				total_paid, total_unpaid = 0, 0
-				frappe.db.sql("""UPDATE `tabLoan Application Payments` SET payment_status = 'Paid', payment_date = %s
-					WHERE parent = %s AND payment_status = 'Unpaid' ORDER BY idx LIMIT 1 """,(self.payroll_date, loan_doc), as_dict=True )
-
-				payments = frappe.db.sql("""SELECT payment_status, payment_amount FROM `tabLoan Application Payments` 
-					WHERE parent = %s""",(loan_doc), as_dict=True )
-				for p in payments:
-					if p.payment_status == 'Paid':
-						total_paid += p.payment_amount
-					else:
-						total_unpaid += p.payment_amount
-
-				frappe.db.sql("""UPDATE `tabLoan Application` SET unpaid_amount = %s, paid_amount = %s
-					WHERE name = %s LIMIT 1 """,(total_unpaid, total_paid, loan_doc), as_dict=True )
 
 	def get_attendance(self, emp, rates, header, register, ot_map):
 		attendance_register = []
