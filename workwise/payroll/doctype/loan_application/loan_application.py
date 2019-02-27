@@ -210,7 +210,7 @@ def make_restructure(source_name, target_doc=None):
 
 	def update_target(source_doc, target_doc, source_parent):
 		target_doc.loan_id = source_doc.name
-		target_doc.total_loan_amount = source_doc.loan_amount
+		target_doc.total_loan_amount = source_doc.total_loan
 		target_doc.employee = source_doc.employee
 		target_doc.employee_name = source_doc.employee_name
 		target_doc.freq_method = source_doc.freq_method
