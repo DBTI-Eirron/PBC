@@ -55,6 +55,7 @@ class PayrollPeriod(Document):
 			
 	def validate_days(self):
 		difference = date_diff(self.to_date, self.from_date)
+		difference += 1
 		if self.schedule == "Monthly":
 			if not difference > 27:
 				frappe.throw(_("Monthly Schedule Should be Greater than {0} days ").format(difference))
