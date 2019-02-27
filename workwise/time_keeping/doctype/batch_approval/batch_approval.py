@@ -26,6 +26,8 @@ class BatchApproval(Document):
 					"apptype": b.apptype,
 					"application": b.application,
 					"date": b.date,
+					"from_date": b.from_date,
+					"to_date": b.to_date,
 					"total_hours": b.total_hours,
 					"employee": b.employee,
 					"employee_name": b.employee_name,
@@ -49,13 +51,39 @@ class BatchApproval(Document):
 		entries = []
 		for a in record:
 			total_hours = ""
+			from_date = ""
+			to_date = ""
+
 			if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
 				total_hours = flt(a.total_hrs, 2)
+			if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application"]:
+				from_date = a.from_date
+				to_date = a.to_date
+			if self.application_type == "Undertime Application":
+				from_date = a.from_date
+				to_date = a.from_date
+			if self.application_type == "Excuse Tardiness Application":
+				from_date = a.date
+				to_date = a.date
+			if self.application_type in ["Change Schedule Application", "DTR Problem Application"]:
+				from_date = a.target_date
+				to_date = a.target_date
+			if self.application_type == "Compensatory Time Off":
+				if a.type == "File":
+					from_date = a.date
+					to_date = a.date
+					total_hours = flt(a.total_hours, 2)
+				else:
+					from_date = a.use_date
+					to_date = a.use_date
+					total_hours = flt(a.use_total_hours, 2)
 
 			row = {
 				"apptype": self.application_type,
 				"application": a.name,
 				"date": a.posting_date,
+				"from_date": from_date,
+				"to_date": to_date,
 				"total_hours": total_hours,
 				"employee": a.employee,
 				"employee_name": a.full_name,
@@ -93,13 +121,23 @@ class BatchApproval(Document):
 	def sql_query(self):
 		cur_user = frappe.session.user
 		table = "`tab"+self.application_type+"`"
-		with_totalhrs = ""
+		additional_fields = ""
 
 		if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
-			with_totalhrs = ", AP.total_hrs"
+			additional_fields += ", AP.total_hrs"
+		if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application"]:
+			additional_fields += ", AP.from_date, AP.to_date"
+		if self.application_type == "Undertime Application":
+			additional_fields += ", AP.from_date"
+		if self.application_type == "Excuse Tardiness Application":
+			additional_fields += ", AP.date"
+		if self.application_type in ["Change Schedule Application", "DTR Problem Application"]:
+			additional_fields += ", AP.target_date"
+		if self.application_type == "Compensatory Time Off":
+			additional_fields += ", AP.`date`, AP.use_date, AP.`type`, AP.use_total_hours, AP.total_hours"
 
 		if not "Administrator" in frappe.get_roles(cur_user):
-			record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+with_totalhrs+""" 
+			record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
 				FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` 
 				WHERE AP.`workflow_state` = "Pending"
 				AND (AP.`posting_date` BETWEEN %(from_date)s AND %(to_date)s) 
@@ -113,7 +151,7 @@ class BatchApproval(Document):
 					"cur_user": cur_user,
 				}, as_dict=True)
 		else:
-			record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+with_totalhrs+""" 
+			record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
 				FROM """+table+""" AP JOIN `tabEmployee` TE 
 				WHERE AP.`employee` = TE.`name` 
 				AND AP.`workflow_state` = "Pending"
