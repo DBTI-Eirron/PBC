@@ -41,6 +41,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	if uts:
 		for ut in uts:
 			if ut['from_date'] == entry['target_date']:
+				entry['ut_links'].append(ut.name)
 				entry['ut_from'] = ut.from_time
 				entry['ut_to'] = ut.to_time
 				entry['linked_ut'] = ut.name
@@ -48,24 +49,35 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	if ext:
 		for et in ext:
 			if et['date'] == entry['target_date']:
+				entry['ext_links'].append(et.name)
 				entry['ex_tardiness'] = 1
 
 	if holidays:
 		dbh = 0
 		for h in holidays:
-			if h['holiday_date'] == entry['target_date']:
-				dbh += 1
-				entry["is_absent"] = 0
-				entry['is_lwop'] = 0
-				entry["undertime"] = 0
-				entry["late"] = 0
-				entry['holiday_name'] = h['holiday_name']
-				entry['is_holiday'] = 1
-				if h['is_special'] == 1:
-					entry['is_sp_holiday'] = 1
+			if getdate(h['holiday_date']) == getdate(entry['target_date']):
+				if h.get('location'):
+					if entry.get('location') == h.get('location'):
+							dbh += 1
+							entry["is_absent"] = 0
+							entry['is_lwop'] = 0
+							entry["undertime"] = 0
+							entry["late"] = 0
+							entry['holiday_name'] = h['holiday_name']
+							entry['is_holiday'] = 1
+							if h['is_special'] == 1:
+								entry['is_sp_holiday'] = 1
+				else:		
+					dbh += 1
+					entry["is_absent"] = 0
+					entry['is_lwop'] = 0
+					entry["undertime"] = 0
+					entry["late"] = 0
+					entry['holiday_name'] = h['holiday_name']
+					entry['is_holiday'] = 1
+					if h['is_special'] == 1:
+						entry['is_sp_holiday'] = 1
 
-				#if not entry['card_in'] or not entry['card_out']:
-				#	entry['work'] = entry.get('work_hours') * 60 * 60
 		if dbh >= 2:
 			entry['is_db_holiday'] = 1
 
@@ -96,6 +108,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	get_absent(entry)
 	get_work(entry)
 	get_cto(entry, cto)
+	get_flexible(entry, obs)
 	get_final_processing(entry)
 	get_tags(entry)
 	get_links(entry)
@@ -372,10 +385,6 @@ def get_late(entry):
 
 def get_undertime(entry):
 	if not entry.get('ex_tardiness'):
-		#if entry.get('is_flexible'):
-		#	if entry.get('work') < (entry.get('worker_secs') + entry.get('late') ):
-		#		entry['undertime'] += entry.get('work') - entry.get('worker_secs')
-
 		if entry.get('lv_status') == 2 and entry['card_out']: #get undertime if leave is 1sthalf halfday
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('time_out'):
@@ -424,6 +433,7 @@ def get_cto(entry, cto):
 	if cto:
 		for d in cto:
 			if d['use_date'] == entry['target_date']:
+				entry['cto_links'].append(d.name)
 				entry['cto'] = d.use_total_hours * 60 * 60
 
 	return entry
@@ -528,29 +538,20 @@ def get_absent(entry):
 
 	return entry
 
-def get_final_processing(entry):
-	entry['work'] -= entry['late']
-	entry['work'] -= entry['undertime']
-
-	if not entry.get('is_attendance_base'):
-		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
-		entry["is_absent"] = 0
-		entry["break"] = 0
-		entry["late"] = 0
-		entry["nightdiff"] = 0
-		entry["overtime"] = 0
-		entry["undertime"] = 0
-
-	#if flexible
+def get_flexible(entry, obs):
 	if entry.get('is_flexible'):
+		flex_ob_time = 0
+		for ob in obs:
+			if getdate(ob.get('target_date')) == getdate(entry['target_date']):
+				flex_ob_time += (ob.get('hrs') * 60 * 60)
+
 		if entry.get('card_in') and entry.get('card_out'):
 			#Reset Flexible values
 			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
-
 			if entry.get('flexible_type') == "In-Out":		
-				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds() - (entry.get('break_mins') * 60)
-				
-				if diff < entry.get('worker_secs'):
+				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds() - (entry.get('break_mins') * 60)  + flex_ob_time
+
+				if diff < (entry.get('worker_secs')):
 					ut = 0
 					if entry.get('ut_interval'):
 						ut = (entry.get('worker_secs') - diff) 
@@ -582,13 +583,13 @@ def get_final_processing(entry):
 							entry['late'] = ( flex_start - flex ).total_seconds()
 				
 				#always reduce break mins
-				diff = abs((flex_start - flex_end).total_seconds())  - (entry.get('break_mins') * 60)	
+				diff = abs( (flex_start - flex_end).total_seconds())  - (entry.get('break_mins') * 60) + flex_ob_time
 				
 				#Get Undertime
 				if entry.get('lv_status') > 1:
 					diff += (entry.get('worker_secs') / 2)
 				
-				if diff < entry.get('worker_secs'):
+				if diff < (entry.get('worker_secs')):
 					ut = 0
 					if entry.get('ut_interval'):
 						ut = (entry.get('worker_secs') - diff) 
@@ -598,13 +599,33 @@ def get_final_processing(entry):
 					
 					entry['undertime'] = ut
 					entry['work'] = entry.get('worker_secs') - ut
+		else:
+			#if no card in card out get OB hrs
+			if flex_ob_time > 0:
+				if flex_ob_time < entry.get('worker_secs'):
+					ut = (entry.get('worker_secs') - flex_ob_time) 
+					ut = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
+				else:
+					ut = (entry.get('worker_secs') - flex_ob_time)
+					entry['work'] += flex_ob_time - ut
+		
+		#Work should not be greater than assigned work hrs
+		if entry['work'] > entry.get('worker_secs'):
+			entry['work'] = entry.get('worker_secs')
 
-		#entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())		
-		#if entry.get('work') < (entry.get('worker_secs')):
-		#	entry['undertime'] += abs(entry.get('work') - entry.get('worker_secs'))
-		#	entry['work'] += entry['late']
-		#	entry['late'] = 0
-		#	entry['work'] = entry.get('worker_secs') - entry['undertime']
+def get_final_processing(entry):
+	entry['work'] -= entry['late']
+	entry['work'] -= entry['undertime']
+
+	if not entry.get('is_attendance_base'):
+		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
+		entry["is_absent"] = 0
+		entry["break"] = 0
+		entry["late"] = 0
+		entry["nightdiff"] = 0
+		entry["overtime"] = 0
+		entry["undertime"] = 0
+
 	ch_tr=0
 	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
 	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
@@ -729,6 +750,15 @@ def get_links(entry):
 
 	for d in entry.get('ob_links'):
 		entry["links"] += "<span class='label label-info'><a href='/desk#Form/Official Business Application/"+d+"'> "+d+" </a></span>"
+
+	for d in entry.get('ext_links'):
+		entry["links"] += "<span class='label label-success'><a href='/desk#Form/Excuse Tardiness Application/"+d+"'> "+d+" </a></span>"
+
+	for d in entry.get('ut_links'):
+		entry["links"] += "<span class='label label-info'><a href='/desk#Form/Undertime Application/"+d+"'> "+d+" </a></span>"
+
+	for d in entry.get('cto_links'):
+		entry["links"] += "<span class='label label-success'><a href='/desk#Form/Compensatory Time Off/"+d+"'> "+d+" </a></span>"
 
 	return entry
 
@@ -899,9 +929,9 @@ def get_shift_map():
 	return shift_map
 
 def get_holiday_list(company, location, from_date, to_date):
-	holidays = frappe.db.sql("""SELECT holiday_name, holiday_date, is_special FROM `tabHoliday` 
-		WHERE company = %s AND location = %s AND holiday_date >= %s AND holiday_date <= %s
-		ORDER BY holiday_date ASC""",(company, location, from_date, to_date), as_dict=True)
+	holidays = frappe.db.sql("""SELECT holiday_name, holiday_date, is_special, location FROM `tabHoliday` 
+		WHERE company = %s AND holiday_date >= %s AND holiday_date <= %s
+		ORDER BY holiday_date ASC""",(company, from_date, to_date), as_dict=True)
 
 	return holidays
 
@@ -1107,7 +1137,10 @@ def insert_overtime(entry):
 	entry['ot_links'] = None
 	entry['lv_links'] = None
 	entry['ob_links'] = None
-	
+	entry['ext_links'] = None
+	entry['ut_links'] = None
+	entry['cto_links'] = None
+
 def get_defaults(emp, sched, shift_map):
 	entry = {
 		#employe settings
@@ -1205,6 +1238,9 @@ def get_defaults(emp, sched, shift_map):
 		"lv_links": [],
 		"ot_links": [],
 		"ob_links": [],
+		"ext_links": [],
+		"ut_links": [],
+		"cto_links": [],
 		#SHIFT POLICIES
 		"graceperiod_late": shift_map[sched.work_shift]['graceperiod_late'],
 		"straight_ot": shift_map[sched.work_shift]['straight_ot'],
