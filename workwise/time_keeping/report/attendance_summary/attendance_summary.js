@@ -27,7 +27,7 @@ frappe.query_reports["Attendance Summary"] = {
 		},
 		{
 			"fieldname": "employee_name",
-			"label": __("Enmployee Name"),
+			"label": __("Employee Name"),
 			"fieldtype": "Data",
 			"read_only": 1
 		},
