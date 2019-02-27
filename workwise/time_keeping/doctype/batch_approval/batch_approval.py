@@ -122,25 +122,36 @@ class BatchApproval(Document):
 		cur_user = frappe.session.user
 		table = "`tab"+self.application_type+"`"
 		additional_fields = ""
+		filter_date = "AP.`posting_date`"
 
 		if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
 			additional_fields += ", AP.total_hrs"
 		if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application"]:
 			additional_fields += ", AP.from_date, AP.to_date"
+			if self.based_on == "Target Date":
+				filter_date = "AP.from_date"
 		if self.application_type == "Undertime Application":
 			additional_fields += ", AP.from_date"
+			if self.based_on == "Target Date":	
+				filter_date = "AP.from_date"
 		if self.application_type == "Excuse Tardiness Application":
 			additional_fields += ", AP.date"
+			if self.based_on == "Target Date":	
+				filter_date = "AP.date"
 		if self.application_type in ["Change Schedule Application", "DTR Problem Application"]:
 			additional_fields += ", AP.target_date"
+			if self.based_on == "Target Date":	
+				filter_date = "AP.target_date"
 		if self.application_type == "Compensatory Time Off":
 			additional_fields += ", AP.`date`, AP.use_date, AP.`type`, AP.use_total_hours, AP.total_hours"
+			if self.based_on == "Target Date":	
+				filter_date = "AP.`date` or AP.use_date"
 
 		if not "Administrator" in frappe.get_roles(cur_user):
 			record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
 				FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` 
 				WHERE AP.`workflow_state` = "Pending"
-				AND (AP.`posting_date` BETWEEN %(from_date)s AND %(to_date)s) 
+				AND ("""+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s) 
 				AND TE.`name` IN (SELECT `for_value` FROM `tabUser Permission` WHERE `allow` = "Employee" AND `user` = %(cur_user)s)
 				{conditions} 
 				AND TE.company = %(company)s """.format(conditions=self.sql_select_filters()),{ 
@@ -155,7 +166,7 @@ class BatchApproval(Document):
 				FROM """+table+""" AP JOIN `tabEmployee` TE 
 				WHERE AP.`employee` = TE.`name` 
 				AND AP.`workflow_state` = "Pending"
-				AND (AP.`posting_date` BETWEEN %(from_date)s AND %(to_date)s) 
+				AND ("""+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s) 
 				{conditions}
 				AND TE.company = %(company)s """.format(conditions=self.sql_select_filters()),{ 
 					"company": self.company,
