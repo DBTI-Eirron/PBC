@@ -179,8 +179,11 @@ def get_overtime(entry, ot_apps):
 
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('card_out') and entry.get('strict_otcard'):
-					if entry.get('card_out') < ot_out:
-						ot_out = entry.get('card_out')
+					if entry.get('ob_out') and entry.get('ob_out') > ot_out:
+						ot_out = entry.get('ob_out') 
+					else:
+						if entry.get('card_out') < ot_out:
+							ot_out = entry.get('card_out')
 
 				# OT IN should not be greater than OT Out
 				if ot_in > ot_out:
