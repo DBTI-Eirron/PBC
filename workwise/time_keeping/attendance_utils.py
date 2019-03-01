@@ -179,11 +179,17 @@ def get_overtime(entry, ot_apps):
 						ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
 
 				#Always follow whichever is lower between card_out and ot_out
-				if entry.get('card_out') and entry.get('strict_otcard'):
-					if entry.get('ob_out') and entry.get('ob_out') > ot_out:
-						ot_out = entry.get('ob_out') 
-					else:
-						if entry.get('card_out') < ot_out:
+				if entry.get('card_in') and entry.get('card_out') and entry.get('strict_otcard'):
+					if ot_in < entry.get('time_in'):
+						if entry.get('ob_in') and entry.get('ob_in') < entry.get('card_in'):
+							ot_in = entry.get('ob_in')
+						else:
+							ot_in = entry.get('card_in')
+
+					if ot_out > entry.get('time_out'):
+						if entry.get('ob_out') and entry.get('ob_out') > entry.get('card_out'):
+							ot_out = entry.get('ob_out')
+						else:
 							ot_out = entry.get('card_out')
 
 				# OT IN should not be greater than OT Out
@@ -675,14 +681,14 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["absent"] = 0
 
-	if entry.get('lv_status') != 1 and entry.get('hd_halfcard') and not entry.get('is_restday'):
-		if entry.get('card_in') and not entry.get('card_out'): 
+	if entry.get('lv_status') != 1 and entry.get('ob_status') != 1 and entry.get('hd_halfcard') and not entry.get('is_restday'):
+		if entry.get('card_in') and not entry.get('card_out'):
 			entry['is_absent'] = 1
 			entry["is_halfday"] = 1
 			entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 			entry["late"] = 0
 			entry["undertime"] = 0
-		if entry.get('card_out') and not entry.get('card_in'): 
+		if entry.get('card_out') and not entry.get('card_in'):
 			entry['is_absent'] = 1
 			entry["is_halfday"] = 1
 			entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
