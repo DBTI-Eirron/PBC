@@ -175,7 +175,8 @@ def get_overtime(entry, ot_apps):
 
 				#get OT Start Deduct Late
 				if entry.get('ot_deduct_late'):
-					ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
+					if entry.get('is_restday') < 1:
+						ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
 
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('card_out') and entry.get('strict_otcard'):
