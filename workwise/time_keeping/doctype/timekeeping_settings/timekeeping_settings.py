@@ -16,6 +16,12 @@ class TimekeepingSettings(Document):
 					"is_active": 1
 				})
 				workflow.save()
+
+				app_list = [ "Leave Application", "Overtime Application", "Official Business Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "DTR Problem Application", "Compensatory Time Off", "Change Request Application" ]
+				for b in app_list:
+					table_name = "`tab"+str(b)+"`"
+					frappe.db.sql(""" UPDATE """+str(table_name)+""" SET docstatus=1 WHERE workflow_state="Pending" """)
+					frappe.db.commit()
 		else:
 			application = [ "Leave Approval", "Overtime Approval", "Official Business Approval", "Change Schedule Approval", "Excuse Tardiness Approval", "Undertime Approval", "DTR Problem Approval", "Compensatory Time Off Approval", "Change Request Approval" ]
 			for a in application:
@@ -24,3 +30,9 @@ class TimekeepingSettings(Document):
 					"is_active": 1
 				})
 				workflow.save()
+
+			app_list = [ "Leave Application", "Overtime Application", "Official Business Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "DTR Problem Application", "Compensatory Time Off", "Change Request Application" ]
+			for b in app_list:
+				table_name = "`tab"+str(b)+"`"
+				frappe.db.sql(""" UPDATE """+str(table_name)+""" SET docstatus=0 WHERE workflow_state="Pending" """)
+				frappe.db.commit()
