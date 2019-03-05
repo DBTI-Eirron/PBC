@@ -15,7 +15,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 			if ob['target_date'] == entry['target_date']:
 				entry['ob_links'].append(ob.name) 
 				entry['linked_ob'] = ob.name
-				entry['is_ob'], entry['ob_status'], entry['ob_stat'], entry["is_absent"], entry['is_lwop']  = 1, 1, 1, 0, 0
+				entry['is_ob'], entry['ob_status'], entry['ob_stat'], entry["is_absent"], entry['is_lwop'] = 1, 1, 1, 0, 0
 
 				ob_in = get_datetime( str(entry.get('target_date'))+" "+ str(ob.from_time) )
 				if not entry['ob_in']:
@@ -33,11 +33,13 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 					ob_date = add_days(entry.get('target_date'), 1)
 					entry['ob_out'] = get_datetime( str(ob_date)+" "+ str(ob.to_time) )
 
-				if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
+				if entry.get('ob_in') >= entry.get('break_start') and entry.get('ob_in') <= entry.get('break_end') : #if OB is in second half
 					entry['ob_stat'] = 3
 				else: #if OB is in first half
 					if entry.get('ob_out') <= entry.get('break_end'):
 						entry['ob_stat'] = 2
+
+				#frappe.throw(_(entry.get('ob_status')))
 	if uts:
 		for ut in uts:
 			if ut['from_date'] == entry['target_date']:
@@ -335,7 +337,7 @@ def get_late(entry):
 			if entry.get('card_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('b_grace')):
 				entry['late'] += (entry.get('card_in') - entry.get('break_end')).total_seconds()
 
-		elif entry.get('lv_status') == 3 and entry['card_in']: #get late if leave is 2ndhalf halfday
+		elif entry.get('lv_status') == 3 and entry['card_in']: #get late if leave is 2ndhalf halfdays
 			if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 				entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 
@@ -365,12 +367,13 @@ def get_late(entry):
 									entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
 			
 			else: #if no card in check for OB
-				if entry.get('ob_status') == 1:
-					if entry.get('ob_in') > entry.get('break_end'): #if OB is in second half
+				if entry.get('ob_stats') > 1:
+					#if OB is in 2nd Half
+					if entry.get('ob_stat') == 3 and entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')):
 						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
-					else:
-						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
-							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+					#if OB is in 1st Half
+					elif entry.get('ob_stat') == 2 and entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+						entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 
 		#break_out
 		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
@@ -507,15 +510,16 @@ def get_absent(entry):
 
 	if (entry.get('lv_status') > 1 or entry.get('suspension') > 1) and not entry.get('card_out'):
 		entry["work"] = 0
-		entry["is_absent"] = 1
-		entry["is_halfday"] = 1
 		if entry.get('lv_status') == 2 and entry.get('ob_stat') == 3 and not entry.get('is_lwop'):
 			entry["is_absent"] = 0
 			entry["is_halfday"] = 0
 
-		if entry.get('lv_status') == 3 and entry.get('ob_stat') == 2 and not entry.get('is_lwop'):
+		elif entry.get('lv_status') == 3 and entry.get('ob_stat') == 2 and not entry.get('is_lwop'):
 			entry["is_absent"] = 0
 			entry["is_halfday"] = 0
+		else:
+			entry["is_absent"] = 1
+			entry["is_halfday"] = 1			
 
 	if not entry.get('card_out') and not entry.get('is_restday') and not entry.get('is_holiday') and not entry.get('lv_status') and not entry.get('ob_status'):
 		entry["work"] = 0
@@ -732,12 +736,19 @@ def get_tags(entry):
 	if entry.get('cto') > 0:
 		entry["tags"] += " <span class='label label-info'> CTO </span> "
 
+	if entry.get('ob_stat') == 1:
+		entry["tags"] += " <span class='label label-success'> Official Business  </span> "
+	elif entry.get('ob_stat') == 2:
+		entry["tags"] += " <span class='label label-success'> OB 1sthalf </span> "
+	elif entry.get('ob_stat') == 3:
+		entry["tags"] += " <span class='label label-success'> OB 2ndhalf </span> "
+
 	entry["tags"] += " <span class='label label-success'> Excused Tardiness </span> " if entry.get('ex_tardiness') else ""
 	entry["tags"] += " <span class='label label-danger'> Absent </span> " if entry['is_absent'] == 1 else ""
 	entry["tags"] += " <span class='label label-danger'> Late </span> " if entry['late'] > 0 else ""
 	entry["tags"] += " <span class='label label-info'>"+ entry['holiday_name'] +"</span>" if entry['is_holiday'] == 1 else ""
 	entry["tags"] += " <span class='label label-info'> Special Non-Working </span>" if entry['is_sp_holiday'] == 1 else ""
-	entry["tags"] += " <span class='label label-success'> Official Business </span> " if entry['is_ob'] else ""
+
 	entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+"</span>" if entry['is_leave'] > 0 else ""
 	
 	if entry['is_restday']:
