@@ -294,10 +294,10 @@ def get_overtime(entry, ot_apps):
 	return entry
 
 def get_ndiff(entry):
-	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') and entry.get('work_shift_type') == "Night":
+	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
 		#get nightdiff start and end
-		nd_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) )
-		nd_end = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
+		nd_start, nd_end  = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) ), get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
+		min_nd, max_nd  = entry.get('nd_start'),  entry.get('nd_end')
 		if entry.get('nd_start') > entry.get('nd_end'):
 			nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )		
 
