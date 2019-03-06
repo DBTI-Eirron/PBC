@@ -3,9 +3,9 @@ from __future__ import unicode_literals
 from . import __version__ as app_version
 
 app_name = "Workwise"
-app_title = "Workwise"
+app_title = "HRP Core"
 app_publisher = "HDI Systech"
-app_description = "Workwise HRIS"
+app_description = "HRIS"
 app_icon = "octicon octicon-book"
 app_color = "#589494"
 app_email = "krefin.fagara@gmail.com"
