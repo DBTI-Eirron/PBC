@@ -20,58 +20,75 @@ def grant_head_subordinate_access(self):
 						frappe.throw(_("You Cannot Create Application In Behalf Of Your Subordinate"))
 		
 def validate_approve_own_application(self):
-	cur_user = frappe.session.user
-	if not "Administrator" in frappe.get_roles(cur_user):
-		user_id = frappe.get_value("Employee", self.employee, "user_id")
-		if user_id == frappe.session.user:
-			frappe.throw(_("Not Allowed to Approved own Application"))
+	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+	if enable_employee_approvers < 1:
+		cur_user = frappe.session.user
+		if not "Administrator" in frappe.get_roles(cur_user):
+			user_id = frappe.get_value("Employee", self.employee, "user_id")
+			if user_id == frappe.session.user:
+				frappe.throw(_("Not Allowed to Approved own Application"))
 
 def validate_reject_cancel_own_application(self):
-	cur_user = frappe.session.user
-	if not "Administrator" in frappe.get_roles(cur_user):
-		user_id = frappe.get_value("Employee", self.employee, "user_id")
-		if user_id == frappe.session.user:
-			frappe.throw(_("You cannot reject or cancel your own application"))
+	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+	if enable_employee_approvers < 1:
+		cur_user = frappe.session.user
+		if not "Administrator" in frappe.get_roles(cur_user):
+			user_id = frappe.get_value("Employee", self.employee, "user_id")
+			if user_id == frappe.session.user:
+				frappe.throw(_("You cannot reject or cancel your own application"))
 
 def change_owner(self):
-	owner = ""
-	owner_email = frappe.db.sql("""SELECT user_id FROM `tabEmployee` WHERE `name` = %s LIMIT 1""",( self.employee ), as_dict=1)
-	for d in owner_email:
-		self.db_set("owner", d.user_id)
+	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+	if enable_employee_approvers < 1:
+		if not self.owner:
+			owner = ""
+			owner_email = frappe.db.sql("""SELECT user_id FROM `tabEmployee` WHERE `name` = %s LIMIT 1""",( self.employee ), as_dict=1)
+			for d in owner_email:
+				self.db_set("owner", d.user_id)
 
 def get_levelled_approval(self):
 	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 	if enable_employee_approvers > 0:
-		highest_level = frappe.db.sql(""" SELECT MAX(`level`) as level FROM `tabEmployee Approvers` WHERE parenttype = "Employee" AND application = %s AND parent = %s """,(self.doctype, self.employee), as_dict=True)	
-		if not "Administrator" in frappe.get_roles(frappe.session.user):
-			if int(self.last_approval_level) == 0:
-				approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` WHERE EA.parenttype = "Employee" AND EA.application = %s AND EA.parent = %s AND TE.user_id = %s AND EA.`level` = 1 """,(self.doctype, self.employee, frappe.session.user), as_dict=True)
-				if approver_level:
-					if int(approver_level[0].level) == 1:
-						if int(approver_level[0].level) == int(highest_level[0].level):
-							set_levelled_approval_to_approved(self, highest_level)
-						else:
-							set_levelled_approval_to_progress(self, approver_level)
+		req_level = 0
+		highest_level = frappe.db.sql(""" SELECT IFNULL(MAX(`level`), 0) as level FROM `tabEmployee Approvers` WHERE parenttype = "Employee" AND (`application` = %s OR `application` = "All") AND parent = %s """,(self.doctype, self.employee), as_dict=True)	
+		if highest_level > 0:
+			if not "Administrator" or not "Admin Approver" in frappe.get_roles(frappe.session.user):
+				if int(self.last_approval_level) == 0:
+					approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` WHERE EA.parenttype = "Employee" AND (EA.application = %s OR EA.application = "All") AND EA.parent = %s AND TE.user_id = %s AND EA.`level` = 1 """,(self.doctype, self.employee, frappe.session.user), as_dict=True)
+					if approver_level:
+						level_of_approval_first_level(self, approver_level, highest_level)
 					else:
-						frappe.throw(_("Insufficient permission to approve this application"))
+						frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
 				else:
-					frappe.throw(_("Insufficient permission to approve this application"))
+					req_level = int(self.last_approval_level)+1
+					approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` WHERE EA.parenttype = "Employee" AND (EA.application = %s OR EA.application = "All") AND EA.parent = %s AND TE.user_id = %s AND EA.`level` = %s """,(self.doctype, self.employee, frappe.session.user, int(req_level)), as_dict=True)
+					if approver_level:
+						level_of_approval_next_level(self, approver_level, highest_level, req_level)
+					else:
+						frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
 			else:
-				last_approval_level = int(self.last_approval_level+1)
-				approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` WHERE EA.parenttype = "Employee" AND EA.application = %s AND EA.parent = %s AND TE.user_id = %s AND EA.`level` = %s """,(self.doctype, self.employee, frappe.session.user, last_approval_level), as_dict=True)
-				if approver_level:
-					if int(approver_level[0].level) == int(highest_level[0].level):
-						set_levelled_approval_to_approved(self, highest_level)
-					else:
-						if int(approver_level[0].level) == int(self.last_approval_level+1):
-							set_levelled_approval_to_progress(self, approver_level)
-						else:
-							frappe.throw(_("Insufficient permission to approve this application"))
-				else:
-					frappe.throw(_("Insufficient permission to approve this application"))
-		else:
-			if highest_level:
 				set_levelled_approval_to_approved(self, highest_level)
+		else:
+			set_levelled_approval_to_approved(self, highest_level)
+
+def level_of_approval_first_level(self, approver_level, highest_level):
+	if int(approver_level[0].level) == 1:
+		if int(approver_level[0].level) == int(highest_level[0].level):
+			set_levelled_approval_to_approved(self, highest_level)
+		else:
+			set_levelled_approval_to_progress(self, approver_level)
+	else:
+		frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
+
+def level_of_approval_next_level(self, approver_level, highest_level, req_level):
+	if approver_level[0].level != highest_level[0].level:
+		if approver_level[0].level == req_level:
+			if req_level != highest_level[0].level:
+				set_levelled_approval_to_progress(self, approver_level)
+			else:
+				frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
+	else:
+		set_levelled_approval_to_approved(self, highest_level)
 
 def set_levelled_approval_to_progress(self, approver_level):
 	approval_history = ""
@@ -82,7 +99,7 @@ def set_levelled_approval_to_progress(self, approver_level):
 	self.db_set("last_approval_level", approver_level[0].level)
 	self.db_set("workflow_state", "Approval in Progress")
 	frappe.db.commit()
-	frappe.msgprint(_("Approval Successful"))
+	frappe.msgprint(_("<b>{0}: {1}</b><hr> Approval Successful").format(self.doctype, self.name))
 
 def set_levelled_approval_to_approved(self, highest_level):
 	approval_history = ""
@@ -98,7 +115,7 @@ def set_levelled_approval_to_approved(self, highest_level):
 	self.db_set("approved_by", frappe.session.user)
 	self.db_set("approved_on", nowdate())
 	frappe.db.commit()
-	frappe.msgprint(_("Approval Successful"))
+	frappe.msgprint(_("<b>{0}: {1}</b><hr> Approval Successful").format(self.doctype, self.name))
 
 def get_levelled_approval_rejection(self):
 	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
@@ -108,10 +125,10 @@ def get_levelled_approval_rejection(self):
 			if self.workflow_state == "Rejected":
 				if approver_level:
 					if int(approver_level[0].level) != int(self.last_approval_level+1):
-						frappe.throw(_("Insufficient permission to reject this application"))
+						frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
 				if self.approval_history:
 					if frappe.session.user in self.approval_history:
-						frappe.throw(_("Insufficient permission to reject this application"))
+						frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
 
 def get_approver_and_date(self):
 	if self.workflow_state == "Approved":
