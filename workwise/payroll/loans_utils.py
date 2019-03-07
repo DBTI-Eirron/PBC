@@ -19,7 +19,7 @@ def get_loans_map(employees, payroll_date, period_from, period_to):
 	automatic_loans = frappe.db.sql(""" SELECT LA.`name`, LA.employee, LA.loan_type, LA.loan_amount, LA.payment_frequency, LAP.payment_amount, MIN(LAP.idx) as idx
 		FROM `tabLoan Application` LA 
 		INNER JOIN `tabLoan Application Payments` LAP ON LA.`name` = LAP.parent
-		WHERE LA.payment_start <= %s AND LA.freq_method = 'Automatic' AND LAP.payment_status = 'Unpaid' AND LA.docstaus = 1
+		WHERE LA.payment_start <= %s AND LA.freq_method = 'Automatic' AND LAP.payment_status = 'Unpaid' AND LA.docstatus = 1
 		GROUP BY LA.`name` ORDER BY LAP.idx """, ( getdate(payroll_date) ), as_dict=True)
 
 	for d in automatic_loans:
@@ -30,7 +30,7 @@ def get_loans_map(employees, payroll_date, period_from, period_to):
 	dated_loans = frappe.db.sql(""" SELECT LA.`name`, LA.employee, LAP.due_date, LA.loan_type, LAP.payment_amount, LAP.idx
 		FROM `tabLoan Application` LA 
 		INNER JOIN `tabLoan Application Payments` LAP ON LA.`name` = LAP.parent
-		WHERE LAP.due_date >= %s AND LAP.due_date <= %s AND LA.freq_method != 'Automatic' AND LAP.payment_status = 'Unpaid' AND LA.docstaus = 1
+		WHERE LAP.due_date >= %s AND LAP.due_date <= %s AND LA.freq_method != 'Automatic' AND LAP.payment_status = 'Unpaid' AND LA.docstatus = 1
 		ORDER BY LAP.idx """, ( getdate(period_from), getdate(period_to) ), as_dict=True)
 
 	for d in dated_loans:
