@@ -13,6 +13,12 @@ frappe.query_reports["Plantilla Report"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname":"department",
+			"label": __("Department"),
+			"fieldtype": "Link",
+			"options": "Department"
+		},
+		{
 			"fieldname":"as_of_date",
 			"label": __("As Of"),
 			"fieldtype": "Date",

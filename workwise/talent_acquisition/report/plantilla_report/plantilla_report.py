@@ -46,7 +46,7 @@ def execute(filters=None):
 	return columns, data, None, None
 
 def get_position_list(filters):
-	positions = frappe.db.sql(""" SELECT `name` as `key`, `name` as `label` FROM `tabJob Level` """, as_dict=True)
+	positions = frappe.db.sql(""" SELECT `name` as `key`, CONCAT(`name`,"-",level_no) as `label` FROM `tabJob Level` ORDER BY level_no DESC""", as_dict=True)
 	positions.append(frappe._dict({
 		"key": "Target",
 		"label": "Target",
