@@ -22,18 +22,12 @@ class TargetSetting(Document):
 			self.immediate_supervisor_name = frappe.get_value('Employee',par.parent,'full_name')
 		return self.type
 
-	def change_key_indicator(self):
-		result = []
-		for d in self.key_result_area:
-			result.append(d.key_result_area)
-		return result
-
 	def validate_weight(self):
 		total_w = 0.0
 		for d in self.key_indicator:
 			total_w += float(d.weight)
-		if total_w >70:
-			frappe.throw(_("Total weightage assigned should be less than 70%. It is {0}").format(str(total_w) + "%"))
+		if total_w != 100:
+			frappe.throw(_("Total weightage assigned should 100%. It is {0}").format(str(total_w) + "%"))
 
 	def validate_appraisee(self):
 		if self.type == "Individual":
@@ -42,6 +36,7 @@ class TargetSetting(Document):
 		elif self.type == "Department":
 			if self.department is None:
 				frappe.throw(_("Select Department"))
+				
 	def get_type(self):
 		return self.type
 

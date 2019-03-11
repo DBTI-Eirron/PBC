@@ -39,14 +39,6 @@ frappe.ui.form.on('Appraisal', {
 		}
 	},
 
-	due_date: function(frm) {
-		if (frm.doc.due_date < frappe.datetime.get_today()){
-			frm.trigger("get_behind_target");
-		}else{
-			frm.trigger("get_not_behind_target");
-		}
-	},
-
 	get_behind_target: function(frm) {
 		frm.set_value("status", 'Behind Target');
 	},

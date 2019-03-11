@@ -6,10 +6,7 @@ cur_frm.add_fetch('appraisee','position_title','job_title');
 cur_frm.add_fetch('appraisee','department','department');
 cur_frm.add_fetch('appraisee','date_hired','date_joined');
 frappe.ui.form.on('Target Setting', {
-	onload: function(frm) {
-		if (!frm.doc.planning_date) {
-			frm.set_value("planning_date", get_today());
-		}
+	onload: function(frm) { 
 	},
 	refresh: function(frm) {
 		if (frm.doc.type == "Individual" && frm.doc.docstatus == 1){
@@ -75,24 +72,3 @@ frappe.ui.form.on('Target Setting', {
 		} 
 	},
 });
-frappe.ui.form.on("Performance Planning KRA", "key_result_area", function(frm, cdt, cdn) {
-	return frappe.call({
-		method: "change_key_indicator",
-		doc: frm.doc,
-		callback: function(r) {
-			console.log(r.message)
-			// frm.refresh_field("timelogs_override");
-			frappe.meta.get_docfield('Performance Planning KI', 'key_result_area', cur_frm.doc.name).options = r.message;
-			cur_frm.refresh_field('key_result_area');
-		}
-	});
- 	//frm.set_df_property('grading_subject', 'options', ['option a', 'option b']);
-	// frm.refresh_field('grading_subject');
-});
-cur_frm.fields_dict['planning_period'].get_query = function(doc) {
-	return {
-		filters: {
-			"status": 'Open'
-		}
-	}
-}

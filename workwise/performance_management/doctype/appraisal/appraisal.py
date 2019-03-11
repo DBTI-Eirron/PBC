@@ -12,7 +12,7 @@ from frappe.model.document import Document
 class Appraisal(Document):
 	def validate(self):
 		self.validate_fields()
-		# self.validate_rating()
+		self.validate_rating()
 		
 
 	def on_submit(self):
@@ -29,7 +29,7 @@ class Appraisal(Document):
 
 
 	def get_performance_planning(self):
-		kra = frappe.db.sql("""SELECT PP.type,PP.header,PP.department,PP.appraisee,PP.company,PP.appraisee_name,PP.planning_period,PP.date_joined,PP.job_title,KI.key_result_area,KI.key_indicator,KI.weight FROM `tabTarget Setting` PP INNER JOIN `tabPerformance Planning KI` KI ON KI.parent = PP.name WHERE PP.name = %s ORDER BY KI.`idx` ASC""",(self.target_setting),as_dict=True)
+		kra = frappe.db.sql("""SELECT PP.type,PP.header,PP.department,PP.appraisee,PP.company,PP.appraisee_name,PP.from_date,PP.to_date,PP.date_joined,PP.job_title,KI.key_result_area,KI.key_indicator,KI.weight FROM `tabTarget Setting` PP INNER JOIN `tabPerformance Planning KI` KI ON KI.parent = PP.name WHERE PP.name = %s ORDER BY KI.`idx` ASC""",(self.target_setting),as_dict=True)
 		entries = []
 		for d in kra:
 			self.appraisee = d.appraisee
@@ -41,20 +41,9 @@ class Appraisal(Document):
 			self.date_joined = d.date_joined
 			self.company = d.company
 			self.type = d.type
-			from_date,to_date = frappe.get_value("Target Setting Period",d.planning_period,["from_date","to_date"])
-			self.from_date = from_date
-			self.to_date = to_date
+			self.from_date = d.from_date
+			self.to_date = d.to_date
 			row = {
-				"key_result_area":d.key_result_area,
-				"key_indicator":d.key_indicator,
-				"weightage":d.weight
-			}
-			entries.append(row);
-		settings = frappe.db.sql("""SELECT key_result_area, key_indicator, weight FROM `tabAppraisal Settings Table` ORDER BY `idx` ASC""",as_dict=True)
-		for d in settings:
-			row = {
-				"kra":"settings_table",
-				"key_result_area":d.key_result_area,
 				"key_indicator":d.key_indicator,
 				"weightage":d.weight
 			}
@@ -76,24 +65,11 @@ class Appraisal(Document):
 		if self.total_weight > 100:
 			frappe.throw("Total Weight Must Be Less Than 100")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-	# def validate_rating(self):
-	# 	for d in self.appraisal_goal:
-	# 		desc = frappe.get_value("Target Standard",d.score,"description")
-	# 		d.equivalent_rating = desc
-	# 	rating = frappe.db.sql("""SELECT rate_from, rate_to, name FROM `tabRating Classification`""",as_dict=True)
-	# 	for d in rating:
-	# 		if self.total_score <= float(d.rate_to) and self.total_score >= float(d.rate_from):
-	# 			self.equivalent_rating = d.name
+	def validate_rating(self):
+		for d in self.appraisal_goal:
+			desc = frappe.get_value("Target Standard",d.score,"description")
+			d.equivalent_rating = desc
+		rating = frappe.db.sql("""SELECT rate_from, rate_to, name FROM `tabRating Classification`""",as_dict=True)
+		for d in rating:
+			if self.total_score <= float(d.rate_to) and self.total_score >= float(d.rate_from):
+				self.equivalent_rating = d.name
