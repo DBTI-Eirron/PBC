@@ -41,16 +41,6 @@ def get_data():
 					"name": "Learning Program",
 					"description": _("Learning Program"),
 				},
-				{
-					"type": "doctype",
-					"name": "Learning Session",
-					"description": _("Learning Session"),
-				},
-				{
-					"type": "doctype",
-					"name": "Learning Methodology",
-					"description": _("Learning Methodology"),
-				},
 			]
 		},
 		{
