@@ -20,11 +20,11 @@ class LearningEvent(Document):
 	def create_evaluation_entries(self):
 		for d in self.participants:
 			if d.status == "Present":
-				exist = frappe.db.sql("""SELECT `name` FROM `tabEvaluation for Learners` WHERE `event` = %s AND `program` = %s AND `employee` = %s """, (self.event_name, self.learning_program, d.employee), as_dict=True)
+				exist = frappe.db.sql("""SELECT `name` FROM `tabEvaluation for Learners` WHERE `event` = %s AND `program` = %s AND `employee` = %s """, (self.name, self.learning_program, d.employee), as_dict=True)
 				if not exist:
 					eval_entry = frappe.new_doc("Evaluation for Learners")
 					eval_entry.update({
-						"event": self.event_name,
+						"event": self.name,
 						"program": self.learning_program,
 						"employee": d.employee,
 						"comment": "None",

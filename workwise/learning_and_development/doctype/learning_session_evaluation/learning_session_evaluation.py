@@ -49,6 +49,10 @@ class LearningSessionEvaluation(Document):
 			a += 1
 			final_g	+= flt(f.rating, 2)
 
-		final_grade = flt(final_g, 2) / (i + a)
+		divisor = i + a
+		if divisor > 0:
+			final_grade = flt(final_g, 2) / flt(divisor, 2)
+		else:
+			final_grade = flt(final_g, 2) / 1
 
 		self.average_rating = flt(final_grade, 2)

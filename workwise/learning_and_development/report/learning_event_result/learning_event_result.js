@@ -6,7 +6,7 @@ frappe.query_reports["Learning Event Result"] = {
 	"filters": [
 		{
 			"fieldname": "event",
-			"label": __("Event Name"),
+			"label": __("Learning Event"),
 			"fieldtype": "Link",
 			"options": "Learning Event",
 			"reqd": 1

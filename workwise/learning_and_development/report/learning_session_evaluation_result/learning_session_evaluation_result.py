@@ -17,7 +17,7 @@ def execute(filters=None):
 	data = []
 
 	for emp in employee_list:
-		row = [emp.employee, emp.employee_name, emp.average_rating]
+		row = [emp.employee, emp.employee_name, emp.learning_session, emp.average_rating]
 
 		data.append(row)
 
@@ -39,6 +39,12 @@ def get_columns(filters):
 			"width": 200
 		},
 		{
+			"fieldname": "session",
+			"label": _("Session"),
+			"fieldtype": "Data",
+			"width": 200
+		},
+		{
 			"fieldname": "average_rating",
 			"label": _("Average Rating"),
 			"fieldtype": "Float",
@@ -49,6 +55,6 @@ def get_columns(filters):
 	return columns
 
 def get_employees(filters):
-	employees = frappe.db.sql(""" SELECT DISTINCT employee, employee_name, `learning_session`, average_rating FROM `tabLearning Session Evaluation` WHERE learning_session IN (SELECT learning_program FROM `tabLearning Event` WHERE `name` = %s ) AND company = %s AND docstatus = 1""", (filters.event, filters.company), as_dict=True)
+	employees = frappe.db.sql(""" SELECT DISTINCT employee, employee_name, `learning_session`, average_rating FROM `tabLearning Session Evaluation` WHERE learning_event = %s AND company = %s AND docstatus = 1 """, (filters.event, filters.company), as_dict=True)
 
 	return employees
