@@ -14,6 +14,11 @@ frappe.ui.form.on('Learning Event', {
 				});
 			});
 		}
+
+		if(frm.doc.docstatus == 1) {
+			cur_frm.add_custom_button(__('Update Status'), cur_frm.cscript['Update Status'], __("Update"));
+			cur_frm.page.set_inner_btn_group_as_primary(__("Update"));
+		}
 		
 	},
 
@@ -29,3 +34,10 @@ frappe.ui.form.on('Learning Event', {
 	},
 
 });
+
+cur_frm.cscript['Update Status'] = function() {
+	frappe.model.open_mapped_doc({
+		method: "workwise.learning_and_development.doctype.learning_event.learning_event.update_status",
+		frm: cur_frm
+	})
+}

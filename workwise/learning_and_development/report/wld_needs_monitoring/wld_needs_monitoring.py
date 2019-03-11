@@ -17,7 +17,7 @@ def execute(filters=None):
 	data = []
 
 	for emp in employee_list:
-		row = ["", emp.employee_name, emp.training, emp.provider, "", "", emp.schedule, "", emp.budget]
+		row = [emp.department, emp.employee_name, emp.training, emp.provider, "", "", emp.schedule, emp.budget, "", "", "", emp.status]
 
 		data.append(row)
 
@@ -27,13 +27,13 @@ def get_columns(filters):
 	columns = [
 		{
 			"fieldname": "department",
-			"label": _("SUBSIDIARY/DEAPRTMENT"),
+			"label": _("SUBSIDIARY/DEPARTMENT"),
 			"fieldtype": "Data",
 			"width": 160
 		},
 		{
 			"fieldname": "employee_name",
-			"label": _("Employee Name"),
+			"label": _("EMPLOYEE NAME"),
 			"fieldtype": "Data",
 			"width": 180
 		},
@@ -92,26 +92,8 @@ def get_columns(filters):
 			"width": 180
 		},
 		{
-			"fieldname": "sac_due",
-			"label": _("SAC DUE"),
-			"fieldtype": "Data",
-			"width": 180
-		},
-		{
-			"fieldname": "sac_date_submitted",
-			"label": _("DATE SAC SUBMITTED"),
-			"fieldtype": "Data",
-			"width": 180
-		},
-		{
-			"fieldname": "application_plan",
-			"label": _("PLAN OF APPLICATION"),
-			"fieldtype": "Data",
-			"width": 180
-		},
-		{
-			"fieldname": "application_status",
-			"label": _("STATUS OF APPLICATION"),
+			"fieldname": "status",
+			"label": _("STATUS"),
 			"fieldtype": "Data",
 			"width": 180
 		},
@@ -121,14 +103,26 @@ def get_columns(filters):
 
 def get_employees(filters):
 	employees = frappe.db.sql(""" SELECT DISTINCT
-		employee_name,
-		training,
-		provider,
-		`schedule`,
-		budget
-	FROM
-		`tabWLD Needs Table` 
-	WHERE
-		`parent` = %s AND docstatus = 1 """, (filters.wld_needs), as_dict=True)
+		WN.employee_name,
+		WN.training,
+		WN.provider,
+		WN.`schedule`,
+		WN.budget,
+		WN.status,
+		WL.department
+		FROM
+		`tabWLD Needs Table` WN INNER JOIN `tabEmployee` TE ON WN.`employee`=TE.`name` INNER JOIN `tabWLD Needs` WL ON WN.`parent`=WL.`name`
+		WHERE
+		WL.`company` = %(company)s {conditions} AND WN.docstatus = 1 """.format(conditions=get_employee_conditions(filters)),{ 
+		"company": filters.company,
+		"department": filters.department,
+	}, as_dict=True)
 
 	return employees
+
+def get_employee_conditions(filters):
+	conditions = []
+	if filters.department:
+		conditions.append("WL.department=%(department)s")
+
+	return "and {}".format(" and ".join(conditions)) if conditions else ""

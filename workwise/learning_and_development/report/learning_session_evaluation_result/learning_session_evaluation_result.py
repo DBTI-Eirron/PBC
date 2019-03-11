@@ -49,6 +49,6 @@ def get_columns(filters):
 	return columns
 
 def get_employees(filters):
-	employees = frappe.db.sql(""" SELECT DISTINCT employee, employee_name, `learning_session`, average_rating FROM `tabLearning Session Evaluation` WHERE `learning_session` = %s AND company = %s""", (filters.session, filters.company), as_dict=True)
+	employees = frappe.db.sql(""" SELECT DISTINCT employee, employee_name, `learning_session`, average_rating FROM `tabLearning Session Evaluation` WHERE learning_session IN (SELECT learning_program FROM `tabLearning Event` WHERE `name` = %s ) AND company = %s AND docstatus = 1""", (filters.event, filters.company), as_dict=True)
 
 	return employees

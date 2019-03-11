@@ -5,10 +5,10 @@
 frappe.query_reports["Learning Session Evaluation Result"] = {
 	"filters": [
 		{
-			"fieldname": "session",
-			"label": __("Learning Session"),
+			"fieldname": "event",
+			"label": __("Learning Event"),
 			"fieldtype": "Link",
-			"options": "Learning Session",
+			"options": "Learning Event",
 			"reqd": 1
 		},
 		{

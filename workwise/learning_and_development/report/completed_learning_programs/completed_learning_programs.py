@@ -8,21 +8,16 @@ from frappe import _
 
 def execute(filters=None):
 	columns = get_columns(filters)
-	employee_list = get_employees(filters)
-	
-	if not employee_list:
-		frappe.throw(_("No record found"))
-		return columns, employee_list
-
 	data = []
-	row = []
-	has_course = frappe.db.sql("""SELECT DISTINCT parent, employee_name FROM `tabLearning Participants` WHERE `parenttype` = "Learning Event" AND `employee` = %s """, (filters.employee), as_dict=True)
-	for hc in has_course:
-		event = frappe.db.sql("""SELECT DISTINCT learning_program FROM `tabLearning Event` WHERE `name` = %s AND event_status = "Completed" """, (hc.parent), as_dict=True)
-		for e in event:
-			row = [e.learning_program]
 
-			data.append(row)
+	from_event = frappe.db.sql("""SELECT DISTINCT LE.learning_program FROM `tabLearning Event` LE INNER JOIN `tabLearning Participants` LP ON LE.`name`=LP.`parent` 
+		WHERE LE.event_status = "Completed" AND LP.employee = %s AND LE.docstatus = 1 """, (filters.employee), as_dict=True)
+	for ev in from_event:
+		data.append({"program":ev.learning_program,})
+
+	from_wld = frappe.db.sql(""" SELECT DISTINCT WT.`training` FROM `tabWLD Needs Table` WT INNER JOIN `tabWLD Needs` WN WHERE WT.`status` = "Completed" AND WN.docstatus = 1 AND WT.employee = %s """, (filters.employee), as_dict=True)
+	for wl in from_wld:
+		data.append({"program":wl.training,})
 
 	return columns, data
 
@@ -31,26 +26,9 @@ def get_columns(filters):
 		{
 			"fieldname": "program",
 			"label": _("Learning Program"),
-			"fieldtype": "Link",
-			"options": "Learning Program",
-			"width": 250
+			"fieldtype": "Data",
+			"width": 500
 		},
 	]
 
 	return columns
-
-def get_employees(filters):
-	register = frappe.db.sql("""SELECT `name`, full_name FROM `tabEmployee` 
-		WHERE company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
-
-	return register
-
-def get_conditions(filters):
-	conditions = []
-	if filters.get("employee"):
-		conditions.append("`name`=%(employee)s")
-
-	if filters.get("department"):
-		conditions.append("department=%(department)s")
-
-	return "and {}".format(" and ".join(conditions)) if conditions else "" 
