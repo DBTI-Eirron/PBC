@@ -11,16 +11,6 @@ def get_data():
 					"name": "Appraisal",
 					"description": _("Appraisal"),
 				},
-				# {
-				# 	"type": "doctype",
-				# 	"name": "Appraisal Template",
-				# 	"description": _("Appraisal Template"),
-				# },
-				# {
-				# 	"type": "doctype",
-				# 	"name": "Appraisal Dates",
-				# 	"description": _("Appraisal Dates"),
-				# },
 			]
 		},
 		{
@@ -30,11 +20,6 @@ def get_data():
 					"type": "doctype",
 					"name": "Target Setting",
 					"description": _("Target Setting"),
-				},
-				{
-					"type": "doctype",
-					"name": "Target Setting Period",
-					"description": _("Target Setting Period"),
 				},
 			]
 		},
@@ -53,25 +38,17 @@ def get_data():
 					"doctype": "Individual Rating Summary",	
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "Rewards and Recognition",
+					"doctype": "Rewards and Recognition",	
+					"is_query_report": True
+				},
 			]
 		},
 		{
 		"label": _("Other Forms"),
 			"items": [
-				{
-					"type": "doctype",
-					"name": "Peer Assessment",
-					"description": _("Peer Assessment"),
-				},{
-					"type": "doctype",
-					"name": "Peer Assessment Form",
-					"description": _("Peer Assessment Form"),
-				},
-				{
-					"type": "doctype",
-					"name": "Core Values Practice",
-					"description": _("Core Values Practice"),
-				},
 				{
 					"type": "doctype",
 					"name": "Performance Improvement Plan",
@@ -82,21 +59,6 @@ def get_data():
 		{
 		"label": _("Setups"),
 			"items": [
-				{
-					"type": "doctype",
-					"name": "Appraisal Settings",
-					"description": _("Appraisal Settings"),
-				},
-				{
-					"type": "doctype",
-					"name": "Peer Assessment Settings",
-					"description": _("Peer Assessment Settings"),
-				},
-				{
-					"type": "doctype",
-					"name": "Core Values Practice Settings",
-					"description": _("Core Values Practice Settings"),
-				},
 				{
 					"type": "doctype",
 					"name": "Rating Classification",
