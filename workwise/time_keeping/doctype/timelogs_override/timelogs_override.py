@@ -13,11 +13,51 @@ get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_o
 class TimelogsOverride(Document):
 
 	def override(self):
+		self.validate_target_date()
 		bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
 		for d in self.get("timelogs_override"):
 			self.save_work_shift(d,bio_id)
 			self.save_time_logs(d,bio_id)
 		frappe.msgprint(_("Time Logs Override Successful"),alert=True)
+
+	def validate_target_date(self):
+		for d in self.get("timelogs_override"):
+			# max_ = datetime.datetime.strptime(d.target_date+ " 23:59", '%Y-%m-%d %H:%M')
+			# if d.o_time_in:
+			# 	target_time_out = datetime.datetime.strptime(d.o_time_in, '%Y-%m-%d %H:%M:%S') + datetime.timedelta(days=1)
+			# else:
+			# 	target_time_out = get_datetime(d.time_in) + datetime.timedelta(days=1)
+			shift_in, shift_out = frappe.get_value('Work Shift',d.work_shift,['time_in','time_out'])
+
+			target_date = get_datetime(d.target_date+" "+str(shift_in))
+			target_out = get_datetime(d.target_date+" "+str(shift_out))
+			min_time_in = target_date - datetime.timedelta(days=1)
+			max_time_in = target_date + datetime.timedelta(days=1)
+			if shift_in > shift_out:
+				min_time_out = target_out - datetime.timedelta(days=2)
+				max_time_out = target_out + datetime.timedelta(days=2)
+			else:
+				min_time_out = target_out - datetime.timedelta(days=1)
+				max_time_out = target_out + datetime.timedelta(days=1)
+
+
+
+
+			if d.o_time_in and d.o_time_out:
+				if get_datetime(d.o_time_in) > get_datetime(d.o_time_out):
+					frappe.throw("Entry "+str(d.idx)+": Override time in sould be less than time out")
+		
+			if d.o_time_in:
+				if get_datetime(d.o_time_in) <= min_time_in:
+					frappe.throw("Entry "+str(d.idx)+": Override time in should be with in 24 hours before target date.")
+				if get_datetime(d.o_time_in) >= max_time_in:
+					frappe.throw("Entry "+str(d.idx)+": Override time in should be with in 24 hours after target date.")
+
+			if d.o_time_out:
+				if get_datetime(d.o_time_out) <= min_time_out:
+					frappe.throw("Entry "+str(d.idx)+": Override time out should be with in 24 hours before target date.")
+				if get_datetime(d.o_time_out) >= max_time_out:
+					frappe.throw("Entry "+str(d.idx)+": Override time out should be with in 24 hours after target date.")
 
 	def save_work_shift(self,d,bio_id):
 		if d.old_shift != d.work_shift:		
