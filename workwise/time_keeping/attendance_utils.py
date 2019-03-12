@@ -85,6 +85,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 
 	#leaves	
 	for l in leaves:
+		lv_status_list = []
 		if l['leave_date'] == entry['target_date']:
 			entry['lv_links'].append(l.name) 
 			if l['is_excluded'] != 1:
@@ -102,6 +103,11 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 
 				if l.is_second_half:
 					entry["lv_status"] = 3
+
+				lv_status_list.append(entry["lv_status"])
+
+		if 1 in lv_status_list and 2 in lv_status_list:
+			entry["lv_status"] = 1
 
 	get_late(entry)
 	get_undertime(entry)
@@ -685,7 +691,7 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["absent"] = 0
 
-	if entry.get('lv_status') != 1 and entry.get('ob_status') != 1 and entry.get('hd_halfcard') and not entry.get('is_restday'):
+	if entry.get('lv_status') != 1 and entry.get('ob_status') != 1 and entry.get('hd_halfcard') and not entry.get('is_holiday') and not entry.get('is_restday'):
 		if entry.get('card_in') and not entry.get('card_out'):
 			entry['is_absent'] = 1
 			entry["is_halfday"] = 1
