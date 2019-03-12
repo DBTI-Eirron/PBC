@@ -146,3 +146,8 @@ def reassign_work_schedule():
 					"doc_name": d.name
 				}, as_dict=True)
 				frappe.db.commit()
+
+#Payroll Patch
+def update_loan_applications():
+	frappe.db.sql("""UPDATE `tabLoan Application` SET freq_method="Automatic" WHERE freq_method IS NULL""")
+	frappe.db.commit()
