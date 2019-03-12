@@ -3,6 +3,7 @@ import frappe, datetime
 from datetime import time, datetime, timedelta
 from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money, now_datetime
 from frappe import _, msgprint
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card)
 
 def grant_head_subordinate_access(self):
 	if self.is_new():
@@ -81,14 +82,12 @@ def level_of_approval_first_level(self, approver_level, highest_level):
 		frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
 
 def level_of_approval_next_level(self, approver_level, highest_level, req_level):
-	if approver_level[0].level != highest_level[0].level:
-		if approver_level[0].level == req_level:
-			if req_level != highest_level[0].level:
-				set_levelled_approval_to_progress(self, approver_level)
-			else:
-				frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
-	else:
-		set_levelled_approval_to_approved(self, highest_level)
+	if approver_level[0].level == highest_level[0].level:
+		set_levelled_approval_to_approved(self, highest_level) 
+	if int(req_level) == int(approver_level[0].level) and int(req_level) > 1:
+		set_levelled_approval_to_progress(self, approver_level)
+	#else:
+	#	frappe.msgprint(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application. Application did not approve").format(self.doctype, self.name))
 
 def set_levelled_approval_to_progress(self, approver_level):
 	approval_history = ""
@@ -135,3 +134,21 @@ def get_approver_and_date(self):
 		self.db_set("approved_by", frappe.session.user)
 		self.db_set("approved_on", nowdate())
 		frappe.db.commit()
+
+def get_current_logs(employee, target_date):
+	cin, cout = "", ""
+	schedule = frappe.db.sql("""SELECT work_shift FROM `tabWork Schedule` 
+		WHERE employee = %(employee)s AND target_date = %(target_date)s ORDER BY target_date ASC""",{
+			"employee": employee, "target_date": target_date,
+		}, as_dict=True)
+
+	for d in schedule:
+		entry = {"card_in": "", "card_out": "", "override_in": "", "override_out": "", "break_out": "", "break_in": ""}
+		preshift, end_preshift, postshift, end_postshift = frappe.get_value("Work Shift", d.work_shift, ["setup_preshift","end_preshift", "setup_postshift", "end_postshift"])
+		bio = frappe.get_value("Employee", employee, "biometrics_id")
+		timecard_list = get_timecard_list(bio, add_days(getdate(target_date), -1), add_days(getdate(target_date), +1))
+		cards_in, cards_out = get_card_within(preshift, end_preshift, postshift, end_postshift, timecard_list)
+		get_sorted_card(entry, cards_in, cards_out)
+		cin, cout = entry.get('card_in'), entry.get('card_out')
+
+	return cin, cout 
