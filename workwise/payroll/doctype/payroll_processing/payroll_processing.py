@@ -123,6 +123,7 @@ class PayrollProcessing(Document):
 					'net_payroll': 0.0,
 					'gross_payroll': 0.0,
 					'bonus': 0.0,
+					'cto_days': 0.0,
 					#Payroll Settings
 					'uho_ab_days': uho_ab_days,
 					'uho_ab_spnw': uho_ab_spnw,
@@ -454,33 +455,43 @@ class PayrollProcessing(Document):
 			header['total_deduction'] += flt(tax_amt, 8)
 
 	def get_recurring(self, emp, rates, header, register):
+		att_from, att_to = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to"])
 		recurring_register = []
-		recurring = frappe.db.sql("""SELECT RE.`name`, RE.method, REE.amount, RE.transaction_type, RE.frequency FROM `tabRecurring Entry` RE
+		recurring = frappe.db.sql("""SELECT RE.`name`, RE.method, REE.amount, RE.transaction_type, RE.frequency, RE.date_from, RE.date_to, RE.recurring_type FROM `tabRecurring Entry` RE
 			INNER JOIN `tabRecurring Entry Employees` REE ON RE.`name` = REE.parent WHERE REE.employee = %s 
 			AND RE.status = 'Enabled' AND RE.company = %s AND RE.docstatus < 2 """,(emp['name'], self.company), as_dict=True )
 		
 		for rec in recurring :
-			if self.frequency == rec.frequency or rec.frequency == 'Both':
-				if rec.frequency == 'Both':
-					amt = flt(rec.amount, 8) / 2
-				else:
-					amt = rec.amount
-				
-				if rec.method == "Present Days":
-					amt = flt(amt * header.get('present_days'), 8)
+			if rec.recurring_type == "Range" and not rec.date_from <= att_from <= rec.date_to and not rec.date_from <= att_to <= rec.date_to:
+				pass
+			else:
+				if self.frequency == rec.frequency or rec.frequency == 'Both':
+					if rec.frequency == 'Both':
+						amt = flt(rec.amount, 8) / 2
+					else:
+						amt = rec.amount
+					
+					if rec.method == "Present Days":
+						amt = flt(amt * header.get('present_days'), 8)
 
-				elif rec.method == 'Work Days':
-					amt = flt(amt * header.get('work_days'), 8)
-	
-				elif rec.method == 'Deduct Absent':
-					hourly_rate = self.get_hourly_rate_base(amt, emp)
-					amt = (amt - (( header.get('absent_days') * 8) * hourly_rate * 2))
+					elif rec.method == 'Work Days':
+						amt = flt(amt * header.get('work_days'), 8)
+		
+					elif rec.method == 'Deduct Absent':
+						hourly_rate = self.get_hourly_rate_base(amt, emp)
+						
+						if header.get('cto_days') > 0:
+							absent_days = header.get('absent_days') - header.get('cto_days')
+						else:
+							absent_days = header.get('absent_days')
 
-				elif rec.method == 'Deduct Absent Actual':
-					if header.get('work_days') > 0 and emp.get('no_hours') > 0:
-						amt = amt - (( amt / ( header.get('work_days') * emp.get('no_hours') )) * ( header.get('absent_days') * emp.get('no_hours')))
+						amt = (amt - (( absent_days * 8) * hourly_rate * 2))
 
-				recurring_register.append({
+					elif rec.method == 'Deduct Absent Actual':
+						if header.get('work_days') > 0 and emp.get('no_hours') > 0:
+							amt = amt - (( amt / ( header.get('work_days') * emp.get('no_hours') )) * ( header.get('absent_days') * emp.get('no_hours')))
+
+					recurring_register.append({
 						"linked_document": rec.name,
 						"linked_doctype": "Recurring Entry",
 						"pay_code": rec.transaction_type,
@@ -508,7 +519,13 @@ class PayrollProcessing(Document):
 			
 			elif d.method == 'Deduct Absent':
 				hourly_rate = self.get_hourly_rate_base(amt, emp)
-				amt = (amt - (( header.get('absent_days') * 8) * hourly_rate * 2))
+				
+				if header.get('cto_days') > 0:
+					absent_days = header.get('absent_days') - header.get('cto_days')
+				else:
+					absent_days = header.get('absent_days')
+
+				amt = (amt - (( absent_days * 8) * hourly_rate * 2))
 
 			elif d.method == 'Deduct Absent Actual':
 				if header.get('work_days') > 0 and emp.get('no_hours') > 0:
@@ -648,7 +665,7 @@ class PayrollProcessing(Document):
 	def get_attendance(self, emp, rates, header, register, ot_map):
 		attendance_register = []
 		if emp.get('is_attendance_base') > 0:
-			late, overtime, undertime, absent, nightdiff, cto, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0, 0
+			late, overtime, undertime, absent, nightdiff, cto, cto_days, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
 			unpaid_holiday, prev_lwop, prev_absent, is_uho  =  0, 0 ,0, 0
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
@@ -712,6 +729,12 @@ class PayrollProcessing(Document):
 						else:
 							cto += ( at.cto ) * flt(rates.get('hourly_rate'), 8)
 
+						if at.is_absent == 1:
+							if at.is_halfday == 1 and max_cto >= (at.work_hours / 2):
+								cto_days += 0.5
+							elif max_cto >= at.work_hours:
+								cto_days += 1
+
 					if at.is_holiday == 1 and is_uho == 1 and not at.is_ob:
 						unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 						if header.get('uho_ab_days') == 1:
@@ -756,9 +779,9 @@ class PayrollProcessing(Document):
 						#if daily rate, holiday is considered paid
 						if at.is_holiday and not at.is_restday:
 							work_days += 1
-							#if at.is_absent and at.is_sp_holiday and header.get('uho_ab_spnw'):
-							#	work_days -= 1
-							#	unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
+							if at.is_absent and at.is_sp_holiday and header.get('uho_ab_spnw'):
+								work_days -= 1
+								unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
@@ -779,6 +802,7 @@ class PayrollProcessing(Document):
 			for d in attendance_register:
 				register.append(d)
 
+			header['cto_days'] = cto_days
 			header['work_days'] = work_days
 			header['absent_days'] = absent_days
 			header['present_days'] = work_days - absent_days
