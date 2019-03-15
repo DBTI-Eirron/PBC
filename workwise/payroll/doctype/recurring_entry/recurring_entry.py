@@ -10,7 +10,15 @@ from frappe.model.document import Document
 
 class RecurringEntry(Document):
 	def validate(self):
-		self.remove_duplicates()	
+		self.remove_duplicates()
+		self.validate_weekly()
+
+	def validate_weekly(self):
+		if self.frequency in ["3rd", "4th", "5th"]:
+			for d in self.employees:
+				schedule = frappe.db.get_value("Employee", d.employee, "payroll_schedule")
+				if schedule != "Weekly":
+					frappe.throw(_("3rd, 4th, 5th is for Weekly Employees only {0}, is not a Weekly Employee").format(d.employee))
 
 	def remove_duplicates(self):
 		unique_emp = []

@@ -310,7 +310,7 @@
    "label": "Frequency", 
    "length": 0, 
    "no_copy": 0, 
-   "options": "1st\n2nd\nBoth", 
+   "options": "1st\n2nd\n3rd\n4th\n5th\nBoth", 
    "permlevel": 0, 
    "precision": "", 
    "print_hide": 0, 
@@ -592,7 +592,7 @@
    "unique": 0
   }, 
   {
-   "allow_bulk_edit": 0, 
+   "allow_bulk_edit": 1, 
    "allow_on_submit": 0, 
    "bold": 0, 
    "collapsible": 0, 
@@ -722,7 +722,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2018-08-23 13:28:19.972797", 
+ "modified": "2019-03-15 09:56:16.872359", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "Recurring Entry", 

@@ -61,6 +61,9 @@ class PayrollProcessing(Document):
 		no_weeks = ""
 		if weekly_set:
 			no_weeks = frappe.db.get_value("Weekly Set", weekly_set, "no_weeks")
+		else:
+			if self.schedule == "Weekly" and not weekly_set:
+				frappe.throw(_("Weekly Set id Required for Weekly Period"))
 
 		ss_list = []
 		employees = self.get_employees()
@@ -466,8 +469,22 @@ class PayrollProcessing(Document):
 				pass
 			else:
 				if self.frequency == rec.frequency or rec.frequency == 'Both':
+					amt = 0
 					if rec.frequency == 'Both':
-						amt = flt(rec.amount, 8) / 2
+						if emp.get('payroll_schedule') == "Weekly":
+							if header.get("no_weeks") == 5:
+								if self.frequency in ["2nd", "5th"]:
+									amt = flt(rec.amount, 8) / 2
+								else:
+									amt = 0
+									
+							elif header.get("no_weeks") == 4:
+								if self.frequency in ["2nd", "4th"]:
+									amt = flt(rec.amount, 8) / 2
+								else:
+									amt = 0
+						else:
+							amt = flt(rec.amount, 8) / 2
 					else:
 						amt = rec.amount
 					
@@ -490,7 +507,7 @@ class PayrollProcessing(Document):
 					elif rec.method == 'Deduct Absent Actual':
 						if header.get('work_days') > 0 and emp.get('no_hours') > 0:
 							amt = amt - (( amt / ( header.get('work_days') * emp.get('no_hours') )) * ( header.get('absent_days') * emp.get('no_hours')))
-
+					
 					recurring_register.append({
 						"linked_document": rec.name,
 						"linked_doctype": "Recurring Entry",
