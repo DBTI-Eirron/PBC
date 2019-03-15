@@ -16,7 +16,7 @@ def get_weekly_prev_map(employees, weekly_set):
 	#Get Previous Data
 	previous_data = frappe.db.sql(""" SELECT employee, frequency, government_basis, taxable_income, gross_payroll, 
 		present_days, work_days, absent_days, govt_income, govt_deduction FROM `tabPayroll Register` 
-		WHERE employee = %s AND weekly_set = %s """,(emp.get('name'), weekly_set ), as_dict=True)
+		WHERE weekly_set = %s """,( weekly_set ), as_dict=True)
 
 	for d in previous_data:
 		if d.employee in data_map:

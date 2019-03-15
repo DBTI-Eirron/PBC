@@ -122,7 +122,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	get_links(entry)
 
 def get_work(entry):
-	if not entry.get('is_restday') and entry['card_in'] and entry['card_out']:
+	if (not entry.get('is_restday') or not entry.get('is_holiday')) and entry['card_in'] and entry['card_out']:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
 
 		if entry["lv_status"] == 3:
@@ -137,11 +137,21 @@ def get_work(entry):
 		else:
 			if entry["is_halfday"] == 1:
 				entry['work'] = entry['work'] / 2
-
 	elif entry.get('ob_status') == 1:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
 		if entry["is_halfday"] == 1:
 			entry['work'] = entry['work'] / 2
+
+
+	if (entry.get('is_restday') or entry.get('is_holiday')) and entry['card_in'] and entry['card_out']:
+		entry['work'] = abs((entry.get('card_out') - entry.get('card_in')).total_seconds())
+		
+		#if entry.get('card_in') > entry.get('time_out'):
+		#	if entry.get('card_out') > entry.get('break_end'): #Reduce late Beyond Break Time
+		#		entry['work'] -= abs(entry.get('break_mins') * 60)
+		#	elif entry.get('card_out') > entry.get('break_start'): #Reduce late Beyond Break Time
+		#		entry['work'] -= abs((entry.get('card_out') - entry.get('break_start')).total_seconds())
+
 
 	return entry
 
@@ -539,7 +549,7 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
-	if entry.get('is_restday'):
+	if entry.get('is_restday') or entry.get('is_holiday'):
 		entry['late'] = 0
 		entry['undertime'] = 0
 		entry['is_absent'] = 0
@@ -570,7 +580,6 @@ def get_flexible(entry, obs):
 			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
 			if entry.get('flexible_type') == "In-Out":		
 				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds() - (entry.get('break_mins') * 60)  + flex_ob_time
-
 				if diff < (entry.get('worker_secs')):
 					ut = 0
 					if entry.get('ut_interval'):
@@ -634,8 +643,9 @@ def get_flexible(entry, obs):
 			entry['work'] = entry.get('worker_secs')
 
 def get_final_processing(entry):
-	entry['work'] -= entry['late']
-	entry['work'] -= entry['undertime']
+	if not entry.get('is_flexible'):
+		entry['work'] -= entry['late']
+		entry['work'] -= entry['undertime']
 
 	if not entry.get('is_attendance_base'):
 		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
