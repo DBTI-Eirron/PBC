@@ -148,8 +148,8 @@ def get_register(emp, pay_from, pay_to):
 def get_data(filters):
 	#Initialize
 	data = []
-	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
-	employees = get_employees(filters)
+	pay_from, pay_to, schedule = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "schedule"])
+	employees = get_employees(filters, schedule)
 	data.append({
 		"target_date":"<b>Company: </b>"+filters.company+"",
 	})
@@ -211,13 +211,13 @@ def get_data(filters):
 
 	return data
 
-def get_employees(filters):
+def get_employees(filters, schedule):
 	register = frappe.db.sql("""SELECT `name`, full_name FROM `tabEmployee` 
-		WHERE company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
+		WHERE company = %(company)s {conditions}""".format(conditions=get_conditions(filters, schedule)), filters, as_dict=1)
 
 	return register
 
-def get_conditions(filters):
+def get_conditions(filters, schedule):
 	conditions = []
 	if filters.get("employee"):
 		conditions.append("`name`=%(employee)s")
@@ -227,6 +227,11 @@ def get_conditions(filters):
 
 	if filters.get("location"):
 		conditions.append("location=%(location)s")
+
+	if filters.get("position_title"):
+		conditions.append("position_title=%(position_title)s")
+
+	conditions.append(_("payroll_schedule='"+_(cstr(schedule))+"'"))
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 

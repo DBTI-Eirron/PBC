@@ -50,5 +50,11 @@ frappe.query_reports["Attendance Summary Processed"] = {
 			"fieldtype": "Link",
 			"options": "Employee",
 		},
+		{
+			"fieldname": "position_title",
+			"label": __("Position Title"),
+			"fieldtype": "Link",
+			"options": "Position Title",
+		},
 	]
 };
