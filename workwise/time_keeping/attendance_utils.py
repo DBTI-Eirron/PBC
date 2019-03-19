@@ -311,19 +311,20 @@ def get_overtime(entry, ot_apps):
 
 def get_ndiff(entry):
 	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
-		#get nightdiff start and end
+		#get ND start and end
 		nd_start, nd_end  = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) ), get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
-		min_nd, max_nd  = entry.get('nd_start'),  entry.get('nd_end')
 		if entry.get('nd_start') > entry.get('nd_end'):
-			nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )		
+			nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )
 
-		#normal nightdiff
-		if entry.get('time_out') >= nd_start:
-			if entry.get('card_in') and entry.get('card_out'):
-				if entry.get('card_out') > nd_start:
-					entry['nightdiff'] = abs((entry.get('card_out') - nd_start).total_seconds())
-					if entry.get('card_out') > nd_end:
-						entry['nightdiff'] = abs( (nd_start - nd_end).total_seconds())
+		#set min ND and max ND
+		min_nd, max_nd, nd_pro  = entry.get('nd_start'),  entry.get('nd_end'), 1
+
+		#check shift if eligible for nightdiff based from time in and time out:
+		min_nd, max_nd, nd_pro= get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
+		if entry.get('card_in') and entry.get('card_out') and nd_pro == 1:
+			nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, entry.get('card_out'), entry.get('card_in'))
+			if get_nd:
+				entry['nightdiff'] = abs((nd_out - nd_in).total_seconds())
 
 		#early nightdiff
 		nd_early_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
@@ -333,19 +334,29 @@ def get_ndiff(entry):
 					entry['nightdiff'] = abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())
 				else:
 					entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())
-		#else:
-		#	#get normal ot if approved nightdiff OT
-		#	for d in entry.get('ot_list'):
-		#		if d.get('ot_type') == "OT_ND":
-		#			entry['nightdiff'] += d.get('ot_hrs')
-
-		#OLD ND Code
-		#if entry.get('time_out') > entry.get('nd_start'):
-		#	entry['nightdiff'] += (entry.get('time_out') - entry.get('nd_start')).total_seconds()
-		#	if entry.get('time_out') > entry.get('nd_end'):
-		#		entry['nightdiff'] += (entry.get('nd_start') - entry.get('nd_end')).total_seconds()
 
 	return entry
+
+def get_ndiff_min_max(_start, _end, _out, _in):
+	fmin = _start
+	fmax = _start
+	fpro = 1
+
+	if _out > _start:
+		fmax = _out
+		if _out >= _end:
+			fmax = _end
+	else:
+		fpro = 0 
+
+	if _start >= _in:
+		fmin = _start
+	elif _in > _start:
+		fmin = _in
+		if _in >= _end:
+			fpro = 0
+
+	return fmin, fmax, fpro
 
 def get_late(entry):
 	if not entry.get('ex_tardiness'):
