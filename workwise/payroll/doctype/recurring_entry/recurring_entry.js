@@ -7,6 +7,7 @@ frappe.ui.form.on('Recurring Entry', {
 			return {
 				"filters": {
 					"is_recurring": 1,
+					"is_active": 1,
 				}
 			};
 		});

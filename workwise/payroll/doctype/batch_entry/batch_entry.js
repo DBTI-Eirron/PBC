@@ -7,12 +7,10 @@ frappe.ui.form.on('Batch Entry', {
 			return {
 				"filters": {
 					"is_batch": 1,
+					"is_active": 1,
 				}
 			};
 		});
-	},
-
-	onload: function(frm){
 		cur_frm.set_query("period", function() {
 			return {
 				"filters": {

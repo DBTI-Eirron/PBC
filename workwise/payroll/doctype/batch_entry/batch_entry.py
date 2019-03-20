@@ -10,7 +10,16 @@ from frappe.model.document import Document
 
 class BatchEntry(Document):
 	def validate(self):
+		self.validate_transaction_type()
 		self.remove_duplicates()	
+
+	def validate_transaction_type(self):
+		is_bat, is_act = frappe.db.get_value("Transaction Type", self.transaction_type, ["is_batch", "is_active"])
+		if not is_bat:
+			frappe.throw(_("Transaction Type is not Allowed for Batch"))
+
+		if not is_act:
+			frappe.throw(_("Transaction Type is not Active"))
 
 	def remove_duplicates(self):
 		unique_emp = []
@@ -108,3 +117,6 @@ class BatchEntry(Document):
 
 	def filter_reset(self):
 		self.set('employees', [])
+
+	def validate_user_sensitivity_level(self):
+		pass
