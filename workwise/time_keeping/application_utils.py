@@ -84,10 +84,10 @@ def level_of_approval_first_level(self, approver_level, highest_level):
 def level_of_approval_next_level(self, approver_level, highest_level, req_level):
 	if approver_level[0].level == highest_level[0].level:
 		set_levelled_approval_to_approved(self, highest_level) 
-	if int(req_level) == int(approver_level[0].level) and int(req_level) > 1:
+	elif int(req_level) == int(approver_level[0].level) and int(req_level) > 1:
 		set_levelled_approval_to_progress(self, approver_level)
-	#else:
-	#	frappe.msgprint(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application. Application did not approve").format(self.doctype, self.name))
+	else:
+		frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
 
 def set_levelled_approval_to_progress(self, approver_level):
 	approval_history = ""
