@@ -34,9 +34,11 @@ class Employee(Document):
 		self.get_age()
 		self.validate_spouse()
 		self.validate_salary()
+		self.validate_bank()
 		self.create_user()
 		self.validate_is_qualified_dependent()
 		self.validate_employee_approvers()
+		self.add_employee_to_subordinate()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 			
@@ -81,6 +83,11 @@ class Employee(Document):
 			if self.whtax_freq == ("3rd" or "4th" or "5th"):
 				self.whtax_freq = "2nd" 
 				frappe.msgprint("WHTAX Frequency Changed to ( 2nd ) because (3rd 4th 5th) is not allowed for Monthly and Semi-Monthly")
+
+	def validate_bank(self):
+		if self.mode_of_payment == "Bank":
+			if not self.bank_setup:
+				frappe.throw("Bank Setup is required")
 
 	def create_user(self):
 		if self.email:
@@ -200,3 +207,15 @@ class Employee(Document):
 			for ue in unique_entries:
 				row = self.append('approvers', {})
 				row.update(ue)
+
+	def add_employee_to_subordinate(self):
+		for d in self.get("approvers"):
+			in_subordinate = frappe.db.sql(""" SELECT `subordinate` FROM `tabSubordinates` WHERE `parent`= %s AND `subordinate` = %s """,( d.approver, self.name ), as_dict=1)
+			if not in_subordinate:
+				employee_subordinate = frappe.get_doc("Employee Subordinates", d.approver)
+				employee_subordinate.append('subordinates',{
+					"subordinate": self.name,
+					"subordinate_name": self.full_name,
+				})
+				#employee_subordinate.insert()
+				employee_subordinate.save()
