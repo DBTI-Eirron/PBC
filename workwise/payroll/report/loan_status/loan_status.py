@@ -70,6 +70,12 @@ def get_columns(filters):
 			"label": _("Total Unpaid Amount"),
 			"fieldtype": "Float",
 			"width": 140
+		},
+		{
+			"fieldname": "status",
+			"label": _("Status"),
+			"fieldtype": "Data",
+			"width": 140
 		},		
 	]
 
@@ -94,6 +100,9 @@ def get_loans(filters):
 				LA.loan_type,
 				LA.loan_amount,
 				LA.total_loan,
+				LA.paid_amount,
+				LA.unpaid_amount,
+				LA.on_hold,
 				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
 			FROM
 				`tabLoan Application` AS LA
@@ -121,6 +130,9 @@ def get_loans(filters):
 				LA.loan_type,
 				LA.loan_amount,
 				LA.total_loan,
+				LA.paid_amount,
+				LA.unpaid_amount,
+				LA.on_hold,
 				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
 			FROM
 				`tabLoan Application` AS LA
@@ -152,6 +164,15 @@ def get_data(filters):
 def get_result_as_list(data, filters):
 	result = []
 	for d in data:
+		if d.on_hold == 1:
+			status = "On Hold"
+		if d.paid_amount < 1 and d.on_hold != 1:
+			status = "Entered"
+		if d.paid_amount > 0 and d.on_hold != 1:
+			status = "Active"
+		if d.paid_amount == d.unpaid_amount and d.on_hold != 1:
+			status = "Fully Paid"
+
 		row = {
 			"employee": d.get("employee"),
 			"employee_name": d.get("employee_name"),
@@ -161,7 +182,8 @@ def get_result_as_list(data, filters):
 			"interest": '{:,.2f}'.format(d.get("interest")),
 			"total_loan": '{:,.2f}'.format(d.get("total_loan")),			
 			"total_paid": '{:,.2f}'.format(d.get("total_paid")),
-			"total_unpaid": '{:,.2f}'.format(d.get("total_loan") - d.get("total_paid"))
+			"total_unpaid": '{:,.2f}'.format(d.get("total_loan") - d.get("total_paid")),
+			"status": status
 		}
 		
 		result.append(row)
