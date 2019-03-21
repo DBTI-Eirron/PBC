@@ -91,6 +91,7 @@ class OvertimeApplication(Document):
 				self.total_hrs = total_hrs
 
 	def get_autobreak_hrs(self):
+		self.break_hrs = 0.00
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
 		if schedule:
 			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
@@ -108,14 +109,14 @@ class OvertimeApplication(Document):
 			if shifts:
 				if shifts[0].min_ot_hrs > 0:
 					if flt(self.total_hrs, 2) < flt(shifts[0].min_ot_hrs, 2):
-						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Minimum Overtime Hours is {1} Hours, Did not save").format(self.name, shifts[0].min_ot_hrs))
+						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Minimum Overtime Hours Per Application is {1} Hours, Did not save").format(self.name, shifts[0].min_ot_hrs))
 				if shifts[0].max_ot_hrs > 0:
 					if flt(self.total_hrs, 2) > flt(shifts[0].max_ot_hrs, 2):
-						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Hours is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_hrs))
+						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Hours Per Application is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_hrs))
 				if shifts[0].max_ot_break > 0:
 					if flt(self.break_hrs, 2) > flt(shifts[0].max_ot_break, 2):
 						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Break is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_break))
-				if shifts[0].ot_only_within_shift < 1:
+				if shifts[0].allow_ot_in_shift < 1:
 					shift_from = datetime.datetime.strptime(str(self.from_date) + ' ' + str(shifts[0].time_in), '%Y-%m-%d %H:%M:%S')
 					shift_to = datetime.datetime.strptime(str(self.to_date) + ' ' + str(shifts[0].time_out), '%Y-%m-%d %H:%M:%S')
 
@@ -123,13 +124,18 @@ class OvertimeApplication(Document):
 					cur_to = datetime.datetime.strptime(str(self.to_date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S')
 
 					if shift_from < cur_from < shift_to or shift_from < cur_to < shift_to:
-						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Overtime Filing Only Allowed Within The Shift, Did not save").format(self.name))
-
-		#Removed from timekeeping settings but still waiting for code removal confirmation
-		#ot_req_break = frappe.db.get_single_value('Timekeeping Settings', 'ot_req_break')
-		#if ot_req_break:
-		#	if flt(self.total_hrs, 2) > flt(ot_req_break, 2) and flt(self.break_hrs, 	2) < 1:
-		#		frappe.throw(_("Total Overtime hours is greater than {0} Break Time is required").format(ot_req_break))	
+						emp_location = frappe.get_value("Employee", self.employee, "location")
+						is_holiday = frappe.db.sql("""SELECT `name` FROM `tabHoliday` WHERE holiday_date = %s AND company = %s AND location = %s """, (getdate(self.target_date), self.company, emp_location), as_dict=True)
+						if not is_holiday:
+							frappe.throw(_("<b>Overtime Application: {0}</b><hr> Overtime Filing is not allowed within the Shift, Did not save").format(self.name))
+				if shifts[0].max_ot_hrs_day > 0:
+					total_max_ot_hrs = 0.0
+					max_application = frappe.db.sql(""" SELECT `total_hrs` FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)
+					for max_app in max_application:
+						total_max_ot_hrs += flt(max_app.total_hrs, 2)
+					total_max_ot_hrs += flt(self.total_hrs, 2)
+					if flt(total_max_ot_hrs, 2) > flt(shifts[0].max_ot_hrs_day, 2):
+						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum overtime hours per day is {1} hours. You currently filed a total of {2} hours. \nDid not save").format(self.name, shifts[0].max_ot_hrs_day, total_max_ot_hrs))
 
 	def validate_duplicate_ot_application(self):
 		application = frappe.db.sql(""" SELECT `name`, to_date, to_time, from_date, from_time FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)

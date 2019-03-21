@@ -33,7 +33,7 @@ class DTRProblemApplication(Document):
 
 	def validate_application(self):
 		if datetime.strptime(str(self.target_date), '%Y-%m-%d').date() > datetime.strptime(str(nowdate()), '%Y-%m-%d').date():
-			frappe.throw(_("You cannot file in advance for DTR Problem Application"))
+			frappe.throw(_("<b>DTR Problem Application: {0}</b><hr> You cannot file in advance for DTR Problem Application").format(self.name))
 
 	def get_timekeeping_settings(self):
 		cur_month = datetime.strptime(str(self.target_date), '%Y-%m-%d').month
@@ -46,14 +46,14 @@ class DTRProblemApplication(Document):
 		if dtrp_record_month:
 			if max_month != 0:
 				if int(dtrp_record_month[0].count) > int(max_month):
-					frappe.throw(_("You have reached the maximum number of filing per month"))
+					frappe.throw(_("<b>DTR Problem Application: {0}</b><hr> You have reached the maximum number of filing per month").format(self.name))
 
 		dtrp_record_year = frappe.db.sql("""SELECT count(`name`) as count FROM `tabDTR Problem Application` 
 			WHERE docstatus = 1 AND employee = %s AND company = %s AND YEAR(`target_date`) = %s """, (self.employee, self.company, cur_year), as_dict=True)
 		if dtrp_record_year:
 			if max_year != 0:
 				if int(dtrp_record_year[0].count) > int(max_year):
-					frappe.throw(_("You have reached the maximum number of filing per year"))
+					frappe.throw(_("<b>DTR Problem Application: {0}</b><hr> You have reached the maximum number of filing per year").format(self.name))
 
 	def get_request(self):
 		for req in self.get("time_record_request"):

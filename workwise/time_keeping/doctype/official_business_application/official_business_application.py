@@ -53,7 +53,7 @@ class OfficialBusinessApplication(Document):
 			self.managers_list = send_to
 
 		if self.total_hrs == 0:
-			frappe.throw(_("Total Hours must not be zero"))
+			frappe.throw(_("<b>Official Business Application: {0}</b><hr> Total Hours must not be zero").format(self.name))
 
 	def get_ob_hrs(self):
 		total_ob_time = 0
@@ -74,19 +74,19 @@ class OfficialBusinessApplication(Document):
 
 	def validate_date(self):
 		if self.from_date > self.to_date:
-			frappe.throw(_("From date must be before To date"))
+			frappe.throw(_("<b>Official Business Application: {0}</b><hr> From date must be before To date").format(self.name))
 
 	def get_ob_dates(self):
 		total_balance = 0
 		self.set('official_business_application_table', [])
 		if not self.from_date:
-			frappe.throw(_("No From Date"))
+			frappe.throw(_("<b>Official Business Application: {0}</b><hr> No From Date").format(self.name))
 
 		if not self.to_date:
-			frappe.throw(_("No To Date"))
+			frappe.throw(_("<b>Official Business Application: {0}</b><hr> No To Date").format(self.name))
 		
 		if self.from_date > self.to_date:
-			frappe.throw(_("From date must be before To date"))
+			frappe.throw(_("<b>Official Business Application: {0}</b><hr> From date must be before To date").format(self.name))
 			
 		else:
 			entries = [];
@@ -148,7 +148,7 @@ class OfficialBusinessApplication(Document):
 		exist = frappe.db.sql("""SELECT `parent` FROM `tabOfficial Business Application Table` WHERE (target_date BETWEEN %s AND %s) AND parent != %s AND docstatus = 1 """, ( self.from_date, self.to_date, self.name), as_dict=True)
 
 		if exist:
-			frappe.throw(_("Application already exists: {0}").format(exist[0].parent))
+			frappe.throw(_("<b>Official Business Application: {0}</b><hr> Application already exists: {1}").format(self.name, exist[0].parent))
 
 @frappe.whitelist()
 def update_old_obs():
