@@ -71,15 +71,18 @@ class EmployeeMovement(Document):
 
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
-
-			
+			emp.update({
+				"employment_status": "Retired",
+				"is_active": 0,
+				"date_retired": getdate(self.effective_on),
+			})			
 			self.save_employee(emp)
 			
 			#disable user id
 			us = frappe.get_doc("User", emp.user_id)
 			us.update({
-					"new_password": us.frappe_userid,
-				})
+				"new_password": us.frappe_userid,
+			})
 			us.save()
 
 		elif process == "revert":
