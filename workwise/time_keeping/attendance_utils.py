@@ -362,7 +362,7 @@ def get_late(entry):
 	if not entry.get('ex_tardiness'):
 		if entry.get('lv_status') == 2 and entry['card_in']: #get late if leave is 1sthalf halfday
 			if entry.get('card_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('b_grace')):
-				entry['late'] += (entry.get('card_in') - entry.get('break_end')).total_seconds()
+				entry['late'] += abs((entry.get('card_in') - entry.get('break_end')).total_seconds())
 
 		elif entry.get('lv_status') == 3 and entry['card_in']: #get late if leave is 2ndhalf halfdays
 			if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
@@ -376,7 +376,7 @@ def get_late(entry):
 					else: #if OB is in first half
 						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
 							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
-				else: 
+				else:
 					if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 						if entry['graceperiod_late']:
 							entry['late'] += ( entry.get('card_in') - ( entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
@@ -427,8 +427,12 @@ def get_undertime(entry):
 	if not entry.get('ex_tardiness'):
 		if entry.get('lv_status') == 2 and entry['card_out']: #get undertime if leave is 1sthalf halfday
 			if entry.get('ob_status') == 1:
-				if entry.get('ob_out') < entry.get('time_out'):
-					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
+				if entry.get('card_out') > entry.get('ob_out'):
+					if entry.get('card_out') < entry.get('time_out'):
+						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+				else:
+					if entry.get('ob_out') < entry.get('time_out'):
+						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 			else:
 				if entry.get('card_out') < entry.get('time_out'):
 					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
