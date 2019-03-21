@@ -20,8 +20,7 @@ class PayrollProcessing(Document):
 				FROM tabEmployee
 			WHERE company = %(company)s
 			AND payroll_schedule = %(pay_sched)s 
-			AND is_active = 1 
-			AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+			AND is_active = 1
 			{conditions}
 			ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),
 			({ 
@@ -44,6 +43,9 @@ class PayrollProcessing(Document):
 
 		if self.location:
 			conditions.append("location=%(location)s")
+
+		if frappe.session.user != "Administrator":
+			conditions.append(_("sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
 
 		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
@@ -79,6 +81,7 @@ class PayrollProcessing(Document):
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		ex_uho_spnw = frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw')
 		mo_amt_smdl = frappe.db.get_single_value('Payroll Settings', 'mo_amt_smdl')
+		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
 		if self.schedule == "Weekly":
@@ -132,7 +135,8 @@ class PayrollProcessing(Document):
 					'uho_ab_spnw': uho_ab_spnw,
 					'lwop_uho': lwop_uho,
 					'ex_uho_spnw': ex_uho_spnw,
-					'mo_amt_smdl': mo_amt_smdl
+					'mo_amt_smdl': mo_amt_smdl,
+					'hd_no_uho': hd_no_uho
 				}
 
 				#Calculate Rates and Previous Entries
@@ -696,6 +700,7 @@ class PayrollProcessing(Document):
 				else:
 					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
 
+			cto_check = []
 			for at in attendance:
 				if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
 					if at.is_absent or at.is_lwop:
@@ -751,6 +756,8 @@ class PayrollProcessing(Document):
 								cto_days += 0.5
 							elif max_cto >= at.work_hours:
 								cto_days += 1
+				
+
 
 					if at.is_holiday == 1 and is_uho == 1 and not at.is_ob:
 						unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
@@ -760,7 +767,11 @@ class PayrollProcessing(Document):
 					#check if this attendance is lwop or absent for next attendance
 					if is_uho == 1:
 						#if present
-						if at.work and not at.is_lwop and not at.absent and not at.is_restday:
+						if at.work and not at.is_lwop and not at.absent and not at.is_restday and not at.is_halfday:
+							is_uho = 0
+
+						#if Halfday next day
+						if header.get('hd_no_uho') and at.is_halfday:
 							is_uho = 0
 
 						#if Proper Leave next day is not UHO
@@ -771,15 +782,13 @@ class PayrollProcessing(Document):
 						if at.is_ob:
 							is_uho = 0	
 
-						if header.get('lwop_uho') == 1:
-							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
-								is_uho = 0
-								if at.is_absent and at.is_lwop:
+						if at.is_absent and at.is_lwop:
+							is_uho = 1
+
+						if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
+							is_uho = 0
+							if header.get('lwop_uho') == 1 and at.is_lwop:
 									is_uho = 1
-						else:
-							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
-								if at.is_absent:
-									is_uho = 0
 						
 					else:
 						is_uho = 0
@@ -787,10 +796,13 @@ class PayrollProcessing(Document):
 							is_uho = 1
 
 							if header.get('lwop_uho') == 1:
-								if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
+								if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
 									is_uho = 0
 									if at.is_absent:
 										is_uho = 1
+
+				
+			
 
 					if emp.get("rate_type") == "Daily Rate":
 						#if daily rate, holiday is considered paid
@@ -800,6 +812,9 @@ class PayrollProcessing(Document):
 								work_days -= 1
 								unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 
+				#unhash to check cto configuration
+				#cto_check.append(_("{0}_{1}").format(at.target_date, is_uho))
+			#frappe.throw(_(cto_check))
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
 				absent = 0
