@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2018-10-25 10:47:44.794602", 
+ "modified": "2019-03-18 11:40:29.215566", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "BIR1601-C", 
@@ -30,6 +30,9 @@
   }, 
   {
    "role": "System Manager"
+  }, 
+  {
+   "role": "Administrator"
   }
  ]
 }
