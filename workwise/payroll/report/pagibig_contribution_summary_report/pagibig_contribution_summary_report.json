@@ -1,0 +1,23 @@
+{
+ "add_total_row": 0, 
+ "apply_user_permissions": 1, 
+ "creation": "2019-02-27 11:11:39.434599", 
+ "disabled": 0, 
+ "docstatus": 0, 
+ "doctype": "Report", 
+ "idx": 0, 
+ "is_standard": "Yes", 
+ "modified": "2019-02-27 11:11:46.589780", 
+ "modified_by": "Administrator", 
+ "module": "Payroll", 
+ "name": "PagIbig Contribution Summary Report", 
+ "owner": "Administrator", 
+ "ref_doctype": "Payroll Register", 
+ "report_name": "PagIbig Contribution Summary Report", 
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "Payroll Manager"
+  }
+ ]
+}
