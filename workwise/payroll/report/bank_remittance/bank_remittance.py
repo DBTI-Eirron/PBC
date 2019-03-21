@@ -173,10 +173,43 @@ def get_columns(filters):
 			},
 		]
 
+	if filters.bank == "Metrobank" or filters.bank == "Metro Bank" or filters.bank == "MB":
+		columns = [
+			{
+				"fieldname": "employee_code",
+				"label": _("Employee Code"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "employee_name",
+				"label": _("Employee Name"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "branch_code",
+				"label": _("Branch Code"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "payroll_acct_no",
+				"label": _("Payroll Account Number"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "amount",
+				"label": _("Amount"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+		]
+
 	return columns
 
 def get_result(filters):
-
 	data = get_data(filters)
 	result = get_result_as_list(data, filters)
 
@@ -184,28 +217,12 @@ def get_result(filters):
 
 def get_net_pay(filters):
 	if not "Administrator" in frappe.get_roles(frappe.session.user):
-		document = frappe.db.sql(""" SELECT DISTINCT
-			TE.last_name,
-			TE.first_name,
-			TE.middle_name,
-			BT.employee,
-			BT.employee_name,
-			BT.employee_account,
-			BT.bank_type,
-			BT.amount,
-			BT.remarks,
-			BR.payroll_time,
-			BR.payroll_schedule,
-			BR.funding_account
-			FROM
-			`tabBank Remittance Setup` BR
-			JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent 
-			JOIN `tabEmployee` TE ON BT.employee = TE.`name`
+		document = frappe.db.sql(""" SELECT DISTINCT TE.last_name, TE.first_name, TE.middle_name, 
+			BT.employee, BT.employee_name, BT.employee_account, BT.bank_type, BR.branch_code,
+			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account
+			FROM `tabBank Remittance Setup` BR JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
 			WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
-			AND BR.payroll_period = %(period)s 
-			AND BR.docstatus = 1 
-			AND BR.company = %(company)s 
-			AND BR.bank = %(bank)s 
+			AND BR.payroll_period = %(period)s AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s 
 			ORDER BY BT.employee_name ASC""",{
 			"period": filters.payroll_period,
 			"company": filters.company,
@@ -213,26 +230,12 @@ def get_net_pay(filters):
 			"user": frappe.session.user
 		}, as_dict=True)
 	else:
-		document = frappe.db.sql(""" SELECT DISTINCT
-			TE.last_name,
-			TE.first_name,
-			TE.middle_name,
-			BT.employee,
-			BT.employee_name,
-			BT.employee_account,
-			BT.bank_type,
-			BT.amount,
-			BT.remarks,
-			BR.payroll_time,
-			BR.payroll_schedule,
-			BR.funding_account
-			FROM
-			`tabBank Remittance Setup` BR
-			JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
+		document = frappe.db.sql(""" SELECT DISTINCT TE.last_name, TE.first_name, TE.middle_name, 
+			BT.employee, BT.employee_name, BT.employee_account, BT.bank_type, BR.branch_code,
+			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account
+			FROM `tabBank Remittance Setup` BR JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
 			WHERE BR.payroll_period = %(period)s 
-			AND BR.docstatus = 1 
-			AND BR.company = %(company)s 
-			AND BR.bank = %(bank)s 
+			AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s 
 			ORDER BY BT.employee_name ASC""",{
 			"period": filters.payroll_period,
 			"company": filters.company,
@@ -244,7 +247,6 @@ def get_net_pay(filters):
 def get_data(filters):
 	data = []
 	document = get_net_pay(filters)	
-
 	for doc in document: 
 		data.append(doc)
 
@@ -263,22 +265,18 @@ def get_result_as_list(data, filters):
 			d.amount = 0.00
 		total_amount += flt(d.amount, 8)
 		total_count += 1
-
 		if d.payroll_time:
 			payroll_schedule = d.payroll_schedule
 			payroll_time = d.payroll_time
-
 		funding_account = d.funding_account
 
 	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
 		if filters.include_header:
 			payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
-
 			if payroll_time == "Pay Now":
 				payroll_time = ""
 			else:
 				payroll_time = payroll_schedule 
-
 			headers = {
 				"detail": "H", 
 				"employee_name": "Payroll Date",
@@ -292,9 +290,7 @@ def get_result_as_list(data, filters):
 				"lbl_funding_account": "Funding Account", 
 				"funding_account": funding_account
 			}
-
 			result.append(headers)
-
 		fields = {
 			"detail": "DETAIL CONSTANT",
 			"employee_name": "EMPLOYEE NAME",
@@ -302,9 +298,7 @@ def get_result_as_list(data, filters):
 			"amount": "AMOUNT",
 			"remarks": "REMARKS",
 		}
-
 		result.append(fields)
-
 		for d in data:
 			row = {
 				"detail": "D",
@@ -313,15 +307,12 @@ def get_result_as_list(data, filters):
 				"amount": '{:,.2f}'.format(d.get("amount")),
 				"remarks": d.get("remarks"),
 			}
-
 			result.append(row)
-
 		total = {
 			"amount": '{:,.2f}'.format(total_amount),
 			"employee": "TOTAL",
 			"employee_name": total_count
 		}
-
 		result.append(total)
 
 	elif filters.bank == "EastWest Bank":
@@ -333,7 +324,6 @@ def get_result_as_list(data, filters):
 				"remarks": str(d.get("last_name"))+", "+str(d.get("first_name"))+", "+str(d.get("middle_name")),
 			}
 			result.append(row)
-
 		total = {
 			"hdr": "TLR",
 			"account_number": total_count,
@@ -351,9 +341,7 @@ def get_result_as_list(data, filters):
 				"account_type" : d.get("bank_type"),
 				"amount": '{:,.2f}'.format(d.get("amount")),
 			}
-
 			result.append(row)
-
 		total = {
 			"last_name" : "",
 			"first_name" : "",
@@ -361,7 +349,27 @@ def get_result_as_list(data, filters):
 			"account_type" : "Total",
 			"amount": '{:,.2f}'.format(total_amount),
 		}
+		result.append(total)
 
+	elif filters.bank == "Metrobank" or filters.bank == "Metro Bank" or filters.bank == "MB":
+		count = 1
+		for d in data:
+			row = {
+			"employee_code": count,
+			"employee_name": d.get("employee_name"),
+			"branch_code": d.get("branch_code"),
+			"payroll_acct_no": d.get("employee_account"),
+			"amount": '{:,.2f}'.format(d.get("amount")),
+			}
+			result.append(row)
+			count += 1
+		total = {
+			"employee_code": "",
+			"employee_name": "",
+			"branch_code":"",
+			"payroll_acct_no": "",
+			"amount": '{:,.2f}'.format(total_amount),
+		}
 		result.append(total)
 
 	else:
@@ -372,16 +380,13 @@ def get_result_as_list(data, filters):
 				"amount": '{:,.2f}'.format(d.get("amount")),
 				"remarks": d.get("remarks"),
 			}
-
 			result.append(row)
-
 		total = {
 			"employee": "TOTAL",
 			"employee_name": total_count,
 			"amount": '{:,.2f}'.format(total_amount),
 			"remarks": "",
 		}
-
 		result.append(total)
 
 	return result
