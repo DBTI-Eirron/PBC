@@ -208,7 +208,7 @@ def get_result_as_list(data, filters):
 			"name_extension": d.get("suffix"),
 			"middle_name": d.get("middle_name"),
 			"percov": percov,			
-			"amortization": d.get("amortization"),
+			"amortization": '{:20,.2f}'.format(flt(d.get("amortization"))),
 			"remarks": d.get("remarks")
 		}
 		
