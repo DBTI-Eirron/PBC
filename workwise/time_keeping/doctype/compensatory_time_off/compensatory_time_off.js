@@ -13,9 +13,11 @@ frappe.ui.form.on('Compensatory Time Off', {
 			if(frm.doc.employee && frm.doc.type == "Use"){
 				return {
 					filters: {
+						"workflow_state": 'Approved',
 						"docstatus": 1,
 						"type": "File",
-						"employee": doc.employee
+						"employee": doc.employee,
+						"balance": ['>',0]
 					}
 				};
 			}else{
