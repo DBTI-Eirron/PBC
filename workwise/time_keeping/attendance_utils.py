@@ -10,6 +10,14 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	if entry.get("override_out"):
 		entry['card_out'] = entry.get("override_out")
 
+	#check Break Out and break IN
+	if entry.get('break_start') < entry.get('time_in'):
+		entry['break_start'] = add_days(entry.get('break_start'), 1) 
+
+	if entry.get('break_end') < entry.get('time_in'):
+		entry['break_end'] = add_days(entry.get('break_end'), 1) 
+	
+
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
@@ -359,73 +367,91 @@ def get_ndiff_min_max(_start, _end, _out, _in):
 	return fmin, fmax, fpro
 
 def get_late(entry):
-	if not entry.get('ex_tardiness'):
-		if entry.get('lv_status') == 2 and entry['card_in']: #get late if leave is 1sthalf halfday
-			if entry.get('card_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('b_grace')):
-				entry['late'] += abs((entry.get('card_in') - entry.get('break_end')).total_seconds())
+	if entry.get('lv_status') == 2 and entry['card_in']: #get late if leave is 1sthalf halfday
+		if entry.get('card_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('b_grace')):
+			entry['late'] += abs((entry.get('card_in') - entry.get('break_end')).total_seconds())
 
-		elif entry.get('lv_status') == 3 and entry['card_in']: #get late if leave is 2ndhalf halfdays
-			if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-				entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
+	elif entry.get('lv_status') == 3 and entry['card_in']: #get late if leave is 2ndhalf halfdays
+		if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+			entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
 
-		else: #get normal late if no leave
-			if entry.get('card_in') and entry.get('lv_status') != 1:
-				if entry.get('ob_status') == 1 and entry.get('ob_in') < entry.get('card_in'): #if has OB and is lesser than card in
-					if entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')) : #if OB is in second half
-						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
-					else: #if OB is in first half
-						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
-							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
-				else:
-					if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-						if entry['graceperiod_late']:
-							entry['late'] += ( entry.get('card_in') - ( entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
-							if entry.get('card_in') > entry.get('break_start'): #Reduce late based from Break Time
-								if entry.get('card_in') > entry.get('break_end'): #Reduce late Beyond Break Time
-									entry['late'] -= abs((entry.get('break_start') - entry.get('break_end')).total_seconds())
-								else:
-									entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
-						else:
-							entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
-							if entry.get('card_in') > entry.get('break_start'): #Reduce late based from Break Time
-								if entry.get('card_in') > entry.get('break_end'): #Reduce late Beyond Break Time
-									entry['late'] -= abs((entry.get('break_start') - entry.get('break_end')).total_seconds())
-								else:
-									entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
-			
-			else: #if no card in check for OB
-				if entry.get('ob_stats') > 1:
-					#if OB is in 2nd Half
-					if entry.get('ob_stat') == 3 and entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')):
-						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
-					#if OB is in 1st Half
-					elif entry.get('ob_stat') == 2 and entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+	else: #get normal late if no leave
+		if entry.get('card_in') and entry.get('lv_status') != 1:
+			if entry.get('ob_status') == 1 and entry.get('ob_in') < entry.get('card_in'): #if has OB and is lesser than card in
+				if entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')) : #if OB is in second half
+					entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
+				else: #if OB is in first half
+					if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
 						entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
-
-		#break_out
-		if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
-			if entry['break_out'] and entry['break_in']:
-				entry['break'] = (entry.get('break_mins') * 60)
-				if entry['break_out'] < entry['break_start']:
-					b_diff = entry['break_start'] - entry['break_out']
-					entry['undertime'] += b_diff.total_seconds()
-					entry['work'] -= b_diff.total_seconds()
-					entry['break'] -= b_diff.total_seconds()
-
-				if entry['break_in'] > entry['break_end'] + datetime.timedelta(minutes=entry.get('b_grace')):
-					b_diff = entry['break_in'] - entry['break_end']
-					entry['late'] += b_diff.total_seconds()
-					entry['work'] -= b_diff.total_seconds()
-					entry['break'] -= b_diff.total_seconds()
+			else:
+				if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+					if entry['graceperiod_late']:
+						entry['late'] += ( entry.get('card_in') - ( entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+						if entry.get('card_in') > entry.get('break_start'): #Reduce late based from Break Time
+							if entry.get('card_in') > entry.get('break_end'): #Reduce late Beyond Break Time
+								entry['late'] -= abs((entry.get('break_start') - entry.get('break_end')).total_seconds())
+							else:
+								entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
+					else:
+						entry['late'] += (entry.get('card_in') - entry.get('time_in')).total_seconds()
+						if entry.get('card_in') > entry.get('break_start'): #Reduce late based from Break Time
+							if entry.get('card_in') > entry.get('break_end'): #Reduce late Beyond Break Time
+								entry['late'] -= abs((entry.get('break_start') - entry.get('break_end')).total_seconds())
+							else:
+								entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
 		
-		if entry.get('late_interval'):
-			entry['late'] = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
+		else: #if no card in check for OB
+			if entry.get('ob_stats') > 1:
+				#if OB is in 2nd Half
+				if entry.get('ob_stat') == 3 and entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')):
+					entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
+				#if OB is in 1st Half
+				elif entry.get('ob_stat') == 2 and entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+					entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+
+	#break_out
+	if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
+		if entry['break_out'] and entry['break_in']:
+			entry['break'] = (entry.get('break_mins') * 60)
+			if entry['break_out'] < entry['break_start']:
+				b_diff = entry['break_start'] - entry['break_out']
+				entry['undertime'] += b_diff.total_seconds()
+				entry['work'] -= b_diff.total_seconds()
+				entry['break'] -= b_diff.total_seconds()
+
+			if entry['break_in'] > entry['break_end'] + datetime.timedelta(minutes=entry.get('b_grace')):
+				b_diff = entry['break_in'] - entry['break_end']
+				entry['late'] += b_diff.total_seconds()
+				entry['work'] -= b_diff.total_seconds()
+				entry['break'] -= b_diff.total_seconds()
+	
+	if entry.get('late_interval'):
+		entry['late'] = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
 
 	return entry
 
 def get_undertime(entry):
-	if not entry.get('ex_tardiness'):
-		if entry.get('lv_status') == 2 and entry['card_out']: #get undertime if leave is 1sthalf halfday
+	if entry.get('lv_status') == 2 and entry['card_out']: #get undertime if leave is 1sthalf halfday
+		if entry.get('ob_status') == 1:
+			if entry.get('card_out') > entry.get('ob_out'):
+				if entry.get('card_out') < entry.get('time_out'):
+					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+			else:
+				if entry.get('ob_out') < entry.get('time_out'):
+					entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
+		else:
+			if entry.get('card_out') < entry.get('time_out'):
+				entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+
+	elif entry.get('lv_status') == 3 and entry['card_out']: #get undertime if leave is 2ndhalf halfday
+		if entry.get('ob_status') == 1:
+			if entry.get('ob_out') < entry.get('break_start'):
+				entry['undertime'] += abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
+		else:
+			if entry.get('card_out') < entry.get('break_start'):
+				entry['undertime'] += abs((entry.get('card_out') - entry.get('break_start')).total_seconds())
+	else:	
+		if entry.get('card_out') and entry.get('lv_status') != 1:
 			if entry.get('ob_status') == 1:
 				if entry.get('card_out') > entry.get('ob_out'):
 					if entry.get('card_out') < entry.get('time_out'):
@@ -436,40 +462,20 @@ def get_undertime(entry):
 			else:
 				if entry.get('card_out') < entry.get('time_out'):
 					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
-
-		elif entry.get('lv_status') == 3 and entry['card_out']: #get undertime if leave is 2ndhalf halfday
+		else: #if no card in check for OB
 			if entry.get('ob_status') == 1:
-				if entry.get('ob_out') < entry.get('break_start'):
-					entry['undertime'] += abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
-			else:
-				if entry.get('card_out') < entry.get('break_start'):
-					entry['undertime'] += abs((entry.get('card_out') - entry.get('break_start')).total_seconds())
-		else:	
-			if entry.get('card_out') and entry.get('lv_status') != 1:
-				if entry.get('ob_status') == 1:
-					if entry.get('card_out') > entry.get('ob_out'):
-						if entry.get('card_out') < entry.get('time_out'):
-							entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
-					else:
-						if entry.get('ob_out') < entry.get('time_out'):
-							entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
+				if entry.get('ob_out') < entry.get('break_end'): #if OB is in first half
+					if not entry.get('lv_status') == 3:
+						entry['undertime'] += abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
+						if entry.get('ob_out') < entry.get('break_end'): #Add undertime Beyond Break Time
+							entry['undertime'] -= abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
 				else:
-					if entry.get('card_out') < entry.get('time_out'):
-						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
-			else: #if no card in check for OB
-				if entry.get('ob_status') == 1:
-					if entry.get('ob_out') < entry.get('break_end'): #if OB is in first half
-						if not entry.get('lv_status') == 3:
-							entry['undertime'] += abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
-							if entry.get('ob_out') < entry.get('break_end'): #Add undertime Beyond Break Time
-								entry['undertime'] -= abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
-					else:
-						if entry.get('ob_out') < entry.get('time_out'): #if OB is wholeday
-							entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
-		
+					if entry.get('ob_out') < entry.get('time_out'): #if OB is wholeday
+						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
+	
 
-		if entry.get('ut_interval'):
-			entry['undertime'] = (entry.get('ut_interval') * 60) * int( entry.get('undertime') / (entry.get('ut_interval') * 60))
+	if entry.get('ut_interval'):
+		entry['undertime'] = (entry.get('ut_interval') * 60) * int( entry.get('undertime') / (entry.get('ut_interval') * 60))
 
 	return entry
 
@@ -661,6 +667,9 @@ def get_final_processing(entry):
 	if not entry.get('is_flexible'):
 		entry['work'] -= entry['late']
 		entry['work'] -= entry['undertime']
+		if entry.get('ex_tardiness'):
+			entry['late'] = 0
+			entry['undertime'] = 0
 
 	if not entry.get('is_attendance_base'):
 		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
