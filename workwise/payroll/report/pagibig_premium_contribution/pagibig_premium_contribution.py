@@ -11,8 +11,8 @@ def execute(filters=None):
 	validate_filters(filters)
 
 	employee_list = get_employees(filters)
-	HDMF_types = ["HDMF", "HDMFE"]
-	columns = get_columns(employee_list)
+	HDMF_types = ["HDMFM", "HDMF", "HDMFE"]
+	columns = get_columns(filters)
 
 	if not employee_list:
 		msgprint(_("No record found"))
@@ -42,22 +42,34 @@ def execute(filters=None):
 			[
 				"Address", address[0] if address else ""
 			],
+			[
+				"Employee ID", "Employee Name", "HDMF Number", "Employee", "Employer", "Total"
+			],
 		]
 
 		for d in headers:
 			data.append(d)
 
 	for emp in employee_list:
+		emp_cont = 0.00
+		empr_cont = 0.00
+		tot_cont = 0.00
 		row = [emp.name, emp.full_name, emp.hdmf_no]
-
+		result = []
 		total_HDMF = 0
 		for d in HDMF_types:
 			HDMF_amount = flt(HDMF_map.get(emp.name, {}).get(d))
 			total_HDMF += HDMF_amount
-			row.append('{:,.2f}'.format(HDMF_amount))
+			result.append('{:,.2f}'.format(HDMF_amount))
+		emp_cont = flt(result[0]) + flt(result[1])
+		empr_cont = flt(result[2])
+		tot_cont = flt(result[0]) + flt(result[1]) + flt(result[2])
+		row.append('{:,.2f}'.format(emp_cont))
+		row.append('{:,.2f}'.format(empr_cont))
+		row.append('{:,.2f}'.format(tot_cont))
 
 		if total_HDMF > 0:
-			final_employee += flt(HDMF_map.get(emp.name, {}).get("HDMF"))
+			final_employee += flt(HDMF_map.get(emp.name, {}).get("HDMF")) + flt(HDMF_map.get(emp.name, {}).get("HDMFM"))
 			final_employer += flt(HDMF_map.get(emp.name, {}).get("HDMFE"))
 			final_total += total_HDMF
 			row += ['{:,.2f}'.format(total_HDMF)]
@@ -73,7 +85,7 @@ def validate_filters(filters):
 	if filters.from_date > filters.to_date:
 		frappe.throw(_("From Date must be before To Date"))
 
-def get_columns(employee_list):
+def get_columns(filters):
 	columns = [
 		{
 			"fieldname": "employee",
@@ -113,6 +125,46 @@ def get_columns(employee_list):
 			"width": 100
 		},
 	]
+
+	if filters.include_header:
+		columns = [
+			{
+				"fieldname": "employee",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 100
+			},
+			{
+				"fieldname": "employee_name",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 220
+			},
+			{
+				"fieldname": "hdmf_no",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 160
+			},
+			{
+				"fieldname": "HDMF",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "HDMFE",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width":120
+			},
+			{
+				"fieldname": "total_HDMF",
+				"label": _(""),
+				"fieldtype": "Data",
+				"width": 100
+			},
+		]
 
 	return columns
 
