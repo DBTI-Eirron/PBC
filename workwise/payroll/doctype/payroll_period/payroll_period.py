@@ -36,7 +36,7 @@ class PayrollPeriod(Document):
 			frappe.msgprint("Frequency Changed to ( 2nd ) because Schedule was set to Monthly")
 
 		if self.schedule != "Weekly":
-			if self.frequency ==( "3rd" or "4th" or "5th"):
+			if self.frequency == "3rd" or self.frequency == "4th" or self.frequency == "5th":
 				self.frequency = "2nd" 
 				frappe.msgprint("Frequency Changed to ( 2nd ) because (3rd 4th 5th) is not allowed for Monthly and Semi-Monthly")
 
