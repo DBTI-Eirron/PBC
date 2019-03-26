@@ -87,6 +87,7 @@ def set_emp_entries_by_department(company, as_of_date, root_lft, root_rgt, filte
 	emp_entries = frappe.db.sql("""select department, job_level as position_title, count(`name`) as qty from `tabEmployee`
 		where 
 		company=%(company)s
+		and is_active = 1
 		and department in (select name from `tabDepartment` where lft >= %(lft)s and rgt <= %(rgt)s)
 		group by department, job_level
 		order by department """,
