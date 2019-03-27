@@ -35,7 +35,7 @@ class ChangeRequestApplication(Document):
 						frappe.client.set_value("Employee", self.employee, item.fieldname, item_req.current)
 
 	def get_request(self):
-		for item_req in self.get("change_request"):
+		for item_req in self.change_request:
 			item_sel = frappe.db.sql("""SELECT fieldname FROM `tabDocField` WHERE `parent`="Employee" AND `label`=%s """, (item_req.item), as_dict=True)
 			for item in item_sel:
 				item_cur = frappe.db.get_value("Employee", self.employee, item.fieldname)

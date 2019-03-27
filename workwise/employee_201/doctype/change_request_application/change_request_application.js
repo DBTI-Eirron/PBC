@@ -10,20 +10,19 @@ frappe.ui.form.on('Change Request Application', {
 	},
 
 	onload: function(frm) {
-		if (!frm.doc.posting_date) {
+		if (!frm.doc.posting_date && frm.doc.docstatus < 1) {
 			frm.set_value("date_submitted", get_today());
 		}
 	},
-
-	change_request: function(frm) {
-		frappe.call({
-			method: "get_request",
-			doc: frm.doc,
-			callback: function(r) {
-				frm.refresh_field("change_request");
-				frm.refresh_fields();
-			}
-		});
-	},
 	
+});
+
+frappe.ui.form.on("Change Request Application Table", "item", function(frm, cdt, cdn) {
+	return frappe.call({
+		method: "get_request",
+		doc: frm.doc,
+		callback: function(r) {
+			frm.refresh_field("change_request");
+		}
+	});
 });
