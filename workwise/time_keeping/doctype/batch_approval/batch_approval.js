@@ -3,7 +3,7 @@
 
 frappe.ui.form.on('Batch Approval', {
 	onload: function(frm) {
-		if (frm.doc.docstatus < 1){
+		if (frm.doc.__islocal){
 			frm.set_value("employee", "");
 			if (!frm.doc.posting_date) {
 				frm.set_value("posting_date", get_today());
