@@ -44,6 +44,7 @@ class EmployeeSubordinates(Document):
 				i = {
 					"subordinate": d.subordinate,
 					"subordinate_name": d.subordinate_name,
+					"created_from_employee": d.created_from_employee,
 				}	
 				unique_entries.append(i);
 
@@ -81,6 +82,7 @@ class EmployeeSubordinates(Document):
 					row = {
 						"subordinate": d.name,
 						"subordinate_name": d.full_name,
+						"created_from_employee": d.created_from_employee,
 					}
 				
 					entries.append(row);

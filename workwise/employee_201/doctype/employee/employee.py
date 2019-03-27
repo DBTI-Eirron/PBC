@@ -38,7 +38,7 @@ class Employee(Document):
 		self.create_user()
 		self.validate_is_qualified_dependent()
 		self.validate_employee_approvers()
-		self.add_employee_to_subordinate()
+		self.employee_to_subordinate()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 			
@@ -203,19 +203,56 @@ class Employee(Document):
 				}	
 				unique_entries.append(i);
 
-			self.set('approvers', [])
-			for ue in unique_entries:
-				row = self.append('approvers', {})
-				row.update(ue)
+		self.set('approvers', [])
+		for ue in unique_entries:
+			row = self.append('approvers', {})
+			row.update(ue)
 
-	def add_employee_to_subordinate(self):
-		for d in self.get("approvers"):
-			in_subordinate = frappe.db.sql(""" SELECT `subordinate` FROM `tabSubordinates` WHERE `parent`= %s AND `subordinate` = %s """,( d.approver, self.name ), as_dict=1)
-			if not in_subordinate:
-				employee_subordinate = frappe.get_doc("Employee Subordinates", d.approver)
-				employee_subordinate.append('subordinates',{
+	def employee_to_subordinate(self):
+		sub_list = []
+		conditions = ""
+
+		if self.approvers:
+			for d in self.get("approvers"):
+				sub_list.append(str(d.approver))
+		if self.reports_to:
+			sub_list.append(str(self.reports_to))
+
+		for sub in sub_list:
+			self.add_to_subordinate(sub)
+
+		test = ','.join(sub_list)
+		if test:
+			conditions = " AND `parent` NOT IN ("+test+")"
+			frappe.db.sql("""DELETE FROM `tabSubordinates` WHERE `created_from_employee` = %(employee)s AND `subordinate` = %(employee)s {conditions}""".format(conditions=conditions),
+			({ 
+				"employee": self.name,
+			}), as_dict=True)
+			frappe.db.commit()		
+
+	def add_to_subordinate(self, emp):
+		in_subordinate = frappe.db.sql(""" SELECT `subordinate` FROM `tabSubordinates` WHERE `parent`= %s AND `subordinate` = %s LIMIT 1 """,( emp, self.name ))
+		if not in_subordinate:
+			empsub_doc = frappe.get_doc("Employee Subordinates", emp)
+			if empsub_doc:
+				empsub_doc.append('subordinates',{
 					"subordinate": self.name,
 					"subordinate_name": self.full_name,
+					"created_from_employee": self.name,
 				})
-				#employee_subordinate.insert()
-				employee_subordinate.save()
+				empsub_doc.save()
+			else:
+				employee, employee_name, company = frappe.db.get_value("Employee", emp, ["name", "full_name", "company"])
+				empsub_new_doc = frappe.new_doc("Employee Subordinates")
+				empsub_new_doc.update({
+					"employee": employee,
+					"employee_name": employee_name,
+					"company": company,
+				})	
+				empsub_new_doc.append('subordinates',{
+					"subordinate": self.name,
+					"subordinate_name": self.full_name,
+					"created_from_employee": self.name,
+				})
+				empsub_new_doc.insert()
+				empsub_new_doc.save()
