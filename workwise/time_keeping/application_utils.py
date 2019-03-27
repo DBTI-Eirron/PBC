@@ -47,6 +47,14 @@ def change_owner(self):
 			for d in owner_email:
 				self.db_set("owner", d.user_id)
 
+def clear_approval_history(self):
+	if self.is_new():
+		self.approval_history = ""
+		self.last_approval_level = 0
+		self.approved_by = ""
+		self.approved_on = ""
+		self.owner = ""
+
 def get_levelled_approval(self):
 	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 	if enable_employee_approvers > 0:

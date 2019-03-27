@@ -8,10 +8,11 @@ from datetime import datetime
 from frappe import _
 from frappe.utils import nowdate, get_time, flt
 from frappe.model.document import Document
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history
 
 class UndertimeApplication(Document):
 	def validate(self):
+		clear_approval_history(self)
 		grant_head_subordinate_access(self)
 		total_hrs = datetime.strptime(str(self.to_time), '%H:%M:%S') - datetime.strptime(str(self.from_time), '%H:%M:%S')
 		self.total_hrs = flt((total_hrs.total_seconds() / 60.0 / 60.0),2)

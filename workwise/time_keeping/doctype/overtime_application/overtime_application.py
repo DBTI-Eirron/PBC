@@ -9,10 +9,11 @@ from frappe.utils import cint, flt, getdate, cstr, nowdate
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, chk_time_format, timediff_hrs, timediff_mins, str_datetime
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history
 
 class OvertimeApplication(Document):
 	def validate(self):
+		clear_approval_history(self)
 		grant_head_subordinate_access(self)
 		self.validate_time_format()
 		self.update_target_date()

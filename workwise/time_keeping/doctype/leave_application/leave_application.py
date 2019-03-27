@@ -6,11 +6,13 @@ from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_li
 from frappe.email import queue
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
 from workwise.payroll.policy_utils import get_policy
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
+from workwise.time_keeping.attendance_utils import get_schedule
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history
 from frappe.model.document import Document
 
 class LeaveApplication(Document):
 	def validate(self):
+		clear_approval_history(self)
 		grant_head_subordinate_access(self)
 		self.validate_schedule();
 		self.set_lwop()
@@ -56,9 +58,16 @@ class LeaveApplication(Document):
 			self.managers_list = send_to
 
 	def validate_schedule(self):
-		result = frappe.db.sql("""SELECT SUM(WSS.is_restday) AS restday FROM `tabWork Schedule` WS INNER JOIN `tabWork Shift` WSS ON WS.work_shift = WSS.`name` WHERE WS.employee = %s AND WS.target_date BETWEEN %s and %s""",(self.employee,self.from_date,self.to_date),as_dict=True)
-		if result[0].restday > 0:
-			frappe.throw("Can't file leave on Restday Schedule")
+		leave_code = frappe.get_value("Leave Type", self.leave_type, "leave_code")
+		for d in self.get('leave_application_table'):
+			schedule = get_schedule(self.employee, d.leave_date, d.leave_date)
+			if schedule:
+				shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+				if shifts:
+					if shifts[0].is_restday > 0:
+						if not leave_code == 'BL':
+							frappe.throw("Can't file leave on Restday Schedule")
+
 	def update_leave_credits(self):
 		frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits + %s 
 			WHERE name = %s """, (self.total_leave_days, self.from_balance))
@@ -115,10 +124,11 @@ class LeaveApplication(Document):
 			if filed_on_bday == 1:
 				emp_bday = frappe.db.get_value("Employee", self.employee, "birthday")
 				if emp_bday:
-					emp_bday = datetime.datetime.strptime(str(emp_bday), '%Y-%m-%d')
-					from_date = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
-					if emp_bday.strftime('%m-%d') != from_date.strftime('%m-%d'):
-						frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file Birthday Leave on your birthday").format(self.name))
+					for d in self.get('leave_application_table'):
+						emp_bday = datetime.datetime.strptime(str(emp_bday), '%Y-%m-%d')
+						from_date = datetime.datetime.strptime(d.target_date, '%Y-%m-%d')
+						if emp_bday.strftime('%m-%d') != from_date.strftime('%m-%d'):
+							frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file Birthday Leave on your birthday").format(self.name))
 
 	def validate_days(self):
 		self.total_leave_days = self.get_total_leave_days()
@@ -138,7 +148,7 @@ class LeaveApplication(Document):
 	
 	def get_total_leave_days(self):
 		total_leave_days = 0
-		inc_holidays = frappe.get_value("Leave Type", self.leave_type, "include_holidays")
+		inc_holidays, leave_code = frappe.get_value("Leave Type", self.leave_type, ["include_holidays", "leave_code"])
 
 		for d in self.get('leave_application_table'):
 			add_days = 1
@@ -165,6 +175,17 @@ class LeaveApplication(Document):
 				add_days = 0
 				
 			total_leave_days += add_days
+
+			if leave_code == "BL":
+				schedule = get_schedule(self.employee, d.leave_date, d.leave_date)
+				if schedule:
+					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+					if shifts:
+						if shifts[0].is_restday > 0:
+							total_leave_days = 0
+				holiday_leave = self.chk_holiday(d.leave_date)
+				if holiday_leave:
+					total_leave_days = 0
 
 		return total_leave_days
 
@@ -213,25 +234,37 @@ class LeaveApplication(Document):
 
 		for d in self.get('leave_application_table'):
 			if d.is_excluded < 1:
-				wholeday_exist = frappe.db.sql(""" SELECT DISTINCT LA.`name` FROM `tabLeave Application Table` LT INNER JOIN `tabLeave Application` LA ON LT.`parent`=LA.`name` WHERE LA.docstatus = 1 AND LA.`employee` = %s AND LT.`leave_date` = %s AND LT.is_second_half = 0 AND LT.is_half_day = 0 AND LA.`name` != %s """,(self.employee, d.leave_date, self.name), as_dict=True)
-				if wholeday_exist:
-					frappe.throw(_("<b>Leave Application: {0}</b><hr> {1} already has a filed leave on {2}. Leave Application: {3}").format(self.name, self.full_name, d.leave_date, wholeday_exist[0].name))
+				wholeday_exist = self.get_filed_leave_schedule(d.leave_date, 'wholeday', 0, 0)
 				if d.is_half_day < 1 and d.is_second_half < 1:
-					half_exist = frappe.db.sql(""" SELECT DISTINCT LA.`name` FROM `tabLeave Application Table` LT INNER JOIN `tabLeave Application` LA ON LT.`parent`=LA.`name` WHERE LA.docstatus = 1 AND LA.`employee` = %s AND LT.`leave_date` = %s AND LT.is_half_day = 1 AND LA.`name` != %s """,(self.employee, d.leave_date, self.name), as_dict=True)
-					if half_exist:
-						frappe.throw(_("<b>Leave Application: {0}</b><hr> {1} already has a filed leave on {2}. Leave Application: {3}").format(self.name, self.full_name, d.leave_date, half_exist[0].name))
+					half_exist = self.get_filed_leave_schedule(d.leave_date, 'half day', 1, 0)
 				if d.is_half_day > 0 and d.is_second_half < 1:
-					if wholeday_exist:
-						frappe.throw(_("<b>Leave Application: {0}</b><hr> {1} already has a filed leave on {2}. Leave Application: {3}").format(self.name, self.full_name, d.leave_date, wholeday_exist[0].name))
-					firsthalf_exist = frappe.db.sql(""" SELECT DISTINCT LA.`name` FROM `tabLeave Application Table` LT INNER JOIN `tabLeave Application` LA ON LT.`parent`=LA.`name` WHERE LA.docstatus = 1 AND LA.`employee` = %s AND LT.`leave_date` = %s AND LT.is_half_day = 1 AND LT.is_second_half = 0 AND LA.`name` != %s """,(self.employee, d.leave_date, self.name), as_dict=True)
-					if firsthalf_exist:
-						frappe.throw(_("<b>Leave Application: {0}</b><hr> {1} already has a filed leave on {2}. Leave Application: {3}").format(self.name, self.full_name, d.leave_date, firsthalf_exist[0].name))
+					wholeday_exist = self.get_filed_leave_schedule(d.leave_date, 'wholeday', 0, 0)
+					firsthalf_exist = self.get_filed_leave_schedule(d.leave_date, 'first half', 1, 0)
 				if d.is_second_half > 0:
-					if wholeday_exist:
-						frappe.throw(_("<b>Leave Application: {0}</b><hr> {1} already has a filed leave on {2}. Leave Application: {3}").format(self.name, self.full_name, d.leave_date, wholeday_exist[0].name))
-					secondhalf_exist = frappe.db.sql(""" SELECT DISTINCT LA.`name` FROM `tabLeave Application Table` LT INNER JOIN `tabLeave Application` LA ON LT.`parent`=LA.`name` WHERE LA.docstatus = 1 AND LA.`employee` = %s AND LT.`leave_date` = %s AND LT.is_second_half = 1 AND LA.`name` != %s """,(self.employee, d.leave_date, self.name), as_dict=True)
-					if secondhalf_exist:
-						frappe.throw(_("<b>Leave Application: {0}</b><hr> {1} already has a filed leave on {2}. Leave Application: {3}").format(self.name, self.full_name, d.leave_date, secondhalf_exist[0].name))
+					wholeday_exist = self.get_filed_leave_schedule(d.leave_date, 'wholeday', 0, 0)
+					secondhalf_exist = self.get_filed_leave_schedule(d.leave_date, 'second half', 0, 1)
+
+	def get_filed_leave_schedule(self, leave_date, sched_req, is_half_day, is_second_half):
+		conditions = ""
+		if sched_req == 'wholeday' or sched_req == 'first half':
+			conditions = " AND LT.is_second_half=%(is_second_half)s AND LT.is_half_day=%(is_half_day)s"
+		if sched_req == 'half day':
+			conditions = " AND LT.is_half_day=%(is_half_day)s"
+		if sched_req == 'second half':
+			conditions = " AND LT.is_second_half=%(is_second_half)s"
+
+		leave_sched = frappe.db.sql(""" SELECT DISTINCT LA.`name` FROM `tabLeave Application Table` LT INNER JOIN `tabLeave Application` LA ON LT.`parent`=LA.`name` 
+		  	WHERE LA.docstatus = 1 AND LA.`employee` = %(employee)s AND LT.`leave_date` = %(leave_date)s AND LA.`name` != %(leave_app)s {conditions}""".format(conditions=conditions),
+			({ 
+				"employee": self.employee,
+				"leave_date": leave_date,
+				"leave_app": self.name,
+				"is_second_half": is_second_half,
+				"is_half_day": is_half_day,
+			}), as_dict=True)
+
+		if leave_sched:
+			frappe.throw(_("<b>Leave Application: {0}</b><hr> {1} already has a filed {4} leave on {2}. Leave Application: {3}").format(self.name, self.full_name, leave_date, leave_sched[0].name, sched_req))
 
 	def validate_medical(self):
 		if self.leave_type == "Sick Leave":

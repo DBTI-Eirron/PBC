@@ -10,10 +10,11 @@ from frappe.utils import nowdate, get_time, flt, getdate
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
+		clear_approval_history(self)
 		grant_head_subordinate_access(self)
 		if self.type == "File":
 			self.validate_fields_file_cto()
@@ -103,11 +104,15 @@ class CompensatoryTimeOff(Document):
 		schedule = get_schedule(self.employee, self.date, self.date)
 		if schedule:
 			for d in schedule:
-				work_hours = d.work_hours
+				if d.work_hours > 0:
+					work_hours = flt(d.work_hours)
+				else:
+					work_hours = 8
 
-		self.credits_earned = flt(self.total_hours,2)/flt(work_hours, 2)
-		if self.credits_earned > 1:
-			self.credits_earned = 1.0
+		if work_hours > 0:
+			self.credits_earned = flt(self.total_hours,2)/flt(work_hours, 2)
+			if self.credits_earned > 1:
+				self.credits_earned = 1.0
 
 		self.balance = flt(self.credits_earned,2) - flt(self.credits_used,2)
 
@@ -172,11 +177,15 @@ class CompensatoryTimeOff(Document):
 		schedule = get_schedule(self.employee, self.use_date, self.use_date)
 		if schedule:
 			for d in schedule:
-				work_hours = d.work_hours
+				if d.work_hours > 0:
+					work_hours = flt(d.work_hours)
+				else:
+					work_hours = 8
 
-		self.required_credits = flt(total_hours,2)/flt(work_hours, 2)
-		if self.required_credits > 1:
-			self.required_credits = 1.0
+		if work_hours > 0:
+			self.required_credits = flt(total_hours,2)/flt(work_hours, 2)
+			if self.required_credits > 1:
+				self.required_credits = 1.0
 
 		total_credits_earned = 0.00
 		date_list = []
