@@ -8,10 +8,11 @@ from datetime import timedelta, datetime
 from frappe import _
 from frappe.utils import nowdate, cstr, getdate
 from frappe.model.document import Document
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
+from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history
 
 class DTRProblemApplication(Document):
 	def validate(self):
+		clear_approval_history(self)
 		self.validate_application()
 		self.get_timekeeping_settings()
 		grant_head_subordinate_access(self)
@@ -96,6 +97,7 @@ class DTRProblemApplication(Document):
 					frappe.db.commit()
 
 	def get_card_type(self, req):
+		card_type = 0
 		if req.type == "Time In":
 			card_type = 0
 		if req.type == "Time Out":

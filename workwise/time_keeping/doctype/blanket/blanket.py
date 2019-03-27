@@ -55,7 +55,6 @@ class Blanket(Document):
 
 		elif self.application_type == "DTR Problem Application":
 			self.validate_mandatory_fields()
-			self.dtr_get_dtr_table()
 			self.validate_employee_company()
 			self.validate_duplicate_table_entries()
 
@@ -905,23 +904,6 @@ class Blanket(Document):
 			new_ut_app.submit()
 
 	#DTR Problem Application
-	def dtr_get_dtr_table(self, emp):
-		dtrlist = []
-		for req in self.get("time_record_request"):
-			card = self.dtr_get_card_type(req)
-			timecard_sel = self.dtr_get_timecard(card, emp)
-			for a in timecard_sel:
-				timecard_info = {
-					"current": a.time,
-					"time_card": a.name,
-					"type": req.type,
-					"request": req.request,
-					"action": "Approved",
-				}
-				dtrlist.append(timecard_info)
-
-		return dtrlist
-
 	def dtr_get_card_type(self, req):
 		if req.type == "Time In":
 			card_type = 0
@@ -935,11 +917,13 @@ class Blanket(Document):
 		return card_type
 
 	def dtr_get_timecard(self, card, emp):
-		timecard_sel = frappe.db.sql("""SELECT TC.`name`, TC.`date`, TC.`time` FROM `tabTime Card` TC JOIN `tabEmployee` TE WHERE TC.biometrics_id = TE.biometrics_id  AND TC.`date` = %s AND TC.`card_type` = %s AND TE.`name` = %s LIMIT 1 """, (self.dtr_target_date, card, emp.employee), as_dict=True)
+		timecard_sel = frappe.db.sql("""SELECT TC.`name`, TC.`date`, TC.`time` FROM `tabTime Card` TC JOIN `tabEmployee` TE WHERE TC.biometrics_id = TE.biometrics_id  AND TC.`date` = %s AND TC.`card_type` = %s AND TE.`name` = %s LIMIT 1 """, (self.dtr_target_date, card, emp), as_dict=True)
 		return timecard_sel
 
 	#Make DTR Problem Application(s)
 	def make_dtr_problem_application(self):
+		#frappe.throw(_('req.type'))
+		timecard_info = {}
 		for d in self.get("bad_table"):
 			new_dtr_app = frappe.new_doc("DTR Problem Application")
 			new_dtr_app.update({
@@ -959,8 +943,22 @@ class Blanket(Document):
 				"managers_list": self.get_recipients(d.employee),
 			})
 
-			for a in self.get("time_record_request"):
-				new_dtr_app.append('time_record_request', self.dtr_get_dtr_table(d))
+			for req in self.time_record_request:
+				card = self.dtr_get_card_type(req)
+				timecard_sel = self.dtr_get_timecard(card, d.employee)
+				current = ""
+				time_card = ""
+				for a in timecard_sel:
+					current = a.time
+					time_card = a.name
+				timecard_info = {
+					"type": req.type,
+					"current": current,
+					"time_card": time_card,
+					"request": req.request,
+					"action": "Approved",
+				}
+				new_dtr_app.append('time_record_request', timecard_info)
 
 			new_dtr_app.insert()
 			new_dtr_app.save()
