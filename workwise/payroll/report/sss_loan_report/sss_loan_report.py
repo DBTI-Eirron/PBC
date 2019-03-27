@@ -9,7 +9,7 @@ from frappe import _
 def execute(filters=None):
 	
 	columns = get_columns(filters)
-	results = get_result(filters)
+	results = get_data(filters)
 
 	return columns, results
 
@@ -156,17 +156,12 @@ def get_columns(filters):
 
 	return columns
 
-def get_result(filters):
-
-	data = get_data(filters)
-	result = get_result_as_list(data, filters)
-
-	return result
-
-def get_loans(filters):
+def get_employees(filters):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		loans = frappe.db.sql("""SELECT DISTINCT
+		employees = frappe.db.sql(""" SELECT 
+			LA.`name`,
+			TE.`name` as employee,
 			TE.sss_no as sss_id,
 			TE.last_name as last_name,
 			TE.first_name as first_name,
@@ -174,31 +169,27 @@ def get_loans(filters):
 			LA.loan_type as loan_type,
 			LA.release_date as loan_date,
 			LA.loan_amount as loan_amount,
-			0.00 as penalty,
-			PRE.amount as amount_paid,
-			0.00 as ampsdg,
 			LA.remarks as remarks
-		FROM
-			`tabPayroll Register` PR
-			INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent`
-			INNER JOIN `tabEmployee` TE ON PR.`employee` = TE.`name`
-			INNER JOIN `tabLoan Application` LA ON PR.`employee` = LA.`employee` 
-		WHERE
-			PRE.pay_code = "SSSL"
-			AND LA.loan_type = "SSSL"
-			AND PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s
-			AND PR.company = %(company)s
+			FROM `tabLoan Application` LA
+			INNER JOIN `tabPayroll Register Entries` PE ON LA.`name`=PE.`linked_document`
+			INNER JOIN `tabPayroll Register` PR ON PR.`name`=PE.`parent`
+			INNER JOIN `tabEmployee` TE ON LA.`employee`=TE.`name`
+			WHERE LA.`loan_type`='SSSL'
 			AND LA.docstatus = 1
+			AND TE.company = %(company)s
+			AND (PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s)
 			AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(cur_user)s)
-		ORDER BY
-			PR.employee_name ASC """,{
-				"company": filters.company,
-				"cur_user": cur_user,
-				"from_date": filters.from_date,
-				"to_date": filters.to_date
-			}, as_dict=True)
+			GROUP BY LA.`name`
+			ORDER BY LA.`employee_name` ASC """,{
+			"company": filters.company,
+			"cur_user": cur_user,
+			"from_date": filters.from_date,
+			"to_date": filters.to_date
+		}, as_dict=True)
 	else:
-		loans = frappe.db.sql("""SELECT DISTINCT
+		employees = frappe.db.sql(""" SELECT 
+			LA.`name`,
+			TE.`name` as employee,
 			TE.sss_no as sss_id,
 			TE.last_name as last_name,
 			TE.first_name as first_name,
@@ -206,46 +197,58 @@ def get_loans(filters):
 			LA.loan_type as loan_type,
 			LA.release_date as loan_date,
 			LA.loan_amount as loan_amount,
-			0.00 as penalty,
-			PRE.amount as amount_paid,
-			0.00 as ampsdg,
 			LA.remarks as remarks
-		FROM
-			`tabPayroll Register` PR
-			INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent`
-			INNER JOIN `tabEmployee` TE ON PR.`employee` = TE.`name`
-			INNER JOIN `tabLoan Application` LA ON PR.`employee` = LA.`employee` 
-		WHERE
-			PRE.pay_code = "SSSL"
-			AND LA.loan_type = "SSSL"
-			AND PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s
-			AND PR.company = %(company)s
+			FROM `tabLoan Application` LA
+			INNER JOIN `tabPayroll Register Entries` PE ON LA.`name`=PE.`linked_document`
+			INNER JOIN `tabPayroll Register` PR ON PR.`name`=PE.`parent`
+			INNER JOIN `tabEmployee` TE ON LA.`employee`=TE.`name`
+			WHERE LA.`loan_type`='SSSL'
 			AND LA.docstatus = 1
-		ORDER BY
-			PR.employee_name ASC """,{
-				"company": filters.company,
-				"from_date": filters.from_date,
-				"to_date": filters.to_date
-			}, as_dict=True)
+			AND TE.company = %(company)s
+			AND (PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s)
+			GROUP BY LA.`name`
+			ORDER BY LA.`employee_name` ASC """,{
+			"company": filters.company,
+			"from_date": filters.from_date,
+			"to_date": filters.to_date
+		}, as_dict=True)
 
-	return loans
+	return employees
+
+def get_loan_amount(filters, emp):
+	loan_amount = frappe.db.sql(""" SELECT 
+		SUM(PE.`amount`) as `amount`
+		FROM `tabPayroll Register Entries` PE
+		INNER JOIN `tabPayroll Register` PR ON PE.`parent`=PR.`name`
+		WHERE PE.`pay_code`='SSSL'
+		AND PE.`linked_doctype`='Loan Application'
+		AND PE.`linked_document`= %(application)s
+		AND PR.company = %(company)s
+		AND (PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s)
+		GROUP BY PE.`linked_document` """,{
+		"application": emp.name,
+		"company": filters.company,
+		"from_date": filters.from_date,
+		"to_date": filters.to_date
+	}, as_dict=True)
+
+	if loan_amount:
+		loan_amount = loan_amount[0].amount
+	else:
+		loan_amount = 0.00
+
+	return loan_amount
 
 def get_data(filters):
 	data = []
-	loans = get_loans(filters)
+	employees = get_employees(filters)
 
-	for loan in loans: 
-		data.append(loan)
-
-	return data
- 
-def get_result_as_list(data, filters):
-	result = []
 	if filters.include_header:
 		emp_count = 0
 		total_amount_paid = 0
-		for d in data:
-			total_amount_paid += flt(d.total_paid, 8)
+		for d in employees:
+			loans = get_loan_amount(filters, d)
+			total_amount_paid += flt(loans)
 			emp_count += 1
 
 		sss_id = frappe.db.get_value("Company", filters.company, "sss_id")
@@ -298,23 +301,23 @@ def get_result_as_list(data, filters):
 		]
 
 		for d in headers:
-			result.append(d)
+			data.append(d)
 
-	for d in data:
+	for emp in employees: 
+		loans = get_loan_amount(filters, emp)
 		row = {
-			"sss_id": d.get("sss_id"),
-			"last_name": d.get("last_name"),
-			"first_name": d.get("first_name"),
-			"middle_initial": d.get("middle_initial"),
-			"loan_type": d.get("loan_type"),
-			"loan_date": datetime.datetime.strftime(getdate(d.get("loan_date")),"%y%m%d"),
-			"loan_amount": '{:,.2f}'.format(d.get("loan_amount")),
-			"penalty": '{:,.2f}'.format(d.get("penalty")),
-			"amount_paid": '{:,.2f}'.format(d.get("amount_paid")),
-			"ampsdg": '{:,.2f}'.format(d.get("ampsdg")),
-			"remarks": d.get("remarks")
+			"sss_id": emp.sss_id,
+			"last_name": emp.last_name,
+			"first_name": emp.first_name,
+			"middle_initial": emp.middle_initial,
+			"loan_type": emp.loan_type,
+			"loan_date": datetime.datetime.strftime(getdate(emp.loan_date),"%y%m%d"),
+			"loan_amount": '{:,.2f}'.format(emp.loan_amount),
+			"penalty": 0.00,
+			"amount_paid": '{:,.2f}'.format(loans),
+			"ampsdg": 0.00,
+			"remarks": emp.remarks,
 		}
-		
-		result.append(row)
-		
-	return result
+		data.append(row)
+
+	return data
