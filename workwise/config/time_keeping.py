@@ -149,6 +149,12 @@ def get_data():
 				},
 				{
 					"type": "report",
+					"name": "Detailed Attendance Report",
+					"doctype": "Attendance Register",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "Employee Schedule",
 					"doctype": "Work Schedule",	
 					"is_query_report": True
