@@ -2,6 +2,7 @@
 // For license information, please see license.txt
 
 cur_frm.add_fetch('employee', 'full_name', 'employee_name');
+cur_frm.add_fetch('employee', 'company', 'company');
 cur_frm.add_fetch('employee', 'position_title', 'current_position');
 cur_frm.add_fetch('employee', 'job_level', 'current_job_level');
 cur_frm.add_fetch('employee', 'employment_status', 'current_employment_status');
@@ -26,6 +27,12 @@ cur_frm.add_fetch('employee', 'min_take_home', 'new_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'new_attendance_base');
 
 frappe.ui.form.on('Employee Movement', {
+	onload: function(frm) {
+		if (frm.doc.__islocal){
+			frm.set_value("employee", "");
+		}
+	},
+	
 	refresh: function(frm) {
 
 	},
