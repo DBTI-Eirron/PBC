@@ -210,30 +210,31 @@ class Employee(Document):
 
 	def employee_to_subordinate(self):
 		sub_list = []
-		sub_list_query = []
+		cur_sub_list = []
 		conditions = ""
 
 		if self.approvers:
 			for d in self.get("approvers"):
 				sub_list.append(str(d.approver))
-				sub_list_query.append(cstr("'"+cstr(d.approver)+"'"))
 
 		if self.reports_to:
 			sub_list.append(str(self.reports_to))
-			sub_list_query.append(cstr("'"+cstr(self.reports_to)+"'"))
 
 		for sub in sub_list:
 			self.add_to_subordinate(sub)
 
-		test = ','.join(sub_list_query)
-		#frappe.throw(_(test))
-		if test:
-			conditions = " AND `parent` NOT IN ("+test+")"
-			frappe.db.sql("""DELETE FROM `tabSubordinates` WHERE `created_from_employee` = %(employee)s AND `subordinate` = %(employee)s {conditions}""".format(conditions=conditions),
-			({ 
-				"employee": self.name,
-			}), as_dict=True)
-			frappe.db.commit()		
+		cur_subordinates = frappe.db.sql(""" SELECT `parent` FROM `tabSubordinates` WHERE `created_from_employee` = %s """,( self.name ), as_dict=1)
+		for cur in cur_subordinates:
+			cur_sub_list.append(cur.parent)
+			
+		for su in cur_sub_list:
+			if not su in sub_list:
+				frappe.db.sql("""DELETE FROM `tabSubordinates` WHERE `created_from_employee` = %(employee)s AND `subordinate` = %(employee)s AND `parent` = %(head)s """,
+				({ 
+					"head": su,
+					"employee": self.name,
+				}), as_dict=True)
+				frappe.db.commit()
 
 	def add_to_subordinate(self, emp):
 		in_subordinate = frappe.db.sql(""" SELECT * FROM `tabSubordinates` WHERE `parent`= %s AND `subordinate` = %s """,( emp, self.name ), as_dict=1)
