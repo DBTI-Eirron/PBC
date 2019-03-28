@@ -16,8 +16,20 @@ def update_approved_on_and_by():
 			frappe.db.commit()
 
 def update_old_change_schedule_application():
-	frappe.db.sql("""UPDATE `tabChange Schedule Application` SET `posting_date` = DATE(creation) WHERE `docstatus` = 1 AND `posting_date` IS NULL """)
-	frappe.db.commit()
+	application_list = frappe.db.sql(""" SELECT `name`, old_shift, new_shift, target_date, new_time_in, new_time_out FROM `tabChange Request Application` WHERE docstatus = 1; """, as_dict=1)
+	existing_list = frappe.db.sql(""" SELECT `parent` FROM `tabChange Schedule Application Table` GROUP BY `parent`; """, as_list=1)
+
+	for app in application_list:
+		if app.name not in existing_list:
+			csa = frappe.new_doc("Change Schedule Application")
+			csa.append('change_list',{
+			  	"target_date": app.target_date,
+		        "current_shift": app.old_shift,
+		        "new_shift": app.new_shift,
+		        "time_in": app.new_time_in,
+		        "time_out": app.new_time_out,
+			})
+			csa.save()
 
 def oba_update_table():
 	frappe.db.sql("""UPDATE `tabOfficial Business Application Table` SET travel_time = travel_time, hrs = hrs, target_date = target_date, `date` = `target_date`, from_time = from_time, to_time = to_time, is_holiday = is_holiday, is_excluded = is_excluded, is_previous = 0 WHERE `date` IS NULL AND docstatus != 2 """)
@@ -150,4 +162,15 @@ def reassign_work_schedule():
 #Payroll Patch
 def update_loan_applications():
 	frappe.db.sql("""UPDATE `tabLoan Application` SET freq_method="Automatic" WHERE freq_method IS NULL""")
+	frappe.db.commit()
+
+#Employee
+def save_employee():
+	emp = frappe.db.sql(""" SELECT `name` FROM `tabEmployee` """, as_dict=1)
+	for b in emp:
+		application = frappe.get_doc("Employee", b.name)
+		application.save()
+
+def update_employee_movement():
+	frappe.db.sql(""" UPDATE `tabEmployee Movement` EM INNER JOIN `tabEmployee` TE ON EM.employee=TE.`name` SET EM.company=TE.company WHERE EM.company IS NULL """)
 	frappe.db.commit()
