@@ -174,3 +174,59 @@ def save_employee():
 def update_employee_movement():
 	frappe.db.sql(""" UPDATE `tabEmployee Movement` EM INNER JOIN `tabEmployee` TE ON EM.employee=TE.`name` SET EM.company=TE.company WHERE EM.company IS NULL """)
 	frappe.db.commit()
+
+def add_subordinates_from_employee():
+	to_insert_list = []
+	cur_sub_list = []
+
+	emp_list = frappe.db.sql(""" SELECT * FROM `tabEmployee` """, as_dict=1)
+	if emp_list:
+		for emp in emp_list:
+			if emp.reports_to:
+				to_insert_list.append(str(emp.reports_to))
+			emp_approvers = frappe.db.sql(""" SELECT * FROM `tabEmployee Approvers` WHERE `parent`=%s """,(emp.name), as_dict=1)
+			if emp_approvers:
+				for a in emp_approvers:
+					to_insert_list.append(str(a.approver))
+		if to_insert_list:
+			to_insert_list = list( dict.fromkeys(to_insert_list) )
+
+		cur_sub = frappe.db.sql(""" SELECT DISTINCT `name` FROM `tabEmployee Subordinates` """, as_dict=1)
+		if cur_sub:
+			for cur in cur_sub:
+				cur_sub_list.append(cur.name)
+
+		for e in emp_list:
+			for ins in to_insert_list:
+				if ins in cur_sub_list:
+					frappe.db.sql(""" INSERT INTO `tabSubordinates` (`name`, `creation`, `modified`, `docstatus`, `parent`, `parentfield`, `parenttype`, `idx`, `subordinate_name`, `subordinate`, `created_from_employee`) 
+						VALUES (conv(floor(rand() * 99999999999999), 20, 36), NOW(), NOW(), 0, %s, 'subordinates', 'Employee Subordinates', 1, %s, %s, %s) """,(
+						ins,
+						e.full_name,
+						e.name,
+						e.name,
+					),as_dict=1)
+					frappe.db.commit()
+				else:
+					employee, employee_name, company = frappe.db.get_value("Employee", ins, ["name", "full_name", "company"])
+					empsub_new_doc = frappe.new_doc("Employee Subordinates")
+					empsub_new_doc.update({
+						"employee": employee,
+						"employee_name": employee_name,
+						"company": company,
+					})	
+					empsub_new_doc.append('subordinates',{
+						"subordinate": e.name,
+						"subordinate_name": e.full_name,
+						"created_from_employee": e.name,
+					})
+					empsub_new_doc.insert()
+					frappe.db.commit()
+
+def save_employee_subordinates():
+	new_sub = frappe.db.sql(""" SELECT DISTINCT `name` FROM `tabEmployee Subordinates` """, as_dict=1)
+	if new_sub:
+		for new in new_sub:
+			application = frappe.get_doc("Employee Subordinates", new.name)
+			application.save()
+			#frappe.db.commit()
