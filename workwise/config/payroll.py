@@ -45,6 +45,10 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Period Group",
+				},
+				{
+					"type": "doctype",
 					"name": "Transaction Type",
 				},
 				{
@@ -174,7 +178,13 @@ def get_data():
 					"type": "report",
 					"name": "Alphalist Minimum Wage",	
 					"is_query_report": True
-				},	
+				},
+				{
+					"type": "report",
+					"name": "BIR1601-C",
+					"doctype": "Company",	
+					"is_query_report": True
+				},
 				{
 					"type": "report",
 					"name": "PagIbig Loan Report",	

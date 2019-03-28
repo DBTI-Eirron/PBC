@@ -39,6 +39,7 @@ frappe.ui.form.on('Attendance Processing', {
 		frm.add_fetch("period", "from_date", "period_from");
 		frm.add_fetch("period", "to_date", "period_to");
 		frm.add_fetch("period", "schedule", "schedule");
+		frm.add_fetch("period", "period_group", "period_group");
 	},
 	refresh: function(frm) {
 		frm.disable_save();

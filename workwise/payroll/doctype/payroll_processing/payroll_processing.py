@@ -29,12 +29,14 @@ class PayrollProcessing(Document):
 				"employee": self.employee,
 				"department": self.department,
 				"location": self.location,
+				"period_group": self.period_group,
 			}), as_dict=True)
 
 		return employees
 
 	def get_conditions(self):
 		conditions = []
+		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
 		if self.employee:
 			conditions.append("`name`=%(employee)s")
 
@@ -44,34 +46,42 @@ class PayrollProcessing(Document):
 		if self.location:
 			conditions.append("location=%(location)s")
 
+		if strict_period_group:
+			conditions.append("period_group=%(period_group)s")
+		
 		if frappe.session.user != "Administrator":
 			conditions.append(_("sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
 
 		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
-	def validate_period(self):
+	def validate_period(self, weekly_set):
 		period_stats = frappe.db.get_value("Payroll Period", self.period, "status")
+		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+
 		if period_stats == "Closed":
 			frappe.throw(_("Selected Period is Already Closed"))
 
+		if self.schedule == "Weekly" and not weekly_set:
+			frappe.throw(_("Weekly Set id Required for Weekly Period"))			
+
 		if not self.schedule and not self.payroll_date:
-			frappe.throw(_("Fill up Mandatory Fields"))
+			frappe.throw(_("Payroll Schedule and Payroll Date is Required"))
+
+		if strict_period_group and not self.period_group:
+			frappe.throw(_("Period Group is required for Payroll Period {0}").format(self.period))
 
 	def process_payroll(self):
-		self.validate_period()
 		weekly_set = frappe.db.get_value("Payroll Period", self.period, "weekly_set")
+		self.validate_period(weekly_set)
+		
 		no_weeks = ""
 		if weekly_set:
 			no_weeks = frappe.db.get_value("Weekly Set", weekly_set, "no_weeks")
-		else:
-			if self.schedule == "Weekly" and not weekly_set:
-				frappe.throw(_("Weekly Set id Required for Weekly Period"))
 
 		ss_list = []
 		employees = self.get_employees()
 		sss_table = get_sss_table()
-		hdmf_table = get_hdmf_table()
-	
+		hdmf_table = get_hdmf_table()	
 		tr_map = self.get_transaction_map()
 		ot_map = self.get_overtime_map()
 		adj_settings = get_adjustment_settings()
@@ -98,6 +108,7 @@ class PayrollProcessing(Document):
 					'employee_name': emp.full_name,
 					'company': emp.company,
 					'on_hold': emp.on_hold,
+					'period_group': self.period_group,
 					'posting_date': self.payroll_date,
 					'process_date': nowdate(),
 					'period': self.period,

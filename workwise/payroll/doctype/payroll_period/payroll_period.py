@@ -25,6 +25,7 @@ class PayrollPeriod(Document):
 		self.validate_days()
 		self.validate_frequency()
 		self.validate_approval_cutoff()
+		self.validate_period_group()
 
 	def validate_approval_cutoff(self):
 		if getdate(self.approval_cutoff) <= getdate(self.attendance_to):
@@ -52,7 +53,12 @@ class PayrollPeriod(Document):
 		if duplicate:
 			frappe.throw(_("{0} Frequency already exist in {1} Weekly Set").format(self.frequency ,self.weekly_set))
 
-			
+	def validate_period_group(self):
+		period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+		if period_group:
+			if not self.period_group:
+				frappe.throw("Period Group is Required for Strict use of Period Group")
+
 	def validate_days(self):
 		difference = date_diff(self.to_date, self.from_date)
 		difference += 1

@@ -21,25 +21,36 @@ class AttendanceProcessing(Document):
 				"schedule": self.schedule,
 				"department": self.department,
 				"location": self.location,
+				"period_group": self.period_group,
 			}, as_dict=True)
 
 		return employees
 
 	def get_employee_conditions(self):
+		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
 		conditions = []
 		if self.employee:
 			conditions.append("`name`=%(employee)s")
+		
 		if self.department:
 			conditions.append("department=%(department)s")
+		
 		if self.location:
 			conditions.append("location=%(location)s")
+
+		if strict_period_group:
+			conditions.append("period_group=%(period_group)s")
 
 		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
 	def process_attendance(self):
+		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
 		if not self.period:
 			frappe.throw(_("Please Select Payroll Period"))
 		
+		if strict_period_group and not self.period_group:
+			frappe.throw(_("Period Group is required for Payroll Period {0}").format(self.period))
+
 		employees = self.get_employees()
 		ss_list = []
 
