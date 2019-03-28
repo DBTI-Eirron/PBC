@@ -46,3 +46,25 @@ class WorkSuspension(Document):
 			for d in sorted(list(dates_table), key=lambda k: k['target_date']):
 				row = self.append('dates', {})
 				row.update(d)
+
+	def add(self):
+		query = "SELECT `name`, `full_name` FROM `tabEmployee` WHERE docstatus = 0"
+		if self.company:
+			query = query + " AND company = '"+self.company+"'"
+		if self.location:
+			query = query + " AND location = '"+self.location+"'"
+		if self.department:
+			query = query + " AND department = '"+self.department+"'"
+
+		employees = frappe.db.sql(query,as_dict=True)
+		entries	= []
+		for d in employees:
+			row = {
+				"employee": d.name,
+				"employee_name": d.full_name
+			}
+			entries.append(row);
+
+		for d in entries:
+			row = self.append('apply_to', {})
+			row.update(d)

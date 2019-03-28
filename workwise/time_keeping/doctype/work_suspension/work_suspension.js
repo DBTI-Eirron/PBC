@@ -26,4 +26,46 @@ frappe.ui.form.on('Work Suspension', {
 		} 
 	},
 
+	company: function(frm) {
+		frm.doc.apply_to = null
+		frappe.call({
+			method: "add",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		});
+	},
+	location: function(frm) {
+		frm.doc.apply_to = null
+		frappe.call({
+			method: "add",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		});
+	},
+	department: function(frm) {
+		frm.doc.apply_to = null
+		frappe.call({
+			method: "add",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		});
+	},
+
+	// add: function(frm) {
+	// 	frm.doc.apply_to = null
+	// 	frappe.call({
+	// 		method: "add",
+	// 		doc: frm.doc,
+	// 		callback: function(r) {
+	// 			frm.refresh_fields();
+	// 		}
+	// 	});
+	// },
+
 });
