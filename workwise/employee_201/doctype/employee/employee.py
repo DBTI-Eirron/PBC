@@ -210,18 +210,23 @@ class Employee(Document):
 
 	def employee_to_subordinate(self):
 		sub_list = []
+		sub_list_query = []
 		conditions = ""
 
 		if self.approvers:
 			for d in self.get("approvers"):
 				sub_list.append(str(d.approver))
+				sub_list_query.append(cstr("'"+cstr(d.approver)+"'"))
+
 		if self.reports_to:
 			sub_list.append(str(self.reports_to))
+			sub_list_query.append(cstr("'"+cstr(self.reports_to)+"'"))
 
 		for sub in sub_list:
 			self.add_to_subordinate(sub)
 
-		test = ','.join(sub_list)
+		test = ','.join(sub_list_query)
+		#frappe.throw(_(test))
 		if test:
 			conditions = " AND `parent` NOT IN ("+test+")"
 			frappe.db.sql("""DELETE FROM `tabSubordinates` WHERE `created_from_employee` = %(employee)s AND `subordinate` = %(employee)s {conditions}""".format(conditions=conditions),
@@ -231,16 +236,18 @@ class Employee(Document):
 			frappe.db.commit()		
 
 	def add_to_subordinate(self, emp):
-		in_subordinate = frappe.db.sql(""" SELECT `subordinate` FROM `tabSubordinates` WHERE `parent`= %s AND `subordinate` = %s LIMIT 1 """,( emp, self.name ))
+		in_subordinate = frappe.db.sql(""" SELECT * FROM `tabSubordinates` WHERE `parent`= %s AND `subordinate` = %s """,( emp, self.name ), as_dict=1)
 		if not in_subordinate:
-			empsub_doc = frappe.get_doc("Employee Subordinates", emp)
-			if empsub_doc:
+			get_emp_sub = frappe.db.sql("""SELECT TS.`name` FROM `tabEmployee Subordinates` TS WHERE TS.`name` = %(employee)s """,{ "employee": cstr(emp)}, as_dict=1)
+			if get_emp_sub:
+				empsub_doc = frappe.get_doc("Employee Subordinates", emp)
 				empsub_doc.append('subordinates',{
 					"subordinate": self.name,
 					"subordinate_name": self.full_name,
 					"created_from_employee": self.name,
 				})
 				empsub_doc.save()
+				frappe.db.commit()
 			else:
 				employee, employee_name, company = frappe.db.get_value("Employee", emp, ["name", "full_name", "company"])
 				empsub_new_doc = frappe.new_doc("Employee Subordinates")
@@ -256,3 +263,4 @@ class Employee(Document):
 				})
 				empsub_new_doc.insert()
 				empsub_new_doc.save()
+				frappe.db.commit()

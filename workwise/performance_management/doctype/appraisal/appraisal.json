@@ -1,5 +1,5 @@
 {
- "allow_copy": 0, 
+ "allow_copy": 1, 
  "allow_guest_to_view": 0, 
  "allow_import": 0, 
  "allow_rename": 0, 
@@ -881,7 +881,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2019-03-08 17:08:13.728293", 
+ "modified": "2019-03-27 17:45:59.529417", 
  "modified_by": "Administrator", 
  "module": "Performance Management", 
  "name": "Appraisal", 

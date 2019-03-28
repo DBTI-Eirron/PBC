@@ -48,11 +48,15 @@ def get_data(filters):
 	for emp in employee:
 		row = {'employee':emp.appraisee,'employee_name':emp.appraisee_name,'department':emp.department}
 		for div in year_division:
+			ee = 0
 			average = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabAppraisal` WHERE company = %s AND docstatus = 1 AND from_date BETWEEN %s AND %s""",(filters.company,div['from_date'],div['to_date']),as_dict=True)
 			for rating in rating_class:
 				if average[0].average >= rating.rate_from and average[0].average >= rating.rate_to:
-					row.update({str(div['from_date']):rating.rating_equivalent})
-		data.append(row)
+					if rating.rating_equivalent == "Exceeds Expectation(EE)":
+						row.update({str(div['from_date']):rating.rating_equivalent})
+						ee += 1
+		if ee > 0:
+			data.append(row)
 	# frappe.throw(_(data))
 	return data
 

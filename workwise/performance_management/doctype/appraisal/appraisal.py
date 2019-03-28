@@ -66,9 +66,6 @@ class Appraisal(Document):
 			frappe.throw("Total Weight Must Be Less Than 100")
 
 	def validate_rating(self):
-		for d in self.appraisal_goal:
-			desc = frappe.get_value("Target Standard",d.score,"description")
-			d.equivalent_rating = desc
 		rating = frappe.db.sql("""SELECT rate_from, rate_to, name FROM `tabRating Classification`""",as_dict=True)
 		for d in rating:
 			if self.total_score <= float(d.rate_to) and self.total_score >= float(d.rate_from):
