@@ -4,6 +4,16 @@ cur_frm.add_fetch('employee','full_name','employee_name');
 cur_frm.add_fetch('employee','company','company');
 
 frappe.ui.form.on('Change Schedule Application', {
+	onload: function(frm) {
+		cur_frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
+	},
+
 	refresh: function(frm) {
 
 	},

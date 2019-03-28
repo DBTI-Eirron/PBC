@@ -9,6 +9,14 @@ frappe.ui.form.on('Compensatory Time Off', {
 			frm.set_value("posting_date", get_today());
 		}
 
+		cur_frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
+
 		frm.set_query('filed_cto', function(doc) {
 			if(frm.doc.employee && frm.doc.type == "Use"){
 				return {

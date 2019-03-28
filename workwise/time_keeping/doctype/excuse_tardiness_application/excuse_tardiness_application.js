@@ -8,6 +8,14 @@ frappe.ui.form.on('Excuse Tardiness Application', {
 		if (!frm.doc.posting_date) {
 			frm.set_value("posting_date", get_today());
 		}
+
+		cur_frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
 	},
 	
 	date: function(frm) {

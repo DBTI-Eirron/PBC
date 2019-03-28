@@ -9,8 +9,14 @@ frappe.ui.form.on('DTR Problem Application', {
 		if (!frm.doc.posting_date) {
 			frm.set_value("posting_date", get_today());
 		}
-		//frm.fields_dict["time_record_request"].grid.set_column_disp('action', false);
-		//frm.fields_dict["time_record_request"].grid.toggle_enable("action", false);
+		
+		cur_frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
 		
 	},		
 
