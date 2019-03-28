@@ -27,7 +27,7 @@ class TargetSetting(Document):
 		for d in self.key_indicator:
 			total_w += float(d.weight)
 		if total_w != 100:
-			frappe.throw(_("Total weightage assigned should 100%. It is {0}").format(str(total_w) + "%"))
+			frappe.throw(_("Total weightage assigned should be 100%. It is {0}").format(str(total_w) + "%"))
 
 	def validate_appraisee(self):
 		if self.type == "Individual":
