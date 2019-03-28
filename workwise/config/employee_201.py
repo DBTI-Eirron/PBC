@@ -125,6 +125,9 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
+					"name": "Employee Record Settings",				},
+				{
+					"type": "doctype",
 					"name": "Employee Subordinates",
 					"description": _("Employee Subordinates"),
 				},
