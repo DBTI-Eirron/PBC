@@ -570,22 +570,6 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
-	#Restday
-	if entry.get('is_restday'):
-		entry['late'] = 0
-		entry['undertime'] = 0
-		entry['is_absent'] = 0
-
-	#Holiday
-	if entry.get('is_holiday'):
-		if entry.get('rate_type') == "Daily Rate":
-			if not entry.get('card_out') and not entry.get('card_in') and not entry.get('is_restday'):
-				entry['is_absent'] = 1
-		else:
-			entry['late'] = 0
-			entry['undertime'] = 0
-			entry['is_absent'] = 0
-
 	if not entry.get('card_out') and not entry.get('ob_status'):
 		entry['overtime'] = 0
 		entry['overtime_nd'] = 0
@@ -683,6 +667,7 @@ def get_final_processing(entry):
 			entry['undertime'] = 0
 
 		if entry['work'] < 0 and (entry['late'] > entry['work']  or entry['undertime'] > entry['work']): 
+			entry['work'] = 0
 			entry['late'] = 0
 			entry['undertime'] = 0
 			entry['absent'] = 1
@@ -739,10 +724,21 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["undertime"] = 0
 
+	#Restday
+	if entry.get('is_restday'):
+		entry['late'] = 0
+		entry['undertime'] = 0
+		entry['is_absent'] = 0
+
+	#Holiday
 	if entry.get('is_holiday'):
-		entry["undertime"] = 0
-		entry["late"] = 0
-		entry["absent"] = 0
+		if entry.get('rate_type') == "Daily Rate":
+			if not entry.get('card_out') and not entry.get('card_in') and not entry.get('is_restday'):
+				entry['is_absent'] = 1
+		else:
+			entry['late'] = 0
+			entry['undertime'] = 0
+			entry['is_absent'] = 0
 
 	if entry.get('lv_status') != 1 and entry.get('ob_status') != 1 and entry.get('hd_halfcard') and not entry.get('is_holiday') and not entry.get('is_restday'):
 		if entry.get('card_in') and not entry.get('card_out'):
