@@ -578,7 +578,7 @@ def get_absent(entry):
 
 	#Holiday
 	if entry.get('is_holiday'):
-		if entry.get('rate_type') = "Daily Rate":
+		if entry.get('rate_type') == "Daily Rate":
 			if not entry.get('card_out') and not entry.get('card_in') and not entry.get('is_restday'):
 				entry['is_absent'] = 1
 		else:
