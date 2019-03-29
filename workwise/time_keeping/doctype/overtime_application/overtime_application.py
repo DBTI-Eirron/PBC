@@ -92,7 +92,6 @@ class OvertimeApplication(Document):
 				self.total_hrs = total_hrs
 
 	def get_autobreak_hrs(self):
-		self.break_hrs = 0.00
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
 		if schedule:
 			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
