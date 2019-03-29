@@ -3,6 +3,14 @@
 
 frappe.ui.form.on('Recurring Entry', {
 	onload: function(frm){
+
+	},
+
+	setup: function(frm) {
+		frm.add_fetch("employee", "full_name", "employee_name");
+	},
+
+	refresh: function(frm) {
 		cur_frm.set_query("transaction_type", function() {
 			return {
 				"filters": {
@@ -11,18 +19,26 @@ frappe.ui.form.on('Recurring Entry', {
 				}
 			};
 		});
+
+		//frm.trigger("set_filter_query");
 	},
 
-	setup: function(frm) {
-		frm.add_fetch("employee", "full_name", "employee_name");
-	},
-
-	refresh: function(frm) {
-
-	},
 
 	filter_type: function(frm) {
 		frm.set_value("filter_value",null)
+		if(frm.doc.filter_type == "Employee") {
+			cur_frm.set_query("filter_value", function() {
+				return {
+					"filters": {
+						"is_active": 1,
+					}
+				};
+			});
+		} else {
+			cur_frm.set_query("filter_value", function() {
+				return {};
+			});			
+		}
 	},
 
 	filter_add: function(frm) {

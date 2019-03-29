@@ -55,55 +55,44 @@ class RecurringEntry(Document):
 			row.update(ue)
 
 	def filter_add(self):
-		cur_user = frappe.session.user
 		if not self.company:
 			frappe.throw(_("Company is Required"))
+
+		clist, conditions = [], ""
+		if frappe.session.user != "Administrator":
+			clist.append("sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)")
+		conditions = "and {}".format(" and ".join(clist)) if clist else ""
 
 		if self.filter_value and self.filter_type:
 			entries = []
 			employees = ""
 			if self.filter_type == 'Employee':
-				if not "Administrator" in frappe.get_roles(cur_user):
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND `name` = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
-						"company": self.company,
-						"filter_value": self.filter_value,
-						"user": frappe.session.user,
-					}, as_dict=True)
-				else:
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND `name` = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
-						"company": self.company,
-						"filter_value": self.filter_value,
-					}, as_dict=True)
+				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  
+						AND `name` = %(filter_value)s AND is_active = 1 {conditions} 
+						ORDER BY last_name, first_name""".format( conditions=conditions ),{ 
+					"company": self.company,
+					"filter_value": self.filter_value,
+					"user": frappe.session.user,
+				}, as_dict=True)
+
 			elif self.filter_type == 'Department':
-				if not "Administrator" in frappe.get_roles(cur_user):
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND department = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
-						"company": self.company,
-						"filter_value": self.filter_value,
-						"user": frappe.session.user,
-					}, as_dict=True)
-				else:
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND department = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
-						"company": self.company,
-						"filter_value": self.filter_value,
-					}, as_dict=True)
+				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  
+						AND department = %(filter_value)s {conditions} 
+						ORDER BY last_name, first_name""".format( conditions=conditions ),{ 
+					"company": self.company,
+					"filter_value": self.filter_value,
+					"user": frappe.session.user,
+				}, as_dict=True)
+
 			elif self.filter_type == 'Location':
-				if not "Administrator" in frappe.get_roles(cur_user):
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND location = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
-						"company": self.company,
-						"filter_value": self.filter_value,
-					}, as_dict=True)
-				else:
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND location = %(filter_value)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
-						"company": self.company,
-						"filter_value": self.filter_value,
-						"user": frappe.session.user,
-					}, as_dict=True)
+				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  
+						AND location = %(filter_value)s {conditions} 
+						ORDER BY last_name, first_name""".format( conditions=conditions ),{  
+					"company": self.company,
+					"filter_value": self.filter_value,
+					"user": frappe.session.user,
+				}, as_dict=True)
+
 			
 			if employees:
 				for d in employees:
@@ -127,20 +116,18 @@ class RecurringEntry(Document):
 		if self.company:
 			entries = []
 			employees = ""
-			cur_user = frappe.session.user
+
+			clist, conditions = [], ""
+			if frappe.session.user != "Administrator":
+				clist.append("sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)")
+			conditions = "and {}".format(" and ".join(clist)) if clist else ""
+
 			if self.company:
-				if not "Administrator" in frappe.get_roles(cur_user):
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) ORDER BY last_name, first_name""",{ 
+				employees = frappe.db.sql(""" SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s {conditions} 
+					ORDER BY last_name, first_name """.format( conditions=conditions ),{ 
 					"company": self.company,
 					"filter_value": self.filter_value,
 					"user": frappe.session.user,
-				}, as_dict=True)
-				else:
-					employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s AND sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
-												INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY last_name, first_name""",{ 
-					"company": self.company,
-					"filter_value": self.filter_value,
 				}, as_dict=True)
 				
 			if employees:

@@ -30,6 +30,19 @@ frappe.ui.form.on('Batch Entry', {
 
 	filter_type: function(frm) {
 		frm.set_value("filter_value",null)
+		if(frm.doc.filter_type == "Employee") {
+			cur_frm.set_query("filter_value", function() {
+				return {
+					"filters": {
+						"is_active": 1,
+					}
+				};
+			});
+		} else {
+			cur_frm.set_query("filter_value", function() {
+				return {};
+			});			
+		}
 	},
 
 	filter_add: function(frm) {
