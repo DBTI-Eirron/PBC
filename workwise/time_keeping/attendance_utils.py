@@ -570,10 +570,21 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
-	if entry.get('is_restday') or entry.get('is_holiday'):
+	#Restday
+	if entry.get('is_restday'):
 		entry['late'] = 0
 		entry['undertime'] = 0
 		entry['is_absent'] = 0
+
+	#Holiday
+	if entry.get('is_holiday'):
+		if entry.get('rate_type') = "Daily Rate":
+			if not entry.get('card_out') and not entry.get('card_in') and not entry.get('is_restday'):
+				entry['is_absent'] = 1
+		else:
+			entry['late'] = 0
+			entry['undertime'] = 0
+			entry['is_absent'] = 0
 
 	if not entry.get('card_out') and not entry.get('ob_status'):
 		entry['overtime'] = 0
@@ -671,6 +682,11 @@ def get_final_processing(entry):
 			entry['late'] = 0
 			entry['undertime'] = 0
 
+		if entry['work'] < 0 and (entry['late'] > entry['work']  or entry['undertime'] > entry['work']): 
+			entry['late'] = 0
+			entry['undertime'] = 0
+			entry['absent'] = 1
+
 	if not entry.get('is_attendance_base'):
 		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
 		entry["is_absent"] = 0
@@ -678,6 +694,9 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["nightdiff"] = 0
 		entry["overtime"] = 0
+		entry['overtime_nd'] = 0
+		entry['overtime_ex'] = 0
+		entry['ot_list'] = ""
 		entry["undertime"] = 0
 
 	ch_tr=0
@@ -1209,6 +1228,7 @@ def get_defaults(emp, sched, shift_map):
 		"company": emp.company,
 		"location": emp.location,
 		"department": emp.department,
+		"rate_type": emp.rate_type,
 		"worker_hrs": emp.no_hours,
 		"worker_secs": (emp.no_hours * 60) * 60,
 		"is_attendance_base": emp.is_attendance_base,

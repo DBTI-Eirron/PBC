@@ -213,7 +213,7 @@ def get_data(filters):
 
 def get_employees(filters, schedule):
 	register = frappe.db.sql("""SELECT `name`, full_name FROM `tabEmployee` 
-		WHERE company = %(company)s {conditions}""".format(conditions=get_conditions(filters, schedule)), filters, as_dict=1)
+		WHERE company = %(company)s {conditions} ORDER BY full_name""".format(conditions=get_conditions(filters, schedule)), filters, as_dict=1)
 
 	return register
 

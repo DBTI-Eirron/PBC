@@ -148,7 +148,8 @@ def validate_filters(filters):
 		frappe.throw("Filter Time Options is Required")
 
 def get_employees(filters):
-	employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location, department, is_attendance_base, no_hours FROM tabEmployee WHERE `name` = %(employee)s
+	employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, rate_type,
+		location, department, is_attendance_base, no_hours FROM tabEmployee WHERE `name` = %(employee)s
 		AND is_active = 1 LIMIT 1 """,{ 
 			"employee": filters.employee
 		}, as_dict=True)
