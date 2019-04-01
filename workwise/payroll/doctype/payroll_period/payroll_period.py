@@ -73,7 +73,10 @@ class PayrollPeriod(Document):
 				frappe.throw("Days Should not be Greater than 7 days for Weekly Period")
 	
 	def remove_payslips(self):
-
+		frappe.db.sql(""" DELETE FROM `tabMy Payslip` WHERE payroll_period = %(period)s """,{ 
+				"period": self.name,
+			}, as_dict=True)
+		frappe.db.commit()		
 		log = frappe.new_doc("Payroll Process Logs")
 		log.update({
 			"user_id": frappe.session.user, 
