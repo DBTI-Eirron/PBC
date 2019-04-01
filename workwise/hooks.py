@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from . import __version__ as app_version
 
 app_name = "Workwise"
-app_title = "HRP Core"
+app_title = "Payroll Timekeeping Core"
 app_publisher = "HDI Systech"
 app_description = "HRIS"
 app_icon = "octicon octicon-book"
