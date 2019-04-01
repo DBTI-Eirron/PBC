@@ -305,8 +305,18 @@ class PayrollProcessing(Document):
 
 				if self.schedule == "Weekly":
 					if emp.get('sss_mode') == "ME Table":
-						if emp.get('sss_freq') == 'Both' and (self.frequency == '2nd' or self.frequency == '4th') :
-							target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+						if emp.get('sss_freq') == 'Both':
+							if cint(header.get("no_weeks")) == cint(5):
+								if self.frequency in ["2nd", "5th"]:
+									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+								else:
+									target_amt = 0
+									
+							elif cint(header.get("no_weeks")) == cint(4):
+								if self.frequency in ["2nd", "4th"]:
+									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+								else:
+									target_amt = 0
 					else:
 						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
  
@@ -348,8 +358,18 @@ class PayrollProcessing(Document):
 
 				if self.schedule == "Weekly":
 					if emp.get('phic_mode') == "ME Table":
-						if emp.get('phic_freq') == 'Both' and (self.frequency == '2nd' or self.frequency == '4th') :
-							target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+						if emp.get('phic_freq') == 'Both':
+							if cint(header.get("no_weeks")) == cint(5):
+								if self.frequency in ["2nd", "5th"]:
+									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+								else:
+									target_amt = 0
+									
+							elif cint(header.get("no_weeks")) == cint(4):
+								if self.frequency in ["2nd", "4th"]:
+									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+								else:
+									target_amt = 0
 					else:
 						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
 
@@ -363,7 +383,7 @@ class PayrollProcessing(Document):
 					elif emp.get('phic_freq') == 'Both' or emp.get('phic_freq') == '1st':
 						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
-				if mode != "None":
+				if mode != "None" and target_amt:
 					phic, phice = 0, 0
 					if target_amt < 10000:
 						phic = manual if mode == "Manual" and manual > 137.50 else 137.50
@@ -401,8 +421,18 @@ class PayrollProcessing(Document):
 
 				if self.schedule == "Weekly":
 					if emp.get('hdmf_mode') == "ME Table":
-						if emp.get('hdmf_freq') == 'Both' and (self.frequency == '2nd' or self.frequency == '4th') :
-							target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+						if emp.get('hdmf_freq') == 'Both':
+							if cint(header.get("no_weeks")) == cint(5):
+								if self.frequency in ["2nd", "5th"]:
+									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+								else:
+									target_amt = 0
+									
+							elif cint(header.get("no_weeks")) == cint(4):
+								if self.frequency in ["2nd", "4th"]:
+									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+								else:
+									target_amt = 0
 
 					else:
 						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('hdmf_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
@@ -487,13 +517,13 @@ class PayrollProcessing(Document):
 					amt = 0
 					if rec.frequency == 'Both':
 						if emp.get('payroll_schedule') == "Weekly":
-							if header.get("no_weeks") == 5:
+							if cint(header.get("no_weeks")) == cint(5):
 								if self.frequency in ["2nd", "5th"]:
 									amt = flt(rec.amount, 8) / 2
 								else:
 									amt = 0
 									
-							elif header.get("no_weeks") == 4:
+							elif cint(header.get("no_weeks")) == cint(4):
 								if self.frequency in ["2nd", "4th"]:
 									amt = flt(rec.amount, 8) / 2
 								else:
