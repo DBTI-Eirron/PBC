@@ -126,7 +126,7 @@ class LeaveApplication(Document):
 				if emp_bday:
 					for d in self.get('leave_application_table'):
 						emp_bday = datetime.datetime.strptime(str(emp_bday), '%Y-%m-%d')
-						from_date = datetime.datetime.strptime(d.target_date, '%Y-%m-%d')
+						from_date = datetime.datetime.strptime(d.leave_date, '%Y-%m-%d')
 						if emp_bday.strftime('%m-%d') != from_date.strftime('%m-%d'):
 							frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file Birthday Leave on your birthday").format(self.name))
 
