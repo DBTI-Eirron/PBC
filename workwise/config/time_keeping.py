@@ -32,6 +32,10 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Leave Balance Setup",
+				},
+				{
+					"type": "doctype",
 					"name": "Overtime",
 				},
 			]
