@@ -38,9 +38,13 @@ class Employee(Document):
 		self.create_user()
 		self.validate_is_qualified_dependent()
 		self.validate_employee_approvers()
-		self.employee_to_subordinate()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
+		if not self.is_new():
+			self.employee_to_subordinate()
+
+	def after_insert(self):
+		self.employee_to_subordinate()
 			
 	def on_update(self):
 		if self.user_id:
