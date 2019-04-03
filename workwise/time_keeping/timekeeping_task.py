@@ -1,16 +1,7 @@
-# -*- coding: utf-8 -*-
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
 from __future__ import unicode_literals
-import frappe
-from frappe.utils import datediff, nowdate, format_date, add_days
+import frappe, datetime, math
+from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
+from frappe import _
 
-def auto_timecard(self):
-	pr = frappe.new_doc("Payroll Register")
-	pr.update({
-		"date": "2018-02-15",
-		"time": "08:00:00",
-		"biometrics_id": 7777,
-		"card_type": 7,
-	})
-	pr.insert()
+def get_scheduler():
+	pass
