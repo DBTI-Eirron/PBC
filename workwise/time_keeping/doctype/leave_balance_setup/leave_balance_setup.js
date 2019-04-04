@@ -4,5 +4,9 @@
 frappe.ui.form.on('Leave Balance Setup', {
 	refresh: function(frm) {
 
-	}
+	},
+
+	setup: function(frm) {
+		frm.add_fetch("employee", "full_name", "employee_name");
+	},
 });
