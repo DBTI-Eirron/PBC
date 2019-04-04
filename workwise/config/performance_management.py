@@ -11,15 +11,10 @@ def get_data():
 					"name": "Appraisal",
 					"description": _("Appraisal"),
 				},
-			]
-		},
-		{
-		"label": _("Performance Planning"),
-			"items": [
 				{
 					"type": "doctype",
-					"name": "Target Setting",
-					"description": _("Target Setting"),
+					"name": "Appraisal Period",
+					"description": _("Appraisal Period"),
 				},
 			]
 		},
