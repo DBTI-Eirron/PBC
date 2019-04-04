@@ -16,16 +16,16 @@ class LeaveBalanceSetup(Document):
 		unique = []
 		entries = []
 		for d in self.balance_schedules:
-			unique_name = _(cstr(d.leave_type)+"-"+cstr(d.every))
+			unique_name = _(cstr(d.leave_type)+"-"+cstr(d.trigger_on))
 			if unique_name not in unique:
 				unique.append(unique_name)
 				entries.append({
 					"leave_type": d.leave_type,
-					"every": d.every,
+					"trigger_on": d.trigger_on,
 					"credits": d.credits
 				});
 			else:
-				frappe.msgprint(_("Duplicate Schedule Removed {0} {1} ").format(d.leave_type, d.every))
+				frappe.msgprint(_("Duplicate Schedule Removed {0} {1} ").format(d.leave_type, d.trigger_on))
 
 		self.set('balance_schedules', [])
 		for e in entries:
