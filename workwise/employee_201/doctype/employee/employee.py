@@ -215,7 +215,6 @@ class Employee(Document):
 	def employee_to_subordinate(self):
 		sub_list = []
 		cur_sub_list = []
-		conditions = ""
 
 		if self.approvers:
 			for d in self.get("approvers"):
