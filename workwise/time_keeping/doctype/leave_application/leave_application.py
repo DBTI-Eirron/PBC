@@ -40,7 +40,8 @@ class LeaveApplication(Document):
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
 		get_levelled_approval_rejection(self)
-		frappe.db.sql("""DELETE FROM `tabLB Entry` WHERE linked_leave = %s """, (self.name))
+		frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits - %s 
+			WHERE name = %s """, (self.total_leave_days, self.from_balance))
 
 	def get_recipients(self):
 		recipients = []
@@ -66,6 +67,10 @@ class LeaveApplication(Document):
 					if shifts[0].is_restday > 0:
 						if not leave_code == 'BL':
 							frappe.throw("Can't file leave on Restday Schedule")
+
+	def update_leave_credits(self):
+		frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits + %s 
+			WHERE name = %s """, (self.total_leave_days, self.from_balance))
 
 	def validate_leave(self):
 		max_days, filing_days = frappe.get_value("Leave Type", self.leave_type, ["max_days", "filing_days"])
@@ -127,7 +132,7 @@ class LeaveApplication(Document):
 
 	def validate_days(self):
 		self.total_leave_days = self.get_total_leave_days()
-		self.leave_balance, min_date = self.get_leave_balance()
+		self.leave_balance = self.get_leave_balance()
 
 	def chk_holiday(self, target_date):
 		holiday_tag  = 0
@@ -212,6 +217,16 @@ class LeaveApplication(Document):
 		#for en in entries:
 		#	if getdate(en) not in dates:
 		#		frappe.throw(_("{0} is not within {1} to {2}").format(en, self.from_date, self.to_date))
+
+	def validate_balance(self):
+		allow_negative = frappe.get_value("Leave Type", self.leave_type, "is_allow_negative")
+		if allow_negative < 1:
+			total_balance = flt(self.leave_balance, 2) - flt(self.total_leave_days, 2)
+			if total_balance < 0 and not self.is_lwop:
+				frappe.throw(_("<b>Leave Application: {0}</b><hr> Not enough Leave Credits {1}").format(self.name, self.total_leave_days))
+			
+			if not self.from_balance:
+				frappe.throw(_("<b>Leave Application: {0}</b><hr> Leave Balance is Required").format(self.name))
 
 	def validate_date(self):
 		if self.from_date > self.to_date:
@@ -303,68 +318,32 @@ class LeaveApplication(Document):
 				row = self.append('leave_application_table', {})
 				row.update(d)
 			
-			total_balance, min_date = self.get_leave_balance()
+			total_balance = self.get_leave_balance()
 
-		self.leave_balance = total_balance
+		self.leave_balance = self.get_leave_balance()
 		self.total_leave_days = self.get_total_leave_days()
 
 	def get_leave_balance(self):
-		add, less, total_balance = 0, 0, 0
-		min_date = None
-		deduct_to = frappe.get_value("Leave Type", self.leave_type, "deduct_to")
-		if not deduct_to:
-			deduct_to = self.leave_type
-		
-		bl_entries = frappe.db.sql(""" SELECT employee, employee_name, btype, leave_type, 
-			earned_date, valid_from, valid_to, credits FROM `tabLB Entry` WHERE employee = %s AND leave_type = %s 
-			AND (%s BETWEEN valid_from AND valid_to) AND (%s BETWEEN valid_from AND valid_to) 
-			ORDER BY valid_from ASC """, (self.employee, deduct_to, self.from_date, self.to_date), as_dict=True)
+		self.from_balance = ""
+		total_balance = 0
+		deduct_balance = ""
 
-		for d in bl_entries:
-			if not min_date:
-				min_date = getdate(d.valid_from)
+		deduct = frappe.db.sql(""" SELECT `name`, `deduct_to` FROM `tabLeave Type` LT WHERE `name` = %s LIMIT 1 """, (self.leave_type), as_dict=True)
+
+		if deduct:
+			if deduct[0].deduct_to:
+				deduct_balance = deduct[0].deduct_to
 			else:
-				if getdate(d.valid_from) < min_date:
-					min_date = getdate(d.valid_from)
+				deduct_balance = deduct[0].name
 
-			if d.btype == "Add":
-				add += flt(d.credits)
-			else:
-				less += flt(d.credits)
+		bal = frappe.db.sql("""SELECT `name`, credits, used_credits, from_date, to_date FROM `tabLeave Balance` WHERE employee = %s 
+			AND leave_type = %s AND (%s BETWEEN from_date AND to_date) AND (%s BETWEEN from_date AND to_date) """, (self.employee, deduct_balance, self.from_date, self.to_date), as_dict=True)
 
-		#frappe.throw(_("{0} {1} {2}").format(add,less, min_date))
-		total_balance = (add - less)
-		return total_balance, min_date
+		if bal:
+			total_balance = flt(bal[0]['credits'], 2) - flt( bal[0]['used_credits'], 2)
+			self.from_balance = bal[0]['name']
 
-	def validate_balance(self):
-		allow_negative = frappe.get_value("Leave Type", self.leave_type, "is_allow_negative")
-		balance, min_date = self.get_leave_balance() 
-		if allow_negative < 1:
-			total_balance = flt(balance, 2) - flt(self.total_leave_days, 2)
-			if total_balance < 0 and not self.is_lwop:
-				frappe.throw(_("<b>Leave Application: {0}</b><hr> Not enough Leave Credits {1}").format(self.name, self.total_leave_days))
-
-	def update_leave_credits(self):
-		total_balance, min_date = self.get_leave_balance()
-
-		lb_year = getdate(self.from_date).strftime("%Y")
-		valid_to = getdate(_(""+lb_year+"-12-31"))
-		lb = frappe.new_doc("LB Entry")
-		lb.update({
-			"employee": self.employee,
-			"employee_name": self.full_name,
-			"leave_type": self.leave_type,
-			"btype": "Less",
-			"bfrom": "Leave Application",
-			"earned_date": getdate(min_date),
-			"valid_from": getdate(self.from_date),
-			"valid_to": valid_to,
-			"use_from": getdate(self.from_date),
-			"use_to": getdate(self.to_date),
-			"credits": flt(self.total_leave_days),
-			"linked_leave": self.name,
-		})
-		lb.insert()
+		return total_balance
 
 @frappe.whitelist()
 def get_number_of_leave_days(from_date, to_date, half_day=None):
