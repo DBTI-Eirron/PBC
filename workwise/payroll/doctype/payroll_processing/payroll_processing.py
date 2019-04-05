@@ -227,6 +227,7 @@ class PayrollProcessing(Document):
 					if tr_map[d.get("pay_code")]['is_government']:
 						header['government_basis'] += d.get('amount')
 						if not d.get("pay_code") == "BS":
+							header['govt_income'] += d.get('amount')
 							header['prev_govt_income'] += d.get('amount')
 
 				elif tr_map[d.get("pay_code")]['type'] == 'Deduction':
@@ -240,6 +241,7 @@ class PayrollProcessing(Document):
 
 					if tr_map[d.get("pay_code")]['is_government']:
 						header['government_basis'] -= d.get('amount')
+						header['govt_deduction'] += d.get('amount')
 						header['prev_govt_deduction'] += d.get('amount')
 	
 	def calculate_special_header(self, d, header, tr_map):
@@ -377,12 +379,12 @@ class PayrollProcessing(Document):
 				else:
 					if emp.get('phic_freq') == '2nd':
 						if emp.get('payroll_schedule') == "Semi-Monthly":
-							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
+							target_amt = rates.get('monthly_rate')
 						elif emp.get('payroll_schedule') == "Monthly":
-							target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+							target_amt = rates.get('monthly_rate')
 
 					elif emp.get('phic_freq') == 'Both' or emp.get('phic_freq') == '1st':
-						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+						target_amt = rates.get('monthly_rate')
 
 				if mode != "None" and target_amt:
 					phic, phice = 0, 0
@@ -441,14 +443,14 @@ class PayrollProcessing(Document):
 				else:
 					if emp.get('hdmf_freq') == '2nd':
 						if emp.get('payroll_schedule') == "Semi-Monthly":
-							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
+							target_amt = rates.get('monthly_rate')
 						
 						elif emp.get('payroll_schedule') == "Monthly":
-							target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
+							target_amt = rates.get('monthly_rate') 
 
 					elif emp.get('hdmf_freq') == 'Both' or emp.get('hdmf_freq') == '1st':
-						target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
-
+						target_amt = rates.get('monthly_rate')
+						
 				hdmf, hdmfe = get_hdmf_amount(target_amt, hdmf_table)
 				if emp.get('hdmf_mode') == "Manual":
 					hdmfm = flt(emp.get("hdmf_manual"), 8) - hdmf
