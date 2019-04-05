@@ -89,7 +89,6 @@ def execute(filters=None):
 			f_total_income += flt(dtotal_income, 2)
 			f_total_deduction += flt(dtotal_deduction, 2)
 			f_total_payroll += flt(dtotal_payroll, 2)
-
 			data.append(total_row)
 
 	#Final Total
@@ -104,8 +103,18 @@ def execute(filters=None):
 			i += 1
 		final_total_row += ['{:,.2f}'.format(f_total_income), '{:,.2f}'.format(f_total_deduction), '{:,.2f}'.format(f_total_payroll)]
 		data.append("")
+		max_range = len(final_total_row)
+		idx = 0
+		for x in xrange(0,max_range):
+			if final_total_row[idx] == '0.00':
+				del final_total_row[idx]
+				del columns[idx]
+				for d in data:
+					if len(d) > 1:
+						del d[idx]
+			else:
+				idx += 1
 		data.append(final_total_row)
-
 	return columns, data
 
 def validate_filters(filters):

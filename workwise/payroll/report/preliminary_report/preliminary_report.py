@@ -73,8 +73,19 @@ def execute(filters=None):
 		i += 1
 
 	total_row += ['{:,.2f}'.format(dtotal_income), '{:,.2f}'.format(dtotal_deduction), '{:,.2f}'.format(dtotal_payroll)]
+	max_range = len(total_row)
+	idx = 0
+	for x in xrange(0,max_range):
+		if total_row[idx] == '0.00':
+			del total_row[idx]
+			del columns[idx]
+			for d in data:
+				del d[idx]
+		else:
+			idx += 1
+	# # frappe.throw(_(total_row[idx]))
+	# frappe.throw(_(total_row))
 	data.append(total_row)
-
 	return columns, data
 
 def validate_filters(filters):

@@ -11,7 +11,7 @@ def execute(filters=None):
 	validate_filters(filters)
 
 	employee_list = get_employees(filters)
-	columns, income_types, deduction_types = get_columns(employee_list)
+	columns, income_types, deduction_types = get_columns(filters,employee_list)
 
 	if not employee_list:
 		msgprint(_("No record found"))
@@ -62,15 +62,39 @@ def execute(filters=None):
 			dtotal_payroll += total_payroll
 			data.append(row)
 
-		i = 0
-		for income in income_types:
-			total_row.append('{:,.2f}'.format(income_total[i]))
-			i += 1
+		# i = 0
+		# for income in income_types:
+		# 	total_row.append('{:,.2f}'.format(income_total[i]))
+		# 	i += 1
+
+		# i = 0
+		# for deduction in deduction_types:
+		# 	total_row.append('{:,.2f}'.format(deduction_total[i]))
+		# 	i += 1
 
 		i = 0
+		for income in income_types:
+			if income_total[i] >= 1:
+				total_row.append('{:,.2f}'.format(income_total[i]))
+				i += 1
+			else:
+				del columns[i+2]
+				del income_total[i]
+				for d in data:
+					del d[i+2]
+					
+		inlen = i
+		i = 0
 		for deduction in deduction_types:
-			total_row.append('{:,.2f}'.format(deduction_total[i]))
-			i += 1
+			if deduction_total[i] >= 1:
+				total_row.append('{:,.2f}'.format(deduction_total[i]))
+				i += 1
+			else:
+				del columns[i+inlen+2]
+				del deduction_total[i]
+				for d in data:
+					del d[i+inlen+2]
+
 
 		total_row += ['{:,.2f}'.format(dtotal_income), '{:,.2f}'.format(dtotal_deduction), '{:,.2f}'.format(dtotal_payroll)]
 		data.append(total_row)
@@ -88,7 +112,7 @@ def validate_filters(filters):
 		if emp_company != filters.company:
 			frappe.throw(_("Employee {0} Does not belong to company {1}").format(filters.employee, filters.company))
 
-def get_columns(employee_list):
+def get_columns(filters,employee_list):
 	columns = [
 		{
 			"fieldname": "employee",
@@ -112,7 +136,7 @@ def get_columns(employee_list):
 		FROM `tabTransaction Type` WHERE `type` = 'Deduction' ORDER BY sort""")
 
 	if employee_list:
-		for pay_code in income_types:
+		for pay_code in income_types:	
 			pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
 			columns.append({			
 				"fieldname": pay_code,
