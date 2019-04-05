@@ -81,3 +81,57 @@ def datetimediff_hrs(tm_time1, tm_time2, tm_format):
 	diff = time1 - time2
 	time_diff = abs(diff.total_seconds() / 3600)
 	return time_diff
+
+#bench execute --args "'2019-01-01', '2019-12-31', 'EMP001', 'Sick Leave', 0, 3" workwise.time_keeping.timekeeping_utils.create_leave_credits
+def create_leave_credits(from_date, to_date, employee, leave_type, less, credits):
+	employee_name = frappe.db.get_value("Employee", employee, "full_name")
+	if to_date:
+		valid_to = getdate(to_date)
+	else:
+		lb_year = getdate(target_date).strftime("%Y")
+		valid_to = getdate(_(""+lb_year+"-12-31"))
+	
+	if less == 1:
+		btype = "Less"
+	else:
+		btype = "Add"
+
+	lb = frappe.new_doc("LB Entry")
+	lb.update({
+		"employee": employee,
+		"employee_name": employee_name,
+		"leave_type": leave_type,
+		"btype": btype,
+		"bfrom": "Execute Script",
+		"earned_date": getdate(from_date),
+		"valid_from": getdate(from_date),
+		"valid_to": valid_to,
+		"credits": flt(credits),
+	})
+	lb.insert()
+
+#bench execute --args "'EMP001', 'Sick Leave', 2,'2019-03-13', '2019-03-14'" workwise.time_keeping.timekeeping_utils.show_balance
+def show_balance(employee, leave_type, deduct, from_date, to_date):
+	from_balance = ""
+	add, less, total_balance = 0, 0, 0
+
+	deduct_to = frappe.get_value("Leave Type", leave_type, "deduct_to")
+	if not deduct_to:
+		deduct_to = leave_type
+	
+	bl_entries = frappe.db.sql(""" SELECT employee, employee_name, btype, leave_type, 
+		earned_date, valid_from, valid_to, credits
+		FROM `tabLB Entry` WHERE employee = %s AND leave_type = %s 
+		AND (%s BETWEEN valid_from AND valid_to) AND (%s BETWEEN valid_from AND valid_to) 
+		ORDER BY earned_date """, (employee, deduct_to, from_date, to_date), as_dict=True)
+
+	for d in bl_entries:
+		if d.btype == "Add":
+			total_balance += flt(d.credits)
+		else:
+			total_balance -= flt(d.credits)
+
+	total_balance = total_balance - flt(deduct)
+
+	total_balance
+	print(_(total_balance))

@@ -1,16 +1,29 @@
-# -*- coding: utf-8 -*-
-# Copyright (c) 2015, Frappe Technologies Pvt. Ltd. and contributors
-# For license information, please see license.txt
 from __future__ import unicode_literals
-import frappe
-from frappe.utils import datediff, nowdate, format_date, add_days
+import frappe, datetime, math
+from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
+from frappe import _
 
-def auto_timecard(self):
-	pr = frappe.new_doc("Payroll Register")
-	pr.update({
-		"date": "2018-02-15",
-		"time": "08:00:00",
-		"biometrics_id": 7777,
-		"card_type": 7,
-	})
-	pr.insert()
+def get_scheduler():
+	pass
+
+def leave_balance_monthly():
+	balance_scheds = frappe.db.sql(""" SELECT LB.employee, LB.employee_name, LBS.leave_type, LBS.trigger_on, LBS.credits 
+		FROM `tabLeave Balance Setup` LB 
+		INNER JOIN `tabLeave Balance Schedule` LBS ON LBS.`parent` = LB.`name` WHERE LBS.trigger_on = 'Every Month' """, as_dict=1)
+
+	now_date = nowdate()
+	year_end =getdate(datetime.date(datetime.date.today().year, 12, 31))
+	for d in balance_scheds:
+		lb = frappe.new_doc("LB Entry")
+		lb.update({
+			"employee": d.employee,
+			"employee_name": d.employee_name,
+			"leave_type": d.leave_type,
+			"btype": "Add",
+			"bfrom": "Schedule Monthly",
+			"earned_date": now_date,
+			"valid_from": now_date,
+			"valid_to": year_end,
+			"credits": d.credits
+		})
+		lb.insert()
