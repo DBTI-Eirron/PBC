@@ -16,7 +16,7 @@ class PayrollProcessing(Document):
 	def get_employees(self):
 		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
 			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-			whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
+			whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold, sensitivity
 				FROM tabEmployee
 			WHERE company = %(company)s
 			AND payroll_schedule = %(pay_sched)s 
@@ -113,6 +113,7 @@ class PayrollProcessing(Document):
 					'process_date': nowdate(),
 					'period': self.period,
 					'weekly_set': weekly_set,
+					'sensitivity': emp.sensitivity,
 					'no_weeks': no_weeks,
 					'schedule': self.schedule,
 					'frequency': self.frequency,
