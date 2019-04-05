@@ -136,5 +136,6 @@ class DTRProblemApplication(Document):
 			"time": str(req.request)
 		})
 
+		new_timecard.flags.ignore_permissions = True
 		new_timecard.insert()
 		new_timecard.save()
