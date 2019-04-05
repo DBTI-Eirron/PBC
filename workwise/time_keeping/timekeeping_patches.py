@@ -16,20 +16,15 @@ def update_approved_on_and_by():
 			frappe.db.commit()
 
 def update_old_change_schedule_application():
-	application_list = frappe.db.sql(""" SELECT `name`, old_shift, new_shift, target_date, new_time_in, new_time_out FROM `tabChange Request Application` WHERE docstatus = 1; """, as_dict=1)
+	application_list = frappe.db.sql(""" SELECT `name`, old_shift, new_shift, target_date, new_time_in, new_time_out FROM `tabChange Schedule Application` WHERE docstatus = 1; """, as_dict=1)
 	existing_list = frappe.db.sql(""" SELECT `parent` FROM `tabChange Schedule Application Table` GROUP BY `parent`; """, as_list=1)
 
 	for app in application_list:
 		if app.name not in existing_list:
-			csa = frappe.new_doc("Change Schedule Application")
-			csa.append('change_list',{
-			  	"target_date": app.target_date,
-		        "current_shift": app.old_shift,
-		        "new_shift": app.new_shift,
-		        "time_in": app.new_time_in,
-		        "time_out": app.new_time_out,
-			})
-			csa.save()
+			frappe.db.sql(""" INSERT INTO `tabChange Schedule Application Table` 
+				( `name`, `creation`,`modified`,`owner`,docstatus,`parent`,`parentfield`,`parenttype`,`idx`,`time_in`,`time_out`,`new_shift`,`current_shift`,`target_date`) VALUES
+				(  lpad(conv(floor(rand()*pow(36,6)), 10, 36), 10, 0),  NOW(), NOW(), 'Administrator', 1, %s, 'change_list', 'Change Schedule Application', 1, %s, %s, %s, %s, %s) """,( app.name, app.new_time_in, app.new_time_out, app.new_shift, app.old_shift, app.target_date ))
+			frappe.db.commit()
 
 def oba_update_table():
 	frappe.db.sql("""UPDATE `tabOfficial Business Application Table` SET travel_time = travel_time, hrs = hrs, target_date = target_date, `date` = `target_date`, from_time = from_time, to_time = to_time, is_holiday = is_holiday, is_excluded = is_excluded, is_previous = 0 WHERE `date` IS NULL AND docstatus != 2 """)
