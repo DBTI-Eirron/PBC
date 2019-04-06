@@ -58,12 +58,14 @@ def get_employees(filters):
 	from_date, to_date = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT DISTINCT PE.employee, PE.employee_name
-			FROM `tabBatch Entry` PR JOIN `tabBatch Entry Employees` PE ON PR.`name` = PE.parent JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
-			WHERE PR.transaction_type = "13TH_BONUS" 
-			AND PR.company = %(company)s 
-			AND PR.period IN (SELECT `name` FROM `tabPayroll Period` WHERE payroll_date >= %(from_date)s AND payroll_date <= %(to_date)s)
-			AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) """, { 
+		employees = frappe.db.sql("""SELECT DISTINCT BE.employee, BE.employee_name FROM `tabBatch Entry` BAT
+			INNER JOIN `tabBatch Entry Employees` BE ON BAT.`name` = BE.parent 
+			INNER JOIN `tabEmployee` EMP ON BE.employee = EMP.`name` 
+			WHERE BAT.transaction_type = "13TH_BONUS"
+			AND BAT.company = %(company)s
+			AND BAT.period IN (SELECT `name` FROM `tabPayroll Period` WHERE payroll_date >= %(from_date)s AND payroll_date <= %(to_date)s)
+			AND EMP.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` 
+			WHERE SU.allow_user = %(user)s)""", { 
 				"from_date": from_date,
 				"to_date": to_date,
 				"company": filters.company,
