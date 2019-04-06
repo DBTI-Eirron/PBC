@@ -190,7 +190,7 @@ class LastPayEntry(Document):
 
 	def get_loan(self, employee ,register, entry):
 		total = 0
-		loans = frappe.db.sql(""" SELECT * FROM `tabLoan Application` WHERE employee = %(employee)s """,{ 
+		loans = frappe.db.sql(""" SELECT * FROM `tabLoan Application` WHERE employee = %(employee)s AND docstatus = 1 """,{ 
 			"employee": self.employee,
 		}, as_dict=True)
 
