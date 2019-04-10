@@ -326,8 +326,11 @@ class PayrollProcessing(Document):
 				else:
 					if emp.get('sss_freq') == '2nd':
 						if emp.get('payroll_schedule') == "Semi-Monthly":
-							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
-						
+							if emp.get('rate_type') == "Daily Rate":
+								target_amt = flt(header.get('previous_government_basis')) + flt(header.get('government_basis'))
+							else:
+								target_amt = (rates.get('monthly_rate') + flt(header.get('prev_govt_income'), 8)) - flt(header.get('prev_govt_deduction'), 8)
+							
 						elif emp.get('payroll_schedule') == "Monthly":
 							target_amt = (rates.get('monthly_rate') + flt(header.get('govt_income'), 8)) - flt(header.get('govt_deduction'), 8)
 
