@@ -13,12 +13,13 @@ class EmployeeSubordinates(Document):
 		if self.employee:
 			user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 			if user_id:
-				self.remove_all_permissions()
 				for d in self.get("subordinates"):
-					frappe.permissions.add_user_permission("Employee", d.subordinate, user_id)
+					exists = frappe.db.sql(""" SELECT `name`, for_value FROM `tabUser Permission` WHERE `allow` = 'Employee' AND `user` = %s AND `for_value` = %s  """, (user_id, d.subordinate), as_dict=1)
+					if not exists:
+						frappe.permissions.add_user_permission("Employee", d.subordinate, user_id)
 				frappe.cache().delete_value('user_permissions')
 			else:
-				frappe.throw(_("This Employee has no User ID."))
+				frappe.throw(_("Employee {0} has no User ID.").format(self.employee))
 
 	def remove_all_permissions(self):
 		user_id = frappe.db.get_value("Employee", self.employee, "user_id")
@@ -29,7 +30,7 @@ class EmployeeSubordinates(Document):
 					frappe.permissions.remove_user_permission("Employee", d.for_value, user_id)
 				frappe.cache().delete_value('user_permissions')
 		else:
-			frappe.throw(_("This Employee has no User ID."))
+			frappe.throw(_("Employee {0} has no User ID.").format(self.employee))
 
 	def on_trash(self):
 		self.remove_all_permissions()
