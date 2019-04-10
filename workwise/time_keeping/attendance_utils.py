@@ -191,7 +191,11 @@ def get_overtime(entry, ot_apps):
 				
 				#get Card Out if Straight OT
 				if ot_out and entry.get('straight_ot'):
-					entry['card_out'] = ot_out
+					if entry['card_out']:
+						if ot_out > entry['card_out']:
+							entry['card_out'] = ot_out
+					else: 
+						entry['card_out'] = ot_out
 
 				#get OT Start based from interval
 				if entry.get('ot_start_delay'):
