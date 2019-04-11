@@ -191,7 +191,11 @@ def get_overtime(entry, ot_apps):
 				
 				#get Card Out if Straight OT
 				if ot_out and entry.get('straight_ot'):
-					entry['card_out'] = ot_out
+					if entry['card_out']:
+						if ot_out > entry['card_out']:
+							entry['card_out'] = ot_out
+					else: 
+						entry['card_out'] = ot_out
 
 				#get OT Start based from interval
 				if entry.get('ot_start_delay'):
@@ -708,6 +712,11 @@ def get_final_processing(entry):
 		entry["is_halfday"] = 0
 		entry['work'] = 0
 		entry["is_absent"] = 1
+
+	#if OB stat covers wholeday and leave status is halfday
+	if entry.get('ob_stat')  == 1 and entry.get('lv_status') > 1:
+		entry["is_absent"] = 0
+		entry["is_halfday"] = 0
 
 	strict_card = flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_nocard'), 8)	
 	if entry.get('lv_status') != 1 and not entry.get('card_out') and strict_card:
