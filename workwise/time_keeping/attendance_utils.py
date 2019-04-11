@@ -713,6 +713,11 @@ def get_final_processing(entry):
 		entry['work'] = 0
 		entry["is_absent"] = 1
 
+	#if OB stat covers wholeday and leave status is halfday
+	if entry.get('ob_stat')  == 1 and entry.get('lv_status') > 1:
+		entry["is_absent"] = 0
+		entry["is_halfday"] = 0
+
 	strict_card = flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_nocard'), 8)	
 	if entry.get('lv_status') != 1 and not entry.get('card_out') and strict_card:
 		entry['is_absent'] = 1
