@@ -6,6 +6,7 @@ import frappe, datetime, calendar, time
 from frappe.utils import cint, flt, getdate, cstr
 from time import strptime
 from frappe import _, msgprint
+from workwise.payroll.payroll_utils import get_transaction_map
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -88,10 +89,8 @@ def get_data(filters):
 		pay_to = getdate(str(pay_to))
 
 	employee_list = get_employees(filters, pay_from, pay_to)
+	tr_map = get_transaction_map()
 	if employee_list:
-		payreg_code_map = get_payreg_code_map(filters, employee_list)
-		payreg_birtype_map = get_payreg_birtype_map(filters, employee_list)
-
 		total_amount_compensation = 0.00
 		total_holiday_pay = 0.00
 		total_overtime_pay = 0.00
@@ -113,18 +112,48 @@ def get_data(filters):
 			sss_hdmf_phic = 0.00
 			wht = 0.00
 
-			emp_name = emp.employee_name
-			amount_compensation = flt(emp.total_income, 8)
-			holiday_pay = 0.00
-			overtime_pay = flt(payreg_code_map.get(emp.name, {}).get("OT"), 8)
-			month_pay = flt(payreg_birtype_map.get(emp.name, {}).get("13th Month"), 8)
-			de_minimis = flt(payreg_birtype_map.get(emp.name, {}).get("Deminimis"), 8)
-			statutory = flt(payreg_code_map.get(emp.name, {}).get("BS"), 8)
-			taxable_salary = flt(emp.taxable_income, 8)
-			sss_hdmf_phic += flt(payreg_code_map.get(emp.name, {}).get("SSS"), 8)
-			sss_hdmf_phic += flt(payreg_code_map.get(emp.name, {}).get("HDMF"), 8)
-			sss_hdmf_phic += flt(payreg_code_map.get(emp.name, {}).get("PHIC"), 8)
-			wht = flt(payreg_code_map.get(emp.name, {}).get("WHTAX"), 8)
+			salary = frappe.db.sql("""SELECT pr.employee, pr.employee_name, pre.pay_code, pre.amount FROM `tabPayroll Register` pr
+			INNER JOIN `tabPayroll Register Entries` pre ON pre.parent = pr.`name`
+			WHERE  pr.company = %s AND pr.employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(filters.company, emp.name, pay_from, pay_to), as_dict=True)
+
+			for d in salary:
+				bir_type = tr_map[d.get("pay_code")]['bir_type']
+				tr_type = tr_map[d.get("pay_code")]['type']
+				is_taxable = tr_map[d.get("pay_code")]['is_taxable']
+
+				if tr_type != "None":
+					if bir_type == "Overtime" and tr_type == "Income":
+						overtime_pay += d.amount
+					if bir_type == "Overtime" and tr_type == "Deduction":
+						overtime_pay -= d.amount
+					if bir_type == "Holiday" and tr_type == "Income":
+						holiday_pay += d.amount
+					if bir_type == "Holiday" and tr_type == "Deduction":
+						holiday_pay -= d.amount
+					if bir_type == "13th Month" and tr_type == "Income":
+						month_pay += d.amount
+					if bir_type == "13th Month" and tr_type == "Deduction":
+						month_pay -= d.amount
+					if bir_type == "Deminimis" and tr_type == "Income":
+						de_minimis += d.amount
+					if bir_type == "Deminimis" and tr_type == "Deduction":
+						de_minimis -= d.amount
+					if bir_type == "Basic" and tr_type == "Income":
+						statutory += d.amount
+					if bir_type == "Basic" and tr_type == "Deduction":
+						statutory -= d.amount
+					if d.pay_code == "SSS":
+						sss_hdmf_phic += d.amount
+					if d.pay_code == "HDMF":
+						sss_hdmf_phic += d.amount
+					if d.pay_code == "PHIC":
+						sss_hdmf_phic += d.amount
+					if d.pay_code == "WHTAX":
+						wht += d.amount
+
+				emp_name = emp.employee_name
+				amount_compensation = emp.total_income	
+				taxable_salary = emp.taxable_income
 
 			row = {
 				"employee_name": emp_name,
@@ -150,7 +179,7 @@ def get_data(filters):
 			total_sss_hdmf_phic += sss_hdmf_phic
 			total_wht += wht
 
-		row = {
+		total_row = {
 			"employee_name": "",
 			"amount_compensation": '{:,.2f}'.format(total_amount_compensation),
 			"holiday_pay": '{:,.2f}'.format(total_holiday_pay),
@@ -162,7 +191,7 @@ def get_data(filters):
 			"sss_hdmf_phic": '{:,.2f}'.format(total_sss_hdmf_phic),
 			"wht": '{:,.2f}'.format(total_wht),
 		}
-		data.append(row)
+		data.append(total_row)
 
 	return data
 
@@ -197,41 +226,3 @@ def get_employees(filters, pay_from, pay_to):
 			}, as_dict=True)
 
 	return employees
-
-def get_payreg_code_map(filters, employee_list):
-	payreg_code = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
-		FROM `tabPayroll Register` PR 
-		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code` = TT.`name`
-		WHERE PR.employee IN (%s) GROUP BY PRE.`name` """ %
-		', '.join(['%s']*len(employee_list)), tuple([emp.name for emp in employee_list]), as_dict=1)
-
-	payreg_code_map = {}
-	for d in payreg_code:
-		if getdate(filters.from_date) <= getdate(d.posting_date) <= getdate(filters.to_date):
-			payreg_code_map.setdefault(d.employee, frappe._dict()).setdefault(d.pay_code, [])
-			if payreg_code_map[d.employee][d.pay_code]:
-				payreg_code_map[d.employee][d.pay_code] += flt(d.amount, 2)
-			else:
-				payreg_code_map[d.employee][d.pay_code] = flt(d.amount, 2)
-
-	return payreg_code_map
-
-def get_payreg_birtype_map(filters, employee_list):
-	paryreg_birtype = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount, TT.bir_type
-		FROM `tabPayroll Register` PR 
-		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code` = TT.`name`
-		WHERE PR.employee IN (%s) GROUP BY PRE.`name` """ %
-		', '.join(['%s']*len(employee_list)), tuple([emp.name for emp in employee_list]), as_dict=1)
-
-	paryreg_birtype_map = {}
-	for d in paryreg_birtype:
-		if getdate(filters.from_date) <= getdate(d.posting_date) <= getdate(filters.to_date):
-			paryreg_birtype_map.setdefault(d.employee, frappe._dict()).setdefault(d.bir_type, [])
-			if paryreg_birtype_map[d.employee][d.bir_type]:
-				paryreg_birtype_map[d.employee][d.bir_type] += flt(d.amount, 2)
-			else:
-				paryreg_birtype_map[d.employee][d.bir_type] = flt(d.amount, 2)
-
-	return paryreg_birtype_map
