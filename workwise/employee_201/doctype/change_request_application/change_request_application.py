@@ -5,13 +5,14 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
-from frappe.utils import nowdate
+from frappe.utils import nowdate, getdate
 from frappe.model.document import Document
 from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
 
 class ChangeRequestApplication(Document):
 	def validate(self):
 		self.get_request()
+		self.validate_item_format()
 		grant_head_subordinate_access(self)
 		change_owner(self)
 
@@ -40,6 +41,11 @@ class ChangeRequestApplication(Document):
 			for item in item_sel:
 				item_cur = frappe.db.get_value("Employee", self.employee, item.fieldname)
 				item_req.current = item_cur
+
+	def validate_item_format(self):
+		for item_req in self.change_request:
+			if item_req.item == "Birthday":
+				item_req.request = getdate(item_req.request)
 
 	def approve_request(self):
 		for item_req in self.get("change_request"):

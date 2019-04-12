@@ -6,7 +6,13 @@ cur_frm.add_fetch('employee','department','department');
 
 frappe.ui.form.on('Change Request Application', {
 	refresh: function(frm) {
-
+		cur_frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
 	},
 
 	onload: function(frm) {
