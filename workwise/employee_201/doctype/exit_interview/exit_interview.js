@@ -15,6 +15,11 @@ frappe.ui.form.on('Exit Interview', {
 			);
 		}
 	},
+	onload: function(frm) {
+		if (frm.doc.__islocal){
+			frm.set_value("employee", "");
+		}
+	},
 });
 
 workwise.exit_interview.make_movement = function(frm) {
