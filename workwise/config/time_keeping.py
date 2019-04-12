@@ -223,6 +223,12 @@ def get_data():
 					"doctype": "Attendance Register",	
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "DTR Problem Summary Report",
+					"doctype": "DTR Problem Application",
+					"is_query_report": True
+				},
 			],
 		},	
 	]
