@@ -147,5 +147,7 @@ class OvertimeApplication(Document):
 				cur_from = datetime.datetime.strptime(str(self.from_date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S')
 				cur_to = datetime.datetime.strptime(str(self.to_date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S')
 
-				if existing_ot_from <= cur_from <= existing_ot_to or existing_ot_from <= cur_to <= existing_ot_to:
+				if existing_ot_from < cur_from < existing_ot_to or existing_ot_from < cur_to < existing_ot_to:
+					frappe.throw(_("<b>Overtime Application: {0}</b><hr> Application already exists, {1}").format(self.name, d.name))
+				if cur_from < existing_ot_from < cur_to or cur_from < existing_ot_to < cur_to:
 					frappe.throw(_("<b>Overtime Application: {0}</b><hr> Application already exists, {1}").format(self.name, d.name))
