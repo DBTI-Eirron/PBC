@@ -21,33 +21,32 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
-				entry['ob_links'].append(ob.name) 
-				entry['linked_ob'] = ob.name
-				entry['is_ob'], entry['ob_status'], entry['ob_stat'], entry["is_absent"], entry['is_lwop'] = 1, 1, 1, 0, 0
-
 				ob_in = get_datetime( str(entry.get('target_date'))+" "+ str(ob.from_time) )
-				if not entry['ob_in']:
-					entry['ob_in'] = ob_in
-				elif entry['ob_in'] and ob_in < entry['ob_in']:
-					entry['ob_in'] = ob_in
-
 				ob_out = get_datetime( str(entry.get('target_date'))+" "+ str(ob.to_time) )
-				if not entry['ob_out']:
-					entry['ob_out'] = ob_out
-				elif entry['ob_out'] and ob_out > entry['ob_out']:
-					entry['ob_out'] = ob_out
+				if ob_out < ob_in:
+					ob_out = get_datetime( str(add_days(entry.get('target_date'), 1))+" "+ str(ob.to_time) )
 
-				if entry['ob_out']  < entry['ob_in']:
-					ob_date = add_days(entry.get('target_date'), 1)
-					entry['ob_out'] = get_datetime( str(ob_date)+" "+ str(ob.to_time) )
+				if not ob_in <= entry.get('time_in') and not ob_out <= entry.get('time_in'):
+					entry['ob_links'].append(ob.name) 
+					entry['linked_ob'] = ob.name
+					entry['is_ob'], entry['ob_status'], entry['ob_stat'], entry["is_absent"], entry['is_lwop'] = 1, 1, 1, 0, 0
 
-				if entry.get('ob_in') >= entry.get('break_start') and entry.get('ob_in') <= entry.get('break_end') : #if OB is in second half
-					entry['ob_stat'] = 3
-				else: #if OB is in first half
-					if entry.get('ob_out') <= entry.get('break_end'):
-						entry['ob_stat'] = 2
+					if not entry['ob_in']:
+						entry['ob_in'] = ob_in
+					elif entry['ob_in'] and ob_in < entry['ob_in']:
+						entry['ob_in'] = ob_in
 
-				#frappe.throw(_(entry.get('ob_status')))
+					if not entry['ob_out']:
+						entry['ob_out'] = ob_out
+					elif entry['ob_out'] and ob_out > entry['ob_out']:
+						entry['ob_out'] = ob_out
+
+					if entry.get('ob_in') >= entry.get('break_start') and entry.get('ob_in') <= entry.get('break_end') : #if OB is in second half
+						entry['ob_stat'] = 3
+					else: #if OB is in first half
+						if entry.get('ob_out') <= entry.get('break_end'):
+							entry['ob_stat'] = 2
+
 	if uts:
 		for ut in uts:
 			if ut['from_date'] == entry['target_date']:
@@ -118,8 +117,8 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 			entry["lv_status"] = 1
 
 	get_late(entry)
-	get_undertime(entry)
 	get_overtime(entry, ots)
+	get_undertime(entry)
 	get_ndiff(entry)
 	get_absent(entry)
 	get_work(entry)
