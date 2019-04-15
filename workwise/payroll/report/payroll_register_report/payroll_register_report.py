@@ -61,40 +61,39 @@ def execute(filters=None):
 			dtotal_deduction += total_deduction
 			dtotal_payroll += total_payroll
 			data.append(row)
-
-		# i = 0
-		# for income in income_types:
-		# 	total_row.append('{:,.2f}'.format(income_total[i]))
-		# 	i += 1
-
-		# i = 0
-		# for deduction in deduction_types:
-		# 	total_row.append('{:,.2f}'.format(deduction_total[i]))
-		# 	i += 1
-
-		i = 0
-		for income in income_types:
-			if income_total[i] >= 1:
+		if filters.hide_zero:
+			i = 0
+			for income in income_types:
+				if income_total[i] >= 1:
+					total_row.append('{:,.2f}'.format(income_total[i]))
+					i += 1
+				else:
+					del columns[i+2]
+					del income_total[i]
+					for d in data:
+						del d[i+2]
+						
+			inlen = i
+			i = 0
+			for deduction in deduction_types:
+				if deduction_total[i] >= 1:
+					total_row.append('{:,.2f}'.format(deduction_total[i]))
+					i += 1
+				else:
+					del columns[i+inlen+2]
+					del deduction_total[i]
+					for d in data:
+						del d[i+inlen+2]
+		else:
+			i = 0
+			for income in income_types:
 				total_row.append('{:,.2f}'.format(income_total[i]))
 				i += 1
-			else:
-				del columns[i+2]
-				del income_total[i]
-				for d in data:
-					del d[i+2]
-					
-		inlen = i
-		i = 0
-		for deduction in deduction_types:
-			if deduction_total[i] >= 1:
+
+			i = 0
+			for deduction in deduction_types:
 				total_row.append('{:,.2f}'.format(deduction_total[i]))
 				i += 1
-			else:
-				del columns[i+inlen+2]
-				del deduction_total[i]
-				for d in data:
-					del d[i+inlen+2]
-
 
 		total_row += ['{:,.2f}'.format(dtotal_income), '{:,.2f}'.format(dtotal_deduction), '{:,.2f}'.format(dtotal_payroll)]
 		data.append(total_row)

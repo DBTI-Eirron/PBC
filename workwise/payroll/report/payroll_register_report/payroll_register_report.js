@@ -35,6 +35,11 @@ frappe.query_reports["Payroll Register Report"] = {
 					}
 				};
 			}
+		},
+		{
+			"fieldname": "hide_zero",
+			"label": __("Hide zero value"),
+			"fieldtype": "Check",
 		},	
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {

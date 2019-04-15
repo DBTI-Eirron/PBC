@@ -41,5 +41,10 @@ frappe.query_reports["Preliminary Report"] = {
 				};
 			}
 		},
+		{
+			"fieldname": "hide_zero",
+			"label": __("Hide zero value"),
+			"fieldtype": "Check",
+		},
 	]
 }

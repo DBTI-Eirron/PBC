@@ -43,5 +43,10 @@ frappe.query_reports["Payroll Register Per Department"] = {
 			"options": "Department",
 			"reqd": 0
 		},
+				{
+			"fieldname": "hide_zero",
+			"label": __("Hide zero value"),
+			"fieldtype": "Check",
+		},
 	]
 };
