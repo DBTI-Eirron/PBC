@@ -26,7 +26,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 				if ob_out < ob_in:
 					ob_out = get_datetime( str(add_days(entry.get('target_date'), 1))+" "+ str(ob.to_time) )
 
-				if not ob_in <= entry.get('time_in') and not ob_out <= entry.get('time_in'):
+				if not (ob_in <= entry.get('time_in') and ob_out <= entry.get('time_in')):
 					entry['ob_links'].append(ob.name) 
 					entry['linked_ob'] = ob.name
 					entry['is_ob'], entry['ob_status'], entry['ob_stat'], entry["is_absent"], entry['is_lwop'] = 1, 1, 1, 0, 0
@@ -404,7 +404,7 @@ def get_late(entry):
 								entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
 		
 		else: #if no card in check for OB
-			if entry.get('ob_stats') > 1:
+			if entry.get('ob_stat') > 1:
 				#if OB is in 2nd Half
 				if entry.get('ob_stat') == 3 and entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')):
 					entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
