@@ -127,7 +127,7 @@ class EmployeeMovement(Document):
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
 					"employment_status": "Regular",
-					"is_active": 0,
+					"is_active": 1,
 				})
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
