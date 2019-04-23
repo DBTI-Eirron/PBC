@@ -207,6 +207,21 @@ def get_data():
 				},
 				{
 					"type": "report",
+					"name": "PagIbig Remittance",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "PagIbig Loan Template",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "PagIbig Calamity Loan",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "SSS Loan Report",	
 					"is_query_report": True
 				},
@@ -218,8 +233,18 @@ def get_data():
 				},
 				{
 					"type": "report",
+					"name": "SSS Calamity Loan",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "PhilHealth Premium Contribution",
 					"doctype": "PhilHealth Premium Contribution",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "PhilHealth Remittance",	
 					"is_query_report": True
 				},
 			],
