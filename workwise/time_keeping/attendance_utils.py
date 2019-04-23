@@ -203,7 +203,7 @@ def get_overtime(entry, ot_apps):
 						ot_in = ot_int_start
 
 				#get OT Start Deduct Late
-				if entry.get('ot_deduct_late'):
+				if entry.get('ot_deduct_late') and not entry.get('is_flexible'):
 					if entry.get('is_restday') < 1:
 						ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
 
