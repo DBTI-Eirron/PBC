@@ -224,12 +224,16 @@ class LeaveApplication(Document):
 	def validate_balance(self):
 		allow_negative = frappe.get_value("Leave Type", self.leave_type, "is_allow_negative")
 		if allow_negative < 1:
+			if not self.from_balance:
+				frappe.throw(_("<b>Leave Application: {0}</b><hr> Leave Balance is Required").format(self.name))
+
 			total_balance = flt(self.leave_balance, 2) - flt(self.total_leave_days, 2)
 			if total_balance < 0 and not self.is_lwop:
 				frappe.throw(_("<b>Leave Application: {0}</b><hr> Not enough Leave Credits {1}").format(self.name, self.total_leave_days))
-			
-			if not self.from_balance:
-				frappe.throw(_("<b>Leave Application: {0}</b><hr> Leave Balance is Required").format(self.name))
+
+			cur_credits = frappe.get_value("Leave Balance", self.from_balance, "credits")
+			if cur_credits < self.total_leave_days and not self.is_lwop:
+				frappe.throw(_("<b>Leave Application: {0}</b><hr> Not enough Leave Credits {1}").format(self.name, self.total_leave_days))
 
 	def validate_date(self):
 		if self.from_date > self.to_date:
