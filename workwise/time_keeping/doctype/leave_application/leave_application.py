@@ -42,6 +42,7 @@ class LeaveApplication(Document):
 		get_levelled_approval_rejection(self)
 		frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits - %s 
 			WHERE name = %s """, (self.total_leave_days, self.from_balance))
+		frappe.db.commit()
 
 	def get_recipients(self):
 		recipients = []
@@ -60,17 +61,19 @@ class LeaveApplication(Document):
 	def validate_schedule(self):
 		leave_code = frappe.get_value("Leave Type", self.leave_type, "leave_code")
 		for d in self.get('leave_application_table'):
-			schedule = get_schedule(self.employee, d.leave_date, d.leave_date)
-			if schedule:
-				shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
-				if shifts:
-					if shifts[0].is_restday > 0:
-						if not leave_code == 'BL':
-							frappe.throw("Can't file leave on Restday Schedule")
+			if not d.is_excluded:
+				schedule = get_schedule(self.employee, d.leave_date, d.leave_date)
+				if schedule:
+					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+					if shifts:
+						if shifts[0].is_restday > 0:
+							if not leave_code == 'BL':
+								frappe.throw("Can't file leave on Restday Schedule")
 
 	def update_leave_credits(self):
 		frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits + %s 
 			WHERE name = %s """, (self.total_leave_days, self.from_balance))
+		frappe.db.commit()
 
 	def validate_leave(self):
 		max_days, filing_days = frappe.get_value("Leave Type", self.leave_type, ["max_days", "filing_days"])
