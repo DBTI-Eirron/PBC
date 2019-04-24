@@ -14,28 +14,29 @@ get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_lis
 
 class AdjustmentProcessing(Document):
 	def get_employees(self):
-		employees = []
-		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
+		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
 			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-			whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
+			whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold, sensitivity
 				FROM tabEmployee
-				WHERE company = %(company)s
+			WHERE company = %(company)s
 			AND payroll_schedule = %(pay_sched)s 
-			AND is_active = 1 
-			AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+			AND is_active = 1
 			{conditions}
-			ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),{ 
+			ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),
+			({ 
 				"company": self.company,
-				"employee": self.employee,
 				"pay_sched": self.schedule,
+				"employee": self.employee,
 				"department": self.department,
-				"location": self.location
-			}, as_dict=True)
+				"location": self.location,
+				"period_group": self.period_group,
+			}), as_dict=True)
 
 		return employees
 
 	def get_conditions(self):
 		conditions = []
+		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
 		if self.employee:
 			conditions.append("`name`=%(employee)s")
 
@@ -44,6 +45,12 @@ class AdjustmentProcessing(Document):
 
 		if self.location:
 			conditions.append("location=%(location)s")
+
+		if strict_period_group:
+			conditions.append("period_group=%(period_group)s")
+		
+		if frappe.session.user != "Administrator":
+			conditions.append(_("sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
 
 		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
