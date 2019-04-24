@@ -22,7 +22,7 @@ def get_data(filters):
 	for emp in employee_list:
 		emp_cont = 0.00
 		status = get_status(emp,filters)
-		row = {'phic_no':emp.phic_no, 'monthly_rate':'{:,.2f}'.format(emp.rate), 'employee_name':emp.full_name, 'employee_status':status, 'date_hired':emp.date_hired, 'birth_day':emp.birthday}
+		row = {'phic_no':emp.phic_no, 'monthly_rate':'{:,.2f}'.format(emp.rate), 'employee_name':emp.full_name, 'employee_status':status, 'date_hired':(emp.date_hired).strftime('%m/%d/%Y'), 'birth_day':(emp.birthday).strftime('%m/%d/%Y')}
 		result = []
 		for d in PHIC_types:
 			PHIC_amount = flt(register_map.get(emp.name, {}).get(d))
