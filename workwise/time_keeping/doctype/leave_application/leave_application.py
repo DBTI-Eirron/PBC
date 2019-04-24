@@ -82,9 +82,11 @@ class LeaveApplication(Document):
 				frappe.throw(_("<b>Leave Application: {0}</b><hr> Maximum of {2} Day(s) are Allowed for ( {1} )").format(self.name, self.leave_type, max_days))
 
 		if filing_days > 0:
-			date_diff=datediff_days_raw(nowdate(), cstr(self.from_date), "%Y-%m-%d")		
-			if date_diff.days > filing_days:
-				frappe.throw(_("<b>Leave Application: {0}</b><hr> Date of Filling should not be later than {1} Day(s)").format(self.name, filing_days))
+			only_from_date = datetime.datetime.strptime(str(self.from_date), '%Y-%m-%d') - datetime.timedelta(days=filing_days)
+			#date_diff=datediff_days_raw(cstr(self.from_date), nowdate(), "%Y-%m-%d")
+			#frappe.throw(_(only_from_date))
+			if getdate(nowdate()) > getdate(only_from_date):
+				frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file {1} day(s) before {2} ").format(self.name, filing_days, self.from_date))
 
 	def set_lwop(self):
 		is_lwop = frappe.get_value("Leave Type", self.leave_type, "is_lwop")
