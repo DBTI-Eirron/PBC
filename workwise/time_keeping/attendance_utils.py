@@ -668,13 +668,13 @@ def get_flexible(entry, obs):
 				if flex_ob_time < entry.get('worker_secs'):
 					ut = (entry.get('worker_secs') - flex_ob_time) 
 					ut = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
-				else:
-					ut = (entry.get('worker_secs') - flex_ob_time)
-					entry['work'] += flex_ob_time - ut
+					entry['undertime'] = ut
+					entry['work'] = entry.get('worker_secs')  - ut
 		
 		#Work should not be greater than assigned work hrs
 		if entry['work'] > entry.get('worker_secs'):
 			entry['work'] = entry.get('worker_secs')
+			entry['undertime'] = 0
 
 def get_final_processing(entry):
 	if not entry.get('is_flexible'):
