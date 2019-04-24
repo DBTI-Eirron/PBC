@@ -218,6 +218,9 @@ def get_overtime(entry, ot_apps):
 							ot_in = entry.get('ob_in')
 						else:
 							ot_in = entry.get('card_in')
+					else:
+						if ot_in < entry.get('card_in'):
+							ot_in = entry.get('card_in')
 
 					if ot_out > entry.get('time_out'):
 						if entry.get('ob_out') and entry.get('ob_out') > entry.get('card_out'):
