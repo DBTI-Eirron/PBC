@@ -83,8 +83,6 @@ class LeaveApplication(Document):
 
 		if filing_days > 0:
 			only_from_date = datetime.datetime.strptime(str(self.from_date), '%Y-%m-%d') - datetime.timedelta(days=filing_days)
-			#date_diff=datediff_days_raw(cstr(self.from_date), nowdate(), "%Y-%m-%d")
-			#frappe.throw(_(only_from_date))
 			if getdate(nowdate()) > getdate(only_from_date):
 				frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file {1} day(s) before {2} ").format(self.name, filing_days, self.from_date))
 
