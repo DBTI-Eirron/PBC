@@ -147,127 +147,117 @@ def get_data(filters):
 	validate_filters(filters)
 
 	employee_list = get_employees(filters)
-	HDMF_types = ["HDMF", "HDMFE"]
-	HDMF_map = get_HDMF_map(filters, employee_list)
+	if not employee_list:
+		frappe.msgprint("No Records Found");
+	else:
+		HDMF_types = ["HDMF", "HDMFE"]
+		HDMF_map = get_HDMF_map(filters, employee_list)
 
-	if filters.include_header:
-		employer_name = ""
-		address = ""
-		zip_code = ""
-		employer_type = ""
-		contact = ""
-		br_code = ""
-		hdmf_id = ""
-		payment_type = ""
+		if filters.include_header:
+			employer_name = ""
+			address = ""
+			zip_code = ""
+			employer_type = ""
+			contact = ""
+			br_code = ""
+			hdmf_id = ""
+			payment_type = ""
 
-		company = frappe.db.sql("""SELECT * FROM tabCompany WHERE `name` = %s LIMIT 1""",(filters.company), as_dict=True)
-		if company:
-			for d in company:
-				hdmf_id = d.hdmf_id
+			company = frappe.db.sql("""SELECT * FROM tabCompany WHERE `name` = %s LIMIT 1""",(filters.company), as_dict=True)
+			if company:
+				for d in company:
+					hdmf_id = d.hdmf_id
 
-		company_address = frappe.db.sql(""" SELECT DISTINCT TA.`address_line1`, TA.`pincode`, TA.`address_type` 
-			FROM `tabDynamic Link` DL JOIN `tabAddress` TA 
-			WHERE DL.`parenttype` = "Address" 
-			AND DL.`link_doctype` = "Company" 
-			AND DL.`parent` = TA.`name` 
-			AND TA.`address_type` = "Registered" 
-			AND DL.`link_name` = %s """, (filters.company), as_dict=1)
-		if company_address:
-			for com in company_address:
-				address = com.address_line1
-				zip_code = com.pincode
+			company_address = frappe.db.sql(""" SELECT DISTINCT TA.`address_line1`, TA.`pincode`, TA.`address_type` 
+				FROM `tabDynamic Link` DL JOIN `tabAddress` TA 
+				WHERE DL.`parenttype` = "Address" 
+				AND DL.`link_doctype` = "Company" 
+				AND DL.`parent` = TA.`name` 
+				AND TA.`address_type` = "Registered" 
+				AND DL.`link_name` = %s """, (filters.company), as_dict=1)
+			if company_address:
+				for com in company_address:
+					address = com.address_line1
+					zip_code = com.pincode
 
-		company_contact = frappe.db.sql(""" SELECT DISTINCT TC.`phone` 
-			FROM `tabContact` TC JOIN `tabDynamic Link` DL 
-			WHERE DL.`parenttype` = "Contact" 
-			AND DL.`link_doctype` = "Company" 
-			AND DL.`link_name` = %s LIMIT 1""", (filters.company), as_dict=1)
-		if company_contact:
-			for con in company_contact:
-				contact = con.phone
+			company_contact = frappe.db.sql(""" SELECT DISTINCT TC.`phone` 
+				FROM `tabContact` TC JOIN `tabDynamic Link` DL 
+				WHERE DL.`parenttype` = "Contact" 
+				AND DL.`link_doctype` = "Company" 
+				AND DL.`link_name` = %s LIMIT 1""", (filters.company), as_dict=1)
+			if company_contact:
+				for con in company_contact:
+					contact = con.phone
 
-		report_columns = {
-			"hdmf_no": "Employer's Name: ",
-			"employee": filters.company,
-			"last_name": "",
-			"first_name": "",
-			"middle_name": "Contact Number: ",
-			"HDMF": contact,
-			"HDMFE": "",
-			"tin": "",
-			"birthdate": "",
-		}
-		data.append(report_columns)
+			report_columns = {
+				"hdmf_no": "Employer's Name: ",
+				"employee": filters.company,
+				"last_name": "",
+				"first_name": "",
+				"middle_name": "Contact Number: ",
+				"HDMF": contact,
+				"HDMFE": "",
+				"tin": "",
+				"birthdate": "",
+			}
+			data.append(report_columns)
 
-		report_columns = {
-			"hdmf_no": "Address: ",
-			"employee": address,
-			"last_name": "",
-			"first_name": "",
-			"middle_name": "",
-			"HDMF": "",
-			"HDMFE": "",
-			"tin": "",
-			"birthdate": "",
-		}
-		data.append(report_columns)
+			report_columns = {
+				"hdmf_no": "Address: ",
+				"employee": address,
+				"last_name": "",
+				"first_name": "",
+				"middle_name": "",
+				"HDMF": "",
+				"HDMFE": "",
+				"tin": "",
+				"birthdate": "",
+			}
+			data.append(report_columns)
 
-		report_columns = {
-			"hdmf_no": "Zip Code: ",
-			"employee": zip_code,
-			"last_name": "",
-			"first_name": "",
-			"middle_name": "Pag-IBIG ID: ",
-			"HDMF": hdmf_id,
-			"HDMFE": "",
-			"tin": "",
-			"birthdate": "",
-		}
-		data.append(report_columns)
+			report_columns = {
+				"hdmf_no": "Zip Code: ",
+				"employee": zip_code,
+				"last_name": "",
+				"first_name": "",
+				"middle_name": "Pag-IBIG ID: ",
+				"HDMF": hdmf_id,
+				"HDMFE": "",
+				"tin": "",
+				"birthdate": "",
+			}
+			data.append(report_columns)
 
-		#report_columns = {
-		#	"hdmf_no": "Employer Type: ",
-		#	"employee": "",
-		#	"last_name": "",
-		#	"first_name": "",
-		#	"middle_name": "Type of Payment: ",
-		#	"HDMF": "",
-		#	"HDMFE": "",
-		#	"tin": "",
-		#	"birthdate": "",
-		#}
-		#data.append(report_columns)
+			report_columns = {
+				"hdmf_no": "Pad-IBIG ID",
+				"employee": "Employee ID",
+				"last_name": "Last Name",
+				"first_name": "First Name",
+				"middle_name": "Middle Name",
+				"HDMF": "Employee Contribution",
+				"HDMFE": "Employer Contribution",
+				"tin": "TIN",
+				"birthdate": "Birth Date",
+			}
+			data.append(report_columns)
 
-		report_columns = {
-			"hdmf_no": "Pad-IBIG ID",
-			"employee": "Employee ID",
-			"last_name": "Last Name",
-			"first_name": "First Name",
-			"middle_name": "Middle Name",
-			"HDMF": "Employee Contribution",
-			"HDMFE": "Employer Contribution",
-			"tin": "TIN",
-			"birthdate": "Birth Date",
-		}
-		data.append(report_columns)
+		for emp in employee_list:
+			HDMF_amount = flt(HDMF_map.get(emp.name, {}).get("HDMF"))
+			HDMF_amount += flt(HDMF_map.get(emp.name, {}).get("HDMFM"))
+			HDMFE_amount = flt(HDMF_map.get(emp.name, {}).get("HDMFE"))
+			row = {
+				"hdmf_no": emp.hdmf_no,
+				"employee": emp.employee,
+				"last_name": emp.last_name,
+				"first_name": emp.first_name,
+				"middle_name": emp.middle_name,
+				"HDMF": '{:,.2f}'.format(HDMF_amount),
+				"HDMFE": '{:,.2f}'.format(HDMFE_amount),
+				"tin": emp.tin,
+				"birthdate": datetime.datetime.strftime(getdate(emp.birthday), "%Y%m%d"),
+			}
 
-	for emp in employee_list:
-		HDMF_amount = flt(HDMF_map.get(emp.name, {}).get("HDMF"))
-		HDMF_amount += flt(HDMF_map.get(emp.name, {}).get("HDMFM"))
-		HDMFE_amount = flt(HDMF_map.get(emp.name, {}).get("HDMFE"))
-		row = {
-			"hdmf_no": emp.hdmf_no,
-			"employee": emp.employee,
-			"last_name": emp.last_name,
-			"first_name": emp.first_name,
-			"middle_name": emp.middle_name,
-			"HDMF": '{:,.2f}'.format(HDMF_amount),
-			"HDMFE": '{:,.2f}'.format(HDMFE_amount),
-			"tin": emp.tin,
-			"birthdate": datetime.datetime.strftime(getdate(emp.birthday), "%Y%m%d"),
-		}
-
-		data.append(row)
+			data.append(row)
 
 	return data
 

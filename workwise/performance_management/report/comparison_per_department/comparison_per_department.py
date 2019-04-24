@@ -14,7 +14,7 @@ def execute(filters=None):
 def get_columns(filters):
 	columns = [{
 		"fieldname":"target_setting_period",
-		"label": _("Target Setting Period"),
+		"label": _("Year"),
 		"fieldtype": "Data",
 		"width": 160
 	}]

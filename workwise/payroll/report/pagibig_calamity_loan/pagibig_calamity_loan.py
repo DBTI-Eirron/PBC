@@ -43,7 +43,7 @@ def get_data(filters):
 			result.append('{:,.2f}'.format(HDMF_amount))
 		emp_map = flt(result[0])
 		if emp_map > 0:
-			row = {'pib':emp.hdmf_no, 'tin':emp.tin, 'last_name':emp.last_name, 'first_name':emp.first_name, 'middle_name':emp.middle_name, 'birth_day':emp.birthday}
+			row = {'pib':emp.hdmf_no, 'tin':emp.tin, 'last_name':emp.last_name, 'first_name':emp.first_name, 'middle_name':emp.middle_name, 'birth_day':(emp.birthday).strftime('%m/%d/%Y')}
 			row.update({'map':'{:,.2f}'.format(emp_map)})
 			total_map += emp_map
 			data.append(row)
