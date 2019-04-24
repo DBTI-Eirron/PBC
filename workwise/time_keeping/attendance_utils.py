@@ -205,7 +205,11 @@ def get_overtime(entry, ot_apps):
 				#get OT Start Deduct Late
 				if entry.get('ot_deduct_late') and not entry.get('is_flexible'):
 					if entry.get('is_restday') < 1:
-						ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
+						if entry.get('ot_dedlt_ho'):
+							if entry.get('is_holiday') != 1:
+								ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
+						else:
+							ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
 
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('card_in') and entry.get('card_out') and entry.get('strict_otcard'):
@@ -1338,6 +1342,7 @@ def get_defaults(emp, sched, shift_map):
 		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
 		"strict_otcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard'), 8),
 		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
+		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho')
 	}
 	return entry
 
