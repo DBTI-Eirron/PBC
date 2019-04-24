@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-03-21 14:47:48.528715", 
+ "modified": "2019-04-24 14:52:06.233611", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "DTR Problem Summary Report", 
@@ -20,22 +20,19 @@
    "role": "HR Manager"
   }, 
   {
-   "role": "DTR Problem Approver"
-  }, 
-  {
    "role": "Payroll Manager"
-  }, 
-  {
-   "role": "Rank and File"
   }, 
   {
    "role": "Time Keeping Manager"
   }, 
   {
-   "role": "Approver"
+   "role": "DTR Problem Approver"
   }, 
   {
    "role": "Admin Approver"
+  }, 
+  {
+   "role": "Approver"
   }
  ]
 }
