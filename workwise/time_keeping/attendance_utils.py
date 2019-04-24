@@ -597,9 +597,17 @@ def get_absent(entry):
 def get_flexible(entry, obs):
 	if entry.get('is_flexible'):
 		flex_ob_time = 0
-		for ob in obs:
-			if getdate(ob.get('target_date')) == getdate(entry['target_date']):
-				flex_ob_time += (ob.get('hrs') * 60 * 60)
+		less_break = 0
+		if entry.get('ob_in') and entry.get('ob_out'):
+			flex_ob_time = abs((entry.get('ob_in') - entry.get('ob_out')).total_seconds())
+
+			#Flex OB time Less Break Hours from schedule
+			if entry.get('break_start') and entry.get('break_end'):
+				if entry.get('ob_out') > entry.get('break_start'):
+					less_break = abs((entry.get('break_start') - entry.get('ob_out')).total_seconds())
+					if entry.get('ob_out') > entry.get('break_end'):
+						less_break = abs((entry.get('break_start') - entry.get('break_end')).total_seconds())
+				flex_ob_time -= less_break
 
 		if entry.get('card_in') and entry.get('card_out'):
 			#Reset Flexible values
