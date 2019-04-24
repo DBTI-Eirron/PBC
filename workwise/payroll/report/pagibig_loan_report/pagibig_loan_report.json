@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-04-10 12:13:31.971302", 
+ "modified": "2019-04-24 14:31:45.143272", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "PagIbig Loan Report", 
@@ -20,7 +20,7 @@
    "role": "Payroll Manager"
   }, 
   {
-   "role": "Test"
+   "role": "HR Manager"
   }
  ]
 }

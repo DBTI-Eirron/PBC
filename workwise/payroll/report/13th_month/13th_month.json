@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2018-11-13 10:49:59.891627", 
+ "modified": "2019-04-24 14:16:26.488159", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "13th Month", 
@@ -18,9 +18,6 @@
  "roles": [
   {
    "role": "Payroll Manager"
-  }, 
-  {
-   "role": "Rank and File"
   }
  ]
 }

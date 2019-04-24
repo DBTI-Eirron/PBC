@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-01-14 08:50:43.266208", 
+ "modified": "2019-04-24 14:19:28.661977", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "Hold Salaries Report", 
@@ -18,9 +18,6 @@
  "roles": [
   {
    "role": "Payroll Manager"
-  }, 
-  {
-   "role": "Rank and File"
   }
  ]
 }
