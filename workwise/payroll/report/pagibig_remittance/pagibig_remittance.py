@@ -28,7 +28,7 @@ def get_data(filters):
 	for emp in employee_list:
 		emp_cont = 0.00
 		empr_cont = 0.00
-		row = {'mid':emp.hdmf_no, 'tin':emp.tin, 'last_name':emp.last_name, 'first_name':emp.first_name, 'middle_name':emp.middle_name, 'birth_day':emp.birthday}
+		row = {'mid':emp.hdmf_no, 'tin':emp.tin, 'last_name':emp.last_name, 'first_name':emp.first_name, 'middle_name':emp.middle_name, 'birth_day':(emp.birthday).strftime('%m/%d/%Y')}
 		result = []
 		for d in HDMF_types:
 			HDMF_amount = flt(register_map.get(emp.name, {}).get(d))

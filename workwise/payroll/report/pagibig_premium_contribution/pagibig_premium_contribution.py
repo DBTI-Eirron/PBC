@@ -210,5 +210,5 @@ def get_HDMF_map(filters, employee_list):
 				HDMF_map[d.employee][d.pay_code] += flt(d.amount, 2)
 			else:
 				HDMF_map[d.employee][d.pay_code] = flt(d.amount, 2)
-
+	
 	return HDMF_map

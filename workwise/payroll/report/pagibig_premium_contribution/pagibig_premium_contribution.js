@@ -35,6 +35,12 @@ frappe.query_reports["PagIbig Premium Contribution"] = {
 					var username = r.message.jasper_user;
 					var password = r.message.jasper_pass;
 
+					report.page.add_inner_button(__("Print PagIbig Certificate"), function() {
+						var from_date = frappe.query_report_filters_by_name.from_date.get_value();
+						var to_date = frappe.query_report_filters_by_name.to_date.get_value();
+						var company = frappe.query_report_filters_by_name.company.get_value();
+						window.open("http://"+host_link+"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2FReports&reportUnit=%2FReports%2Fhdmf_certificate&standAlone=true&j_username="+username+"&j_password="+password+"&output=pdf&company="+company+"&from_date="+from_date+"&to_date="+to_date+"");
+					});
 					report.page.add_inner_button(__("Print PagIbig Premium Contribution"), function() {
 						var from_date = frappe.query_report_filters_by_name.from_date.get_value();
 						var to_date = frappe.query_report_filters_by_name.to_date.get_value();
