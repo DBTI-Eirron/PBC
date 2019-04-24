@@ -149,16 +149,11 @@ def get_work(entry):
 		if entry["is_halfday"] == 1:
 			entry['work'] = entry['work'] / 2
 
-
-	if (entry.get('is_restday') or entry.get('is_holiday')) and entry['card_in'] and entry['card_out']:
+	if (entry.get('is_restday') or entry.get('is_holiday')) and entry.get('card_in') and entry.get('card_out') and entry.get('at_work_rdho'):
 		entry['work'] = abs((entry.get('card_out') - entry.get('card_in')).total_seconds())
-		
-		#if entry.get('card_in') > entry.get('time_out'):
-		#	if entry.get('card_out') > entry.get('break_end'): #Reduce late Beyond Break Time
-		#		entry['work'] -= abs(entry.get('break_mins') * 60)
-		#	elif entry.get('card_out') > entry.get('break_start'): #Reduce late Beyond Break Time
-		#		entry['work'] -= abs((entry.get('card_out') - entry.get('break_start')).total_seconds())
-
+		max_work = (entry.get('work_hours') * 60) * 60
+		if entry['work'] > max_work:
+			entry['work'] = max_work
 
 	return entry
 
@@ -1353,7 +1348,8 @@ def get_defaults(emp, sched, shift_map):
 		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
 		"strict_otcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard'), 8),
 		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
-		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho')
+		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho'),
+		"at_work_rdho": frappe.db.get_single_value('Timekeeping Settings', 'at_work_rdho'),
 	}
 	return entry
 
