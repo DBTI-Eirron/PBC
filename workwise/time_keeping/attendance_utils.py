@@ -203,9 +203,13 @@ def get_overtime(entry, ot_apps):
 						ot_in = ot_int_start
 
 				#get OT Start Deduct Late
-				if entry.get('ot_deduct_late'):
+				if entry.get('ot_deduct_late') and not entry.get('is_flexible'):
 					if entry.get('is_restday') < 1:
-						ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
+						if entry.get('ot_dedlt_ho'):
+							if entry.get('is_holiday') != 1:
+								ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
+						else:
+							ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
 
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('card_in') and entry.get('card_out') and entry.get('strict_otcard'):
@@ -213,6 +217,9 @@ def get_overtime(entry, ot_apps):
 						if entry.get('ob_in') and entry.get('ob_in') < entry.get('card_in'):
 							ot_in = entry.get('ob_in')
 						else:
+							ot_in = entry.get('card_in')
+					else:
+						if ot_in < entry.get('card_in'):
 							ot_in = entry.get('card_in')
 
 					if ot_out > entry.get('time_out'):
@@ -590,9 +597,17 @@ def get_absent(entry):
 def get_flexible(entry, obs):
 	if entry.get('is_flexible'):
 		flex_ob_time = 0
-		for ob in obs:
-			if getdate(ob.get('target_date')) == getdate(entry['target_date']):
-				flex_ob_time += (ob.get('hrs') * 60 * 60)
+		less_break = 0
+		if entry.get('ob_in') and entry.get('ob_out'):
+			flex_ob_time = abs((entry.get('ob_in') - entry.get('ob_out')).total_seconds())
+
+			#Flex OB time Less Break Hours from schedule
+			if entry.get('break_start') and entry.get('break_end'):
+				if entry.get('ob_out') > entry.get('break_start'):
+					less_break = abs((entry.get('break_start') - entry.get('ob_out')).total_seconds())
+					if entry.get('ob_out') > entry.get('break_end'):
+						less_break = abs((entry.get('break_start') - entry.get('break_end')).total_seconds())
+				flex_ob_time -= less_break
 
 		if entry.get('card_in') and entry.get('card_out'):
 			#Reset Flexible values
@@ -1338,6 +1353,7 @@ def get_defaults(emp, sched, shift_map):
 		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
 		"strict_otcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard'), 8),
 		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
+		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho')
 	}
 	return entry
 
