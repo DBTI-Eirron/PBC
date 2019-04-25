@@ -9,10 +9,12 @@ from frappe.utils import cint, flt, getdate, cstr, nowdate
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, chk_time_format, timediff_hrs, timediff_mins, str_datetime
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history
+from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee )
 
 class OvertimeApplication(Document):
 	def validate(self):
+		validate_inactive_employee(self)
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)
 		self.validate_time_format()
@@ -125,7 +127,7 @@ class OvertimeApplication(Document):
 
 					if shift_from < cur_from < shift_to or shift_from < cur_to < shift_to:
 						emp_location = frappe.get_value("Employee", self.employee, "location")
-						is_holiday = frappe.db.sql("""SELECT `name` FROM `tabHoliday` WHERE holiday_date = %s AND company = %s AND location = %s """, (getdate(self.target_date), self.company, emp_location), as_dict=True)
+						is_holiday = frappe.db.sql("""SELECT `name` FROM `tabHoliday` WHERE holiday_date = %s AND ((company = %s AND location = %s) OR company = %s) """, (getdate(self.target_date), self.company, emp_location, self.company), as_dict=True)
 						if not is_holiday:
 							frappe.throw(_("<b>Overtime Application: {0}</b><hr> Overtime Filing is not allowed within the Shift, Did not save").format(self.name))
 				if shifts[0].max_ot_hrs_day > 0:

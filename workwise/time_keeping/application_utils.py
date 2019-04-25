@@ -38,6 +38,11 @@ def validate_reject_cancel_own_application(self):
 			if user_id == frappe.session.user:
 				frappe.throw(_("You cannot reject or cancel your own application"))
 
+def validate_inactive_employee(self):
+	is_active = frappe.get_value("Employee", self.employee, "is_active")
+	if not is_active:
+		frappe.throw(_("Employee {0} is not active").format(self.employee))
+
 def change_owner(self):
 	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 	if enable_employee_approvers < 1:
