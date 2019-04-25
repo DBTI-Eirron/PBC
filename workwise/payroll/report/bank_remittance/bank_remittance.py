@@ -207,6 +207,35 @@ def get_columns(filters):
 			},
 		]
 
+	if filters.bank == "Banco de Oro" or filters.bank == "BDO":
+		columns = [
+			{
+				"fieldname": "account_number",
+				"label": _("Account"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "amount",
+				"label": _("Amount"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "employee_name",
+				"label": _("Name"),
+				"fieldtype": "Data",
+				"width": 200
+			},
+			{
+				"fieldname": "remarks",
+				"label": _("Remarks"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			
+		]
+
 	return columns
 
 def get_result(filters):
@@ -261,7 +290,7 @@ def get_result_as_list(data, filters):
 	funding_account = ""
 
 	for d in data:
-		if d.amount < 1:
+		if flt(d.amount) < 0:
 			d.amount = 0.00
 		total_amount += flt(d.amount, 8)
 		total_count += 1
@@ -371,6 +400,23 @@ def get_result_as_list(data, filters):
 			"amount": '{:,.2f}'.format(total_amount),
 		}
 		result.append(total)
+
+	elif filters.bank == "Banco de Oro" or filters.bank == "BDO":
+		for d in data:
+			row = {
+				"account_number": d.get("employee_account"),
+				"amount": '{:,.2f}'.format(d.get("amount")),
+				"employee_name": d.get("employee_name"),
+				"remarks": d.get("remarks"),	
+			}
+			result.append(row)
+		#total = {
+		#	"account_number": d.get("employee_account"),
+		#	"amount": '{:,.2f}'.format(d.get("amount")),
+		#	"employee_name": d.get("employee_name"),
+		#	"remarks": d.get("remarks"),	
+		#}
+		#result.append(total)
 
 	else:
 		for d in data:

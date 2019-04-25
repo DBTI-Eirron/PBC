@@ -44,32 +44,60 @@ class BankRemittanceSetup(Document):
 	def get_employees(self):
 		cur_user = frappe.session.user
 		if not "Administrator" in frappe.get_roles(cur_user):
-			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account, BR.bank_type FROM `tabPayroll Register` PR JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) AND TE.`is_active` = 1 AND TE.`on_hold` = 0 AND TE.`mode_of_payment` = "Bank" AND PR.`period` = %(period)s AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s """,{ 
-				"period": self.payroll_period,
-				"bank": self.bank,
-				"account_type": self.bank_account_type,
-				"user": cur_user
+			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account, BR.bank_type 
+				FROM `tabPayroll Register` PR 
+				JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` 
+				JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` 
+				WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) 
+				AND TE.`is_active` = 1 AND TE.`on_hold` = 0 
+				AND TE.`mode_of_payment` = "Bank" AND PR.`period` = %(period)s 
+				AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s 
+				AND BR.`account_type` = %(account_type)s {conditions} """.format(conditions=self.get_employee_conditions()),{ 
+					"period": self.payroll_period,
+					"bank": self.bank,
+					"account_type": self.bank_account_type,
+					"bank_type": self.bank_type,
+					"user": cur_user
 			}, as_dict=True)
 		else:
-			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account, BR.bank_type FROM `tabPayroll Register` PR JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` WHERE TE.`is_active` = 1 AND TE.`on_hold` = 0 AND TE.`mode_of_payment` = "Bank" AND PR.`period` = %(period)s AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s """,{ 
+			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account, BR.bank_type 
+				FROM `tabPayroll Register` PR 
+				JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` 
+				JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` 
+				WHERE TE.`is_active` = 1 AND TE.`on_hold` = 0 AND TE.`mode_of_payment` = "Bank" AND PR.`period` = %(period)s 
+				AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s {conditions} """.format(conditions=self.get_employee_conditions()),{ 
 				"period": self.payroll_period,
 				"bank": self.bank,
 				"account_type": self.bank_account_type,
+				"bank_type": self.bank_type
 			}, as_dict=True)
 
 		return employees
 
+	def get_employee_conditions(self):
+		conditions = []
+		if self.bank == "BDO" or self.bank == "Banco de Oro":
+			conditions.append("BR.`bank_type`=%(bank_type)s")
+
+		return "and {}".format(" and ".join(conditions)) if conditions else "" 
+
 	def fill_employees(self):
 		self.set('employees', [])
 		employees = self.get_employees()
+		net_payroll = 0.00
 
 		for d in employees:
+			if flt(d.net_payroll) < 0:
+				net_payroll = 0.00
+			else:
+				net_payroll = d.net_payroll
+
 			i = {
 				"employee": d.employee,
 				"employee_name": d.employee_name,
 				"employee_account": d.bank_account,
 				"bank_type": d.bank_type,
-				"amount": d.net_payroll,
+				"amount": net_payroll,
 				"remarks": ""
 			}
 
