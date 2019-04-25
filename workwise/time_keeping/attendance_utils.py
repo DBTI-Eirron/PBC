@@ -746,6 +746,8 @@ def get_final_processing(entry):
 
 	#Restday
 	if entry.get('is_restday'):
+		# Strictly no work, late, undertime absent if restday
+		entry['work'] = 0
 		entry['late'] = 0
 		entry['undertime'] = 0
 		entry['is_absent'] = 0
@@ -753,9 +755,12 @@ def get_final_processing(entry):
 	#Holiday
 	if entry.get('is_holiday'):
 		if entry.get('rate_type') == "Daily Rate":
-			if not entry.get('card_out') and not entry.get('card_in') and not entry.get('is_restday'):
+			#daily rate has no card in and card out and holday is not restday, set to absent
+			if not entry.get('card_out') and entry.get('card_in') and entry.get('is_restday'):
 				entry['is_absent'] = 1
 		else:
+			# Strictly no work, late, undertime absent for non daily rate if holiday
+			entry['work'] = 0 
 			entry['late'] = 0
 			entry['undertime'] = 0
 			entry['is_absent'] = 0
