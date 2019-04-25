@@ -415,6 +415,11 @@ def get_late(entry):
 				#if OB is in 1st Half
 				elif entry.get('ob_stat') == 2 and entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 					entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+			else:
+				#get late on time in if full time OB
+				if entry.get('ob_stat') == 1:
+					if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+						entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 
 	#break_out
 	if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
