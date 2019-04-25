@@ -1,4 +1,4 @@
-# Copyright (c) 2013, HDI Systech and contributors
+	# Copyright (c) 2013, HDI Systech and contributors
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
@@ -21,16 +21,17 @@ def get_data(filters):
 	total_ee = 0.00
 	for emp in employee_list:
 		emp_cont = 0.00
-		status = get_status(emp,filters)
-		row = {'phic_no':emp.phic_no, 'monthly_rate':'{:,.2f}'.format(emp.rate), 'employee_name':emp.full_name, 'employee_status':status, 'date_hired':(emp.date_hired).strftime('%m/%d/%Y'), 'birth_day':(emp.birthday).strftime('%m/%d/%Y')}
 		result = []
 		for d in PHIC_types:
 			PHIC_amount = flt(register_map.get(emp.name, {}).get(d))
-			result.append('{:,.2f}'.format(PHIC_amount))
+			result.append(PHIC_amount)
 		emp_cont = flt(result[0])
-		row.update({'contribution':'{:,.2f}'.format(emp_cont)})
-		total_ee += emp_cont	
-		data.append(row)
+		if emp_cont > 0:
+			status = get_status(emp,filters)
+			row = {'phic_no':emp.phic_no, 'monthly_rate':emp.rate, 'employee_name':emp.full_name, 'employee_status':status, 'date_hired':(emp.date_hired).strftime('%m/%d/%Y'), 'birth_day':(emp.birthday).strftime('%m/%d/%Y')}
+			row.update({'contribution':emp_cont})
+			total_ee += emp_cont	
+			data.append(row)
 	return data
 
 def get_columns(filters):
@@ -128,8 +129,8 @@ def get_status(emp,filters):
 	if emp.is_active:
 		value = frappe.db.sql("""SELECT SUM(PR.`net_payroll`) as `value` FROM `tabPayroll Register` PR INNER JOIN `tabPayroll Period` PP ON PR.period = PP.`name` WHERE PR.employee = %s and PP.from_date >= %s and PP.to_date <= %s""",(emp.name,filters.from_date,filters.to_date),as_dict=True)
 		if value[0].value < 0:
-			return "No Earning"
+			return "NE"
 		else:
-			return "Active"
+			return "A"
 	else:
-		return "Seperated"
+		return "S"
