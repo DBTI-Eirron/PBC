@@ -10,7 +10,7 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date, add_days
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.payroll.payroll_utils import get_rates, get_overtime_map
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_suspension_map, get_suspension, insert_overtime)
+get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime)
 
 class AdjustmentProcessing(Document):
 	def get_employees(self):
@@ -156,13 +156,14 @@ class AdjustmentProcessing(Document):
 		uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		cto = get_cto_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
+		wss = get_wss_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		ot_list = []
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
 			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
 			get_sorted_card(entry, cards_in, cards_out)
 			get_suspension(emp, suspension_map, entry)
-			get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto)
+			get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss)
 			entry['break'] = self.convert_secs(entry['break'])
 			entry['work'] = self.convert_secs(entry['work'])
 			entry['late'] = self.convert_secs(entry['late'])
