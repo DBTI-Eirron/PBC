@@ -90,8 +90,8 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
 			entry['is_db_holiday'] = 1
 
 	#leaves	
+	lv_status_list = []
 	for l in leaves:
-		lv_status_list = []
 		if l['leave_date'] == entry['target_date']:
 			entry['lv_links'].append(l.name) 
 			if l['is_excluded'] != 1:
@@ -106,13 +106,13 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
 				
 				if l.is_half_day:
 					entry["lv_status"] = 2
+					lv_status_list.append(2)
 
 				if l.is_second_half:
 					entry["lv_status"] = 3
+					lv_status_list.append(3)
 
-				lv_status_list.append(entry["lv_status"])
-
-		if 1 in lv_status_list and 2 in lv_status_list:
+		if 2 in lv_status_list and 3 in lv_status_list:
 			entry["lv_status"] = 1
 
 	for ws in wss:
@@ -571,7 +571,9 @@ def get_absent(entry):
 		if entry.get('lv_status') == 2 and entry.get('ob_stat') == 3 and not entry.get('is_lwop'):
 			entry["is_absent"] = 0
 			entry["is_halfday"] = 0
-
+		elif entry.get('lv_status') == 2 and entry.get('ob_stat') == 1 and not entry.get('is_lwop'):
+			entry["is_absent"] = 0
+			entry["is_halfday"] = 0
 		elif entry.get('lv_status') == 3 and entry.get('ob_stat') == 2 and not entry.get('is_lwop'):
 			entry["is_absent"] = 0
 			entry["is_halfday"] = 0
@@ -792,7 +794,21 @@ def get_final_processing(entry):
 			entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 			entry["late"] = 0
 			entry["undertime"] = 0
+	
+	#work suspension if card in and not cardout
+	if entry.get('card_in') and not entry.get('card_out'):
+		if entry.get('suspension') == 3:
+			entry["is_halfday"] = 0
+			entry["is_absent"] = 0
 
+	#if whole day work suspension
+	if entry.get('suspension') == 1:
+		entry["is_halfday"] = 0
+		entry["is_absent"] = 0	
+		entry["late"] = 0
+		entry["undertime"] = 0
+		entry["work"] = 0
+	
 	return entry
 
 def get_tags(entry):
