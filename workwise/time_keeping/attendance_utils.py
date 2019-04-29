@@ -95,7 +95,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
 		if l['leave_date'] == entry['target_date']:
 			entry['lv_links'].append(l.name) 
 			if l['is_excluded'] != 1:
-				entry['leave_name'] = l.leave_type
+				entry['leave_name'] += (" "+l.leave_type+"")
 				entry['linked_leave'] = l.name
 				entry["lv_status"] = 1
 				if not entry['card_in'] or not entry['card_out']:
@@ -425,10 +425,11 @@ def get_late(entry):
 				elif entry.get('ob_stat') == 2 and entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 					entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 			else:
-				#get late on time in if full time OB
 				if entry.get('ob_stat') == 1:
-					if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-						entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+					#if there is no leave on first half
+					if entry.get('lv_status') != 2:
+						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 
 	#break_out
 	if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
