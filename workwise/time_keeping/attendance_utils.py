@@ -3,7 +3,7 @@ import frappe, datetime, math
 from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
 from frappe import _
 
-def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
+def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
 	if entry.get("override_in"):
 		entry['card_in'] = entry.get("override_in")
 
@@ -17,7 +17,6 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	if entry.get('break_end') < entry.get('time_in'):
 		entry['break_end'] = add_days(entry.get('break_end'), 1) 
 	
-
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
@@ -115,6 +114,16 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 
 		if 1 in lv_status_list and 2 in lv_status_list:
 			entry["lv_status"] = 1
+
+	for ws in wss:
+		if getdate(ws.suspension_date) == getdate(entry['target_date']):	
+			if ws.suspension_start and ws.suspension_end:
+				entry['suspension'] = 1
+				if ws.suspension_start  >= entry['break_end']:
+					entry['suspension'] = 3
+				else:	
+					if ws.suspension_end <= entry['break_end']:
+						entry['suspension'] = 2
 
 	get_late(entry)
 	get_overtime(entry, ots)
@@ -1098,71 +1107,17 @@ def get_ext_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	
 	return ext_apps
 
-def get_ws_list(from_date, to_date, approval_cutoff, adjustment):
+def get_wss_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "	
 
-	ws_apps = frappe.db.sql(""" SELECT apply_to, apply_value, target_date, suspension_start, suspension_end FROM `tabWork Suspension` WS 
-		INNER JOIN `tabWork Suspension Dates` WSD ON WSD.parent = WS.`name`
-		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s 
-		AND target_date <= %s {by_adjustment} """.format( by_adjustment=by_adjustment ), (from_date, to_date), as_dict=1)
+	ws_apps = frappe.db.sql(""" SELECT suspension_date, suspension_start, suspension_end 
+		FROM `tabWork Suspension` WS 
+		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE WSA.employee = %s AND suspension_date >= %s 
+		AND suspension_date <= %s  """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 
 	return ws_apps
 
-def get_suspension_map(from_date, to_date):
-	suspension_map = {}
-	suspensions = frappe.db.sql(""" SELECT apply_to, apply_value, target_date, suspension_start, suspension_end FROM `tabWork Suspension` WS 
-		INNER JOIN `tabWork Suspension Dates` WSD ON WSD.parent = WS.`name`
-		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s AND target_date <= %s AND WS.docstatus = 1 """, (from_date, to_date), as_dict=1)
-	
-	if suspensions:
-		for d in suspensions:
-			suspension_name = ""+cstr(d.apply_to)+"_"+cstr(d.apply_value)+"_"+cstr(d.target_date)+""
-			suspension_map[suspension_name] = {
-				"apply_to": d.apply_to,
-				"apply_value": d.apply_value,
-				"suspension_date": d.target_date,
-				"suspension_start": d.suspension_start,
-				"suspension_end": d.suspension_end,
-			}
 
-	return suspension_map
-
-def get_suspension(emp, suspension_map, entry):
-	if suspension_map:
-		start, end = "", ""
-		company = "Company_"+cstr(emp.company)+"_"+cstr(entry.get('target_date'))+""
-		location = "Location_"+cstr(emp.location)+"_"+cstr(entry.get('target_date'))+""
-		department = "Department_"+cstr(emp.department)+"_"+cstr(entry.get('target_date'))+""
-		if company in suspension_map:
-			start = suspension_map[company]['suspension_start']
-			end = suspension_map[company]['suspension_end']
-
-		if location in suspension_map:
-			start = suspension_map[location]['suspension_start']
-			end = suspension_map[location]['suspension_end']
-			
-		if department in suspension_map:
-			start = suspension_map[department]['suspension_start']
-			end = suspension_map[department]['suspension_end']
-
-		if start and end:
-			if start < end:
-				entry['suspension_start'] = get_datetime( str(entry.get('target_date') )+" "+ str(start) )
-				entry['suspension_end'] = get_datetime( str(entry.get('target_date') )+" "+ str(end) )
-			elif start > end:
-				entry['suspension_start'] = get_datetime( str(entry.get('target_date') )+" "+ str(start) )
-				entry['suspension_end'] = get_datetime( str( add_days(entry.get('target_date'), 1) )+" "+ str(end) )
-
-		if entry['suspension_start'] and entry['suspension_end']:
-			entry['suspension'] = 1			
-			if entry['suspension_start'] >= entry['break_end']:
-				entry['suspension'] = 3
-			else:	
-				if entry['suspension_end'] <= entry['break_end']:
-					entry['suspension'] = 2
-
-
-	return entry
 
 def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list):
 	cards_in = []

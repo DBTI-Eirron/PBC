@@ -3,51 +3,32 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe, datetime
+import frappe, datetime, math
 from frappe import _
+from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
 from frappe.model.document import Document
 from workwise.time_keeping.timekeeping_utils import chk_time_format
 
 class WorkSuspension(Document):
-
 	def validate(self):
 		self.validate_time_format()
-		self.validate_date()
+		self.get_suspension_range()
 
 	def validate_time_format(self):
-		for d in self.get('dates'):
-			chk_time_format(d.suspension_start, "%H:%M:%S")
-			chk_time_format(d.suspension_end, "%H:%M:%S")
+		time_fds = ['from_time', 'to_time']
+		for fd in time_fds:
+			chk_time_format(str(self.get(fd)), "%H:%M:%S")
 
-	def validate_date(self):
-		if self.from_date > self.to_date:
-			frappe.throw(_("From Date must be before To Date"))
+	def get_suspension_range(self):
+		suspension_start = get_datetime( str(self.suspension_date)+" "+ str(self.from_time) )
+		suspension_end = get_datetime( str(self.suspension_date)+" "+ str(self.to_time) )
+		if suspension_end < suspension_start:
+			suspension_end = get_datetime( str(add_days(self.suspension_date, 1))+" "+ str(self.to_time) )
 
-	def get_dates(self):
-		if not self.from_date and not self.to_date:
-			frappe.throw(_("No From Date and To Date is Required"))
-		
-		if self.from_date > self.to_date:
-			frappe.throw(_("To From Date Should be Greater than To"))
-			
-		else:
-			dates, entries, dates_table = [], [], []
-			start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
-			end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
-			step = datetime.timedelta(days=1)
-			while start <= end:
-				dates.append(start.date());
-				start += step
+		self.suspension_start = suspension_start
+		self.suspension_end = suspension_end
 
-			for i in dates:
-				info = { "target_date": i, "time_in": "", "time_out": "", }
-				dates_table.append(info);
-			self.set('dates', [])
-			for d in sorted(list(dates_table), key=lambda k: k['target_date']):
-				row = self.append('dates', {})
-				row.update(d)
-
-	def add(self):
+	def get_employees(self):
 		query = "SELECT `name`, `full_name` FROM `tabEmployee` WHERE docstatus = 0"
 		if self.company:
 			query = query + " AND company = '"+self.company+"'"
