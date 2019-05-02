@@ -491,6 +491,8 @@ def get_undertime(entry):
 						entry['undertime'] += abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
 						if entry.get('ob_out') < entry.get('break_end'): #Add undertime Beyond Break Time
 							entry['undertime'] -= abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
+				elif entry.get('ob_out') > entry.get('break_end') and entry.get('lv_status') == 3:
+					pass
 				else:
 					if entry.get('ob_out') < entry.get('time_out'): #if OB is wholeday
 						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
@@ -773,8 +775,13 @@ def get_final_processing(entry):
 	if entry.get('is_holiday'):
 		if entry.get('rate_type') == "Daily Rate":
 			#daily rate has no card in and card out and holday is not restday, set to absent
-			if not entry.get('card_out') and entry.get('card_in') and entry.get('is_restday'):
+			if (not entry.get('card_out')) and (not entry.get('card_in')) and (not entry.get('is_restday')) and entry.get('is_sp_holiday'):
 				entry['is_absent'] = 1
+			else:
+				entry['late'] = 0
+				entry['undertime'] = 0
+				entry['is_absent'] = 0				
+
 		else:
 			# Strictly no work, late, undertime absent for non daily rate if holiday
 			entry['work'] = 0 
