@@ -17,20 +17,24 @@ def get_data(filters):
 	data = []
 	employee_list = get_employees(filters)
 	register_map = get_PHIC_map(filters, employee_list)
-	PHIC_types = ["PHIC"]
+	PHIC_types = ["PHIC","PHICE"]
 	total_ee = 0.00
+	total_er =0.00
 	for emp in employee_list:
 		emp_cont = 0.00
+		er_cont = 0.00
 		result = []
 		for d in PHIC_types:
 			PHIC_amount = flt(register_map.get(emp.name, {}).get(d))
 			result.append(PHIC_amount)
 		emp_cont = flt(result[0])
-		if emp_cont > 0:
+		er_cont = flt(result[1])
+		if emp_cont > 0 or er_cont > 0:
 			status = get_status(emp,filters)
 			row = {'phic_no':emp.phic_no, 'monthly_rate':emp.rate, 'employee_name':emp.full_name, 'employee_status':status, 'date_hired':(emp.date_hired).strftime('%m/%d/%Y'), 'birth_day':(emp.birthday).strftime('%m/%d/%Y')}
-			row.update({'contribution':emp_cont})
-			total_ee += emp_cont	
+			row.update({'employee':emp_cont,'employer':er_cont})
+			total_ee += emp_cont
+			total_er += er_cont	
 			data.append(row)
 	return data
 
@@ -67,8 +71,13 @@ def get_columns(filters):
 		"fieldtype": "Data",
 		"width": 100
 		},{
-		"fieldname": "contribution",
-		"label": _("Contribution"),
+		"fieldname": "employee",
+		"label": _("Employee"),
+		"fieldtype": "Data",
+		"width": 100
+		},{
+		"fieldname": "employer",
+		"label": _("Employer"),
 		"fieldtype": "Data",
 		"width": 100
 		}, 
