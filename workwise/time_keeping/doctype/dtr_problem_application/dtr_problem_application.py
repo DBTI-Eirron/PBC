@@ -23,11 +23,17 @@ class DTRProblemApplication(Document):
 		
 	def on_submit(self):
 		validate_approve_own_application(self)
-		self.approve_request()
+		enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+		if not enable_employee_approvers > 0:
+			self.approve_request()
 		get_approver_and_date(self)
 
 	def before_update_after_submit(self):
 		get_levelled_approval(self)
+		enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+		if enable_employee_approvers > 0:
+			if self.workflow_state == "Approved":
+				self.approve_request()
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
