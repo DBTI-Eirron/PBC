@@ -837,6 +837,9 @@ class PayrollProcessing(Document):
 							if header.get('lwop_uho') == 1 and at.is_lwop:
 									is_uho = 1
 						
+						#strictly No UHO if CTO can cover absent work hours
+						if at.is_absent and at.work_hours <= at.cto:
+							is_uho = 0						
 					else:
 						is_uho = 0
 						if (at.is_absent or at.is_lwop) and not at.is_ob:
@@ -847,10 +850,11 @@ class PayrollProcessing(Document):
 									is_uho = 0
 									if at.is_absent:
 										is_uho = 1
-
+						
+						#strictly No UHO if CTO can cover absent work hours
+						if at.is_absent and at.work_hours <= at.cto:
+							is_uho = 0
 				
-			
-
 					if emp.get("rate_type") == "Daily Rate":
 						#if daily rate, holiday is considered paid
 						if at.is_holiday and not at.is_restday:

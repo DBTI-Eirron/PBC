@@ -156,12 +156,20 @@ class AdjustmentProcessing(Document):
 		uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		cto = get_cto_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
+<<<<<<< HEAD
 		wss = get_wss_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
+=======
+		wss = get_wss_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
+>>>>>>> 6b232b76988d6913bc0d083e2c499ae72c3e2c41
 		ot_list = []
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
 			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
 			get_sorted_card(entry, cards_in, cards_out)
+<<<<<<< HEAD
+=======
+			get_suspension(emp, suspension_map, entry)
+>>>>>>> 6b232b76988d6913bc0d083e2c499ae72c3e2c41
 			get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss)
 			entry['break'] = self.convert_secs(entry['break'])
 			entry['work'] = self.convert_secs(entry['work'])

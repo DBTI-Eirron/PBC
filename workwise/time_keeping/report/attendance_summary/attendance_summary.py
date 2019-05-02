@@ -7,7 +7,8 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date, get_datetime
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, 
-get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_suspension_map, get_suspension )
+get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, 
+get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list )
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -162,7 +163,6 @@ def get_data(filters):
 	employees = get_employees(filters)
 	pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "approval_cutoff"])
 	shift_map = get_shift_map()
-	suspension_map = get_suspension_map(pay_from, pay_to)
 	totals = {
 		'card_out': '<b> Totals </b>',
 		'break': 0,
@@ -185,13 +185,13 @@ def get_data(filters):
 		uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
 		ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
 		cto = get_cto_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		wss = get_wss_list(emp.name, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
 
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
 			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
 			get_sorted_card(entry, cards_in, cards_out)
-			get_suspension(emp, suspension_map, entry)
-			get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto)
+			get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss)
 
 			entry['break'] = convert_secs(filters, entry['break'])
 			totals['break'] += entry['break']

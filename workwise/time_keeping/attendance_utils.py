@@ -3,7 +3,7 @@ import frappe, datetime, math
 from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
 from frappe import _
 
-def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
+def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
 	if entry.get("override_in"):
 		entry['card_in'] = entry.get("override_in")
 
@@ -17,7 +17,6 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 	if entry.get('break_end') < entry.get('time_in'):
 		entry['break_end'] = add_days(entry.get('break_end'), 1) 
 	
-
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
@@ -91,12 +90,12 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 			entry['is_db_holiday'] = 1
 
 	#leaves	
+	lv_status_list = []
 	for l in leaves:
-		lv_status_list = []
 		if l['leave_date'] == entry['target_date']:
 			entry['lv_links'].append(l.name) 
 			if l['is_excluded'] != 1:
-				entry['leave_name'] = l.leave_type
+				entry['leave_name'] += (" "+l.leave_type+"")
 				entry['linked_leave'] = l.name
 				entry["lv_status"] = 1
 				if not entry['card_in'] or not entry['card_out']:
@@ -107,14 +106,24 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto):
 				
 				if l.is_half_day:
 					entry["lv_status"] = 2
+					lv_status_list.append(2)
 
 				if l.is_second_half:
 					entry["lv_status"] = 3
+					lv_status_list.append(3)
 
-				lv_status_list.append(entry["lv_status"])
-
-		if 1 in lv_status_list and 2 in lv_status_list:
+		if 2 in lv_status_list and 3 in lv_status_list:
 			entry["lv_status"] = 1
+
+	for ws in wss:
+		if getdate(ws.suspension_date) == getdate(entry['target_date']):	
+			if ws.suspension_start and ws.suspension_end:
+				entry['suspension'] = 1
+				if ws.suspension_start  >= entry['break_end']:
+					entry['suspension'] = 3
+				else:	
+					if ws.suspension_end <= entry['break_end']:
+						entry['suspension'] = 2
 
 	get_late(entry)
 	get_overtime(entry, ots)
@@ -415,6 +424,12 @@ def get_late(entry):
 				#if OB is in 1st Half
 				elif entry.get('ob_stat') == 2 and entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
 					entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+			else:
+				if entry.get('ob_stat') == 1:
+					#if there is no leave on first half
+					if entry.get('lv_status') != 2:
+						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
 
 	#break_out
 	if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
@@ -557,7 +572,9 @@ def get_absent(entry):
 		if entry.get('lv_status') == 2 and entry.get('ob_stat') == 3 and not entry.get('is_lwop'):
 			entry["is_absent"] = 0
 			entry["is_halfday"] = 0
-
+		elif entry.get('lv_status') == 2 and entry.get('ob_stat') == 1 and not entry.get('is_lwop'):
+			entry["is_absent"] = 0
+			entry["is_halfday"] = 0
 		elif entry.get('lv_status') == 3 and entry.get('ob_stat') == 2 and not entry.get('is_lwop'):
 			entry["is_absent"] = 0
 			entry["is_halfday"] = 0
@@ -746,6 +763,8 @@ def get_final_processing(entry):
 
 	#Restday
 	if entry.get('is_restday'):
+		# Strictly no work, late, undertime absent if restday
+		entry['work'] = 0
 		entry['late'] = 0
 		entry['undertime'] = 0
 		entry['is_absent'] = 0
@@ -753,9 +772,12 @@ def get_final_processing(entry):
 	#Holiday
 	if entry.get('is_holiday'):
 		if entry.get('rate_type') == "Daily Rate":
-			if not entry.get('card_out') and not entry.get('card_in') and not entry.get('is_restday'):
+			#daily rate has no card in and card out and holday is not restday, set to absent
+			if not entry.get('card_out') and entry.get('card_in') and entry.get('is_restday'):
 				entry['is_absent'] = 1
 		else:
+			# Strictly no work, late, undertime absent for non daily rate if holiday
+			entry['work'] = 0 
 			entry['late'] = 0
 			entry['undertime'] = 0
 			entry['is_absent'] = 0
@@ -773,7 +795,21 @@ def get_final_processing(entry):
 			entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 			entry["late"] = 0
 			entry["undertime"] = 0
+	
+	#work suspension if card in and not cardout
+	if entry.get('card_in') and not entry.get('card_out'):
+		if entry.get('suspension') == 3:
+			entry["is_halfday"] = 0
+			entry["is_absent"] = 0
 
+	#if whole day work suspension
+	if entry.get('suspension') == 1:
+		entry["is_halfday"] = 0
+		entry["is_absent"] = 0	
+		entry["late"] = 0
+		entry["undertime"] = 0
+		entry["work"] = 0
+	
 	return entry
 
 def get_tags(entry):
@@ -1088,71 +1124,17 @@ def get_ext_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	
 	return ext_apps
 
-def get_ws_list(from_date, to_date, approval_cutoff, adjustment):
+def get_wss_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "	
 
-	ws_apps = frappe.db.sql(""" SELECT apply_to, apply_value, target_date, suspension_start, suspension_end FROM `tabWork Suspension` WS 
-		INNER JOIN `tabWork Suspension Dates` WSD ON WSD.parent = WS.`name`
-		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s 
-		AND target_date <= %s {by_adjustment} """.format( by_adjustment=by_adjustment ), (from_date, to_date), as_dict=1)
+	ws_apps = frappe.db.sql(""" SELECT suspension_date, suspension_start, suspension_end 
+		FROM `tabWork Suspension` WS 
+		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE WSA.employee = %s AND suspension_date >= %s 
+		AND suspension_date <= %s  """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 
 	return ws_apps
 
-def get_suspension_map(from_date, to_date):
-	suspension_map = {}
-	suspensions = frappe.db.sql(""" SELECT apply_to, apply_value, target_date, suspension_start, suspension_end FROM `tabWork Suspension` WS 
-		INNER JOIN `tabWork Suspension Dates` WSD ON WSD.parent = WS.`name`
-		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` WHERE target_date >= %s AND target_date <= %s AND WS.docstatus = 1 """, (from_date, to_date), as_dict=1)
-	
-	if suspensions:
-		for d in suspensions:
-			suspension_name = ""+cstr(d.apply_to)+"_"+cstr(d.apply_value)+"_"+cstr(d.target_date)+""
-			suspension_map[suspension_name] = {
-				"apply_to": d.apply_to,
-				"apply_value": d.apply_value,
-				"suspension_date": d.target_date,
-				"suspension_start": d.suspension_start,
-				"suspension_end": d.suspension_end,
-			}
 
-	return suspension_map
-
-def get_suspension(emp, suspension_map, entry):
-	if suspension_map:
-		start, end = "", ""
-		company = "Company_"+cstr(emp.company)+"_"+cstr(entry.get('target_date'))+""
-		location = "Location_"+cstr(emp.location)+"_"+cstr(entry.get('target_date'))+""
-		department = "Department_"+cstr(emp.department)+"_"+cstr(entry.get('target_date'))+""
-		if company in suspension_map:
-			start = suspension_map[company]['suspension_start']
-			end = suspension_map[company]['suspension_end']
-
-		if location in suspension_map:
-			start = suspension_map[location]['suspension_start']
-			end = suspension_map[location]['suspension_end']
-			
-		if department in suspension_map:
-			start = suspension_map[department]['suspension_start']
-			end = suspension_map[department]['suspension_end']
-
-		if start and end:
-			if start < end:
-				entry['suspension_start'] = get_datetime( str(entry.get('target_date') )+" "+ str(start) )
-				entry['suspension_end'] = get_datetime( str(entry.get('target_date') )+" "+ str(end) )
-			elif start > end:
-				entry['suspension_start'] = get_datetime( str(entry.get('target_date') )+" "+ str(start) )
-				entry['suspension_end'] = get_datetime( str( add_days(entry.get('target_date'), 1) )+" "+ str(end) )
-
-		if entry['suspension_start'] and entry['suspension_end']:
-			entry['suspension'] = 1			
-			if entry['suspension_start'] >= entry['break_end']:
-				entry['suspension'] = 3
-			else:	
-				if entry['suspension_end'] <= entry['break_end']:
-					entry['suspension'] = 2
-
-
-	return entry
 
 def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list):
 	cards_in = []
