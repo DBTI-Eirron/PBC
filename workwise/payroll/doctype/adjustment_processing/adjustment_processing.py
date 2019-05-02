@@ -90,6 +90,7 @@ class AdjustmentProcessing(Document):
 				register = {
 					"employee": d.name,
 					"employee_name": d.full_name,
+					"company": self.company,
 					"payroll_period": self.period,
 					"absent": adjustment.get('ab') - original.get('ab'),
 					"unpaid_holiday": adjustment.get('uho') - original.get('uho'),
@@ -146,7 +147,6 @@ class AdjustmentProcessing(Document):
 	def get_adjustment_schedule(self, emp, pay_from, pay_to, approval_cutoff):
 		adjustment_schedule = []
 		shift_map = get_shift_map()
-		suspension_map = get_suspension_map(pay_from, pay_to)
 		timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))	
 		holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
 		schedule = get_schedule(emp.name, pay_from, pay_to)
@@ -156,13 +156,20 @@ class AdjustmentProcessing(Document):
 		uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
 		cto = get_cto_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
+<<<<<<< HEAD
+		wss = get_wss_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
+=======
 		wss = get_wss_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
+>>>>>>> 6b232b76988d6913bc0d083e2c499ae72c3e2c41
 		ot_list = []
 		for sched in schedule:
 			entry = get_defaults(emp, sched, shift_map)
 			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
 			get_sorted_card(entry, cards_in, cards_out)
+<<<<<<< HEAD
+=======
 			get_suspension(emp, suspension_map, entry)
+>>>>>>> 6b232b76988d6913bc0d083e2c499ae72c3e2c41
 			get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss)
 			entry['break'] = self.convert_secs(entry['break'])
 			entry['work'] = self.convert_secs(entry['work'])
