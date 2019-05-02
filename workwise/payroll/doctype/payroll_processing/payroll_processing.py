@@ -119,6 +119,7 @@ class PayrollProcessing(Document):
 					'frequency': self.frequency,
 					'previous_period': previous_period,
 					'previous_taxable_income': 0.0,
+					'previous_taxable_deduction': 0.0,
 					'previous_work_days': 0.0,
 					'previous_absent_days': 0.0,
 					'previous_present_days': 0.0,
@@ -479,13 +480,35 @@ class PayrollProcessing(Document):
 		
 		if emp['whtax_mode'] != "None":
 			if emp.get('payroll_schedule') == 'Semi-Monthly':
-				table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
-					WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Semi-Monthly'), as_dict=True )
-				
-				for t in table:
-					tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
-					if t.prescribed > 0:
-						tax_amt += flt(t.prescribed, 8)
+				if emp.get('whtax_freq') == 'Both':
+					table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
+						WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Semi-Monthly'), as_dict=True )
+					
+					for t in table:
+						tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
+						if t.prescribed > 0:
+							tax_amt += flt(t.prescribed, 8)
+
+				elif emp.get('whtax_freq') == '1st' and self.frequency == '1st':
+					taxable = rate.get('monthly_rate')
+					table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
+						WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
+					
+					for t in table:
+						tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
+						if t.prescribed > 0:
+							tax_amt += flt(t.prescribed, 8)
+
+				elif emp.get('whtax_freq') == '2nd' and self.frequency == '2nd':
+					taxable += (header.get('previous_taxable_income') - header.get('previous_taxable_deduction'))
+					table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
+						WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
+					
+					for t in table:
+						tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
+						if t.prescribed > 0:
+							tax_amt += flt(t.prescribed, 8)
+
 
 			elif emp.get('payroll_schedule') == 'Monthly':
 				table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table` 
@@ -921,11 +944,12 @@ class PayrollProcessing(Document):
 
 	def get_previous(self, emp, header):
 		if self.schedule != "Weekly":
-			previous = frappe.db.sql(""" SELECT government_basis, taxable_income, gross_payroll, 
+			previous = frappe.db.sql(""" SELECT government_basis, taxable_income, taxable_deduction, gross_payroll, 
 				present_days, work_days, absent_days, govt_income, govt_deduction FROM `tabPayroll Register` 
 				WHERE period = %s AND employee = %s LIMIT 1 """,(header.get('previous_period'), emp.get('name')), as_dict=True)		
 			for d in previous:
 				header['previous_taxable_income'] = d.taxable_income if d.taxable_income else 0
+				header['previous_taxable_deduction'] = d.taxable_deduction if d.taxable_deduction else 0
 				header['previous_gross_payroll'] = d.gross_payroll if d.gross_payroll else 0
 				header['previous_present_days'] = d.present_days if d.present_days else 0
 				header['previous_work_days'] = d.work_days if d.work_days else 0
