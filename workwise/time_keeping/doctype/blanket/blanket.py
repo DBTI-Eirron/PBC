@@ -42,7 +42,6 @@ class Blanket(Document):
 
 		elif self.application_type == "Excuse Tardiness Application":
 			self.validate_mandatory_fields()
-			self.eta_load_timecard()
 			self.validate_employee_company()
 			self.validate_duplicate_table_entries()
 
@@ -847,7 +846,7 @@ class Blanket(Document):
 					self.eta_to_time = time_in[0].time
 				time_out = frappe.db.sql(""" SELECT `time` FROM `tabTime Card` WHERE `biometrics_id` = %s AND `card_type` = 0 AND `is_disabled` = 0 AND `date` = %s LIMIT 1 """, (bio_id, self.eta_date), as_dict=True)
 				if time_out:
-					self.eta_from_time = time_in[0].time
+					self.eta_from_time = time_out[0].time
 
 	#Make Excuse Tardiness Application(s)
 	def make_excuse_tardiness_application(self):
