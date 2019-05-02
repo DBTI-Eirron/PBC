@@ -483,7 +483,8 @@ def get_undertime(entry):
 						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 			else:
 				if entry.get('card_out') < entry.get('time_out'):
-					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+					if entry['suspension'] != 3:
+						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
 		else: #if no card in check for OB
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('break_end'): #if OB is in first half
