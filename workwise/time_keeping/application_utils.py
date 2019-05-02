@@ -132,15 +132,15 @@ def set_levelled_approval_to_approved(self, highest_level):
 def get_levelled_approval_rejection(self):
 	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 	if enable_employee_approvers > 0:
-		approver_level = frappe.db.sql(""" SELECT IFNULL(SUM(`level`), 0) as level FROM `tabEmployee Approvers` WHERE parenttype = "Employee" AND application = %s AND parent = %s AND approver_userid = %s """,(self.doctype, self.employee, frappe.session.user), as_dict=True)
+		approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` WHERE EA.parenttype = "Employee" AND (EA.application = %s OR EA.application = "All") AND EA.parent = %s AND TE.user_id = %s """,(self.doctype, self.employee, frappe.session.user), as_dict=True)
 		if not "Administrator" or not "Admin Approver" in frappe.get_roles(frappe.session.user):
 			if self.workflow_state == "Rejected":
 				if approver_level:
 					if int(approver_level[0].level) != int(self.last_approval_level+1):
-						frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
+						frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to reject this application").format(self.doctype, self.name))
 				if self.approval_history:
 					if frappe.session.user in self.approval_history:
-						frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
+						frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to reject this application").format(self.doctype, self.name))
 
 def get_approver_and_date(self):
 	if self.workflow_state == "Approved":
