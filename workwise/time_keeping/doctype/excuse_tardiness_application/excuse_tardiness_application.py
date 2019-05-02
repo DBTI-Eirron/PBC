@@ -18,7 +18,7 @@ class ExcuseTardinessApplication(Document):
 		clear_approval_history(self)
 		time_in, time_out = self.get_timelogs()
 		if not time_in and not time_out:
-			frappe.throw(_("<b>Excuse Tardiness Application: {0}</b><hr> No timelogs for employee").format(self.name))
+			frappe.throw(_("<b>Excuse Tardiness Application: {0}</b><hr> No timelogs for employee {1}").format(self.name, self.employee))
 		grant_head_subordinate_access(self)
 		change_owner(self)
 
