@@ -56,7 +56,8 @@ def get_employees(filters):
 				WHERE PR.company = %(company)s 
 				AND PR.posting_date >= %(from_date)s
 				AND PR.posting_date <= %(to_date)s
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) 
+				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
+				GROUP BY PR.employee
 				ORDER BY PR.employee_name """,{ 
 				"company": filters.company,
 				"from_date": filters.from_date,
@@ -68,7 +69,9 @@ def get_employees(filters):
 				WHERE PR.company = %(company)s 
 				AND PR.posting_date >= %(from_date)s
 				AND PR.posting_date <= %(to_date)s
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) ORDER BY PR.employee_name """,{ 
+				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+				GROUP BY PR.employee
+				ORDER BY PR.employee_name """,{ 
 				"company": filters.company,
 				"from_date": filters.from_date,
 				"to_date": filters.to_date

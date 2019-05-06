@@ -88,7 +88,7 @@ def get_columns(filters):
 def get_employees(filters):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee as `name`, PR.employee_name as full_name, TE.phic_no, TE.rate, TE.is_active, TE.date_hired, TE.birthday FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
+		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee as `name`, TE.full_name as full_name, TE.phic_no, TE.rate, TE.is_active, TE.date_hired, TE.birthday FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
 				WHERE PR.company = %(company)s 
 				AND PR.posting_date >= %(from_date)s
 				AND PR.posting_date <= %(to_date)s
@@ -101,7 +101,7 @@ def get_employees(filters):
 				"user": frappe.session.user
 			}, as_dict=True)
 	else:
-		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee as `name`, PR.employee_name as full_name, TE.phic_no, TE.rate, TE.is_active, TE.date_hired, TE.birthday FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
+		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee as `name`, TE.full_name as full_name, TE.phic_no, TE.rate, TE.is_active, TE.date_hired, TE.birthday FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
 				WHERE PR.company = %(company)s 
 				AND PR.posting_date >= %(from_date)s
 				AND PR.posting_date <= %(to_date)s
