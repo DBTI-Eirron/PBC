@@ -103,6 +103,8 @@ class OvertimeApplication(Document):
 					for a in autobreak_setup:
 						if a.from_hrs <= self.total_hrs <= a.to_hrs:
 							self.break_hrs = flt(a.break_mins, 2)/60
+						else:
+							self.break_hrs = 0.00
 
 	def validate_overtime(self):
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
@@ -112,24 +114,32 @@ class OvertimeApplication(Document):
 				if shifts[0].min_ot_hrs > 0:
 					if flt(self.total_hrs, 2) < flt(shifts[0].min_ot_hrs, 2):
 						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Minimum Overtime Hours Per Application is {1} Hours, Did not save").format(self.name, shifts[0].min_ot_hrs))
+				
 				if shifts[0].max_ot_hrs > 0:
 					if flt(self.total_hrs, 2) > flt(shifts[0].max_ot_hrs, 2):
 						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Hours Per Application is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_hrs))
+				
 				if shifts[0].max_ot_break > 0:
 					if flt(self.break_hrs, 2) > flt(shifts[0].max_ot_break, 2):
 						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Break is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_break))
+				
 				if shifts[0].allow_ot_in_shift < 1:
-					shift_from = datetime.datetime.strptime(str(self.from_date) + ' ' + str(shifts[0].time_in), '%Y-%m-%d %H:%M:%S')
-					shift_to = datetime.datetime.strptime(str(self.to_date) + ' ' + str(shifts[0].time_out), '%Y-%m-%d %H:%M:%S')
+					if shifts[0].time_in <= shifts[0].time_out:
+						shift_from = datetime.datetime.strptime(str(self.target_date) + ' ' + str(shifts[0].time_in), '%Y-%m-%d %H:%M:%S')
+						shift_to = datetime.datetime.strptime(str(self.target_date) + ' ' + str(shifts[0].time_out), '%Y-%m-%d %H:%M:%S')
+					else:
+						shift_from = datetime.datetime.strptime(str(self.target_date) + ' ' + str(shifts[0].time_in), '%Y-%m-%d %H:%M:%S')
+						shift_to = datetime.datetime.strptime(str(self.target_date) + ' ' + str(shifts[0].time_out), '%Y-%m-%d %H:%M:%S') + datetime.timedelta(days=1)
 
 					cur_from = datetime.datetime.strptime(str(self.from_date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S')
 					cur_to = datetime.datetime.strptime(str(self.to_date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S')
-
-					if shift_from < cur_from < shift_to or shift_from < cur_to < shift_to:
+					
+					if (shift_from < cur_from < shift_to or shift_from < cur_to < shift_to) or (shift_from == cur_from and cur_to == shift_to) or (cur_from < shift_from < cur_to or cur_from < shift_to < cur_to):
 						emp_location = frappe.get_value("Employee", self.employee, "location")
 						is_holiday = frappe.db.sql("""SELECT `name` FROM `tabHoliday` WHERE holiday_date = %s AND ((company = %s AND location = %s) OR company = %s) """, (getdate(self.target_date), self.company, emp_location, self.company), as_dict=True)
 						if not is_holiday:
 							frappe.throw(_("<b>Overtime Application: {0}</b><hr> Overtime Filing is not allowed within the Shift, Did not save").format(self.name))
+				
 				if shifts[0].max_ot_hrs_day > 0:
 					total_max_ot_hrs = 0.0
 					max_application = frappe.db.sql(""" SELECT `total_hrs` FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)
