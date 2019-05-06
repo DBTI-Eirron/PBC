@@ -5,10 +5,6 @@ cur_frm.add_fetch('employee','company','company');
 
 frappe.ui.form.on('Compensatory Time Off', {
 	onload: function(frm) {
-		if (!frm.doc.posting_date) {
-			frm.set_value("posting_date", get_today());
-		}
-
 		cur_frm.set_query("employee", function() {
 			return {
 				"filters": {
