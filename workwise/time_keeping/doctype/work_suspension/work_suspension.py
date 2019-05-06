@@ -49,3 +49,8 @@ class WorkSuspension(Document):
 		for d in entries:
 			row = self.append('apply_to', {})
 			row.update(d)
+
+	def set_name(self):
+		for d in self.apply_to:
+			employee_name = frappe.get_value('Employee',d.employee,'full_name')
+			d.employee_name = employee_name
