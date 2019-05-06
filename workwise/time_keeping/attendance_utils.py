@@ -781,6 +781,7 @@ def get_final_processing(entry):
 			else:
 				entry['late'] = 0
 				entry['undertime'] = 0
+				entry['nightdiff'] = 0 
 				entry['is_absent'] = 0				
 
 		else:
