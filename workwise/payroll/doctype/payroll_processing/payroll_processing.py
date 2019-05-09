@@ -117,6 +117,7 @@ class PayrollProcessing(Document):
 					'no_weeks': no_weeks,
 					'schedule': self.schedule,
 					'frequency': self.frequency,
+					'process_group': self.period_group,
 					'previous_period': previous_period,
 					'previous_taxable_income': 0.0,
 					'previous_taxable_deduction': 0.0,
