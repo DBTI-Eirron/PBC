@@ -104,7 +104,7 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
 				if l.is_lwop == 1:
 					entry['is_lwop'] = 1
 				
-				if l.is_half_day:
+				if l.is_half_day and not l.is_second_half:
 					entry["lv_status"] = 2
 					lv_status_list.append(2)
 
@@ -453,7 +453,7 @@ def get_late(entry):
 	return entry
 
 def get_undertime(entry):
-	if entry.get('lv_status') == 2 and entry['card_out']: #get undertime if leave is 1sthalf halfday
+	if (entry.get('lv_status') == 2 or entry.get('suspension') == 2) and entry['card_out']: #get undertime if leave is 1sthalf halfday
 		if entry.get('ob_status') == 1:
 			if entry.get('card_out') > entry.get('ob_out'):
 				if entry.get('card_out') < entry.get('time_out'):
@@ -465,7 +465,7 @@ def get_undertime(entry):
 			if entry.get('card_out') < entry.get('time_out'):
 				entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
 
-	elif entry.get('lv_status') == 3 and entry['card_out']: #get undertime if leave is 2ndhalf halfday
+	elif (entry.get('lv_status') == 3 or entry.get('suspension') == 3) and entry['card_out']: #get undertime if leave is 2ndhalf halfday
 		if entry.get('ob_status') == 1:
 			if entry.get('ob_out') < entry.get('break_start'):
 				entry['undertime'] += abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
@@ -473,7 +473,7 @@ def get_undertime(entry):
 			if entry.get('card_out') < entry.get('break_start'):
 				entry['undertime'] += abs((entry.get('card_out') - entry.get('break_start')).total_seconds())
 	else:	
-		if entry.get('card_out') and entry.get('lv_status') != 1:
+		if entry.get('card_out') and (entry.get('lv_status') != 1 or entry.get('suspension') != 1):
 			if entry.get('ob_status') == 1:
 				if entry.get('card_out') > entry.get('ob_out'):
 					if entry.get('card_out') < entry.get('time_out'):
@@ -483,16 +483,15 @@ def get_undertime(entry):
 						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
 			else:
 				if entry.get('card_out') < entry.get('time_out'):
-					if entry['suspension'] != 3:
-						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+					entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
 		else: #if no card in check for OB
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('break_end'): #if OB is in first half
-					if not entry.get('lv_status') == 3:
+					if not entry.get('lv_status') == 3 or not entry.get('suspension') == 3:
 						entry['undertime'] += abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
 						if entry.get('ob_out') < entry.get('break_end'): #Add undertime Beyond Break Time
 							entry['undertime'] -= abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
-				elif entry.get('ob_out') > entry.get('break_end') and entry.get('lv_status') == 3:
+				elif entry.get('ob_out') > entry.get('break_end') and (entry.get('lv_status') == 3 or entry.get('suspension') == 3):
 					pass
 				else:
 					if entry.get('ob_out') < entry.get('time_out'): #if OB is wholeday
@@ -781,13 +780,11 @@ def get_final_processing(entry):
 			else:
 				entry['late'] = 0
 				entry['undertime'] = 0
-				entry['nightdiff'] = 0 
 				entry['is_absent'] = 0				
 
 		else:
 			# Strictly no work, late, undertime absent for non daily rate if holiday
 			entry['work'] = 0 
-			entry['nightdiff'] = 0 
 			entry['late'] = 0
 			entry['undertime'] = 0
 			entry['is_absent'] = 0
@@ -978,7 +975,8 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 	exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (employee, pay_from, pay_to), as_dict=True)
 	if exist:
 		exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (employee, pay_from, pay_to), as_dict=True)
-						
+		frappe.db.commit()
+
 	for d in dates:
 		work_sched = frappe.new_doc("Work Schedule")
 		work_sched.update({
@@ -998,6 +996,7 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 			"is_default_schedule": 1,
 		})
 		work_sched.insert()
+		frappe.db.commit()
 
 def get_schedule(employee, pay_from, pay_to):
 	def_sched = frappe.db.get_value("Employee", employee, "default_schedule")
@@ -1143,8 +1142,6 @@ def get_wss_list(employee, from_date, to_date, approval_cutoff, adjustment):
 		AND suspension_date <= %s  """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 
 	return ws_apps
-
-
 
 def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list):
 	cards_in = []
