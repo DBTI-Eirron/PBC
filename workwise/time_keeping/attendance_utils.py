@@ -246,7 +246,14 @@ def get_overtime(entry, ot_apps):
 					if ot_out > nd_end:
 						ot_nd = abs((nd_start - nd_end).total_seconds())
 					else:
-						ot_nd = abs((nd_start - ot_out).total_seconds())
+						# if OT in is below ND Start
+						if ot_in > nd_start:
+							ot_nd = abs((ot_in - ot_out).total_seconds())
+							# if OT in is greater than ot out set to zero
+							if ot_in > ot_out:
+								ot_nd = 0
+						else:
+							ot_nd = abs((nd_start - ot_out).total_seconds())
 
 				#Get early ND OT
 				if ot_in < nd_early_start:
