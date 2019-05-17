@@ -82,18 +82,19 @@ class OvertimeApplication(Document):
 		from_date = str(self.from_date) + ' ' + str(self.from_time)
 		to_date = str(self.to_date) + ' ' + str(self.to_time)
 		
-		if from_date <= to_date:
+		if self.break_hrs:
 			total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
 			self.total_hrs = total_hrs - flt(self.break_hrs, 8)
 		else:
-			if self.break_hrs:
-				total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
-				self.total_hrs = total_hrs - flt(self.break_hrs, 8)
-			else:
-				total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
-				self.total_hrs = total_hrs
+			total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
+			self.total_hrs = total_hrs
 
 	def get_autobreak_hrs(self):
+		self.break_hrs = 0.00
+		from_date = str(self.from_date) + ' ' + str(self.from_time)
+		to_date = str(self.to_date) + ' ' + str(self.to_time)
+		total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
+
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
 		if schedule:
 			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
@@ -101,11 +102,9 @@ class OvertimeApplication(Document):
 				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabOvertime Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
 				if autobreak_setup:
 					for a in autobreak_setup:
-						if a.from_hrs <= self.total_hrs <= a.to_hrs:
+						if flt(a.from_hrs) <= flt(total_hrs) <= flt(a.to_hrs):
 							self.break_hrs = flt(a.break_mins, 2)/60
-						else:
-							self.break_hrs = 0.00
-
+							
 	def validate_overtime(self):
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
 		if schedule:
