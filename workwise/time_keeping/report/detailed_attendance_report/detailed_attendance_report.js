@@ -35,5 +35,10 @@ frappe.query_reports["Detailed Attendance Report"] = {
 			"default": "Hrs",
 			"reqd": 1
 		},
+		{
+			"fieldname": "hide_zero",
+			"label": __("Hide zero value"),
+			"fieldtype": "Check",
+		},
 	]
 }

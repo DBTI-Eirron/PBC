@@ -364,42 +364,188 @@ def get_data(filters):
 			if reg.is_holiday > 0 and reg.is_restday > 0 and reg.overtime_nd > 0 and not reg.is_sp_holiday > 0:
 				rd_lh_nd_ot += reg.overtime_nd
 
+		emp_total = reg_hrs + absent + tardy + ut + sl + vl + bl + cto + ot_ex + ot + nd + nd_ot + rd_reg + rd_ot + rd_nd + rd_nd_ot + sh_reg + sh_ot + sh_nd + sh_nd_ot + lh_reg + lh_ot + lh_nd + lh_nd_ot + rd_sh_reg + rd_sh_ot + rd_sh_nd + rd_sh_nd_ot + rd_lh_reg + rd_lh_ot + rd_lh_nd + rd_lh_nd_ot
+		if filters.hide_zero:
+			if emp_total > 0:
+				data.append({
+					"employee_name": emp.full_name,
+					"reg": '{:,.2f}'.format(convert_hrs(filters ,reg_hrs)),
+					"abs": '{:,.2f}'.format(convert_hrs(filters ,absent)),
+					"tardy": '{:,.2f}'.format(convert_hrs(filters ,tardy)),
+					"ut": '{:,.2f}'.format(convert_hrs(filters ,ut)),
+					"sl": '{:,.2f}'.format(convert_hrs(filters ,sl)),
+					"vl": '{:,.2f}'.format(convert_hrs(filters ,vl)),
+					"bl": '{:,.2f}'.format(convert_hrs(filters ,bl)),
+					"cto": '{:,.2f}'.format(convert_hrs(filters ,cto)),
+					"ot_ex": '{:,.2f}'.format(convert_hrs(filters ,ot_ex)),
+					"ot": '{:,.2f}'.format(convert_hrs(filters ,ot)),
+					"nd": '{:,.2f}'.format(convert_hrs(filters ,nd)),
+					"nd_ot": '{:,.2f}'.format(convert_hrs(filters ,nd_ot)),
+					"rd_reg": '{:,.2f}'.format(convert_hrs(filters ,rd_reg)),
+					"rd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_ot)),
+					"rd_nd": '{:,.2f}'.format(convert_hrs(filters ,rd_nd)),
+					"rd_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_nd_ot)),
+					"sh_reg": '{:,.2f}'.format(convert_hrs(filters ,sh_reg)),
+					"sh_ot": '{:,.2f}'.format(convert_hrs(filters ,sh_ot)),
+					"sh_nd": '{:,.2f}'.format(convert_hrs(filters ,sh_nd)),
+					"sh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,sh_nd_ot)),
+					"lh_reg": '{:,.2f}'.format(convert_hrs(filters ,lh_reg)),
+					"lh_ot": '{:,.2f}'.format(convert_hrs(filters ,lh_ot)),
+					"lh_nd": '{:,.2f}'.format(convert_hrs(filters ,lh_nd)),
+					"lh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,lh_nd_ot)),
+					"rd_sh_reg": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_reg)),
+					"rd_sh_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_ot)),
+					"rd_sh_nd": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_nd)),
+					"rd_sh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_nd_ot)),
+					"rd_lh_reg": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_reg)),
+					"rd_lh_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_ot)),
+					"rd_lh_nd": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_nd)),
+					"rd_lh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_nd_ot))
+				})
+		else:
+			data.append({
+				"employee_name": emp.full_name,
+				"reg": '{:,.2f}'.format(convert_hrs(filters ,reg_hrs)),
+				"abs": '{:,.2f}'.format(convert_hrs(filters ,absent)),
+				"tardy": '{:,.2f}'.format(convert_hrs(filters ,tardy)),
+				"ut": '{:,.2f}'.format(convert_hrs(filters ,ut)),
+				"sl": '{:,.2f}'.format(convert_hrs(filters ,sl)),
+				"vl": '{:,.2f}'.format(convert_hrs(filters ,vl)),
+				"bl": '{:,.2f}'.format(convert_hrs(filters ,bl)),
+				"cto": '{:,.2f}'.format(convert_hrs(filters ,cto)),
+				"ot_ex": '{:,.2f}'.format(convert_hrs(filters ,ot_ex)),
+				"ot": '{:,.2f}'.format(convert_hrs(filters ,ot)),
+				"nd": '{:,.2f}'.format(convert_hrs(filters ,nd)),
+				"nd_ot": '{:,.2f}'.format(convert_hrs(filters ,nd_ot)),
+				"rd_reg": '{:,.2f}'.format(convert_hrs(filters ,rd_reg)),
+				"rd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_ot)),
+				"rd_nd": '{:,.2f}'.format(convert_hrs(filters ,rd_nd)),
+				"rd_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_nd_ot)),
+				"sh_reg": '{:,.2f}'.format(convert_hrs(filters ,sh_reg)),
+				"sh_ot": '{:,.2f}'.format(convert_hrs(filters ,sh_ot)),
+				"sh_nd": '{:,.2f}'.format(convert_hrs(filters ,sh_nd)),
+				"sh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,sh_nd_ot)),
+				"lh_reg": '{:,.2f}'.format(convert_hrs(filters ,lh_reg)),
+				"lh_ot": '{:,.2f}'.format(convert_hrs(filters ,lh_ot)),
+				"lh_nd": '{:,.2f}'.format(convert_hrs(filters ,lh_nd)),
+				"lh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,lh_nd_ot)),
+				"rd_sh_reg": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_reg)),
+				"rd_sh_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_ot)),
+				"rd_sh_nd": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_nd)),
+				"rd_sh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_nd_ot)),
+				"rd_lh_reg": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_reg)),
+				"rd_lh_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_ot)),
+				"rd_lh_nd": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_nd)),
+				"rd_lh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_nd_ot))
+			})
+	if data:
+		total_reg_hrs = 0
+		total_absent = 0
+		total_tardy = 0
+		total_ut = 0
+		total_sl = 0
+		total_vl = 0
+		total_bl = 0
+		total_cto = 0
+		total_ot_ex = 0
+		total_ot = 0
+		total_nd = 0
+		total_nd_ot = 0
+		total_rd_reg = 0
+		total_rd_ot = 0
+		total_rd_nd = 0
+		total_rd_nd_ot = 0
+		total_sh_reg = 0
+		total_sh_ot = 0
+		total_sh_nd = 0
+		total_sh_nd_ot = 0
+		total_lh_reg = 0
+		total_lh_ot = 0
+		total_lh_nd = 0
+		total_lh_nd_ot = 0
+		total_rd_sh_reg = 0
+		total_rd_sh_ot = 0
+		total_rd_sh_nd = 0
+		total_rd_sh_nd_ot = 0
+		total_rd_lh_reg = 0
+		total_rd_lh_ot = 0
+		total_rd_lh_nd = 0
+		total_rd_lh_nd_ot= 0
+		head_count = 0
+		for d in data:
+			total_reg_hrs += flt(d['reg'])
+			total_absent += flt(d['abs'])
+			total_tardy += flt(d['tardy'])
+			total_ut += flt(d['ut'])
+			total_sl += flt(d['sl'])
+			total_vl += flt(d['vl'])
+			total_bl += flt(d['bl'])
+			total_cto += flt(d['cto'])
+			total_ot_ex += flt(d['ot_ex'])
+			total_ot += flt(d['ot'])
+			total_nd += flt(d['nd'])
+			total_nd_ot += flt(d['nd_ot'])
+			total_rd_reg += flt(d['rd_reg'])
+			total_rd_ot += flt(d['rd_ot'])
+			total_rd_nd += flt(d['rd_nd'])
+			total_rd_nd_ot += flt(d['rd_nd_ot'])
+			total_sh_reg += flt(d['sh_reg'])
+			total_sh_ot += flt(d['sh_ot'])
+			total_sh_nd += flt(d['sh_nd'])
+			total_sh_nd_ot += flt(d['sh_nd_ot'])
+			total_lh_reg += flt(d['lh_reg'])
+			total_lh_ot += flt(d['lh_ot'])
+			total_lh_nd += flt(d['lh_nd'])
+			total_lh_nd_ot += flt(d['lh_nd_ot'])
+			total_rd_sh_reg += flt(d['rd_sh_reg'])
+			total_rd_sh_ot += flt(d['rd_sh_ot'])
+			total_rd_sh_nd += flt(d['rd_sh_nd'])
+			total_rd_sh_nd_ot += flt(d['rd_sh_nd_ot'])
+			total_rd_lh_reg += flt(d['rd_lh_reg'])
+			total_rd_lh_ot += flt(d['rd_lh_ot'])
+			total_rd_lh_nd += flt(d['rd_lh_nd'])
+			total_rd_lh_nd_ot+= flt(d['rd_lh_nd_ot'])
+			head_count += 1
+		data.append({})
 		data.append({
-			"employee_name": emp.full_name,
-			"reg": '{:,.2f}'.format(convert_hrs(filters ,reg_hrs)),
-			"abs": '{:,.2f}'.format(convert_hrs(filters ,absent)),
-			"tardy": '{:,.2f}'.format(convert_hrs(filters ,tardy)),
-			"ut": '{:,.2f}'.format(convert_hrs(filters ,ut)),
-			"sl": '{:,.2f}'.format(convert_hrs(filters ,sl)),
-			"vl": '{:,.2f}'.format(convert_hrs(filters ,vl)),
-			"bl": '{:,.2f}'.format(convert_hrs(filters ,bl)),
-			"cto": '{:,.2f}'.format(convert_hrs(filters ,cto)),
-			"ot_ex": '{:,.2f}'.format(convert_hrs(filters ,ot_ex)),
-			"ot": '{:,.2f}'.format(convert_hrs(filters ,ot)),
-			"nd": '{:,.2f}'.format(convert_hrs(filters ,nd)),
-			"nd_ot": '{:,.2f}'.format(convert_hrs(filters ,nd_ot)),
-			"rd_reg": '{:,.2f}'.format(convert_hrs(filters ,rd_reg)),
-			"rd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_ot)),
-			"rd_nd": '{:,.2f}'.format(convert_hrs(filters ,rd_nd)),
-			"rd_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_nd_ot)),
-			"sh_reg": '{:,.2f}'.format(convert_hrs(filters ,sh_reg)),
-			"sh_ot": '{:,.2f}'.format(convert_hrs(filters ,sh_ot)),
-			"sh_nd": '{:,.2f}'.format(convert_hrs(filters ,sh_nd)),
-			"sh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,sh_nd_ot)),
-			"lh_reg": '{:,.2f}'.format(convert_hrs(filters ,lh_reg)),
-			"lh_ot": '{:,.2f}'.format(convert_hrs(filters ,lh_ot)),
-			"lh_nd": '{:,.2f}'.format(convert_hrs(filters ,lh_nd)),
-			"lh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,lh_nd_ot)),
-			"rd_sh_reg": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_reg)),
-			"rd_sh_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_ot)),
-			"rd_sh_nd": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_nd)),
-			"rd_sh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_sh_nd_ot)),
-			"rd_lh_reg": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_reg)),
-			"rd_lh_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_ot)),
-			"rd_lh_nd": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_nd)),
-			"rd_lh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,rd_lh_nd_ot)),
+			"employee_name": 'Total',
+			"reg": '{:,.2f}'.format(convert_hrs(filters ,total_reg_hrs)),
+			"abs": '{:,.2f}'.format(convert_hrs(filters ,total_absent)),
+			"tardy": '{:,.2f}'.format(convert_hrs(filters ,total_tardy)),
+			"ut": '{:,.2f}'.format(convert_hrs(filters ,total_ut)),
+			"sl": '{:,.2f}'.format(convert_hrs(filters ,total_sl)),
+			"vl": '{:,.2f}'.format(convert_hrs(filters ,total_vl)),
+			"bl": '{:,.2f}'.format(convert_hrs(filters ,total_bl)),
+			"cto": '{:,.2f}'.format(convert_hrs(filters ,total_cto)),
+			"ot_ex": '{:,.2f}'.format(convert_hrs(filters ,total_ot_ex)),
+			"ot": '{:,.2f}'.format(convert_hrs(filters ,total_ot)),
+			"nd": '{:,.2f}'.format(convert_hrs(filters ,total_nd)),
+			"nd_ot": '{:,.2f}'.format(convert_hrs(filters ,total_nd_ot)),
+			"rd_reg": '{:,.2f}'.format(convert_hrs(filters ,total_rd_reg)),
+			"rd_ot": '{:,.2f}'.format(convert_hrs(filters ,total_rd_ot)),
+			"rd_nd": '{:,.2f}'.format(convert_hrs(filters ,total_rd_nd)),
+			"rd_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,total_rd_nd_ot)),
+			"sh_reg": '{:,.2f}'.format(convert_hrs(filters ,total_sh_reg)),
+			"sh_ot": '{:,.2f}'.format(convert_hrs(filters ,total_sh_ot)),
+			"sh_nd": '{:,.2f}'.format(convert_hrs(filters ,total_sh_nd)),
+			"sh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,total_sh_nd_ot)),
+			"lh_reg": '{:,.2f}'.format(convert_hrs(filters ,total_lh_reg)),
+			"lh_ot": '{:,.2f}'.format(convert_hrs(filters ,total_lh_ot)),
+			"lh_nd": '{:,.2f}'.format(convert_hrs(filters ,total_lh_nd)),
+			"lh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,total_lh_nd_ot)),
+			"rd_sh_reg": '{:,.2f}'.format(convert_hrs(filters ,total_rd_sh_reg)),
+			"rd_sh_ot": '{:,.2f}'.format(convert_hrs(filters ,total_rd_sh_ot)),
+			"rd_sh_nd": '{:,.2f}'.format(convert_hrs(filters ,total_rd_sh_nd)),
+			"rd_sh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,total_rd_sh_nd_ot)),
+			"rd_lh_reg": '{:,.2f}'.format(convert_hrs(filters ,total_rd_lh_reg)),
+			"rd_lh_ot": '{:,.2f}'.format(convert_hrs(filters ,total_rd_lh_ot)),
+			"rd_lh_nd": '{:,.2f}'.format(convert_hrs(filters ,total_rd_lh_nd)),
+			"rd_lh_nd_ot": '{:,.2f}'.format(convert_hrs(filters ,total_rd_lh_nd_ot))
 		})
-	
+		data.append({
+			"employee_name": 'Head Count',
+			"reg": head_count
+		})
 	return data
 
 def get_employees(filters):
