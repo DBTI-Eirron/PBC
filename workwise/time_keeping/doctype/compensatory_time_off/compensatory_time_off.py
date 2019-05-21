@@ -204,26 +204,24 @@ class CompensatoryTimeOff(Document):
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
 		if cto_validity > 0:
-			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -%(cto_validity)s DAY) "
+			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -%(cto_validity)s DAY)) "
 		else:
 			cto_validity_condition = ""
 
 		if cto_use_type == "Day":
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s %(cto_validity_condition)s """,{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s {conditions} """.format(conditions=cto_validity_condition),{
 				"employee": self.employee,
 				"filed_cto": self.filed_cto,
-				"use_date": self.use_date,
+				"use_date": getdate(self.use_date),
 				"cto_validity": cto_validity,
-				"cto_validity_condition": cto_validity_condition,
 			}, as_dict=True)
 		else:
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved' %(cto_validity_condition)s ORDER BY `date` DESC""",{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved' {conditions} ORDER BY `date` DESC""".format(conditions=cto_validity_condition),{
 				"employee": self.employee,
 				"use_date": self.use_date,
 				"cto_validity": cto_validity,
-				"cto_validity_condition": cto_validity_condition,
 			}, as_dict=True)
 
 		if current_credits:
