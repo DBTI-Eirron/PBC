@@ -90,7 +90,10 @@ class OvertimeApplication(Document):
 			self.total_hrs = total_hrs
 
 	def get_autobreak_hrs(self):
-		self.break_hrs = 0.00
+		if self.is_new():
+			if self.amended_from:
+				self.break_hrs = 0.00
+
 		from_date = str(self.from_date) + ' ' + str(self.from_time)
 		to_date = str(self.to_date) + ' ' + str(self.to_time)
 		total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
@@ -103,7 +106,9 @@ class OvertimeApplication(Document):
 				if autobreak_setup:
 					for a in autobreak_setup:
 						if flt(a.from_hrs) <= flt(total_hrs) <= flt(a.to_hrs):
+							self.break_hrs = 0.00
 							self.break_hrs = flt(a.break_mins, 2)/60
+							break
 							
 	def validate_overtime(self):
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
