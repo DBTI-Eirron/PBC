@@ -491,7 +491,7 @@ class PayrollProcessing(Document):
 							tax_amt += flt(t.prescribed, 8)
 
 				elif emp.get('whtax_freq') == '1st' and self.frequency == '1st':
-					taxable = rate.get('monthly_rate')
+					taxable = rates.get('monthly_rate')
 					table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
 						WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
 					
