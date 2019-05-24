@@ -18,7 +18,9 @@ class ExcuseTardinessApplication(Document):
 		clear_approval_history(self)
 		time_in, time_out = self.get_timelogs()
 		if not time_in and not time_out:
-			frappe.throw(_("<b>Excuse Tardiness Application: {0}</b><hr> No timelogs for employee {1}").format(self.name, self.employee))
+			has_ob = self.check_employee_ob()
+			if not has_ob:
+				frappe.throw(_("<b>Excuse Tardiness Application: {0}</b><hr> No timelogs for employee {1}").format(self.name, self.employee))
 		grant_head_subordinate_access(self)
 		change_owner(self)
 
@@ -63,3 +65,7 @@ class ExcuseTardinessApplication(Document):
 					time_out = datetime.strftime(ws.o_time_out, '%H:%M:%S')
 
 		return time_in, time_out
+
+	def check_employee_ob(self):
+		ob_apps = frappe.db.sql("""SELECT OBA.`name`FROM `tabOfficial Business Application Table` OBAT INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
+			WHERE OBA.employee = %s AND OBA.workflow_state = 'Approved' AND OBAT.target_date = %s AND OBAT.is_excluded = 0 """,(self.employee, self.date), as_dict=1)
