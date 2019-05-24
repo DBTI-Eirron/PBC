@@ -241,24 +241,31 @@ def get_overtime(entry, ot_apps):
 				#Get Normal OT before ND and Should also consider early ND OT
 				ot_normal += abs((ot_in - ot_out).total_seconds())
 
-				#Get ND OT
+				#Get ND OT Start and End
+				ot_nd_start = None #Start Time of OT ND computation
+				ot_nd_end = None #End Time of OT ND computation
 				if ot_out > nd_start:
-					if ot_out > nd_end:
-						ot_nd = abs((nd_start - nd_end).total_seconds())
-						if ot_in > nd_start:
-							ot_nd = abs((ot_in - ot_out).total_seconds())
-							# if OT in is greater than ot out set to zero
-							if ot_in > ot_out:
-								ot_nd = 0
-					else:
-						# if OT in is below ND Start
-						if ot_in > nd_start:
-							ot_nd = abs((ot_in - ot_out).total_seconds())
-							# if OT in is greater than ot out set to zero
-							if ot_in > ot_out:
-								ot_nd = 0
-						else:
-							ot_nd = abs((nd_start - ot_out).total_seconds())
+					# GET ND OT START
+					if ot_in >= nd_start:
+						ot_nd_start = ot_in
+						# if OT in is greater than ot out set to None
+						if ot_in > ot_out:
+							ot_nd_start = None
+					elif ot_in < nd_start: #if OT IN is beyond ND, limit to ND START
+						ot_nd_start = nd_start
+
+					# GET ND OT END
+					if ot_out <= nd_end: #if OT OUT is inside ND
+						ot_nd_end = ot_out
+						# if OT OUT is less than OT IN set to none
+						if ot_out < nd_end:
+							ot_nd_end = None
+					elif ot_out > nd_end:  #if OT OUT is beyond ND, limit to ND END
+						ot_nd_end = nd_end
+
+				#Get ND OT and Calculate ND OT From Start to End
+				if ot_nd_start and ot_nd_end:
+					ot_nd = abs((ot_nd_start - ot_nd_end).total_seconds())
 
 				#Get early ND OT
 				if ot_in < nd_early_start:
