@@ -91,7 +91,7 @@ class OvertimeApplication(Document):
 
 	def get_autobreak_hrs(self):
 		if self.is_new():
-			if self.amended_from:
+			if not self.amended_from:
 				self.break_hrs = 0.00
 
 		from_date = str(self.from_date) + ' ' + str(self.from_time)
