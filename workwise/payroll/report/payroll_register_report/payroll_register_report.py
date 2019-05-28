@@ -64,7 +64,7 @@ def execute(filters=None):
 		if filters.hide_zero:
 			i = 0
 			for income in income_types:
-				if income_total[i] >= 1:
+				if income_total[i] > 0:
 					total_row.append('{:,.2f}'.format(income_total[i]))
 					i += 1
 				else:
@@ -76,7 +76,7 @@ def execute(filters=None):
 			inlen = i
 			i = 0
 			for deduction in deduction_types:
-				if deduction_total[i] >= 1:
+				if deduction_total[i] > 0:
 					total_row.append('{:,.2f}'.format(deduction_total[i]))
 					i += 1
 				else:
