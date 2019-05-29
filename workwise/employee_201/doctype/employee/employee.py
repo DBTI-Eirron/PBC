@@ -62,11 +62,12 @@ class Employee(Document):
 			self.full_name = self.last_name + ', ' + self.first_name
 
 	def validate_biometric_id(self):
-		bio_list = frappe.db.sql(""" SELECT DISTINCT `biometrics_id` FROM `tabEmployee` """, as_dict=1)
-		for b in bio_list:
-			if self.biometrics_id == b.biometrics_id:
-				frappe.throw(_("Biometric ID is already taken"))
-				break
+		if self.biometrics_id:
+			bio_list = frappe.db.sql(""" SELECT DISTINCT `biometrics_id` FROM `tabEmployee` """, as_dict=1)
+			for b in bio_list:
+				if self.biometrics_id == b.biometrics_id:
+					frappe.throw(_("Biometric ID is already taken"))
+					break
 
 	def validate_salary(self):
 		if self.payroll_schedule == "Monthly":
