@@ -126,10 +126,10 @@ def get_data(filters):
 					entry = {
 						"date": getdate(reg.target_date),
 						"data": ot_list,
-						"total_hours": flt(reg.overtime, 2),
+						"total_hours": '{:,.2f}'.format(flt(reg.overtime, 2)+flt(reg.overtime_nd, 2)+flt(reg.overtime_ex, 2)),
 						"tags": tags
 					}
-					total_ob_hrs += flt(reg.overtime)
+					total_ob_hrs += flt(reg.overtime, 2)+flt(reg.overtime_nd, 2)+flt(reg.overtime_ex, 2)
 					data.append(entry)
 
 			data.append({
@@ -166,8 +166,8 @@ def convert_secs(filters, secs):
 
 def get_employees(filters):
 	register = frappe.db.sql("""SELECT DISTINCT TE.`name`, TE.full_name, AR.overtime, AR.overtime_nd, AR.overtime_ex FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.employee=TE.`name`
-		WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s AND company = %(company)s {conditions}
-		ORDER BY target_date ASC""".format(conditions=get_conditions(filters)),{
+		WHERE AR.`target_date` >= %(from_date)s AND AR.`target_date` <= %(to_date)s AND TE.`company` = %(company)s {conditions}
+		ORDER BY AR.`target_date` ASC""".format(conditions=get_conditions(filters)),{
 			"from_date": filters.from_date,
 			"to_date": filters.to_date,
 			"company": filters.company,

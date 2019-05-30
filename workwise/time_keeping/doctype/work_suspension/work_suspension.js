@@ -6,30 +6,7 @@ frappe.ui.form.on('Work Suspension', {
 		
 	},
 
-	company: function(frm) {
-		frm.doc.apply_to = null
-		frappe.call({
-			method: "get_employees",
-			doc: frm.doc,
-			callback: function(r) {
-				frm.refresh_fields();
-			}
-		});
-	},
-	
-	location: function(frm) {
-		frm.doc.apply_to = null
-		frappe.call({
-			method: "get_employees",
-			doc: frm.doc,
-			callback: function(r) {
-				frm.refresh_fields();
-			}
-		});
-	},
-
-	department: function(frm) {
-		frm.doc.apply_to = null
+	add: function(frm) {
 		frappe.call({
 			method: "get_employees",
 			doc: frm.doc,
@@ -40,3 +17,10 @@ frappe.ui.form.on('Work Suspension', {
 	},
 
 });
+cur_frm.fields_dict['apply_to'].grid.get_field('employee').get_query = function(doc, cdt, cdn) {
+console.log(doc)
+  return{
+    filters:{'is_active': "1"}
+  }
+};
+

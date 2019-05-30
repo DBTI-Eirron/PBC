@@ -16,10 +16,18 @@ class ChangeScheduleApplication(Document):
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)
 		validate_approve_own_application(self)
-		self.change_sched()
+		emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+		if emp_app < 1:
+			self.change_sched()
 		change_owner(self)
 		self.get_recipients()
 		get_approver_and_date(self)
+
+	def on_update_after_submit(self):
+		emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+		if emp_app > 0:
+			if self.workflow_state == "Approved":
+				self.change_sched()
 
 	def before_update_after_submit(self):
 		get_levelled_approval(self)
@@ -83,17 +91,17 @@ class ChangeScheduleApplication(Document):
 					"employee": self.employee,
 					"company": self.company,
 					"target_date": target_date,
-					"work_shift": i.new_shift,
-					"datetime_in": self.get_date(target_date, ws.time_in, ws.time_out, ws.shift_type, 0),
-					"datetime_out": self.get_date(target_date, ws.time_out, ws.time_out, ws.shift_type, 1),							
-					"break_start": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 0),
-					"break_end": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 1),
-					"nd_start": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 0),
-					"nd_end": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 1),	
-					"shift_type": ws.shift_type,
-					"is_restday": ws.is_restday,
-					"is_flexible": ws.is_flexible,
-				})	
+					"work_shift": ws.name,
+					"shift_type": ws.work_shift_type,
+					"work_hours": ws.work_hours,
+					"break_mins": ws.break_mins,
+					"datetime_in": self.get_date(target_date, ws.time_in, ws.time_out, ws.work_shift_type, 0), 
+					"datetime_out": self.get_date(target_date, ws.time_in, ws.time_out, ws.work_shift_type, 1),			
+					"break_start": self.get_date(target_date, ws.break_start, ws.break_end, ws.work_shift_type, 0),
+					"break_end": self.get_date(target_date, ws.break_start, ws.break_end, ws.work_shift_type, 1),
+					"nd_start": self.get_date(target_date, ws.nd_start, ws.time_out, ws.nd_end, 0),
+					"nd_end": self.get_date(target_date, ws.nd_start, ws.time_out, ws.nd_end, 1),
+				})
 				if work_sched.insert():
 					if old_shift:
 						i.current_shift = old_shift
@@ -117,17 +125,17 @@ class ChangeScheduleApplication(Document):
 					"employee": self.employee,
 					"company": self.company,
 					"target_date": target_date,
-					"work_shift": i.current_shift,
-					"datetime_in": self.get_date(target_date, ws.time_in, ws.time_out, ws.shift_type, 0),
-					"datetime_out": self.get_date(target_date, ws.time_out, ws.time_out, ws.shift_type, 1),							
-					"break_start": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 0),
-					"break_end": self.get_date(target_date, ws.break_start, ws.break_end, ws.shift_type, 1),
-					"nd_start": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 0),
-					"nd_end": self.get_date(target_date, ws.nd_start, ws.nd_end, ws.shift_type, 1),	
-					"shift_type": ws.shift_type,
-					"is_restday": ws.is_restday,
-					"is_flexible": ws.is_flexible,
-				})	
+					"work_shift": ws.name,
+					"shift_type": ws.work_shift_type,
+					"work_hours": ws.work_hours,
+					"break_mins": ws.break_mins,
+					"datetime_in": self.get_date(target_date, ws.time_in, ws.time_out, ws.work_shift_type, 0), 
+					"datetime_out": self.get_date(target_date, ws.time_in, ws.time_out, ws.work_shift_type, 1),			
+					"break_start": self.get_date(target_date, ws.break_start, ws.break_end, ws.work_shift_type, 0),
+					"break_end": self.get_date(target_date, ws.break_start, ws.break_end, ws.work_shift_type, 1),
+					"nd_start": self.get_date(target_date, ws.nd_start, ws.time_out, ws.nd_end, 0),
+					"nd_end": self.get_date(target_date, ws.nd_start, ws.time_out, ws.nd_end, 1),
+				})
 				if work_sched.insert():
 					if old_shift:
 						i.current_shift = old_shift

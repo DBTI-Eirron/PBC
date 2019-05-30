@@ -123,6 +123,12 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 400
 		},
+		{
+			"fieldname": "links",
+			"label": _("Links"),
+			"fieldtype": "Data",
+			"width": 400
+		},
 	]
 
 	return columns

@@ -150,6 +150,10 @@ class CompensatoryTimeOff(Document):
 				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Filed CTO is required").format(self.name))
 
 	def get_autobreak_hrs(self):
+		if self.is_new():
+			if not self.amended_from:
+				self.break_hrs = 0.00
+
 		if self.type == "Use":
 			schedule = get_schedule(self.employee, self.use_date, self.use_date)
 		else:
@@ -162,14 +166,14 @@ class CompensatoryTimeOff(Document):
 					for a in autobreak_setup:
 						if self.type == "Use":
 							if a.from_hrs <= self.use_total_hours <= a.to_hrs:
+								self.break_hrs = 0.00
 								self.use_break_hours = flt(a.break_mins, 2)/60
-							else:
-								self.use_break_hours = 0.00
+								break
 						else:
 							if a.from_hrs <= self.total_hours <= a.to_hrs:
+								self.break_hrs = 0.00
 								self.break_hours = flt(a.break_mins, 2)/60
-							else:
-								self.break_hours = 0.00
+								break
 
 	def validate_use_cto(self):
 		from_date = datetime.strptime(str(self.use_date) + ' ' + str(self.use_fromtime), '%Y-%m-%d %H:%M:%S')

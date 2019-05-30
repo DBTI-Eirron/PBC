@@ -13,6 +13,7 @@ class WorkSuspension(Document):
 	def validate(self):
 		self.validate_time_format()
 		self.get_suspension_range()
+		self.validate_is_active()
 
 	def validate_time_format(self):
 		time_fds = ['from_time', 'to_time']
@@ -29,7 +30,7 @@ class WorkSuspension(Document):
 		self.suspension_end = suspension_end
 
 	def get_employees(self):
-		query = "SELECT `name`, `full_name` FROM `tabEmployee` WHERE docstatus = 0"
+		query = "SELECT `name`, `full_name` FROM `tabEmployee` WHERE is_active"
 		if self.company:
 			query = query + " AND company = '"+self.company+"'"
 		if self.location:
@@ -42,7 +43,8 @@ class WorkSuspension(Document):
 		for d in employees:
 			row = {
 				"employee": d.name,
-				"employee_name": d.full_name
+				"employee_name": d.full_name,
+				"is_active":is_active
 			}
 			entries.append(row);
 
@@ -54,3 +56,8 @@ class WorkSuspension(Document):
 		for d in self.apply_to:
 			employee_name = frappe.get_value('Employee',d.employee,'full_name')
 			d.employee_name = employee_name
+
+	def validate_is_active(self):
+		for d in self.apply_to:
+			if frappe.get_value('Employee',d.employee,'is_active') == 0:
+				frappe.throw(_("Employee "+d.employee+": "+d.employee_name+" is not active."))
