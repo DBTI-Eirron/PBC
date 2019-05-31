@@ -44,7 +44,7 @@ class BankRemittanceSetup(Document):
 	def get_employees(self):
 		cur_user = frappe.session.user
 		if not "Administrator" in frappe.get_roles(cur_user):
-			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account, BR.bank_type 
+			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account, BR.bank_type, BR.branch_code
 				FROM `tabPayroll Register` PR 
 				JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` 
 				JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` 
@@ -60,7 +60,7 @@ class BankRemittanceSetup(Document):
 					"user": cur_user
 			}, as_dict=True)
 		else:
-			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account, BR.bank_type 
+			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account, BR.bank_type, BR.branch_code
 				FROM `tabPayroll Register` PR 
 				JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` 
 				JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` 
@@ -97,6 +97,7 @@ class BankRemittanceSetup(Document):
 				"employee_name": d.employee_name,
 				"employee_account": d.bank_account,
 				"bank_type": d.bank_type,
+				"branch_code": d.branch_code,
 				"amount": net_payroll,
 				"remarks": ""
 			}
@@ -133,6 +134,7 @@ class BankRemittanceSetup(Document):
 					"employee_name": d.employee_name,
 					"employee_account": d.employee_account,
 					"bank_type": d.bank_type,
+					"branch_code": d.branch_code,
 					"amount": d.amount,
 					"remarks": d.remarks
 				}

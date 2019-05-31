@@ -247,7 +247,7 @@ def get_result(filters):
 def get_net_pay(filters):
 	if not "Administrator" in frappe.get_roles(frappe.session.user):
 		document = frappe.db.sql(""" SELECT DISTINCT TE.last_name, TE.first_name, TE.middle_name, 
-			BT.employee, BT.employee_name, BT.employee_account, BT.bank_type, BR.branch_code,
+			BT.employee, BT.employee_name, BT.employee_account, BT.bank_type, BT.branch_code,
 			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account
 			FROM `tabBank Remittance Setup` BR JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
 			WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
@@ -260,7 +260,7 @@ def get_net_pay(filters):
 		}, as_dict=True)
 	else:
 		document = frappe.db.sql(""" SELECT DISTINCT TE.last_name, TE.first_name, TE.middle_name, 
-			BT.employee, BT.employee_name, BT.employee_account, BT.bank_type, BR.branch_code,
+			BT.employee, BT.employee_name, BT.employee_account, BT.bank_type, BT.branch_code,
 			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account
 			FROM `tabBank Remittance Setup` BR JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
 			WHERE BR.payroll_period = %(period)s 
