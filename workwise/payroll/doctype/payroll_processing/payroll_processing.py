@@ -828,12 +828,14 @@ class PayrollProcessing(Document):
 							elif max_cto >= at.work_hours:
 								cto_days += 1
 				
-
-
-					if at.is_holiday == 1 and is_uho == 1 and not at.is_ob:
-						unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
-						if header.get('uho_ab_days') == 1:
-							absent_days += 1
+					if at.is_holiday == 1 and is_uho == 1 and (not at.is_ob) and not at.is_restday:
+						if emp.get("rate_type") == "Daily Rate" and at.is_absent:
+							#if Daily Rate is Absent on Holiday should not have Unpaid Holiday
+							unpaid_holiday += 0
+						else:
+							unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
+							if header.get('uho_ab_days') == 1:
+								absent_days += 1
 
 					#check if this attendance is lwop or absent for next attendance
 					if is_uho == 1:
@@ -859,7 +861,7 @@ class PayrollProcessing(Document):
 						if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
 							is_uho = 0
 							if header.get('lwop_uho') == 1 and at.is_lwop:
-									is_uho = 1
+								is_uho = 1
 						
 						#strictly No UHO if CTO can cover absent work hours
 						if at.is_absent and at.work_hours <= at.cto:
@@ -874,6 +876,11 @@ class PayrollProcessing(Document):
 									is_uho = 0
 									if at.is_absent:
 										is_uho = 1
+
+						#If Halfday is LWOP but not absent
+						if header.get('lwop_uho') == 1:
+							if (at.lv_status == 2 or at.lv_status == 3) and at.is_lwop and (not at.is_absent):
+								is_uho = 0
 						
 						#strictly No UHO if CTO can cover absent work hours
 						if at.is_absent and at.work_hours <= at.cto:
