@@ -13,5 +13,5 @@ class TimeCard(Document):
 		date_str = datetime.datetime.strptime(self.date, '%Y-%m-%d')
 		time_str = datetime.datetime.strptime(self.time, '%H:%M:%S')
 		combined_datetime = datetime.datetime.combine(date_str.date(), time_str.time())
-		salt = hashlib.md5(str(self.biometrics_id) + str(combined_datetime))
+		salt = hashlib.md5(str(self.biometrics_id) + str(combined_datetime) + str(self.card_type))
 		self.name = salt.hexdigest()
