@@ -156,7 +156,7 @@ class Account(NestedSet):
 
 	def before_rename(self, old, new, merge=False):
 		# Add company abbr if not provided
-		from erpnext.setup.doctype.company.company import get_name_with_abbr
+		
 		new_account = get_name_with_abbr(new, self.company)
 		new_account = get_name_with_number(new_account, self.account_number)
 
@@ -263,3 +263,12 @@ def get_name_with_number(new_account, account_number):
 	if account_number and not new_account[0].isdigit():
 		new_account = account_number + " - " + new_account
 	return new_account
+
+def get_name_with_abbr(name, company):
+	company_abbr = frappe.db.get_value("Company", company, "abbr")
+	parts = name.split(" - ")
+
+	if parts[-1].lower() != company_abbr.lower():
+		parts.append(company_abbr)
+
+	return " - ".join(parts)
