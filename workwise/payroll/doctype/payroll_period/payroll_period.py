@@ -19,7 +19,10 @@ class PayrollPeriod(Document):
 		to_month = getdate(self.to_date).strftime("%b")
 		to_day = getdate(self.to_date).strftime("%d")
 		abbr = frappe.get_value("Company", self.company, "abbr")
-		self.name = from_month+""+from_day+" "+to_month+""+to_day+" - "+abbr+pay_year
+		period_group = ""
+		if self.period_group:
+			period_group = str(self.period_group)+" - "
+		self.name = from_month+""+from_day+" "+to_month+""+to_day+" - "+period_group+abbr+pay_year
 
 	def validate(self):
 		self.validate_days()

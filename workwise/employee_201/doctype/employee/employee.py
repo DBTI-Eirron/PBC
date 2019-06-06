@@ -25,8 +25,11 @@ class Employee(Document):
 		else:
 			if not series_format:
 				frappe.throw(_("Series Format is mandatory"), frappe.MandatoryError)
-			self.name = make_autoname(cstr(series_format))
-			self.employee_id = self.name
+			if self.employee_id:
+				self.name = self.employee_id
+			else:
+				self.name = make_autoname(cstr(series_format))
+				self.employee_id = self.name
 
 	def validate(self):
 		self.update_fullname()
@@ -34,6 +37,7 @@ class Employee(Document):
 		self.get_age()
 		self.validate_spouse()
 		self.validate_biometric_id()
+		self.validate_period_group()
 		self.validate_salary()
 		self.validate_bank()
 		self.create_user()
@@ -63,11 +67,17 @@ class Employee(Document):
 
 	def validate_biometric_id(self):
 		if self.biometrics_id:
-			bio_list = frappe.db.sql(""" SELECT DISTINCT `biometrics_id` FROM `tabEmployee` """, as_dict=1)
+			bio_list = frappe.db.sql(""" SELECT DISTINCT `biometrics_id` FROM `tabEmployee` WHERE `name` != %s """,(self.name) , as_dict=1)
 			for b in bio_list:
 				if self.biometrics_id == b.biometrics_id:
 					frappe.throw(_("Biometric ID is already taken"))
 					break
+
+	def validate_period_group(self):
+		period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+		if period_group:
+			if not self.period_group:
+				frappe.throw("Period Group is Required for Strict use of Period Group")
 
 	def validate_salary(self):
 		if self.payroll_schedule == "Monthly":
@@ -210,7 +220,6 @@ class Employee(Document):
 				i = {
 					"approver": d.approver,
 					"approver_name": d.approver_name,
-					"approver_userid": d.approver_userid,
 					"application": d.application,
 					"level": d.level
 				}	
