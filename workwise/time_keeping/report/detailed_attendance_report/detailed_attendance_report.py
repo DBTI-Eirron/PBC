@@ -549,17 +549,17 @@ def get_data(filters):
 	return data
 
 def get_employees(filters):
-	register = frappe.db.sql("""SELECT DISTINCT `name`, full_name FROM `tabEmployee` 
-		WHERE company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
+	register = frappe.db.sql("""SELECT DISTINCT AR.`employee`, TE.`name`, TE.full_name FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.`employee` = TE.`name`
+		WHERE TE.company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	return register
 
 def get_conditions(filters):
 	conditions = []
 	if filters.get("employee"):
-		conditions.append("`name`=%(employee)s")
+		conditions.append("TE.`name`=%(employee)s")
 
-	return "and {}".format(" and ".join(conditions)) if conditions else "" 
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 def convert_hrs(filters, hrs):
 	con = 0
