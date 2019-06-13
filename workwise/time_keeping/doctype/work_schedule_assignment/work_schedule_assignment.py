@@ -11,6 +11,7 @@ from workwise.employee_201.emp_filters_utils import empget_employees, empget_sub
 
 class WorkScheduleAssignment(Document):
 	def assign_schedule(self):
+		self.validate_inactive_employee()
 		self.validate_self_scheduling()
 		self.check_permission('write')
 		ss_list = []
@@ -61,7 +62,7 @@ class WorkScheduleAssignment(Document):
 							"work_hours": shift[0]['work_hours'],
 							"break_mins": shift[0]['break_mins'],
 							"datetime_in": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 0), 
-							"datetime_out": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 1),					
+							"datetime_out": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 1),			
 							"break_start": self.get_date(i, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 0),
 							"break_end": self.get_date(i, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 1),
 							"nd_start": self.get_date(i, shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 0),
@@ -69,9 +70,9 @@ class WorkScheduleAssignment(Document):
 						})	
 						work_sched.insert()
 						if exist:
-							label = "Changed Schedule " + d.employee_name +""
+							label = "Changed Schedule " + str(d.employee_name) +""
 						else:
-							label = "Assigned Schedule " + d.employee_name +""
+							label = "Assigned Schedule " + str(d.employee_name) +""
 							
 						ss_list.append(label)
 		else:
@@ -270,3 +271,9 @@ class WorkScheduleAssignment(Document):
 				for d in self.get("employees"):
 					if emp[0].name == d.employee:
 						frappe.throw(_("Self Scheduling is not allowed"))
+
+	def validate_inactive_employee(self):
+		for d in self.employees:
+			is_active = frappe.get_value("Employee", d.employee, "is_active")
+			if not is_active:
+				frappe.throw(_("Employee {0} is not active").format(d.employee))

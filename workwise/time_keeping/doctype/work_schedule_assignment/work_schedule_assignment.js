@@ -71,3 +71,12 @@ cur_frm.cscript.assign_schedule = function(doc, cdt, cdn) {
 	return $c('runserverobj', args={'method':'assign_schedule','docs':doc},callback);
 }
 
+cur_frm.fields_dict['filter_value'].get_query = function(doc) {
+	if(doc.filter_type == "Employee"){
+		return {
+			filters: {
+				"is_active": '1'
+			}
+		}
+	}
+}
