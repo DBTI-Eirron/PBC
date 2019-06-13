@@ -92,7 +92,8 @@ class OvertimeApplication(Document):
 	def get_autobreak_hrs(self):
 		if self.is_new():
 			if not self.amended_from:
-				self.break_hrs = 0.00
+				if not self.break_hrs:
+					self.break_hrs = 0.00
 
 		from_date = str(self.from_date) + ' ' + str(self.from_time)
 		to_date = str(self.to_date) + ' ' + str(self.to_time)
@@ -106,7 +107,6 @@ class OvertimeApplication(Document):
 				if autobreak_setup:
 					for a in autobreak_setup:
 						if flt(a.from_hrs) <= flt(total_hrs) <= flt(a.to_hrs):
-							self.break_hrs = 0.00
 							self.break_hrs = flt(a.break_mins, 2)/60
 							break
 							
