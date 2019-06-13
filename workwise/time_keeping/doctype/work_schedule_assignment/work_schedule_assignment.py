@@ -70,9 +70,9 @@ class WorkScheduleAssignment(Document):
 						})	
 						work_sched.insert()
 						if exist:
-							label = "Changed Schedule " + str(d.employee_name) +""
+							label = "Changed Schedule " + cstr(d.employee_name) +""
 						else:
-							label = "Assigned Schedule " + str(d.employee_name) +""
+							label = "Assigned Schedule " + cstr(d.employee_name) +""
 							
 						ss_list.append(label)
 		else:
