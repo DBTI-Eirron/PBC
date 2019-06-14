@@ -30,7 +30,7 @@ class WorkSuspension(Document):
 		self.suspension_end = suspension_end
 
 	def get_employees(self):
-		query = "SELECT `name`, `full_name` FROM `tabEmployee` WHERE is_active"
+		query = "SELECT `name`, `full_name`, `is_active` FROM `tabEmployee` WHERE is_active = 1"
 		if self.company:
 			query = query + " AND company = '"+self.company+"'"
 		if self.location:
@@ -44,7 +44,6 @@ class WorkSuspension(Document):
 			row = {
 				"employee": d.name,
 				"employee_name": d.full_name,
-				"is_active":is_active
 			}
 			entries.append(row);
 
