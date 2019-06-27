@@ -258,13 +258,13 @@ def get_overtime(entry, ot_apps):
 					if ot_out <= nd_end: #if OT OUT is inside ND
 						ot_nd_end = ot_out
 						# if OT OUT is less than OT IN set to none
-						if ot_out < nd_start:
+						if ot_out < nd_end:
 							ot_nd_end = None
 					elif ot_out > nd_end:  #if OT OUT is beyond ND, limit to ND END
 						ot_nd_end = nd_end
 
 				#Get ND OT and Calculate ND OT From Start to End
-				if ot_nd_start and ot_nd_end and ot_nd_start < ot_nd_end:
+				if ot_nd_start and ot_nd_end:
 					ot_nd = abs((ot_nd_start - ot_nd_end).total_seconds())
 
 				#Get early ND OT
@@ -364,7 +364,6 @@ def get_ndiff(entry):
 
 		#check shift if eligible for nightdiff based from time in and time out:
 		min_nd, max_nd, nd_pro= get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
-
 		if entry.get('card_in') and entry.get('card_out') and nd_pro == 1:
 			nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, entry.get('card_out'), entry.get('card_in'))
 			if get_nd:
@@ -504,7 +503,14 @@ def get_undertime(entry):
 			else:
 				if entry.get('card_out') < entry.get('time_out'):
 					if entry['suspension'] != 3:
-						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+						if entry.get('card_out') < entry.get('break_end'):
+							entry['undertime'] -= abs((entry.get('card_out') - entry.get('break_end')).total_seconds())
+							entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+						else:
+							entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+
+						if entry.get('card_out') < entry.get('break_start'):
+							entry['undertime'] += abs((entry.get('card_out') - entry.get('break_start')).total_seconds())
 		else: #if no card in check for OB
 			if entry.get('ob_status') == 1:
 				if entry.get('ob_out') < entry.get('break_end'): #if OB is in first half
@@ -995,10 +1001,11 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 		dates.append(info)
 
 	company = frappe.db.get_value("Employee", employee, "company")
-	exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (employee, pay_from, pay_to), as_dict=True)
+	exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (employee, getdate(pay_from), getdate(pay_to)), as_dict=True)
 	if exist:
-		exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (employee, pay_from, pay_to), as_dict=True)
-		frappe.db.commit()
+		for ex in exist:
+			exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE `name` = %s """, (ex.name) )
+			frappe.db.commit()
 						
 	for d in dates:
 		work_sched = frappe.new_doc("Work Schedule")
@@ -1018,7 +1025,7 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 			"nd_end": d["nd_end"],
 			"is_default_schedule": 1,
 		})
-		work_sched.insert()
+		work_sched.insert(ignore_permissions = True)
 		frappe.db.commit()
 
 def get_schedule(employee, pay_from, pay_to):
