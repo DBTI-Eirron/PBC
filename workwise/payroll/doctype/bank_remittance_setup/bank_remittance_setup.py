@@ -98,7 +98,7 @@ class BankRemittanceSetup(Document):
 				"employee_account": d.bank_account,
 				"bank_type": d.bank_type,
 				"branch_code": d.branch_code,
-				"amount": net_payroll,
+				"amount": '{:,.2f}'.format( flt(net_payroll, 8) ),
 				"remarks": ""
 			}
 
@@ -114,9 +114,9 @@ class BankRemittanceSetup(Document):
 		if self.employees:
 			for d in self.employees:
 				count += 1
-				total_amount += d.amount
+				total_amount += flt(d.amount, 8)
 
-			self.total_amount = total_amount
+			self.total_amount = '{:,.2f}'.format(total_amount)
 			self.total_count = count
 		else:
 			self.total_amount = 0.00
@@ -135,7 +135,7 @@ class BankRemittanceSetup(Document):
 					"employee_account": d.employee_account,
 					"bank_type": d.bank_type,
 					"branch_code": d.branch_code,
-					"amount": d.amount,
+					"amount": '{:,.2f}'.format( flt(d.amount, 8) ),
 					"remarks": d.remarks
 				}
 				unique_entries.append(i);
