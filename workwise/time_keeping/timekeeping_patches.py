@@ -225,3 +225,81 @@ def save_employee_subordinates():
 			application = frappe.get_doc("Employee Subordinates", new.name)
 			application.save()
 			#frappe.db.commit()
+
+def run_dtrp_applications():
+	dtr_list = frappe.db.sql(""" SELECT DA.`name`, DA.`target_date`, DA.`employee`, DA.`is_previous`, TE.`biometrics_id` 
+		FROM `tabDTR Problem Application` DA INNER JOIN `tabEmployee` TE ON DA.employee = TE.`name` 
+		WHERE DA.`workflow_state` = "Approved" AND DA.`approved_on` >= "2019-06-07" """, as_dict=1)
+
+	for dt in dtr_list:
+		dtr_table = frappe.db.sql(""" SELECT `type`, `request` FROM `tabDTR Problem Table` WHERE `action` = "Approved" AND parent = %s """,(dt.name), as_dict=1)
+		for d in dtr_table:
+			if d.type == "Time In":
+				card_type = 0
+			if d.type == "Time Out":
+				card_type = 1
+			if d.type == "Break In":
+				card_type = 2
+			if d.type == "Break Out":
+				card_type = 3
+
+			timecard_sel = frappe.db.sql("""SELECT TC.`name` FROM `tabTime Card` TC JOIN `tabEmployee` TE 
+				WHERE TC.biometrics_id = TE.biometrics_id  AND TC.`date` = %s AND TC.`card_type` = %s 
+				AND TE.`name` = %s LIMIT 1 """, (getdate(dt.target_date), card_type, dt.employee), as_dict=True)
+			if timecard_sel:
+				frappe.db.sql(""" UPDATE `tabTime Card` SET `time`=%s WHERE `name` = %s """,(d.request, timecard_sel[0].name))
+				frappe.db.commit()
+			else:
+				if dt.is_previous > 0:
+					target_date = dt.target_date - datetime.timedelta(days=1)
+				else:
+					target_date = dt.target_date
+
+				new_timecard = frappe.new_doc("Time Card")
+				new_timecard.update({
+					"biometrics_id": dt.biometrics_id,
+					"card_type": card_type,
+					"date": str(target_date),
+					"time": str(d.request)
+				})
+
+				new_timecard.insert(ignore_permissions = True)
+				new_timecard.save(ignore_permissions = True)
+				frappe.db.commit()
+
+def run_change_schedule_applications():
+	csa_list = frappe.db.sql(""" SELECT CA.`employee`, CA.`company`, CT.`target_date`, CT.`current_shift`, CT.`new_shift` 
+		FROM `tabChange Schedule Application Table` CT INNER JOIN `tabChange Schedule Application` CA ON CT.`parent`=CA.`name` 
+		WHERE CA.`workflow_state` = "Approved" AND CA.`docstatus` = 1 AND CA.`approved_on` = "2019-06-26" """, as_dict=True)
+
+	for csa in csa_list:
+		old_shift = ""
+		work_shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(csa.new_shift), as_dict=True)
+		
+		exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (csa.employee, csa.target_date), as_dict=True)
+		if exist:
+			frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (csa.employee, csa.target_date), as_dict=True)
+			frappe.db.commit()
+			
+		old_shift = frappe.db.sql_list("""SELECT `work_shift` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s LIMIT 1""", (csa.employee, csa.target_date))
+		target_date = getdate(csa.target_date)
+
+		for ws in work_shift:
+			work_sched = frappe.new_doc("Work Schedule")
+			work_sched.update({
+				"employee": csa.employee,
+				"company": csa.company,
+				"target_date": csa.target_date,
+				"work_shift": ws.name,
+				"shift_type": ws.work_shift_type,
+				"work_hours": ws.work_hours,
+				"break_mins": ws.break_mins,
+				"datetime_in": get_date(csa.target_date, ws.time_in, ws.time_out, ws.work_shift_type, 0), 
+				"datetime_out": get_date(csa.target_date, ws.time_in, ws.time_out, ws.work_shift_type, 1),			
+				"break_start": get_date(csa.target_date, ws.break_start, ws.break_end, ws.work_shift_type, 0),
+				"break_end": get_date(csa.target_date, ws.break_start, ws.break_end, ws.work_shift_type, 1),
+				"nd_start": get_date(csa.target_date, ws.nd_start, ws.time_out, ws.nd_end, 0),
+				"nd_end": get_date(csa.target_date, ws.nd_start, ws.time_out, ws.nd_end, 1),
+			})
+			work_sched.insert()
+			frappe.db.commit()
