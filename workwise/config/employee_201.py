@@ -21,6 +21,16 @@ def get_data():
 					"name": "Change Request Application",
 					"description": _("Change Request Application"),
 				},
+				{
+					"type": "doctype",
+					"name": "Certificate of Employment",
+					"description": _("Certificate of Employment"),
+				},
+				{
+					"type": "doctype",
+					"name": "Certificate of Maternity",
+					"description": _("Certificate of Maternity"),
+				},
 			]
 		},
 		{
@@ -178,6 +188,18 @@ def get_data():
 					"type": "report",
 					"name": "Retireable Employees",
 					"doctype": "Employee Movement",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Gender per Company",
+					"doctype": "Gender per Company",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Age per Company",
+					"doctype": "Age per Company",	
 					"is_query_report": True
 				},
 			]
