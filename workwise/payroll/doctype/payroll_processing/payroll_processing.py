@@ -885,6 +885,10 @@ class PayrollProcessing(Document):
 						#strictly No UHO if CTO can cover absent work hours
 						if at.is_absent and at.work_hours <= at.cto:
 							is_uho = 0
+
+						#if Halfday next day will not be UHO
+						if header.get('hd_no_uho') and at.is_halfday:
+							is_uho = 0
 				
 					if emp.get("rate_type") == "Daily Rate":
 						#if daily rate, holiday is considered paid
@@ -895,7 +899,7 @@ class PayrollProcessing(Document):
 								unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 
 				#unhash to check cto configuration
-				#cto_check.append(_("{0}_{1}").format(at.target_date, is_uho))
+				#cto_check.append(_("{0}_{1}_{2}").format(at.target_date, is_uho, flt(unpaid_holiday, 8)))
 			#frappe.throw(_(cto_check))
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
