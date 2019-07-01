@@ -1459,7 +1459,7 @@ def init_employee_map(employees, company, pay_from, pay_to, approval_cutoff, adj
 		)
 		
 	get_all_schedules(emp_map, pay_from, pay_to)
-	get_all_timecards(emp_map, pay_from, pay_to)
+	get_all_timecards(emp_map, pay_from, pay_to + datetime.timedelta(days=1)) #+1 date to get nextday logs
 	get_all_holidays(emp_map, company, pay_from, pay_to)
 	get_all_leaves(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_obs(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
