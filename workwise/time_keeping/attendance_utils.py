@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 import frappe, datetime, math
 from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
 from frappe import _
+from datetime import timedelta, date
 
 def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
 	if entry.get("override_in"):
@@ -10,13 +11,22 @@ def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
 	if entry.get("override_out"):
 		entry['card_out'] = entry.get("override_out")
 
+	#Format Datetime for realtime shift
+	entry['time_in'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('time_in')) )
+	entry['time_out'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('time_out')) )
+	entry['break_start'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('break_start')) )
+	entry['break_end'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('break_end')) )
+
+	if entry.get('time_out') < entry.get('time_in'):
+		entry['time_out'] = add_days(entry.get('time_out'), 1)
+
 	#check Break Out and break IN
 	if entry.get('break_start') < entry.get('time_in'):
 		entry['break_start'] = add_days(entry.get('break_start'), 1) 
 
 	if entry.get('break_end') < entry.get('time_in'):
-		entry['break_end'] = add_days(entry.get('break_end'), 1) 
-	
+		entry['break_end'] = add_days(entry.get('break_end'), 1)
+
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
@@ -1115,7 +1125,7 @@ def get_schedule(employee, pay_from, pay_to):
 def get_shift_map():
 	shift_map = {}
 	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
-			is_flexible, setup_preshift, setup_postshift, flex_from, flex_to, 
+			is_flexible, setup_preshift, setup_postshift, flex_from, flex_to, time_in, time_out, break_start, break_end, break_mins
 			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type, nd_end, nd_start, work_shift_type
 		FROM `tabWork Shift` """, as_dict=True)
 	
@@ -1142,7 +1152,12 @@ def get_shift_map():
 			"flexible_type": d.flexible_type,
 			"nd_start": d.nd_start,
 			"nd_end": d.nd_end,
-			"work_shift_type": d.work_shift_type
+			"work_shift_type": d.work_shift_type,
+			"time_in": d.time_in,
+			"time_out": d.time_out,
+			"break_start":d.break_start,
+			"break_end":d.break_end,
+			"break_mins":d.break_mins
 		}
 
 	return shift_map
@@ -1316,35 +1331,35 @@ def get_defaults(emp, sched, shift_map):
 		"worker_secs": (emp.no_hours * 60) * 60,
 		"is_attendance_base": emp.is_attendance_base,
 		#schedule settings
-		"target_date": getdate(sched.datetime_in),
-		"work_shift": sched.work_shift,
-		"pre_shift": add_to_date(sched.datetime_in, hours= (0 - shift_map[sched.work_shift]['setup_preshift']) ),
-		"end_preshift": add_to_date(sched.datetime_in, hours= shift_map[sched.work_shift]['end_preshift'] ),
-		"post_shift": add_to_date(sched.datetime_out, hours= (0 - shift_map[sched.work_shift]['setup_postshift']) ),
-		"end_postshift": add_to_date(sched.datetime_out, hours=shift_map[sched.work_shift]['end_postshift'] ),	
-		"time_in": sched.datetime_in,
-		"time_out": sched.datetime_out,
-		"break_start": sched.break_start,
-		"break_end": sched.break_end,
-		"nd_start": shift_map[sched.work_shift]['nd_start'],
-		"nd_end": shift_map[sched.work_shift]['nd_end'],
-		"work_shift_type": shift_map[sched.work_shift]['work_shift_type'],
+		"target_date": sched['target_date'],
+		"work_shift": sched['work_shift'],
+		"pre_shift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shift_map[sched['work_shift']]['time_in'])), hours= (0 - shift_map[sched['work_shift']]['setup_preshift']) ),
+		"end_preshift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shift_map[sched['work_shift']]['time_in'])), hours= shift_map[sched['work_shift']]['end_preshift'] ),
+		"post_shift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shift_map[sched['work_shift']]['time_out'])), hours= (0 - shift_map[sched['work_shift']]['setup_postshift']) ),
+		"end_postshift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shift_map[sched['work_shift']]['time_out'])), hours=shift_map[sched['work_shift']]['end_postshift'] ),
+		"time_in": shift_map[sched['work_shift']]['time_in'],
+		"time_out": shift_map[sched['work_shift']]['time_out'],
+		"break_start": shift_map[sched['work_shift']]['break_start'],
+		"break_end": shift_map[sched['work_shift']]['break_end'],
+		"nd_start": shift_map[sched['work_shift']]['nd_start'],
+		"nd_end": shift_map[sched['work_shift']]['nd_end'],
+		"work_shift_type": shift_map[sched['work_shift']]['work_shift_type'],
 		#shift policy
-		"work_hours": shift_map[sched.work_shift]['work_hours'],
-		"break_mins": sched.break_mins,
-		"grace": shift_map[sched.work_shift]['grace_period'],
-		"b_grace": shift_map[sched.work_shift]['b_grace_period'],
-		"is_flexible": shift_map[sched.work_shift]['is_flexible'],
-		"flex_from": shift_map[sched.work_shift]['flex_from'],
-		"flex_to": shift_map[sched.work_shift]['flex_to'],		
-		"is_restday": shift_map[sched.work_shift]['is_restday'],
+		"work_hours": shift_map[sched['work_shift']]['work_hours'],
+		"break_mins": shift_map[sched['work_shift']]['break_mins'],
+		"grace": shift_map[sched['work_shift']]['grace_period'],
+		"b_grace": shift_map[sched['work_shift']]['b_grace_period'],
+		"is_flexible": shift_map[sched['work_shift']]['is_flexible'],
+		"flex_from": shift_map[sched['work_shift']]['flex_from'],
+		"flex_to": shift_map[sched['work_shift']]['flex_to'],		
+		"is_restday": shift_map[sched['work_shift']]['is_restday'],
 		#general policy
 		"is_processed": 0,
 		#timecard data
 		"card_in": "",
 		"card_out": "",
-		"override_in": sched.o_time_in,
-		"override_out": sched.o_time_out,			
+		"override_in": sched['o_time_in'],
+		"override_out": sched['o_time_out'],			
 		"break_out": "",
 		"break_in": "",
 		#basic attendance
@@ -1406,9 +1421,9 @@ def get_defaults(emp, sched, shift_map):
 		"ut_links": [],
 		"cto_links": [],
 		#SHIFT POLICIES
-		"graceperiod_late": shift_map[sched.work_shift]['graceperiod_late'],
-		"straight_ot": shift_map[sched.work_shift]['straight_ot'],
-		"flexible_type": shift_map[sched.work_shift]['flexible_type'],
+		"graceperiod_late": shift_map[sched['work_shift']]['graceperiod_late'],
+		"straight_ot": shift_map[sched['work_shift']]['straight_ot'],
+		"flexible_type": shift_map[sched['work_shift']]['flexible_type'],
 		#GLOBAL POLICIES
 		"ot_deduct_late": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_deduct_late'), 8),
 		"ot_start_delay": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_start_delay'), 8),
@@ -1420,4 +1435,152 @@ def get_defaults(emp, sched, shift_map):
 		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho'),
 		"at_work_rdho": frappe.db.get_single_value('Timekeeping Settings', 'at_work_rdho'),
 	}
+	
 	return entry
+
+def init_employee_map(employees, company, pay_from, pay_to, approval_cutoff, adjustment):
+	emp_map = frappe._dict()
+	for emp in employees:
+		emp_map.setdefault(emp.name, frappe._dict({
+				"employee": emp.name,
+				"employee_name": emp.full_name,
+				"employee_details": emp,
+				"schedules": [],
+				"timecards": [],
+				"hls": [],
+				"lvs": [],
+				"ots": [],
+				"obs": [],
+				"uts": [],
+				"ext": [],
+				"cto": [],
+				"wss": [],
+			})
+		)
+		
+	get_all_schedules(emp_map, pay_from, pay_to)
+	get_all_timecards(emp_map, pay_from, pay_to)
+	get_all_holidays(emp_map, company, pay_from, pay_to)
+	get_all_leaves(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_obs(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_wss(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
+
+	return emp_map
+
+def get_all_timecards(emp_map, pay_from, pay_to):
+	timecards = frappe.db.sql("""SELECT EMP.name as employee, TC.biometrics_id, TIMESTAMP(TC.date, TC.time) as card_datetime, 
+		TC.card_type, TC.time FROM `tabTime Card` TC
+		INNER JOIN tabEmployee EMP ON EMP.biometrics_id = TC.biometrics_id
+		WHERE TC.date >= %(from_date)s AND TC.date <= %(to_date)s
+		ORDER BY TC.date, TC.time """,{
+			"from_date": pay_from,
+			"to_date": pay_to,
+		}, as_dict=True)
+	for d in timecards:
+		if d.employee in emp_map:
+			emp_map[d.employee].timecards.append(d)
+
+def get_all_schedules(emp_map, pay_from, pay_to):		
+	schedule = frappe.db.sql("""SELECT employee, company, work_shift, target_date, o_time_in, o_break_in, o_break_out, o_time_out
+		FROM `tabWork Schedule` 
+		WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s
+		ORDER BY target_date ASC""",{
+			"from_date": pay_from,
+			"to_date": pay_to,
+		}, as_dict=True)
+
+	for d in schedule:
+		if d.employee in emp_map:
+			emp_map[d.employee].schedules.append(d)
+
+def get_all_holidays(emp_map, company, pay_from, pay_to):
+	holidays = frappe.db.sql("""SELECT holiday_name, holiday_date, is_special, location FROM `tabHoliday` 
+		WHERE company = %s AND holiday_date >= %s AND holiday_date <= %s
+		ORDER BY holiday_date ASC""",(company, pay_from, pay_to), as_dict=True)
+
+	for d in holidays:
+		if d.employee in emp_map:
+			emp_map[d.employee].hls.append(d)
+
+def get_all_leaves(emp_map, pay_from, pay_to, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"'"
+	leaves = frappe.db.sql("""SELECT L.`name`, L.employee, L.leave_type, LA.leave_date, 
+		LA.is_half_day, LA.is_second_half, LA.is_holiday, LA.is_excluded, L.is_lwop
+		FROM `tabLeave Application Table` LA
+		INNER JOIN `tabLeave Application` L ON L.`name` = LA.parent
+		WHERE LA.leave_date >= %s AND LA.leave_date <= %s {by_adjustment} AND L.docstatus = '1' 
+		ORDER BY LA.leave_date ASC """.format( by_adjustment=by_adjustment ), (pay_from, pay_to), as_dict=1)
+
+	for d in leaves:
+		if d.employee in emp_map:
+			emp_map[d.employee].lvs.append(d)
+
+def get_all_obs(emp_map, pay_from, pay_to, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
+	ob_apps = frappe.db.sql("""SELECT OBA.`name`, OBAT.target_date, OBAT.from_time, OBAT.to_time, OBAT.hrs, OBAT.is_holiday, OBAT.is_excluded 
+		FROM `tabOfficial Business Application Table` OBAT
+		INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
+		WHERE OBA.workflow_state = 'Approved' AND OBAT.target_date >= %s 
+		AND OBAT.target_date <= %s 
+		AND OBAT.is_excluded = 0 {by_adjustment} """.format( by_adjustment=by_adjustment ), (pay_from, pay_to), as_dict=1)
+
+	for d in ob_apps:
+		if d.employee in emp_map:
+			emp_map[d.employee].obs.append(d)
+
+def get_all_wss(emp_map, pay_from, pay_to, approval_cutoff, adjustment):
+	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "	
+	ws_apps = frappe.db.sql(""" SELECT employee, suspension_date, suspension_start, suspension_end 
+		FROM `tabWork Suspension` WS 
+		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` 
+		WHERE WS.docstatus = 1 AND suspension_date >= %s 
+		AND suspension_date <= %s  """.format( by_adjustment=by_adjustment ), (pay_from, pay_to), as_dict=1)
+
+	for d in ws_apps:
+		if d.employee in emp_map:
+			emp_map[d.employee].wss.append(d)
+
+	return ws_apps
+
+def complete_sched(emp_dict, pay_from, pay_to, template_map):
+	complete_schedules = []
+	for target_date in daterange(pay_from,pay_to):
+		has_sched = False
+		for idx, sched in enumerate(emp_dict['schedules']):
+			if target_date == sched['target_date']:
+				complete_schedules.append(sched)
+				has_sched = True
+				break
+		if has_sched ==  False:
+			if emp_dict['employee_details']['default_schedule'] is not None:
+				complete_schedules.append({
+					"employee":emp_dict['employee_details']['name'],
+					"company":emp_dict['employee_details']['company'],
+					"work_shift":template_map[(emp_dict['employee_details']['default_schedule'])][str(target_date.weekday())],
+					"target_date":target_date,
+					"o_time_in":None,
+					"o_break_in":None,
+					"o_break_out":None,
+					"o_time_out":None
+				})
+	emp_dict['schedules'] = complete_schedules
+
+def daterange(start_date, end_date):
+    for n in range(int ((end_date - start_date).days)):
+        yield start_date + timedelta(n)
+
+def get_template_map():
+	template_map = {}
+	templates = frappe.db.sql("""SELECT `name`, monday, tuesday, wednesday, thursday, friday, saturday, sunday FROM `tabWork Schedule Template`""",as_dict=True)
+
+	for t in templates:
+		template_map[t.name]={
+			"0":t.monday,
+			"1":t.tuesday,
+			"2":t.wednesday,
+			"3":t.thursday,
+			"4":t.friday,
+			"5":t.saturday,
+			"6":t.sunday
+		}
+	return template_map
