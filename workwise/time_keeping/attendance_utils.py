@@ -1125,7 +1125,7 @@ def get_schedule(employee, pay_from, pay_to):
 def get_shift_map():
 	shift_map = {}
 	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
-			is_flexible, setup_preshift, setup_postshift, flex_from, flex_to, time_in, time_out, break_start, break_end, break_mins
+			is_flexible, setup_preshift, setup_postshift, flex_from, flex_to, time_in, time_out, break_start, break_end, break_mins,
 			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type, nd_end, nd_start, work_shift_type
 		FROM `tabWork Shift` """, as_dict=True)
 	
@@ -1566,7 +1566,7 @@ def complete_sched(emp_dict, pay_from, pay_to, template_map):
 	emp_dict['schedules'] = complete_schedules
 
 def daterange(start_date, end_date):
-    for n in range(int ((end_date - start_date).days)):
+    for n in range( int((end_date - start_date).days) + 1):
         yield start_date + timedelta(n)
 
 def get_template_map():
