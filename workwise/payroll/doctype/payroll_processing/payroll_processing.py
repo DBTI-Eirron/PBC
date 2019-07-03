@@ -16,7 +16,7 @@ class PayrollProcessing(Document):
 	def get_employees(self):
 		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
 			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-			whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold, sensitivity
+			whtax_manual, whtax_freq, is_attendance_base, ignore_late, ignore_ut, on_hold, sensitivity
 				FROM tabEmployee
 			WHERE company = %(company)s
 			AND payroll_schedule = %(pay_sched)s 
@@ -907,6 +907,9 @@ class PayrollProcessing(Document):
 
 			if emp.get('ignore_late'):
 				late = 0
+
+			if emp.get('ignore_ut'):
+				undertime = 0
 				
 			attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 			attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
