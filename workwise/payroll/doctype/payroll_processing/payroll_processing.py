@@ -14,7 +14,8 @@ from workwise.payroll.loans_utils import get_loans_map, get_employee_loan, updat
 
 class PayrollProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
+		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, 
+			min_take_home, mth_percentage, cost_center, no_hours, 
 			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
 			whtax_manual, whtax_freq, is_attendance_base, ignore_late, ignore_ut, on_hold, sensitivity
 				FROM tabEmployee
@@ -119,6 +120,7 @@ class PayrollProcessing(Document):
 					'frequency': self.frequency,
 					'process_group': self.period_group,
 					'previous_period': previous_period,
+					'basic': 0.0,
 					'previous_taxable_income': 0.0,
 					'previous_taxable_deduction': 0.0,
 					'previous_work_days': 0.0,
@@ -197,16 +199,27 @@ class PayrollProcessing(Document):
 							"is_bonus": tr_map[d.get('pay_code')]['is_bonus'],
 						})
 
-				if pr.insert():
-					#update other entries like loans
-					proc_emp += 1
-					for d in register:
-						if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
-							update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
-				payslip_label = " " + emp.full_name +""
-				if emp.on_hold:
-					payslip_label += " <span class='label label-danger'> On-Hold </span>"
-				ss_list.append(payslip_label)
+				#Compute Minimum Wage
+				minimum_wage = 0
+				if emp.get('mth_percentage'):
+					minimum_wage = header.get('basic') * (flt(emp.get('min_take_home'), 8) / 100)
+				else:
+					minimum_wage = flt(emp.get('min_take_home'), 8)
+
+				if header.get('net_payroll') < minimum_wage and emp.get('min_take_home') > 0:
+					payslip_label = " " + emp.full_name +" <span class='label label-danger'> Below Min Take Home </span>"
+					ss_list.append(payslip_label)
+				else:
+					if pr.insert():
+						#update other entries like loans
+						proc_emp += 1
+						for d in register:
+							if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
+								update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
+					payslip_label = " " + emp.full_name +""
+					if emp.on_hold:
+						payslip_label += " <span class='label label-warning'> On-Hold </span>"
+					ss_list.append(payslip_label)
 
 			ss_list.append("<b>Processed "+ str(proc_emp)+" / "+str(no_emp)+" Employees</b>")
 		else:
@@ -297,6 +310,7 @@ class PayrollProcessing(Document):
 		elif emp.get('payroll_schedule') == "Semi-Monthly":
 			amt = rates.get('semi_rate')
 
+		header['basic'] = amt
 		register.append({"pay_code": "BS", "amount": amt})
 
 	def get_sss(self, emp, rates, header, register, tr_map, sss_table, weekly_prev_map):
