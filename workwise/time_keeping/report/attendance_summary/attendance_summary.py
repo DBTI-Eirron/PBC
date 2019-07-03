@@ -177,7 +177,6 @@ def get_data(filters):
 	}
 
 	if employees:
-		data = []
 		pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "approval_cutoff"])
 		employee_list = convert_to_list(employees)
 		template_map = get_template_map()
