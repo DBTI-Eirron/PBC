@@ -10,13 +10,15 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date, add_days
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.payroll.payroll_utils import get_rates, get_overtime_map
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime)
+get_attendance, get_defaults, get_ob_list, get_ot_list, 
+get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,get_template_map)
 
 class AdjustmentProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
+		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, 
+			min_take_home, mth_percentage, cost_center, no_hours, 
 			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-			whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold, sensitivity
+			whtax_manual, whtax_freq, is_attendance_base, ignore_late, ignore_ut, on_hold, sensitivity, default_schedule, biometrics_id
 				FROM tabEmployee
 			WHERE company = %(company)s
 			AND payroll_schedule = %(pay_sched)s 
@@ -62,49 +64,127 @@ class AdjustmentProcessing(Document):
 		if not self.schedule and not self.payroll_date:
 			frappe.throw(_("Fill up Mandatory Fields"))
 
-	def get_previous_period(self):
-		before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
-			AND `schedule` = %s AND payroll_date < %s ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.schedule, self.payroll_date ))
-		previous_period = before[0] if before else ""
+	def get_adjusted(self, emp_adj_map, ot_adj_list, employees):
+		data = []
+
+		#Validate Period
+		if not self.period:
+			frappe.throw(_("Please Select Payroll Period"))
 		
-		return previous_period
+		#Validate Period Group
+		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+		if strict_period_group and not self.period_group:
+			frappe.throw(_("Period Group is required for Payroll Period {0}").format(self.period))
+		
+		pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to", "approval_cutoff"])
+		employee_list = self.convert_to_list(employees)
+		template_map = get_template_map()
+		shift_map = get_shift_map()
+		emp_map = init_employee_map(employees, self.company, pay_from, pay_to, approval_cutoff, 1)
+		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
+			complete_sched(emp_dict, pay_from, pay_to, template_map)
+			for sched in emp_dict['schedules']:
+				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map)
+				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
+					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'))
+				get_sorted_card(entry, cards_in, cards_out)
+				get_attendance(entry, emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
+					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'))
+				
+				entry['break'] = self.convert_secs(entry['break'])
+				entry['work'] = self.convert_secs(entry['work'])
+				entry['late'] = self.convert_secs(entry['late'])
+				entry['undertime'] = self.convert_secs(entry['undertime'])
+				entry['overtime'] = self.convert_secs(entry['overtime'])
+				entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
+				entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
+				entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
+				entry['cto'] = self.convert_secs(entry['cto'])
+				data.append(entry)
+
+		for d in data:
+			if d['employee'] in emp_adj_map:
+				emp_adj_map[d['employee']].adjustment.append(d)
+				emp_adj_map[d['employee']].adjustment_ot.extend(d['ot_list'])
+				
+				if d['ot_list']:
+					frappe.throw(_(d['ot_list']))
+				
+
+	def get_processed(self, emp_map):
+		attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` WHERE target_date >= %s AND target_date <= %s 
+			ORDER BY target_date """,(add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
+
+		for d in attendance:
+			if d.employee in emp_map:
+				emp_map[d.employee].processed.append(d)
+
+	def get_processed_ot(self, emp_map):
+		overtime = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
+			WHERE target_date >= %s AND target_date <= %s ORDER BY target_date """,(getdate(self.attendance_from), getdate(self.attendance_to)), as_dict=1)
+		
+		for d in overtime:
+			if d.employee in emp_map:
+				emp_map[d.employee].processed_ot.append(d)
  
 	def process_adjustment(self):
-		self.validate_period()
-		ss_list = []
-		prev_period = self.get_previous_period()
-		prev_attendance_from, prev_attendance_to, prev_approval_cutoff = frappe.db.get_value("Payroll Period", prev_period, ["attendance_from", "attendance_to", "approval_cutoff"])
+		emp_map = frappe._dict()
 		employees = self.get_employees()
+		ot_adj_list = []
+		ss_list = []
 		ot_map = get_overtime_map()
-		if employees:
-			for d in employees:
-				frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s AND payroll_period = %s  """,(d.name, self.period), as_dict=1)
-				
-				adjustment_sched, ot_list = self.get_adjustment_schedule(d, prev_attendance_from, prev_attendance_to, prev_approval_cutoff)
-				original_sched = frappe.db.sql("""SELECT * FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s 
-					ORDER BY target_date """,(d.name, add_days(prev_attendance_from, -1), prev_attendance_to), as_dict=1)
-			
-				blank_ot = []
-				adjustment = self.get_attendance_result(d, adjustment_sched, prev_attendance_from, prev_attendance_to, ot_list, ot_map, "adjustment")
-				original = self.get_attendance_result(d, original_sched, prev_attendance_from, prev_attendance_to, blank_ot, ot_map, "original")
-				register = {
-					"employee": d.name,
-					"employee_name": d.full_name,
-					"company": self.company,
-					"payroll_period": self.period,
-					"absent": adjustment.get('ab') - original.get('ab'),
-					"unpaid_holiday": adjustment.get('uho') - original.get('uho'),
-					"overtime": adjustment.get('ot') - original.get('ot'),
-					"nightdiff": adjustment.get('nd') - original.get('nd'),
-					"late": adjustment.get('lt') - original.get('lt'),
-					"undertime":  adjustment.get('ut') - original.get('ut')
-				}
-			
+		for emp in employees:
+			emp_map.setdefault(emp.name, frappe._dict({
+					"employee": emp.name,
+					"employee_name": emp.full_name,
+					"employee_details": emp,
+					"processed": [],
+					"processed_ot": [],
+					"adjustment": [],
+					"adjustment_ot": [],
+				})
+			)
+
+		self.get_adjusted(emp_map, employees, ot_adj_list)
+		self.get_processed(emp_map)
+		self.get_processed_ot(emp_map)
+
+		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
+			frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s AND payroll_period = %s  """,(emp_dict['employee'], self.period), as_dict=1)
+			reg = {
+				"employee": emp_dict['employee'],
+				"employee_name": emp_dict['employee_name'],
+				"company": self.company,
+				"payroll_period": self.period,
+				"target_period": self.target_period,
+				"absent": 0.0,
+				"unpaid_holiday": 0.0,
+				"overtime": 0.0,
+				"nightdiff": 0.0,
+				"late": 0.0,
+				"undertime":  0.0,
+			}
+
+			adjustment = self.get_attendance_result(emp_dict['employee_details'], emp_dict['adjustment'], self.attendance_from, self.attendance_to, emp_dict['adjustment_ot'], ot_map)
+			processed = self.get_attendance_result(emp_dict['employee_details'], emp_dict['processed'], self.attendance_from, self.attendance_to, emp_dict['processed_ot'], ot_map)
+			reg = {
+				"employee": emp_dict['employee'],
+				"employee_name": emp_dict['employee_name'],
+				"company": self.company,
+				"payroll_period": self.period,
+				"target_period": self.target_period,
+				"absent": adjustment.get('ab') - processed.get('ab'),
+				"unpaid_holiday": adjustment.get('uho') - processed.get('uho'),
+				"overtime": adjustment.get('ot') - processed.get('ot'),
+				"nightdiff": adjustment.get('nd') - processed.get('nd'),
+				"late": adjustment.get('lt') - processed.get('lt'),
+				"undertime":  adjustment.get('ut') - processed.get('ut')
+			}
+			if reg.get('absent') or reg.get('unpaid_holiday') or reg.get('overtime') or reg.get('nightdiff') or reg.get('late') or reg.get('undertime'):
 				adjr = frappe.new_doc("Adjustment Register")
-				adjr.update(register)
+				adjr.update(reg)
 				adjr.insert()
-		else:
-			frappe.throw(_( "No Employees" ))
+				ss_list.append(" " + emp_dict['employee_name'] +"")
 
 		return self.create_log(ss_list)
 
@@ -112,96 +192,21 @@ class AdjustmentProcessing(Document):
 		self.validate_period()
 		frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE payroll_period = %s  """, (self.period), as_dict=1)
 
-	def validate_for_adjustment(self, employee, attendance_from, attendance_to, approval_cutoff):
-		result = 0
-		leave_list = frappe.db.sql(""" SELECT L.`name` FROM `tabLeave Application Table` LA
-			INNER JOIN `tabLeave Application` L ON L.`name` = LA.parent WHERE L.employee = %s AND LA.leave_date >= %s AND LA.leave_date <= %s AND L.approved_on >= %s AND L.docstatus = 1 
-			ORDER BY LA.leave_date ASC """, (employee, attendance_from, attendance_to, approval_cutoff), as_dict=1)
-
-		ob_list = frappe.db.sql("""SELECT OBA.`name` FROM `tabOfficial Business Application Table` OBAT
-			INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
-			WHERE OBA.employee = %s AND OBA.workflow_state = 'Approved' AND OBAT.target_date >= %s 
-			AND OBAT.target_date <= %s AND OBAT.is_excluded = 0 AND approved_on >= %s """, (employee, attendance_from, attendance_to, approval_cutoff), as_dict=1)	
-
-		ot_list = frappe.db.sql("""SELECT `name` FROM `tabOvertime Application` 
-			WHERE workflow_state = 'Approved' AND employee = %s AND target_date >= %s 
-			AND target_date <= %s AND approved_on >= %s """, (employee, attendance_from, attendance_to, approval_cutoff), as_dict=1)
-
-		ut_list = frappe.db.sql("""SELECT `name` FROM `tabUndertime Application` 
-			WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s 
-			AND from_date <= %s AND approved_on >= %s """, (employee,  attendance_from, attendance_to, approval_cutoff), as_dict=1)
-
-		cto_list = frappe.db.sql("""SELECT `name`, use_total_hours, use_date FROM `tabCompensatory Time Off` 
-			WHERE workflow_state = 'Approved' AND employee = %s AND use_date >= %s AND use_date <= %s
-			AND `type` = 'Use' AND approved_on >= %s """, (employee,  attendance_from, attendance_to, approval_cutoff), as_dict=1)
-
-		ext_apps = frappe.db.sql("""SELECT `name`, `date`, from_time, to_time, `type` FROM `tabExcuse Tardiness Application` 
-			WHERE workflow_state = 'Approved' AND employee = %s AND `date` >= %s 
-			AND `date` <= %s AND approved_on >= %s """, (employee,  attendance_from, attendance_to, approval_cutoff), as_dict=1)		
-
-		if leave_list or ob_list or ot_list or ut_list or cto_list or ext_apps:
-			result = 1
-
-		return result
-
-	def get_adjustment_schedule(self, emp, pay_from, pay_to, approval_cutoff):
-		adjustment_schedule = []
-		shift_map = get_shift_map()
-		timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))	
-		holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
-		schedule = get_schedule(emp.name, pay_from, pay_to)
-		leaves = get_leave_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
-		ots = get_ot_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
-		obs = get_ob_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
-		uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
-		ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
-		cto = get_cto_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
-		wss = get_wss_list(emp.name, pay_from, pay_to, approval_cutoff, 1)
-		ot_list = []
-		for sched in schedule:
-			entry = get_defaults(emp, sched, shift_map)
-			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
-			get_sorted_card(entry, cards_in, cards_out)
-			get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss)
-			entry['break'] = self.convert_secs(entry['break'])
-			entry['work'] = self.convert_secs(entry['work'])
-			entry['late'] = self.convert_secs(entry['late'])
-			entry['undertime'] = self.convert_secs(entry['undertime'])
-			entry['overtime'] = self.convert_secs(entry['overtime'])
-			entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
-			entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
-			entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
-			entry['cto'] = self.convert_secs(entry['cto'])
-			adjustment_schedule.append(entry)
-			ot_list.extend(entry['ot_list'])
-		
-		return adjustment_schedule, ot_list
-
-	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map, ot_schema):
+	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map):
 		rates = get_rates(emp)
 		attendance_result = { "ab": 0.0, "uho": 0.0, "ot": 0.0, "nd": 0.0, "lt": 0.0, "ut": 0.0 }
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
+		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
+
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0
 			
-			if ot_schema == "adjustment":
-				for ot in ot_list:
-					if ot.get('ot_code') in ot_map:
-						overtime += flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
-					else:
-						overtime += flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate')
-				#frappe.throw(_(ot_list))
-			elif ot_schema == "original": 
-				overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
-					WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), getdate(attendance_from), getdate(attendance_to)), as_dict=1)
-				
-				#frappe.throw(_(overtime_list))
-				for ot in overtime_list:
-					if ot.ot_code in ot_map:
-						overtime += flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
-					else:
-						overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')				
+			for ot in ot_list:
+				if ot.get('ot_code') in ot_map:
+					overtime += flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+				else:
+					overtime += flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate')		
 				
 			for at in attendance:
 				if getdate(at.get('target_date')) == getdate(add_days(attendance_from, -1)):
@@ -211,7 +216,7 @@ class AdjustmentProcessing(Document):
 							if (at.get('lv_status') == 2 or at.get('lv_status') == 3) or at.get('is_halfday'):
 								is_uho = 0
 								if at.get('is_absent'):
-									is_uho = 0
+									is_uho = 1
 				else: 
 					if (emp.get("rate_type") == "Daily Rate" and at.get('is_holiday') == 1 and at.get('is_absent') != 1):
 						work_days += 0
@@ -239,56 +244,136 @@ class AdjustmentProcessing(Document):
 						unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
 						if uho_ab_days == 1:
 							absent_days += 1
-					
+
+					if at.get('cto'):
+						max_cto = 0
+						max_cto += at.get('undertime')
+						max_cto += at.get('late')
+						if ( at.get('is_absent') == 1 or at.get('is_lwop') == 1 ) and not at.get('is_holiday'):
+							if at.get('is_lwop') == 1 and at.get('lv_status') > 1:
+								max_cto += ( at.get('work_hours') / 2 )
+							else:
+								max_cto += ( at.get('work_hours') / 2 ) if at.get('is_halfday') == 1 else at.get('work_hours')
+
+						if max_cto < at.get('cto'):
+							cto += ( max_cto ) * flt(rates.get('hourly_rate'), 8)
+						else:
+							cto += ( at.get('cto') ) * flt(rates.get('hourly_rate'), 8)
+
+						if at.get('is_absent') == 1:
+							if at.get('is_halfday') == 1 and max_cto >= (at.get('work_hours') / 2):
+								cto_days += 0.5
+							elif max_cto >= at.get('work_hours'):
+								cto_days += 1
+
+					if at.get('is_holiday') == 1 and is_uho == 1 and (not at.get('is_ob')) and not at.get('is_restday'):
+						if emp.get("rate_type") == "Daily Rate" and at.get('is_absent'):
+							#if Daily Rate is Absent on Holiday should not have Unpaid Holiday
+							unpaid_holiday += 0
+						else:
+							unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
+							if uho_ab_days == 1:
+								absent_days += 1
+
 					#check if this attendance is lwop or absent for next attendance
 					if is_uho == 1:
 						#if present
-						if at.get('work') and not at.get('at.is_lwop') and not at.get('at.absent') and not at.get('at.is_restday'):
+						if at.get('work') and (not at.get('at.is_lwop')) and (not at.get('at.absent')) and (not at.get('at.is_restday')):
 							is_uho = 0
 
+						#if Halfday next day will not be UHO
+						if hd_no_uho and at.get('is_halfday'):
+							is_uho = 0
+
+						#if Proper Leave next day is not UHO
 						if at.get('lv_status') == 1 and not at.get('is_lwop'):
 							is_uho = 0
 
+						#if proper OB next day is not UHO
 						if at.get('is_ob'):
 							is_uho = 0
 
-						if lwop_uho == 1:
-							if ( at.get('lv_status') == 2 or at.get('lv_status == 3') ) or at.get('is_halfday'):
-								is_uho = 0
-								if at.get('is_absent') and at.get('is_lwop'):
-									is_uho = 0
-						else:
-							if ( at.get('lv_status') == 2 or at.get('lv_status == 3') )  or at.get('is_halfday'):
-								if at.get('is_absent'):
-									is_uho = 0
+						#UHO if Absent and leave withoutpay
+						if at.get('is_absent') and at.get('is_lwop'):
+							is_uho = 1
+
+						#Not UHO if halfday and halfday leave
+						if (at.get('lv_status') == 2 or at.get('lv_status') == 3) and at.get('is_halfday'):
+							is_uho = 0
+							if lwop_uho == 1 and at.get('is_lwop'):
+								is_uho = 1
+						
+						#strictly No UHO if CTO can cover absent work hours
+						if at.get('is_absent') and at.get('work_hours') <= at.get('cto'):
+							is_uho = 0	
 
 					else:
 						is_uho = 0
-						if (at.get('is_absent') or at.get('is_lwop') ) and not at.get('is_ob'):
-							is_uho = 0
+						if (at.get('is_absent') or at.get('is_lwop')) and not at.get('is_ob'):
+							is_uho = 1
 
 							if lwop_uho == 1:
-								if (at.get('lv_status') == 2 or at.get('lv_status') == 3) or at.get('is_halfday'):
+								if (at.get('lv_status') == 2 or at.get('lv_status') == 3) and at.get('is_halfday'):
 									is_uho = 0
 									if at.get('is_absent'):
-										is_uho = 0
+										is_uho = 1
+						
+						#If Halfday is LWOP but not absent
+						if lwop_uho == 1:
+							if (at.get('lv_status') == 2 or at.get('lv_status') == 3) and at.get('is_lwop') and (not at.get('is_absent')):
+								is_uho = 0
+						
+						#strictly No UHO if CTO can cover absent work hours
+						if at.get('is_absent') and at.get('work_hours') <= at.get('cto'):
+							is_uho = 0	
+
+						#if Halfday next day will not be UHO
+						if hd_no_uho and at.get('is_halfday'):
+							is_uho = 0
+
+					if emp.get("rate_type") == "Daily Rate":
+						#if daily rate, holiday is considered paid
+						if at.get('is_holiday') and not at.get('is_restday'):
+							work_days += 1
+							if at.get('is_absent') and at.get('is_sp_holiday') and header.get('uho_ab_spnw'):
+								work_days -= 1
+								unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
 
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
 				absent = 0
+			
 			if emp.get('ignore_late'):
 				late = 0
+
+			if emp.get('ignore_ut'):
+				undertime = 0
+
+			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
+				nightdiff = 0
 
 			attendance_result.update({ "ab": flt(absent, 8), "uho": flt(unpaid_holiday, 8), "ot": flt(overtime, 8), "nd": flt(nightdiff, 8), "lt": flt(late, 8), "ut":flt(undertime, 8) })
 		
 		return attendance_result
 
 	def create_log(self, ss_list):
-		log = "<p>" + _("Adjustment Entries Created") + "</p>"
+		log = "<p>" + _("No Employee for the above selected criteria Adjustment or Already Created") + "</p>"
+		if ss_list:
+			log = "<b>" + _("Adjustment Registers Created") + "</b>\
+			<br><br>%s" % '<br>'.join(self.format_as_links(ss_list))
 		return log
+
+	def format_as_links(self, ss_list):
+		return ['{0}'.format(s) for s in ss_list]
 
 	def convert_secs(self, secs):
 		# Converts to HR
 		con = (secs / 60) / 60
 		return con
+
+	def convert_to_list(self, dic):
+		data = []
+		for d in dic:
+			data.append(d.name)
+		return data
 

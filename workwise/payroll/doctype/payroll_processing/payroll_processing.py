@@ -652,7 +652,7 @@ class PayrollProcessing(Document):
 	def get_adjustment(self, emp, rates, header, register, adjset):
 		adjustment_register = []
 		adjustment = frappe.db.sql("""SELECT name, absent, unpaid_holiday, overtime, nightdiff, late, undertime 
-			FROM `tabAdjustment Register`WHERE employee = %s AND payroll_period = %s """,(emp.get('name'), self.period), as_dict=True )
+			FROM `tabAdjustment Register`WHERE employee = %s AND target_period = %s """,(emp.get('name'), self.period), as_dict=True )
 		
 		for d in adjustment:
 			if d.absent != 0:
@@ -790,13 +790,11 @@ class PayrollProcessing(Document):
 				if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
 					if at.is_absent or at.is_lwop:
 						is_uho = 1
-
 						if header.get('lwop_uho') == 1:
 							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
 								is_uho = 0
 								if at.is_absent:
 									is_uho = 1
-
 				else: 
 					if (emp.get("rate_type") == "Daily Rate" and at.is_holiday == 1 and at.is_absent != 1):
 						work_days += 0
@@ -809,9 +807,8 @@ class PayrollProcessing(Document):
 					if at.undertime > 0:
 						undertime += flt(at.undertime, 8) * flt(rates.get('hourly_rate'), 8)
 
-					if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
-						if at.nightdiff:
-							nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
+					if at.nightdiff:
+						nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
 					
 					if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
 						if at.is_lwop == 1 and at.lv_status > 1:
@@ -854,7 +851,7 @@ class PayrollProcessing(Document):
 					#check if this attendance is lwop or absent for next attendance
 					if is_uho == 1:
 						#if present
-						if at.work and not at.is_lwop and not at.absent and not at.is_restday and not at.is_halfday:
+						if at.work and (not at.is_lwop) and (not at.absent) and (not at.is_restday) and (not at.is_halfday):
 							is_uho = 0
 
 						#if Halfday next day
@@ -869,9 +866,11 @@ class PayrollProcessing(Document):
 						if at.is_ob:
 							is_uho = 0	
 
+						#UHO if Absent and leave withoutpay
 						if at.is_absent and at.is_lwop:
 							is_uho = 1
 
+						#Not UHO if halfday and halfday leave
 						if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
 							is_uho = 0
 							if header.get('lwop_uho') == 1 and at.is_lwop:
@@ -924,6 +923,9 @@ class PayrollProcessing(Document):
 
 			if emp.get('ignore_ut'):
 				undertime = 0
+
+			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
+				nightdiff = 0
 				
 			attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 			attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
@@ -933,7 +935,6 @@ class PayrollProcessing(Document):
 			attendance_register.append({"pay_code": "LT", "amount": flt(late, 8) })
 			attendance_register.append({"pay_code": "UT", "amount": flt(undertime, 8) })
 			
-			#frappe.throw(_(flt(late, 8)))
 			for d in attendance_register:
 				register.append(d)
 

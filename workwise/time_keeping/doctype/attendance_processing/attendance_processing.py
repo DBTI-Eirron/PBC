@@ -14,7 +14,7 @@ get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_o
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location,is_attendance_base, no_hours, rate_type, default_schedule FROM tabEmployee WHERE company = %(company)s 
+		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location, is_attendance_base, no_hours, rate_type, default_schedule FROM tabEmployee WHERE company = %(company)s 
 			AND payroll_schedule = %(schedule)s {conditions}
 			AND is_active = 1 ORDER BY `full_name` """.format(conditions=self.get_employee_conditions()),{ 
 				"company": self.company,
