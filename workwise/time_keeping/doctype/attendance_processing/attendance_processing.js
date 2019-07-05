@@ -20,6 +20,15 @@ frappe.ui.form.on('Attendance Processing', {
 		frm.set_query('period', function(doc) {
 			return {
 				filters: {
+					"status": "Closed",
+					"company": doc.company
+				}
+			};
+		});
+
+		frm.set_query('target_period', function(doc) {
+			return {
+				filters: {
 					"status": "Open",
 					"company": doc.company
 				}
@@ -41,6 +50,7 @@ frappe.ui.form.on('Attendance Processing', {
 		frm.add_fetch("period", "schedule", "schedule");
 		frm.add_fetch("period", "period_group", "period_group");
 	},
+
 	refresh: function(frm) {
 		frm.disable_save();
 	},
