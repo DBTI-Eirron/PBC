@@ -57,17 +57,23 @@ class AdjustmentProcessing(Document):
 		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
 	def validate_period(self):
-		period_stats = frappe.db.get_value("Payroll Period", self.period, "status")
-		if period_stats == "Closed":
-			frappe.throw(_("Selected Period is Already Closed"))
+		p_stats, p_date, p_comp = frappe.db.get_value("Payroll Period", self.period,  ["status", "payroll_date", "company"])
+		tgt_stats, tgt_date, tgt_comp = frappe.db.get_value("Payroll Period", self.target_period, ["status", "payroll_date", "company"])
 
 		if not self.schedule and not self.payroll_date:
 			frappe.throw(_("Fill up Mandatory Fields"))
+
+		if tgt_date <= p_date:
+			frappe.throw(_("Target Period, Payroll Date should be higher"))
+
+		if tgt_comp != p_comp:
+			frappe.throw(_("Target Period and Payroll Period Should have the same Company"))
 
 	def get_adjusted(self, emp_adj_map, ot_adj_list, employees):
 		data = []
 
 		#Validate Period
+		self.validate_period()
 		if not self.period:
 			frappe.throw(_("Please Select Payroll Period"))
 		
@@ -200,7 +206,7 @@ class AdjustmentProcessing(Document):
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
 
 		if emp.get('is_attendance_base') > 0:
-			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0
+			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho, cto, cto_days = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0
 			
 			for ot in ot_list:
 				if ot.get('ot_code') in ot_map:
