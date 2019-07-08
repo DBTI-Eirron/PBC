@@ -1444,6 +1444,7 @@ def init_employee_map(employees, company, pay_from, pay_to, approval_cutoff, adj
 		emp_map.setdefault(emp.name, frappe._dict({
 				"employee": emp.name,
 				"employee_name": emp.full_name,
+				"company": emp.company,
 				"employee_details": emp,
 				"schedules": [],
 				"timecards": [],
@@ -1457,10 +1458,10 @@ def init_employee_map(employees, company, pay_from, pay_to, approval_cutoff, adj
 				"wss": [],
 			})
 		)
-		
+	
 	get_all_schedules(emp_map, pay_from, pay_to)
 	get_all_timecards(emp_map, pay_from, pay_to + datetime.timedelta(days=1)) #+1 date to get nextday logs
-	get_all_holidays(emp_map, company, pay_from, pay_to)
+	get_all_holidays(emp_map, pay_from, pay_to)
 	get_all_leaves(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_obs(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_wss(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
@@ -1476,6 +1477,7 @@ def get_all_timecards(emp_map, pay_from, pay_to):
 			"from_date": pay_from,
 			"to_date": pay_to,
 		}, as_dict=True)
+
 	for d in timecards:
 		if d.employee in emp_map:
 			emp_map[d.employee].timecards.append(d)
@@ -1493,14 +1495,17 @@ def get_all_schedules(emp_map, pay_from, pay_to):
 		if d.employee in emp_map:
 			emp_map[d.employee].schedules.append(d)
 
-def get_all_holidays(emp_map, company, pay_from, pay_to):
-	holidays = frappe.db.sql("""SELECT holiday_name, holiday_date, is_special, location FROM `tabHoliday` 
-		WHERE company = %s AND holiday_date >= %s AND holiday_date <= %s
-		ORDER BY holiday_date ASC""",(company, pay_from, pay_to), as_dict=True)
+def get_all_holidays(emp_map, pay_from, pay_to):
+	holidays = frappe.db.sql("""SELECT company, holiday_name, holiday_date, is_special, location FROM `tabHoliday` 
+		WHERE holiday_date >= %s AND holiday_date <= %s
+		ORDER BY holiday_date ASC""",(pay_from, pay_to), as_dict=True)
 
-	for d in holidays:
-		if d.employee in emp_map:
-			emp_map[d.employee].hls.append(d)
+	for emp, emp_dict in emp_map.items():
+		for ho in holidays:
+			if emp_dict['company'] == ho.company:
+				emp_dict['hls'].append(ho)
+
+	return holidays
 
 def get_all_leaves(emp_map, pay_from, pay_to, approval_cutoff, adjustment):
 	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"'"
