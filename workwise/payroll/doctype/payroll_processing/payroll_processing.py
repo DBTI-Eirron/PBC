@@ -92,6 +92,7 @@ class PayrollProcessing(Document):
 		ex_uho_spnw = frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw')
 		mo_amt_smdl = frappe.db.get_single_value('Payroll Settings', 'mo_amt_smdl')
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
+		ignore_uho = frappe.db.get_single_value('Payroll Settings', 'ignore_uho')
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
 		if self.schedule == "Weekly":
@@ -150,7 +151,8 @@ class PayrollProcessing(Document):
 					'lwop_uho': lwop_uho,
 					'ex_uho_spnw': ex_uho_spnw,
 					'mo_amt_smdl': mo_amt_smdl,
-					'hd_no_uho': hd_no_uho
+					'hd_no_uho': hd_no_uho,
+					'ignore_uho': ignore_uho,
 				}
 
 				#Calculate Rates and Previous Entries
@@ -907,6 +909,10 @@ class PayrollProcessing(Document):
 
 			if emp.get('ignore_late'):
 				late = 0
+
+			if header.get('ignore_uho'):
+				unpaid_holiday = 0
+
 				
 			attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 			attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
