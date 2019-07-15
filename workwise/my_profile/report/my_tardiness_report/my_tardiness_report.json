@@ -7,12 +7,12 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2018-08-15 15:35:16.096909", 
+ "modified": "2019-05-30 12:25:31.392151", 
  "modified_by": "Administrator", 
  "module": "My Profile", 
  "name": "My Tardiness Report", 
  "owner": "Administrator", 
- "ref_doctype": "Work Schedule", 
+ "ref_doctype": "Employee", 
  "report_name": "My Tardiness Report", 
  "report_type": "Script Report", 
  "roles": [
@@ -21,6 +21,9 @@
   }, 
   {
    "role": "Rank and File"
+  }, 
+  {
+   "role": "All"
   }
  ]
 }

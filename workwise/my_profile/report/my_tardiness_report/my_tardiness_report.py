@@ -43,16 +43,22 @@ def get_columns(filters):
 			"width": 130
 		},
 		{
+			"fieldname": "work",
+			"label": _("Work"),
+			"fieldtype": "Float",
+			"width": 60
+		},
+		{
 			"fieldname": "late",
 			"label": _("Late"),
 			"fieldtype": "Float",
 			"width": 60
 		},
 		{
-			"fieldname": "work",
-			"label": _("Work"),
+			"fieldname": "undertime",
+			"label": _("Undertime"),
 			"fieldtype": "Float",
-			"width": 60
+			"width": 80
 		},
 	]
 
@@ -70,7 +76,7 @@ def get_result(filters):
 
 def get_register(emp, pay_from, pay_to):
 	register = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
-		WHERE employee = %(employee)s AND target_date >= %(from_date)s AND target_date <= %(to_date)s AND work < 8 
+		WHERE employee = %(employee)s AND (`target_date` BETWEEN %(from_date)s AND %(to_date)s)
 		AND is_restday != 1 
 		AND is_leave != 1
 		AND is_holiday != 1
@@ -118,46 +124,11 @@ def get_data(filters):
 					"target_date":"<b>"+emp.full_name+"</b>",
 				})
 			for r in register: 
-				tags = ""
-				total_work += r['work']
+				total_work += r.work
 				total_break += r['break']
-				total_late += r['late']
-				total_ot += r['overtime']
-				total_ut += r['undertime']
-				tags += " <span class='label label-danger'> Late </span> " if r['late'] > 0 else ""
-				tags += " <span class='label label-success'> Overtime </span> " if 	r['overtime'] > 0 else ""
-				tags += " <span class='label label-danger'> Undertime </span> " if 	r['undertime'] > 0 else ""
-				if 	r['is_leave'] == 1:
-					tags += " <span class='label label-success'>"+ cstr(r['leave_name']) +" </span> "
-
-
-				if 	r['is_halfday'] == 1:
-					tags += " <span class='label label-info'> Halfday </span> "
-
-				tags += " <span class='label label-success'> Official Business </span> " if r['is_ob'] else ""
-				
-				if 	r['is_absent'] == 1:
-					tags += " <span class='label label-danger'> Absent </span> "
-
-				if 	r['is_lwop'] == 1:
-					tags += " <span class='label label-danger'> LWOP </span> "
-				
-				if 	r['is_flexible'] == 1:
-					tags += " <span class='label label-info'> Flexible </span> "
-
-				if 	r['is_restday'] == 1:
-					tags += " <span class='label label-info'> Rest Day </span> "		
-				
-				if 	r['is_holiday'] == 1:
-					tags += " <span class='label label-info'> Holiday </span> "
-
-				if 	r['is_sp_holiday'] == 1:
-					tags += " <span class='label label-info'> Special Holiday </span> "
-
-				if 	r['has_issue'] == 1:
-					tags += " <span class='label label-warning'> ! Attendance Has Issue ! </span> "
-
-				r["tags"] = tags
+				total_late += r.late
+				total_ot += r.overtime
+				total_ut += r.undertime
 				data.append(r)
 
 			data.append({
