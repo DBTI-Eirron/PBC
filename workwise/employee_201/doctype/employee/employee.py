@@ -220,6 +220,7 @@ class Employee(Document):
 				i = {
 					"approver": d.approver,
 					"approver_name": d.approver_name,
+					"approver_userid": d.approver_userid,
 					"application": d.application,
 					"level": d.level
 				}	

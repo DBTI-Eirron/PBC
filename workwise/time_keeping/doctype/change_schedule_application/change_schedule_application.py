@@ -82,7 +82,9 @@ class ChangeScheduleApplication(Document):
 			exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, i.target_date), as_dict=True)
 			if exist:
 				frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, i.target_date), as_dict=True)
-				old_shift = frappe.db.sql_list("""SELECT `work_shift` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s LIMIT 1""", (self.employee, i.target_date))
+				frappe.db.commit()
+				
+			old_shift = frappe.db.sql_list("""SELECT `work_shift` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s LIMIT 1""", (self.employee, i.target_date))
 			target_date = getdate(i.target_date)
 
 			for ws in work_shift:
@@ -103,6 +105,7 @@ class ChangeScheduleApplication(Document):
 					"nd_end": self.get_date(target_date, ws.nd_start, ws.time_out, ws.nd_end, 1),
 				})
 				if work_sched.insert():
+					frappe.db.commit()
 					if old_shift:
 						i.current_shift = old_shift
 				else:
@@ -116,7 +119,9 @@ class ChangeScheduleApplication(Document):
 			exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, i.target_date), as_dict=True)
 			if exist:
 				frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, i.target_date), as_dict=True)
-				old_shift = frappe.db.sql_list("""SELECT `work_shift` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s LIMIT 1""", (self.employee, i.target_date))
+				frappe.db.commit()
+			
+			old_shift = frappe.db.sql_list("""SELECT `work_shift` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s LIMIT 1""", (self.employee, i.target_date))
 			target_date = getdate(i.target_date)
 
 			for ws in work_shift:
@@ -137,6 +142,7 @@ class ChangeScheduleApplication(Document):
 					"nd_end": self.get_date(target_date, ws.nd_start, ws.time_out, ws.nd_end, 1),
 				})
 				if work_sched.insert():
+					frappe.db.commit()
 					if old_shift:
 						i.current_shift = old_shift
 				else:
@@ -212,4 +218,3 @@ class ChangeScheduleApplication(Document):
 				schedule = get_schedule(self.employee, d.target_date, d.target_date)
 				for x in schedule:
 					d.current_shift = x.work_shift
-

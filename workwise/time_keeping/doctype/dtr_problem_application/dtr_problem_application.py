@@ -143,7 +143,6 @@ class DTRProblemApplication(Document):
 			"date": str(target_date),
 			"time": str(req.request)
 		})
-
-		new_timecard.flags.ignore_permissions = True
-		new_timecard.insert()
-		new_timecard.save()
+		new_timecard.insert(ignore_permissions = True)
+		new_timecard.save(ignore_permissions = True)
+		frappe.db.commit()

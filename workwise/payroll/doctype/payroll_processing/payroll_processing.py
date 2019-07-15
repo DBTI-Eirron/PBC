@@ -92,6 +92,7 @@ class PayrollProcessing(Document):
 		ex_uho_spnw = frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw')
 		mo_amt_smdl = frappe.db.get_single_value('Payroll Settings', 'mo_amt_smdl')
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
+		ignore_uho = frappe.db.get_single_value('Payroll Settings', 'ignore_uho')
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
 		if self.schedule == "Weekly":
@@ -150,7 +151,8 @@ class PayrollProcessing(Document):
 					'lwop_uho': lwop_uho,
 					'ex_uho_spnw': ex_uho_spnw,
 					'mo_amt_smdl': mo_amt_smdl,
-					'hd_no_uho': hd_no_uho
+					'hd_no_uho': hd_no_uho,
+					'ignore_uho': ignore_uho,
 				}
 
 				#Calculate Rates and Previous Entries
@@ -885,6 +887,10 @@ class PayrollProcessing(Document):
 						#strictly No UHO if CTO can cover absent work hours
 						if at.is_absent and at.work_hours <= at.cto:
 							is_uho = 0
+
+						#if Halfday next day will not be UHO
+						if header.get('hd_no_uho') and at.is_halfday:
+							is_uho = 0
 				
 					if emp.get("rate_type") == "Daily Rate":
 						#if daily rate, holiday is considered paid
@@ -895,7 +901,7 @@ class PayrollProcessing(Document):
 								unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 
 				#unhash to check cto configuration
-				#cto_check.append(_("{0}_{1}").format(at.target_date, is_uho))
+				#cto_check.append(_("{0}_{1}_{2}").format(at.target_date, is_uho, flt(unpaid_holiday, 8)))
 			#frappe.throw(_(cto_check))
 			#Daily rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
@@ -903,6 +909,10 @@ class PayrollProcessing(Document):
 
 			if emp.get('ignore_late'):
 				late = 0
+
+			if header.get('ignore_uho'):
+				unpaid_holiday = 0
+
 				
 			attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 			attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })

@@ -51,6 +51,7 @@ class WorkScheduleAssignment(Document):
 						exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (d.employee, i), as_dict=True)
 						if exist:
 							exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (d.employee, i), as_dict=True)
+							frappe.db.commit()
 
 						work_sched = frappe.new_doc("Work Schedule")
 						work_sched.update({
@@ -118,6 +119,7 @@ class WorkScheduleAssignment(Document):
 				exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (emp.employee, self.from_date, self.to_date), as_dict=True)
 				if exist:
 					exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (emp.employee, self.from_date, self.to_date), as_dict=True)
+					frappe.db.commit()
 									
 				for d in dates:			
 					work_sched = frappe.new_doc("Work Schedule")

@@ -6,25 +6,25 @@ from frappe import _
 def empget_employees(filter_type, filter_value, company):
 	employees = ""
 	if filter_type == 'Employee':
-		employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND `name` = %(filter_value)s ORDER BY last_name, first_name""",{ 
+		employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE is_active = 1 AND company = %(company)s  AND `name` = %(filter_value)s ORDER BY last_name, first_name""",{ 
 			"company": company,
 			"filter_value": filter_value,
 		}, as_dict=True)
 	
 	elif filter_type == 'Department':
-		employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND department = %(filter_value)s ORDER BY last_name, first_name""",{ 
+		employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE is_active = 1 AND company = %(company)s  AND department = %(filter_value)s ORDER BY last_name, first_name""",{ 
 			"company": company,
 			"filter_value": filter_value,
 		}, as_dict=True)
 	
 	elif filter_type == 'Location':
-		employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND location = %(filter_value)s ORDER BY last_name, first_name""",{ 
+		employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE is_active = 1 AND company = %(company)s  AND location = %(filter_value)s ORDER BY last_name, first_name""",{ 
 			"company": company,
 			"filter_value": filter_value,
 		}, as_dict=True)
 
 	elif filter_type == 'Job Level':
-		employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  AND job_level = %(filter_value)s ORDER BY last_name, first_name""",{ 
+		employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE is_active = 1 AND company = %(company)s  AND job_level = %(filter_value)s ORDER BY last_name, first_name""",{ 
 			"company": company,
 			"filter_value": filter_value,
 		}, as_dict=True)

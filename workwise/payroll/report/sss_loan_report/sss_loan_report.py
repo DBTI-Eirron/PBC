@@ -170,12 +170,11 @@ def get_employees(filters):
 			LA.release_date as loan_date,
 			LA.loan_amount as loan_amount,
 			LA.remarks as remarks
-			FROM `tabLoan Application` LA
-			INNER JOIN `tabPayroll Register Entries` PE ON LA.`name`=PE.`linked_document`
-			INNER JOIN `tabPayroll Register` PR ON PR.`name`=PE.`parent`
-			INNER JOIN `tabEmployee` TE ON LA.`employee`=TE.`name`
+			FROM `tabPayroll Register Entries` PE
+			INNER JOIN `tabLoan Application` LA ON PE.`linked_document`=LA.`name`
+			INNER JOIN `tabPayroll Register` PR ON PE.`parent`=PR.`name`
+			INNER JOIN `tabEmployee` TE ON PR.`employee`=TE.`name`
 			WHERE LA.`loan_type`='SSSL'
-			AND LA.docstatus = 1
 			AND TE.company = %(company)s
 			AND (PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s)
 			AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(cur_user)s)
@@ -198,12 +197,11 @@ def get_employees(filters):
 			LA.release_date as loan_date,
 			LA.loan_amount as loan_amount,
 			LA.remarks as remarks
-			FROM `tabLoan Application` LA
-			INNER JOIN `tabPayroll Register Entries` PE ON LA.`name`=PE.`linked_document`
-			INNER JOIN `tabPayroll Register` PR ON PR.`name`=PE.`parent`
-			INNER JOIN `tabEmployee` TE ON LA.`employee`=TE.`name`
+			FROM `tabPayroll Register Entries` PE
+			INNER JOIN `tabLoan Application` LA ON PE.`linked_document`=LA.`name`
+			INNER JOIN `tabPayroll Register` PR ON PE.`parent`=PR.`name`
+			INNER JOIN `tabEmployee` TE ON PR.`employee`=TE.`name`
 			WHERE LA.`loan_type`='SSSL'
-			AND LA.docstatus = 1
 			AND TE.company = %(company)s
 			AND (PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s)
 			GROUP BY LA.`name`

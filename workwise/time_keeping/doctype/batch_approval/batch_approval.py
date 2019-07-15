@@ -57,7 +57,7 @@ class BatchApproval(Document):
 
 			if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
 				total_hours = flt(a.total_hrs, 2)
-			if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application"]:
+			if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application", "Change Schedule Application"]:
 				from_date = a.from_date
 				to_date = a.to_date
 			if self.application_type == "Undertime Application":
@@ -66,7 +66,7 @@ class BatchApproval(Document):
 			if self.application_type == "Excuse Tardiness Application":
 				from_date = a.date
 				to_date = a.date
-			if self.application_type in ["Change Schedule Application", "DTR Problem Application"]:
+			if self.application_type == "DTR Problem Application":
 				from_date = a.target_date
 				to_date = a.target_date
 			if self.application_type == "Compensatory Time Off":
@@ -153,7 +153,7 @@ class BatchApproval(Document):
 
 		if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
 			additional_fields += ", AP.total_hrs"
-		if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application"]:
+		if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application", "Change Schedule Application"]:
 			additional_fields += ", AP.from_date, AP.to_date"
 			if self.based_on == "Target Date":
 				filter_date = "AP.from_date"
@@ -165,7 +165,7 @@ class BatchApproval(Document):
 			additional_fields += ", AP.date"
 			if self.based_on == "Target Date":	
 				filter_date = "AP.date"
-		if self.application_type in ["Change Schedule Application", "DTR Problem Application"]:
+		if self.application_type in ["DTR Problem Application"]:
 			additional_fields += ", AP.target_date"
 			if self.based_on == "Target Date":	
 				filter_date = "AP.target_date"
@@ -223,6 +223,5 @@ class BatchApproval(Document):
 				}, as_dict=True)
 
 		return record
-
 
 
