@@ -198,9 +198,10 @@ def get_data(filters):
 def get_employees(filters, pay_from, pay_to):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, SUM(PR.total_income) as total_income, TE.`name`, SUM(PR.taxable_income) as taxable_income, PR.employee_name
+		employees = frappe.db.sql("""SELECT DISTINCT TE.name, SUM(PR.total_income) as total_income, TE.`name`, SUM(PR.taxable_income) as taxable_income, PR.employee_name
 			FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-			WHERE PR.company = %(company)s 
+			WHERE TE.is_active = 1
+				AND PR.company = %(company)s 
 				AND PR.posting_date >= %(from_date)s
 				AND PR.posting_date <= %(to_date)s
 				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) 
@@ -212,9 +213,10 @@ def get_employees(filters, pay_from, pay_to):
 			"user": frappe.session.user
 		}, as_dict=True)
 	else:
-		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, SUM(PR.total_income) as total_income, TE.`name`, SUM(PR.taxable_income) as taxable_income, PR.employee_name
+		employees = frappe.db.sql(""" SELECT DISTINCT TE.name, SUM(PR.total_income) as total_income, TE.`name`, SUM(PR.taxable_income) as taxable_income, PR.employee_name
 			FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-			WHERE PR.company = %(company)s 
+			WHERE TE.is_active = 1
+				AND PR.company = %(company)s 
 				AND PR.posting_date >= %(from_date)s
 				AND PR.posting_date <= %(to_date)s
 				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
