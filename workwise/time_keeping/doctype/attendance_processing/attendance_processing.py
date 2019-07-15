@@ -59,9 +59,12 @@ class AttendanceProcessing(Document):
 			pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to", "approval_cutoff"])
 			for emp in employees:
 				data = []
+				no_work = 1
 				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to"])
 				frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
+				frappe.db.commit()
 				frappe.db.sql("""DELETE FROM `tabOvertime` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
+				frappe.db.commit()
 				
 				shift_map = get_shift_map()
 				timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
@@ -93,9 +96,17 @@ class AttendanceProcessing(Document):
 					register = frappe.new_doc("Attendance Register")
 					register.update(entry)
 					register.insert()
-						
+					frappe.db.commit()
 
-				payslip_label = "Created for "+ cstr(emp.full_name) +""
+					if no_work == 1:
+						if entry['work'] > 0:
+							no_work = 0
+
+				payslip_label = "Created for "+ cstr(emp.full_name) +" "
+				if not schedule:
+					payslip_label = cstr(payslip_label)+" <span class='label label-danger'> No schedule </span>"+" "
+				if no_work == 1:
+					payslip_label = cstr(payslip_label)+" <span class='label label-danger'> No Work </span>"+" "
 				ss_list.append(payslip_label)
 		else:
 			frappe.throw(_("No Employee Found"))
