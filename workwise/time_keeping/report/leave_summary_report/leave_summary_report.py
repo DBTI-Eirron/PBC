@@ -72,8 +72,11 @@ def get_data(filters):
 		FROM
 			`tabLeave Application Table` LT
 			JOIN `tabLeave Application` LA 
+			ON LT.`parent` = LA.`name`
 		WHERE
-			LT.`parent` = LA.`name` AND LA.`docstatus`= 1 
+			LA.`docstatus`= 1 
+			AND LA.`workflow_state` = "Approved"
+			AND LT.`is_excluded` != 0
 			AND LA.`employee` = %(employee)s 
 			AND LT.`leave_date` >= %(from)s 
 			AND LT.`leave_date` <= %(to)s {conditions} """.format(conditions=get_query_conditions(filters)),{ 
