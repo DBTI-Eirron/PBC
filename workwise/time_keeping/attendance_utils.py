@@ -5,6 +5,7 @@ from frappe import _
 from datetime import timedelta, date
 
 def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
+
 	if entry.get("override_in"):
 		entry['card_in'] = entry.get("override_in")
 
@@ -1319,7 +1320,7 @@ def insert_overtime(entry):
 	entry['ut_links'] = None
 	entry['cto_links'] = None
 
-def get_defaults(emp, sched, shift_map):
+def get_defaults(emp, sched, shift_map, overrides):
 	entry = {
 		#employe settings
 		"employee": emp.name,
@@ -1358,8 +1359,8 @@ def get_defaults(emp, sched, shift_map):
 		#timecard data
 		"card_in": "",
 		"card_out": "",
-		"override_in": sched['o_time_in'],
-		"override_out": sched['o_time_out'],			
+		"override_in": get_datetime(overrides[str(sched['target_date'])]['time_in']) if str(sched['target_date']) in overrides else None,
+		"override_out": get_datetime(overrides[str(sched['target_date'])]['time_out']) if str(sched['target_date']) in overrides else None,			
 		"break_out": "",
 		"break_in": "",
 		#basic attendance
@@ -1438,7 +1439,7 @@ def get_defaults(emp, sched, shift_map):
 	
 	return entry
 
-def init_employee_map(employees, company, pay_from, pay_to, approval_cutoff, adjustment):
+def init_employee_map(employees, employee, company, pay_from, pay_to, approval_cutoff, adjustment):
 	emp_map = frappe._dict()
 	for emp in employees:
 		emp_map.setdefault(emp.name, frappe._dict({
@@ -1448,6 +1449,7 @@ def init_employee_map(employees, company, pay_from, pay_to, approval_cutoff, adj
 				"employee_details": emp,
 				"schedules": [],
 				"timecards": [],
+				"overrides": [],
 				"hls": [],
 				"lvs": [],
 				"ots": [],
@@ -1458,22 +1460,30 @@ def init_employee_map(employees, company, pay_from, pay_to, approval_cutoff, adj
 				"wss": [],
 			})
 		)
-	
-	get_all_schedules(emp_map, pay_from, pay_to)
-	get_all_timecards(emp_map, pay_from, pay_to + datetime.timedelta(days=1)) #+1 date to get nextday logs
+
+	get_all_overrides(emp_map, employee, pay_from, pay_to)
+	get_all_schedules(emp_map, employee, pay_from, pay_to)
+	get_all_timecards(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1)) #+1 date to get nextday logs
 	get_all_holidays(emp_map, pay_from, pay_to)
-	get_all_leaves(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
-	get_all_obs(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
-	get_all_wss(emp_map, pay_from, pay_to, approval_cutoff, adjustment)
+	#applications
+	get_all_leaves(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_ots(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_obs(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_uts(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 
 	return emp_map
 
-def get_all_timecards(emp_map, pay_from, pay_to):
+
+def get_all_timecards(emp_map, employee, pay_from, pay_to):
+	condition = "AND EMP.name = '"+ cstr(employee) +"'" if employee else ""
 	timecards = frappe.db.sql("""SELECT EMP.name as employee, TC.biometrics_id, TIMESTAMP(TC.date, TC.time) as card_datetime, 
 		TC.card_type, TC.time FROM `tabTime Card` TC
 		INNER JOIN tabEmployee EMP ON EMP.biometrics_id = TC.biometrics_id
-		WHERE TC.date >= %(from_date)s AND TC.date <= %(to_date)s
-		ORDER BY TC.date, TC.time """,{
+		WHERE TC.date >= %(from_date)s AND TC.date <= %(to_date)s {condition}
+		ORDER BY TC.date, TC.time """.format( condition=condition ),{
 			"from_date": pay_from,
 			"to_date": pay_to,
 		}, as_dict=True)
@@ -1482,11 +1492,12 @@ def get_all_timecards(emp_map, pay_from, pay_to):
 		if d.employee in emp_map:
 			emp_map[d.employee].timecards.append(d)
 
-def get_all_schedules(emp_map, pay_from, pay_to):		
+def get_all_schedules(emp_map, employee, pay_from, pay_to):		
+	condition = "AND employee = '"+ cstr(employee) +"'" if employee else ""
 	schedule = frappe.db.sql("""SELECT employee, company, work_shift, target_date, o_time_in, o_break_in, o_break_out, o_time_out
 		FROM `tabWork Schedule` 
-		WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s
-		ORDER BY target_date ASC""",{
+		WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s {condition}
+		ORDER BY target_date ASC""".format( condition=condition ),{
 			"from_date": pay_from,
 			"to_date": pay_to,
 		}, as_dict=True)
@@ -1494,6 +1505,20 @@ def get_all_schedules(emp_map, pay_from, pay_to):
 	for d in schedule:
 		if d.employee in emp_map:
 			emp_map[d.employee].schedules.append(d)
+
+def get_all_overrides(emp_map, employee, pay_from, pay_to):
+	condition = "AND employee = '"+ cstr(employee) +"'" if employee else ""		
+	overrides = frappe.db.sql("""SELECT employee, target_date, time_in, break_in, break_out, time_out
+	FROM `tabOverride List` 
+	WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s {condition}
+	ORDER BY target_date ASC""".format( condition=condition ),{
+		"from_date":pay_from,
+		"to_date":pay_to,
+	},as_dict=True)
+
+	for d in overrides:
+		if d.employee in emp_map:
+			emp_map[d.employee].overrides.update({str(d.target_date):d})
 
 def get_all_holidays(emp_map, pay_from, pay_to):
 	holidays = frappe.db.sql("""SELECT company, holiday_name, holiday_date, is_special, location FROM `tabHoliday` 
@@ -1507,39 +1532,135 @@ def get_all_holidays(emp_map, pay_from, pay_to):
 
 	return holidays
 
-def get_all_leaves(emp_map, pay_from, pay_to, approval_cutoff, adjustment):
-	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"'"
+def get_all_leaves(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	if adjustment == 1:
+		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+
+	if employee:
+		conditions_list.append("employee='"+ cstr(employee) +"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
 	leaves = frappe.db.sql("""SELECT L.`name`, L.employee, L.leave_type, LA.leave_date, 
 		LA.is_half_day, LA.is_second_half, LA.is_holiday, LA.is_excluded, L.is_lwop
 		FROM `tabLeave Application Table` LA
 		INNER JOIN `tabLeave Application` L ON L.`name` = LA.parent
-		WHERE LA.leave_date >= %s AND LA.leave_date <= %s {by_adjustment} AND L.docstatus = '1' 
-		ORDER BY LA.leave_date ASC """.format( by_adjustment=by_adjustment ), (pay_from, pay_to), as_dict=1)
+		WHERE LA.leave_date >= %s AND LA.leave_date <= %s {conditions} AND L.docstatus = '1' 
+		ORDER BY LA.leave_date ASC """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in leaves:
 		if d.employee in emp_map:
 			emp_map[d.employee].lvs.append(d)
 
-def get_all_obs(emp_map, pay_from, pay_to, approval_cutoff, adjustment):
-	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
-	ob_apps = frappe.db.sql("""SELECT OBA.`name`, OBAT.target_date, OBAT.from_time, OBAT.to_time, OBAT.hrs, OBAT.is_holiday, OBAT.is_excluded 
+def get_all_obs(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	if adjustment == 1:
+		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+
+	if employee:
+		conditions_list.append("OBA.employee='"+ cstr(employee) +"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
+	ob_apps = frappe.db.sql("""SELECT OBA.`name`, OBA.employee, OBAT.target_date, OBAT.from_time, OBAT.to_time, OBAT.hrs, OBAT.is_holiday, OBAT.is_excluded 
 		FROM `tabOfficial Business Application Table` OBAT
 		INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
 		WHERE OBA.workflow_state = 'Approved' AND OBAT.target_date >= %s 
 		AND OBAT.target_date <= %s 
-		AND OBAT.is_excluded = 0 {by_adjustment} """.format( by_adjustment=by_adjustment ), (pay_from, pay_to), as_dict=1)
+		AND OBAT.is_excluded = 0 {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in ob_apps:
 		if d.employee in emp_map:
 			emp_map[d.employee].obs.append(d)
 
-def get_all_wss(emp_map, pay_from, pay_to, approval_cutoff, adjustment):
-	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "	
+def get_all_ots(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	if adjustment == 1:
+		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+
+	if employee:
+		conditions_list.append("employee='"+ cstr(employee) +"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
+	overtimes = frappe.db.sql("""SELECT `name`, employee, total_hrs, break_hrs, target_date, from_date, to_date, from_time, to_time FROM `tabOvertime Application` 
+		WHERE workflow_state = 'Approved' AND target_date >= %s 
+		AND target_date <= %s {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+
+	for d in overtimes:
+		if d.employee in emp_map:
+			emp_map[d.employee].ots.append(d)
+
+def get_all_uts(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	if adjustment == 1:
+		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+
+	if employee:
+		conditions_list.append("employee='"+ cstr(employee) +"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
+	undertimes = frappe.db.sql("""SELECT `name`, employee, from_time, to_time, from_date FROM `tabUndertime Application` 
+		WHERE workflow_state = 'Approved' AND from_date >= %s 
+		AND from_date <= %s {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+
+	for d in undertimes:
+		if d.employee in emp_map:
+			emp_map[d.employee].uts.append(d)
+
+def get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	if adjustment == 1:
+		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+
+	if employee:
+		conditions_list.append("employee='"+ cstr(employee) +"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
+	compensatory = frappe.db.sql("""SELECT `name`, employee, use_total_hours, use_date FROM `tabCompensatory Time Off` 
+		WHERE workflow_state = 'Approved' AND use_date >= %s AND use_date <= %s
+		AND `type` = 'Use' {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+	
+	for d in compensatory:
+		if d.employee in emp_map:
+			emp_map[d.employee].cto.append(d)
+
+def get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	if adjustment == 1:
+		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+
+	if employee:
+		conditions_list.append("employee='"+ cstr(employee) +"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
+	ex_tardiness = frappe.db.sql("""SELECT `name`, employee, `date`, from_time, to_time, `type` FROM `tabExcuse Tardiness Application` 
+		WHERE workflow_state = 'Approved' AND `date` >= %s 
+		AND `date` <= %s {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+	
+	for d in ex_tardiness:
+		if d.employee in emp_map:
+			emp_map[d.employee].ext.append(d)
+
+def get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	if adjustment == 1:
+		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+
+	if employee:
+		conditions_list.append("employee='"+ cstr(employee) +"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
 	ws_apps = frappe.db.sql(""" SELECT employee, suspension_date, suspension_start, suspension_end 
 		FROM `tabWork Suspension` WS 
 		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` 
 		WHERE WS.docstatus = 1 AND suspension_date >= %s 
-		AND suspension_date <= %s  """.format( by_adjustment=by_adjustment ), (pay_from, pay_to), as_dict=1)
+		AND suspension_date <= %s {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in ws_apps:
 		if d.employee in emp_map:
