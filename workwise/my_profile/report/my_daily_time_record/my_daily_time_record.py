@@ -126,15 +126,18 @@ def get_result(filters):
 	return result
 
 def get_employees(filters):
+	employee = ""
 	employees = frappe.db.sql("""SELECT * FROM `tabEmployee` WHERE user_id  = %(user)s """,{ "user": frappe.session.user }, as_dict=True)
+	for d in employees:
+		employee = d.name
 
-	return employees
+	return employees, employee
 
 def get_data(filters):
 	#Initialize
 	data = []
 	pay_from, pay_to, approval_cutoff = "", "", ""
-	employees = get_employees(filters)
+	employees, employee = get_employees(filters)
 	totals = {
 		'card_out': '<b> Totals </b>',
 		'break': 0,
@@ -162,11 +165,11 @@ def get_data(filters):
 		employee_list = convert_to_list(employees)
 		template_map = get_template_map()
 		shift_map = get_shift_map()
-		emp_map = init_employee_map(employees, filters.company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		emp_map = init_employee_map(employees, employee, filters.company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			complete_sched(emp_dict, pay_from, pay_to, template_map)
 			for sched in emp_dict['schedules']:
-				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map)
+				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
 				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
 					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'))
 				get_sorted_card(entry, cards_in, cards_out)
