@@ -687,6 +687,7 @@ class PayrollProcessing(Document):
 						"amount": abs(flt(d.unpaid_holiday, 8)),
 					})
 
+			#Overtime and Nightdiff is Reversed due to Income Nature
 			if d.overtime != 0:
 				if d.overtime < 0:
 					adjustment_register.append({
