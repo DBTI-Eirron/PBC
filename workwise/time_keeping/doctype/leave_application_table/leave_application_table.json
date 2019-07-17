@@ -38,7 +38,7 @@
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
    "reqd": 1, 
-   "search_index": 0, 
+   "search_index": 1, 
    "set_only_once": 0, 
    "unique": 0
   }, 
@@ -176,7 +176,7 @@
  "issingle": 0, 
  "istable": 1, 
  "max_attachments": 0, 
- "modified": "2018-12-04 15:02:16.220869", 
+ "modified": "2019-07-17 09:20:50.886159", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Leave Application Table", 

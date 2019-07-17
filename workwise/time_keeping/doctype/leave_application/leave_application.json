@@ -40,7 +40,7 @@
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
    "reqd": 1, 
-   "search_index": 0, 
+   "search_index": 1, 
    "set_only_once": 0, 
    "unique": 0
   }, 
@@ -253,7 +253,7 @@
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
    "reqd": 1, 
-   "search_index": 0, 
+   "search_index": 1, 
    "set_only_once": 0, 
    "unique": 0
   }, 
@@ -283,7 +283,7 @@
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
    "reqd": 1, 
-   "search_index": 0, 
+   "search_index": 1, 
    "set_only_once": 0, 
    "unique": 0
   }, 
@@ -736,7 +736,7 @@
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
    "reqd": 1, 
-   "search_index": 0, 
+   "search_index": 1, 
    "set_only_once": 0, 
    "unique": 0
   }, 
@@ -813,7 +813,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2019-03-28 15:33:28.489621", 
+ "modified": "2019-07-17 09:20:37.944972", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Leave Application", 
