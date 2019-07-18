@@ -49,6 +49,15 @@ frappe.query_reports["Attendance Summary Processed"] = {
 			"label": __("Employee"),
 			"fieldtype": "Link",
 			"options": "Employee",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company,
+						'is_active': 1
+					}
+				};
+			},
 		},
 		{
 			"fieldname": "position_title",
