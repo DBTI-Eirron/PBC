@@ -1556,6 +1556,8 @@ def get_all_leaves(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustm
 def get_all_obs(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
 	if adjustment == 1:
+		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	else:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
@@ -1577,6 +1579,8 @@ def get_all_obs(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 def get_all_ots(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
 	if adjustment == 1:
+		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	else:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
@@ -1595,6 +1599,8 @@ def get_all_ots(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 def get_all_uts(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
 	if adjustment == 1:
+		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	else:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
@@ -1613,6 +1619,8 @@ def get_all_uts(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 def get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
 	if adjustment == 1:
+		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	else:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
@@ -1631,6 +1639,8 @@ def get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 def get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
 	if adjustment == 1:
+		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	else:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
@@ -1649,6 +1659,8 @@ def get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 def get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
 	if adjustment == 1:
+		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	else:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
