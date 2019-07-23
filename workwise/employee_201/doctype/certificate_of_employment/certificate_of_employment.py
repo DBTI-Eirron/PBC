@@ -5,6 +5,12 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
+from datetime import date
 
 class CertificateofEmployment(Document):
-	pass
+	def get_to_date(self):
+		resign_date = frappe.get_value('Employee', self.employee, 'date_resigned')
+		if resign_date:
+			self.to_date = resign_date
+		else:
+			self.to_date = date.today()
