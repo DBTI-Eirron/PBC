@@ -16,6 +16,11 @@ frappe.query_reports["Individual Rating Summary"] = {
 			"label": __("Year"),
 			"fieldtype": "Link",
 			"options": "Payroll Year",
-		},
+		},{
+			"fieldname": "employee",
+			"label": __("Employee"),
+			"fieldtype": "Link",
+			"options": "Employee"
+		}
 	]
 }

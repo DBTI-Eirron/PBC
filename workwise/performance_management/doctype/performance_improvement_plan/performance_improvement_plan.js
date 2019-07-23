@@ -26,7 +26,7 @@ frappe.ui.form.on('Performance Improvement Plan', {
 		}
 	},
 
-	appraisal: function(frm) {
+	evaluation: function(frm) {
 		frm.trigger("get_appraisal");
 	},
 
@@ -47,7 +47,8 @@ frappe.ui.form.on('Performance Improvement Plan', {
 cur_frm.fields_dict['appraisal'].get_query = function(doc) {
 	return {
 		filters: {
-			"docstatus": 1
+			"docstatus": 1,		
+			"appraisee": doc.employee
 		}
 	}
 }

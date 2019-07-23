@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import _
 from datetime import datetime
-
+from frappe.utils import getdate, flt
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -44,14 +44,14 @@ def get_data(filters):
 	rating_class = frappe.db.sql("""SELECT * FROM `tabRating Classification`""",as_dict=True)
 	year_division = get_division(filters)
 	start_date,end_date = get_year_start_end(filters)
-	employee = frappe.db.sql("""SELECT appraisee, appraisee_name, department FROM `tabAppraisal` WHERE company = %s AND docstatus = 1 AND from_date BETWEEN %s AND %s""",(filters.company,start_date,end_date),as_dict=True)
+	employee = frappe.db.sql("""SELECT DISTINCT appraisee, appraisee_name, department FROM `tabAppraisal` WHERE company = %s AND docstatus = 1 AND from_date BETWEEN %s AND %s""",(filters.company,start_date,end_date),as_dict=True)
 	for emp in employee:
 		row = {'employee':emp.appraisee,'employee_name':emp.appraisee_name,'department':emp.department}
+		ee = 0
 		for div in year_division:
-			ee = 0
-			average = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabAppraisal` WHERE company = %s AND docstatus = 1 AND from_date BETWEEN %s AND %s""",(filters.company,div['from_date'],div['to_date']),as_dict=True)
+			average = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabAppraisal` WHERE company = %s AND docstatus = 1 AND appraisee = %s AND from_date BETWEEN %s AND %s""",(filters.company,emp.appraisee,getdate(div['from_date']),getdate(div['to_date'])),as_dict=True)	
 			for rating in rating_class:
-				if average[0].average >= rating.rate_from and average[0].average >= rating.rate_to:
+				if flt(average[0].average) >= flt(rating.rate_from) and flt(average[0].average) <= flt(rating.rate_to):
 					if rating.rating_equivalent == "Exceeds Expectation(EE)":
 						row.update({str(div['from_date']):rating.rating_equivalent})
 						ee += 1

@@ -159,7 +159,7 @@
    "read_only": 0, 
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
-   "reqd": 0, 
+   "reqd": 1, 
    "search_index": 0, 
    "set_only_once": 0, 
    "unique": 0
@@ -175,7 +175,7 @@
  "issingle": 0, 
  "istable": 1, 
  "max_attachments": 0, 
- "modified": "2019-03-28 11:36:50.377151", 
+ "modified": "2019-05-20 15:47:41.173495", 
  "modified_by": "Administrator", 
  "module": "Performance Management", 
  "name": "Appraisal Goal", 
