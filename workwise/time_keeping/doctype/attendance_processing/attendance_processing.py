@@ -66,12 +66,12 @@ class AttendanceProcessing(Document):
 			frappe.db.sql("""DELETE FROM `tabOvertime` WHERE target_date >= %s AND target_date <= %s AND employee IN %s """,(pay_from, pay_to,employee_list), as_dict=1)
 			template_map = get_template_map()
 			shift_map = get_shift_map()
-			emp_map = init_employee_map(employees, self.company, pay_from, pay_to, approval_cutoff, 0)
+			emp_map = init_employee_map(employees, None, self.company, pay_from, pay_to, approval_cutoff, 0)
 			for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 				ss_list += 1
 				complete_sched(emp_dict, pay_from, pay_to, template_map)
 				for sched in emp_dict['schedules']:
-					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map)
+					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
 					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
 						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'))
 					get_sorted_card(entry, cards_in, cards_out)

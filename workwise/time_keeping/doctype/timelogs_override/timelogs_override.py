@@ -168,8 +168,9 @@ class TimelogsOverride(Document):
 				timecard_list = get_timecard_list(bio_id, pay_from, pay_to + datetime.timedelta(days=1))
 				shift_map = get_shift_map()
 				schedule = frappe.db.sql("""SELECT * FROM `tabWork Schedule` WHERE employee = %s AND target_date =%s""",(self.employee,d.target_date),as_dict=True)
+				overrides = []
 				for sched in schedule:
-					entry = get_defaults(emp, sched, shift_map)
+					entry = get_defaults(emp, sched, shift_map, overrides)
 					datetime_in = sched['datetime_in']
 					datetime_out = sched['datetime_out']
 					setup_preshift, end_preshift, setup_postshift, end_postshift = frappe.get_value('Work Shift',d.work_shift,['setup_preshift','end_preshift','setup_postshift','end_postshift'])
@@ -187,7 +188,6 @@ class TimelogsOverride(Document):
 					# d.o_break_in = sched['o_break_in']
 					# d.o_break_out = sched['o_break_out']
 					# d.o_time_out = sched['o_time_out']
-
 
 					
 					
