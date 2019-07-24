@@ -1088,28 +1088,28 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 		frappe.db.commit()
 
 def get_schedule(employee, pay_from, pay_to):
-	def_sched = frappe.db.get_value("Employee", employee, "default_schedule")
-	date_list = []
-	start = datetime.datetime.strptime(str(pay_from), '%Y-%m-%d')
-	end = datetime.datetime.strptime(str(pay_to), '%Y-%m-%d')
-	step = datetime.timedelta(days=1)
+	#def_sched = frappe.db.get_value("Employee", employee, "default_schedule")
+	#date_list = []
+	#start = datetime.datetime.strptime(str(pay_from), '%Y-%m-%d')
+	#end = datetime.datetime.strptime(str(pay_to), '%Y-%m-%d')
+	#step = datetime.timedelta(days=1)
 	
-	if def_sched:
-		while start <= end:
-			date_list.append(start.date())
-			start += step
-
-		for d in date_list:
-			sched = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
-				datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
-				FROM `tabWork Schedule` 
-				WHERE employee = %(employee)s AND target_date = %(target_date)s """,{
-					"employee": employee,
-					"target_date": d
-				}, as_dict=True)
-
-			if not sched:
-				assign_default_schedule(employee, d, d, def_sched)
+	#if def_sched:
+	#	while start <= end:
+	#		date_list.append(start.date())
+	#		start += step
+	#		
+	#	for d in date_list:
+	#		sched = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
+	#			datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
+	#			FROM `tabWork Schedule` 
+	#			WHERE employee = %(employee)s AND target_date = %(target_date)s """,{
+	#				"employee": employee,
+	#				"target_date": d
+	#			}, as_dict=True)
+	#			
+	#		if not sched:
+	#			assign_default_schedule(employee, d, d, def_sched)
 		
 	schedule = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
 		datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
