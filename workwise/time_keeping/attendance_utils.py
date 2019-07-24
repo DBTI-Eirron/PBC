@@ -18,8 +18,7 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	entry['time_out'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('time_out')) )
 	entry['break_start'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('break_start')) )
 	entry['break_end'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('break_end')) )
-
-	if entry.get('time_out') < entry.get('time_in'):
+	if entry.get('time_in') > entry.get('time_out'):
 		entry['time_out'] = add_days(entry.get('time_out'), 1)
 
 	#check Break Out and break IN
@@ -1233,7 +1232,6 @@ def get_wss_list(employee, from_date, to_date, approval_cutoff, adjustment):
 def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list):
 	cards_in = []
 	cards_out = []
-	#frappe.throw(_(timecard_list))
 	for tc in timecard_list:
 		if pre_shift <= tc.card_datetime <= max_preshift and (tc.card_type == 0 or tc.card_type == 2):
 			cards_in.append({
@@ -1314,6 +1312,10 @@ def insert_overtime(entry):
 	entry['cto_links'] = None
 
 def get_defaults(emp, sched, shift_map, overrides):
+	post_shift_date = getdate(sched['target_date'])
+	if shift_map[sched['work_shift']]['time_in'] > shift_map[sched['work_shift']]['time_out']:
+		post_shift_date = add_days(getdate(sched['target_date']), 1)
+
 	entry = {
 		#employe settings
 		"employee": emp.name,
@@ -1329,8 +1331,8 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"work_shift": sched['work_shift'],
 		"pre_shift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shift_map[sched['work_shift']]['time_in'])), hours= (0 - shift_map[sched['work_shift']]['setup_preshift']) ),
 		"end_preshift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shift_map[sched['work_shift']]['time_in'])), hours= shift_map[sched['work_shift']]['end_preshift'] ),
-		"post_shift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shift_map[sched['work_shift']]['time_out'])), hours= (0 - shift_map[sched['work_shift']]['setup_postshift']) ),
-		"end_postshift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shift_map[sched['work_shift']]['time_out'])), hours=shift_map[sched['work_shift']]['end_postshift'] ),
+		"post_shift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shift_map[sched['work_shift']]['time_out'])), hours= (0 - shift_map[sched['work_shift']]['setup_postshift']) ),
+		"end_postshift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shift_map[sched['work_shift']]['time_out'])), hours=shift_map[sched['work_shift']]['end_postshift'] ),
 		"time_in": shift_map[sched['work_shift']]['time_in'],
 		"time_out": shift_map[sched['work_shift']]['time_out'],
 		"break_start": shift_map[sched['work_shift']]['break_start'],
