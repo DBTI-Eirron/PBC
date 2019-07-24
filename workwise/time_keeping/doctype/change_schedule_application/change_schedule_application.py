@@ -217,4 +217,4 @@ class ChangeScheduleApplication(Document):
 			if d.target_date:
 				schedule = get_schedule(self.employee, d.target_date, d.target_date)
 				for x in schedule:
-					d.current_shift = x.work_shift
+					d.current_shift = x['work_shift']

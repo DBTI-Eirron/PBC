@@ -66,7 +66,7 @@ class CompensatoryTimeOff(Document):
 	def get_cto_workshift_file_setup(self):
 		schedule = get_schedule(self.employee, self.date, self.date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				if self.type == "File":
 					if shifts[0].cto_min_filing_hrs > 0:
@@ -79,7 +79,7 @@ class CompensatoryTimeOff(Document):
 	def get_cto_workshift_use_setup(self):
 		schedule = get_schedule(self.employee, self.use_date, self.use_date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				if self.type == "Use":
 					if shifts[0].cto_min_usage_hrs > 0:
@@ -106,8 +106,8 @@ class CompensatoryTimeOff(Document):
 		schedule = get_schedule(self.employee, self.date, self.date)
 		if schedule:
 			for d in schedule:
-				if d.work_hours > 0:
-					work_hours = flt(d.work_hours)
+				if d['work_hours'] > 0:
+					work_hours = flt(['work_hours'])
 				else:
 					work_hours = 8
 
@@ -159,7 +159,7 @@ class CompensatoryTimeOff(Document):
 		else:
 			schedule = get_schedule(self.employee, self.date, self.date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabCTO Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
 				if autobreak_setup:
@@ -191,8 +191,8 @@ class CompensatoryTimeOff(Document):
 		schedule = get_schedule(self.employee, self.use_date, self.use_date)
 		if schedule:
 			for d in schedule:
-				if d.work_hours > 0:
-					work_hours = flt(d.work_hours)
+				if d['work_hours'] > 0:
+					work_hours = flt(d['work_hours'])
 				else:
 					work_hours = 8
 
