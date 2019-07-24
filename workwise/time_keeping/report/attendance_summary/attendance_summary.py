@@ -189,7 +189,7 @@ def get_data(filters):
 				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
 					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'))
 				get_sorted_card(entry, cards_in, cards_out)
-				get_attendance(entry, emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
+				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
 					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'))
 
 				entry['break'] = convert_secs(filters, entry['break'])

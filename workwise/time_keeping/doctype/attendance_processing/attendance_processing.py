@@ -62,11 +62,16 @@ class AttendanceProcessing(Document):
 			ot_list = []
 			reg_list = []
 
+			if self.employee:
+				employee = self.employee
+			else:
+				employee = None
+
 			frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE target_date >= %s AND target_date <= %s and employee IN %s """,(pay_from, pay_to,employee_list), as_dict=1)
 			frappe.db.sql("""DELETE FROM `tabOvertime` WHERE target_date >= %s AND target_date <= %s AND employee IN %s """,(pay_from, pay_to,employee_list), as_dict=1)
 			template_map = get_template_map()
 			shift_map = get_shift_map()
-			emp_map = init_employee_map(employees, None, self.company, pay_from, pay_to, approval_cutoff, 0)
+			emp_map = init_employee_map(employees, employee, self.company, pay_from, pay_to, approval_cutoff, 0)
 			for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 				ss_list += 1
 				complete_sched(emp_dict, pay_from, pay_to, template_map)
@@ -75,7 +80,7 @@ class AttendanceProcessing(Document):
 					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
 						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'))
 					get_sorted_card(entry, cards_in, cards_out)
-					get_attendance(entry, emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
+					get_attendance(entry, emp_dict.get('overrides'), emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
 						emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'))
 					
 					entry['break'] = self.convert_secs(entry['break'])
@@ -110,6 +115,7 @@ class AttendanceProcessing(Document):
 				register.update(reg)
 				register.flags.ignore_mandatory = True
 				register.flags.ignore_permissions = True
+				register.insert()
 		else:
 			frappe.throw(_("No Employee Found"))
 		
