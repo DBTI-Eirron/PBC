@@ -4,13 +4,14 @@ from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money,
 from frappe import _
 from datetime import timedelta, date
 
-def get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss):
+def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss):
+	for over in overrides:
+		if over['target_date'] == entry['target_date']:
+			if over.get("time_in"):
+				entry['card_in'] = get_datetime(str(over.get("time_in")))
 
-	if entry.get("override_in"):
-		entry['card_in'] = entry.get("override_in")
-
-	if entry.get("override_out"):
-		entry['card_out'] = entry.get("override_out")
+			if over.get("time_out"):
+				entry['card_out'] = get_datetime(str(over.get("time_out")))
 
 	#Format Datetime for realtime shift
 	entry['time_in'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('time_in')) )
@@ -1016,11 +1017,11 @@ def get_default_sched_template(def_sched):
 				"work_hours": shift[0]['work_hours'],
 				"break_mins": shift[0]['break_mins'],
 				"time_in": shift[0]['time_in'],
-				"time_out": shift[0]['time_out'],				
+				"time_out": shift[0]['time_out'],
 				"break_start": shift[0]['break_start'],
 				"break_end": shift[0]['break_end'],
 				"nd_start": shift[0]['nd_start'],
-				"nd_end": shift[0]['nd_end'],				
+				"nd_end": shift[0]['nd_end'],
 				"shift_type": shift[0]['work_shift_type'],
 			}
 
@@ -1040,7 +1041,6 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 		date_list.append(start.date())
 		start += step
 
-	#for i in range(1, 500):
 	for i in date_list:
 		day = datetime.datetime.strptime(str(i), '%Y-%m-%d').strftime('%A').lower()
 		info = {
@@ -1060,15 +1060,9 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 		dates.append(info)
 
 	company = frappe.db.get_value("Employee", employee, "company")
-	exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (employee, getdate(pay_from), getdate(pay_to)), as_dict=True)
-	if exist:
-		for ex in exist:
-			exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE `name` = %s """, (ex.name) )
-			frappe.db.commit()
-						
+	work_sched_list = []		
 	for d in dates:
-		work_sched = frappe.new_doc("Work Schedule")
-		work_sched.update({
+		work_sched = {
 			"employee": employee,
 			"company": company,
 			"target_date": d["date"],
@@ -1076,50 +1070,49 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 			"shift_type": d["shift_type"],
 			"work_hours": d['work_hours'],
 			"break_mins": d['break_mins'],
-			"datetime_in": d["datetime_in"],
-			"datetime_out": d["datetime_out"],
-			"break_start": d["break_start"],
-			"break_end": d["break_end"],
-			"nd_start": d["nd_start"],
-			"nd_end": d["nd_end"],
+			"datetime_in": datetime.datetime.strptime(d["datetime_in"], '%Y-%m-%d %H:%M:%S'),
+			"datetime_out": datetime.datetime.strptime(d["datetime_out"], '%Y-%m-%d %H:%M:%S'),
+			"break_start": datetime.datetime.strptime(d["break_start"], '%Y-%m-%d %H:%M:%S'),
+			"break_end": datetime.datetime.strptime(d["break_end"], '%Y-%m-%d %H:%M:%S'),
+			"nd_start": datetime.datetime.strptime(d["nd_start"], '%Y-%m-%d %H:%M:%S'),
+			"nd_end": datetime.datetime.strptime(d["nd_end"], '%Y-%m-%d %H:%M:%S'),
+			"o_time_in": "",
+			"o_break_in": "",
+			"o_break_out": "",
+			"o_time_out": "",
 			"is_default_schedule": 1,
-		})
-		work_sched.insert(ignore_permissions = True)
-		frappe.db.commit()
+		}
+		work_sched_list.append(work_sched)
+
+	return work_sched_list
 
 def get_schedule(employee, pay_from, pay_to):
-	#def_sched = frappe.db.get_value("Employee", employee, "default_schedule")
-	#date_list = []
-	#start = datetime.datetime.strptime(str(pay_from), '%Y-%m-%d')
-	#end = datetime.datetime.strptime(str(pay_to), '%Y-%m-%d')
-	#step = datetime.timedelta(days=1)
+	def_sched = frappe.db.get_value("Employee", employee, "default_schedule")
+	date_list = []
+	start = datetime.datetime.strptime(str(pay_from), '%Y-%m-%d')
+	end = datetime.datetime.strptime(str(pay_to), '%Y-%m-%d')
+	step = datetime.timedelta(days=1)
+	schedule = []
 	
-	#if def_sched:
-	#	while start <= end:
-	#		date_list.append(start.date())
-	#		start += step
-	#		
-	#	for d in date_list:
-	#		sched = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
-	#			datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
-	#			FROM `tabWork Schedule` 
-	#			WHERE employee = %(employee)s AND target_date = %(target_date)s """,{
-	#				"employee": employee,
-	#				"target_date": d
-	#			}, as_dict=True)
-	#			
-	#		if not sched:
-	#			assign_default_schedule(employee, d, d, def_sched)
-		
-	schedule = frappe.db.sql("""SELECT employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
-		datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
-		FROM `tabWork Schedule` 
-		WHERE employee = %(employee)s AND target_date >= %(from_date)s AND target_date <= %(to_date)s
-		ORDER BY target_date ASC""",{
-			"employee": employee,
-			"from_date": pay_from,
-			"to_date": pay_to,
-		}, as_dict=True)
+	if def_sched:
+		while start <= end:
+			date_list.append(start.date())
+			start += step
+
+		for d in date_list:
+			sched = frappe.db.sql("""SELECT `name`, employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
+				datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
+				FROM `tabWork Schedule` 
+				WHERE employee = %(employee)s AND target_date = %(target_date)s """,{
+					"employee": employee,
+					"target_date": d
+				}, as_dict=True)
+
+			if not sched:
+				schedule += assign_default_schedule(employee, d, d, def_sched)
+			else:
+				schedule.append(sched[0])
+	schedule = sorted(schedule, key=lambda k: k['target_date']) 
 
 	return schedule
 
@@ -1359,8 +1352,8 @@ def get_defaults(emp, sched, shift_map, overrides):
 		#timecard data
 		"card_in": "",
 		"card_out": "",
-		"override_in": get_datetime(overrides[str(sched['target_date'])]['time_in']) if str(sched['target_date']) in overrides else None,
-		"override_out": get_datetime(overrides[str(sched['target_date'])]['time_out']) if str(sched['target_date']) in overrides else None,			
+		"override_in": None,
+		"override_out": None,			
 		"break_out": "",
 		"break_in": "",
 		#basic attendance
@@ -1509,16 +1502,15 @@ def get_all_schedules(emp_map, employee, pay_from, pay_to):
 def get_all_overrides(emp_map, employee, pay_from, pay_to):
 	condition = "AND employee = '"+ cstr(employee) +"'" if employee else ""		
 	overrides = frappe.db.sql("""SELECT employee, target_date, time_in, break_in, break_out, time_out
-	FROM `tabOverride List` 
-	WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s {condition}
-	ORDER BY target_date ASC""".format( condition=condition ),{
-		"from_date":pay_from,
-		"to_date":pay_to,
-	},as_dict=True)
+		FROM `tabOverride List` 
+		WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s {condition}""".format( condition=condition ),{
+			"from_date":pay_from,
+			"to_date":pay_to,
+		},as_dict=True)
 
 	for d in overrides:
 		if d.employee in emp_map:
-			emp_map[d.employee].overrides.update({str(d.target_date):d})
+			emp_map[d.employee].overrides.append(d)
 
 def get_all_holidays(emp_map, pay_from, pay_to):
 	holidays = frappe.db.sql("""SELECT company, holiday_name, holiday_date, is_special, location FROM `tabHoliday` 
