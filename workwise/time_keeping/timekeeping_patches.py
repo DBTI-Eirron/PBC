@@ -330,3 +330,23 @@ def update_override():
 				"time_out":s.o_time_out
 			})
 		override.save()
+
+def update_split_govt():  #1.0.61
+	tt = frappe.db.sql("""SELECT `name` FROM `tabTransaction Type` WHERE is_government = 1 """,as_dict=True)
+	for t in tt:
+		document = frappe.get_doc("Transaction Type", t.name)
+		document.update({
+			"is_sss": 1,
+		})
+		document.save()
+
+def update_split_govt_all(): #1.0.61
+	tt = frappe.db.sql("""SELECT `name` FROM `tabTransaction Type` WHERE is_government = 1 """,as_dict=True)
+	for t in tt:
+		document = frappe.get_doc("Transaction Type", t.name)
+		document.update({
+			"is_sss": 1,
+			"is_hdmf": 1,
+			"is_phic": 1,
+		})
+		document.save()
