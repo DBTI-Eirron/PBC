@@ -135,16 +135,16 @@ class TimelogsOverride(Document):
 		entries = []
 		for d in schedule:
 			row = {
-				"schedule_name": d.name,
-				"work_shift": d.work_shift,
-				"target_date": d.target_date,
+				"schedule_name": d['name'],
+				"work_shift": d['work_shift'],
+				"target_date": d['target_date'],
 			}
-			if str(d.target_date) in override_list:
+			if str(d['target_date']) in override_list:
 				row.update({
-					"o_time_in": override_list[str(d.target_date)]['time_in'],
-					"o_break_in": override_list[str(d.target_date)]['break_in'],
-					"o_break_out": override_list[str(d.target_date)]['break_out'],
-					"o_time_out": override_list[str(d.target_date)]['time_out'],
+					"o_time_in": override_list[str(d['target_date'])]['time_in'],
+					"o_break_in": override_list[str(d['target_date'])]['break_in'],
+					"o_break_out": override_list[str(d['target_date'])]['break_out'],
+					"o_time_out": override_list[str(d['target_date'])]['time_out'],
 				})
 			entries.append(row);
 
@@ -188,8 +188,3 @@ class TimelogsOverride(Document):
 					# d.o_break_in = sched['o_break_in']
 					# d.o_break_out = sched['o_break_out']
 					# d.o_time_out = sched['o_time_out']
-
-					
-					
-
-			
