@@ -173,6 +173,15 @@ def get_data(filters):
 
 	data.append({})
 
+	grand_work = 0
+	grand_break = 0
+	grand_late = 0
+	grand_ot = 0
+	grand_otnd = 0
+	grand_otex = 0
+	grand_ut = 0
+	grand_nd = 0
+
 	for emp in employees:
 		register = get_register(emp.name, pay_from, pay_to)
 		if register:
@@ -191,28 +200,50 @@ def get_data(filters):
 			for r in register: 
 				tags = ""
 				total_work += r['work']
+				grand_work += r['work']
 				total_break += r['break']
+				grand_break += r['break']
 				total_late += r['late']
+				grand_late += r['late']
 				total_ot += r['overtime']
+				grand_ot += r['overtime']
 				total_ot_nd += r['overtime_nd']
+				grand_otnd += r['overtime_nd']
 				total_ot_ex += r['overtime_ex']
+				grand_otex += r['overtime_ex']
 				total_nd += r['nightdiff']
+				grand_nd += r['nightdiff']
 				total_ut += r['undertime']
-				data.append(r)
+				grand_ut += r['undertime']
+				data.append(r)			
 
 			data.append({
-					"target_date": _("TOTAL"),
-					"work": total_work,
-					"break": total_break,
-					"late": total_late,
-					"overtime": total_ot,
-					"overtime_nd": total_ot_nd,
-					"overtime_ex": total_ot_ex,
-					"nightdiff": total_nd,
-					"undertime": total_ut,
-				})
+				"target_date": _("TOTAL"),
+				"work": total_work,
+				"break": total_break,
+				"late": total_late,
+				"overtime": total_ot,
+				"overtime_nd": total_ot_nd,
+				"overtime_ex": total_ot_ex,
+				"nightdiff": total_nd,
+				"undertime": total_ut,
+			})
 
 			data.append({})
+
+	data.append({
+		"target_date": _("GRAND TOTAL"),
+		"work": grand_work,
+		"break": grand_break,
+		"late": grand_late,
+		"overtime": grand_ot,
+		"overtime_nd": grand_otnd,
+		"overtime_ex": grand_otex,
+		"nightdiff": grand_nd,
+		"undertime": grand_ut,
+	})
+
+
 
 
 	return data

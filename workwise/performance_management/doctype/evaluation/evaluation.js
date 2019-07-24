@@ -5,7 +5,7 @@ cur_frm.add_fetch('appraisee', 'full_name', 'appraisee_name');
 cur_frm.add_fetch('appraisee', 'department', 'department');
 cur_frm.add_fetch('appraisee', 'company', 'company');
 cur_frm.add_fetch('appraisee', 'position_title', 'job_title');
-frappe.ui.form.on('Appraisal', {
+frappe.ui.form.on('Evaluation', {
 	refresh: function(frm) {
 		if(frm.doc.docstatus == 1){
 			frappe.call({

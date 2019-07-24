@@ -3,13 +3,13 @@
 cur_frm.add_fetch('employee', 'date_hired', 'from_date');
 cur_frm.add_fetch('employee', 'full_name', 'employee_name');
 cur_frm.add_fetch('certified_by', 'full_name', 'certified_name');
-frappe.ui.form.on('Certificate of Employment', {
+frappe.ui.form.on('Certificate of Maternity', {
 	refresh: function(frm) {
 		if(frm.doc.docstatus == 1){
 			frappe.call({
 				method: "workwise.setup.doctype.jasper_form.jasper_form.get_forms",
 				args:{
-					doctype_name: "Certificate of Employment"
+					doctype_name: "Certificate of Maternity"
 				},
 				callback: function(r) {
 					r.message.forEach(function(item) {
@@ -22,6 +22,7 @@ frappe.ui.form.on('Certificate of Employment', {
 			});
 		}
 	},
+
 	employee: function(frm) {
 		return frappe.call({
 			method: "get_to_date",

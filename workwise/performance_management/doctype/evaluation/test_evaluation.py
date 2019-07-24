@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2017, HDI Systech and Contributors
+# Copyright (c) 2019, HDI Systech and Contributors
 # See license.txt
 from __future__ import unicode_literals
 
 import frappe
 import unittest
 
-class TestAppraisal(unittest.TestCase):
+class TestEvaluation(unittest.TestCase):
 	pass

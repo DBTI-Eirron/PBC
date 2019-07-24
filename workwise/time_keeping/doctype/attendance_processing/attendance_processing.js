@@ -13,6 +13,7 @@ frappe.ui.form.on('Attendance Processing', {
 			return {
 				"filters": {
 					"company": frm.doc.company,
+					"is_active": 1,
 				}
 			};
 		});

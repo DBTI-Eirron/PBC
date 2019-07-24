@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe import _
+from frappe.utils import flt
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -26,7 +27,7 @@ def get_data(filters):
 					total = get_emp_total(filters,period,emp.appraisee)
 					row.update({period.period_name:total})
 			ctotal = get_emp_total(filters,year,emp.appraisee)
-			row.update({"total":ctotal})
+			row.update({"total":'{:,.2f}'.format(flt(ctotal))})
 			data.append(row)
 		#subtotal
 
@@ -38,20 +39,20 @@ def get_data(filters):
 				total = get_total(filters,period)
 				row.update({period.period_name:total})
 			ctotal = get_total(filters,year)
-			row.update({"total":ctotal})
+			row.update({"total":'{:,.2f}'.format(flt(ctotal))})
 			data.append(row)
 		else:
 			row = []
 			row = {"employee_name":"Total"}
 			ctotal = get_total(filters,year)
-			row.update({"total":ctotal})
+			row.update({"total":'{:,.2f}'.format(flt(ctotal))})
 			data.append(row)
 
 	if filters.year is None:
 		row = []
 		row = {"employee_name":"Grand Total"}
 		ctotal = get_grand_total(filters)
-		row.update({"total":ctotal})
+		row.update({"total":'{:,.2f}'.format(flt(ctotal))})
 		data.append(row)
 
 	return data
@@ -102,7 +103,10 @@ def get_columns(filters):
 	return columns
 
 def get_employees(filters,period):
-	employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_name FROM `tabAppraisal` WHERE docstatus = 1  AND `from_date` >= %s AND `to_date` <= %s AND company = %s""",(period.from_date,period.to_date,filters.company),as_dict=True)
+	if filters.employee:
+		employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_name FROM `tabAppraisal` WHERE docstatus = 1  AND `from_date` >= %s AND `to_date` <= %s AND company = %s AND appraisee = %s""",(period.from_date,period.to_date,filters.company,filters.employee),as_dict=True)
+	else:
+		employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_name FROM `tabAppraisal` WHERE docstatus = 1  AND `from_date` >= %s AND `to_date` <= %s AND company = %s""",(period.from_date,period.to_date,filters.company),as_dict=True)
 	return employees
 
 def get_appraisal_period(filters,year):

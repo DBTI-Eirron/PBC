@@ -1,0 +1,23 @@
+{
+ "add_total_row": 0, 
+ "apply_user_permissions": 1, 
+ "creation": "2019-06-10 13:37:59.308191", 
+ "disabled": 0, 
+ "docstatus": 0, 
+ "doctype": "Report", 
+ "idx": 0, 
+ "is_standard": "Yes", 
+ "modified": "2019-06-10 13:37:59.308191", 
+ "modified_by": "Administrator", 
+ "module": "Performance Management", 
+ "name": "Performance Summary", 
+ "owner": "Administrator", 
+ "ref_doctype": "Appraisal", 
+ "report_name": "Performance Summary", 
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "HR Manager"
+  }
+ ]
+}

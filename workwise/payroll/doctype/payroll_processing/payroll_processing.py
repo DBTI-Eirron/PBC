@@ -93,6 +93,7 @@ class PayrollProcessing(Document):
 		ex_uho_spnw = frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw')
 		mo_amt_smdl = frappe.db.get_single_value('Payroll Settings', 'mo_amt_smdl')
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
+		ignore_uho = frappe.db.get_single_value('Payroll Settings', 'ignore_uho')
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
 		if self.schedule == "Weekly":
@@ -154,6 +155,7 @@ class PayrollProcessing(Document):
 					'ex_uho_spnw': ex_uho_spnw,
 					'mo_amt_smdl': mo_amt_smdl,
 					'hd_no_uho': hd_no_uho,
+					'ignore_uho': ignore_uho,
 					'no_attendance': 0,
 				}
 
@@ -937,6 +939,9 @@ class PayrollProcessing(Document):
 				#Daily rate should have no absent
 				if emp.get("rate_type") == "Daily Rate":
 					absent = 0
+
+			    if header.get('ignore_uho'):
+				    unpaid_holiday = 0
 
 				if emp.get('ignore_late'):
 					late = 0

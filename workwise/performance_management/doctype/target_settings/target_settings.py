@@ -1,26 +1,17 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2018, HDI Systech and contributors
+# Copyright (c) 2019, HDI Systech and contributors
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
 import frappe
+from frappe import _
 from frappe.model.document import Document
-from frappe	import _
 
-class TargetSetting(Document):
+class TargetSettings(Document):
 	def validate(self):
 		self.validate_weight()
-		self.validate_appraisee()
 		self.set_header()
 		# self.validate_kra()
-
-	def load_appraisee_info(self):
-		parent = frappe.db.sql("""SELECT S.`parent`,E.position_title FROM `tabEmployee` E INNER JOIN `tabSubordinates` S ON S.subordinate = E.name WHERE E.name = %s LIMIT 1""",(self.appraisee),as_dict=True)
-		for par in parent:
-			self.immediate_supervisor = par.parent
-			self.supervisor_job_title = par.position_title
-			self.immediate_supervisor_name = frappe.get_value('Employee',par.parent,'full_name')
-		return self.type
 
 	def validate_weight(self):
 		total_w = 0.0
@@ -28,17 +19,6 @@ class TargetSetting(Document):
 			total_w += float(d.weight)
 		if total_w != 100:
 			frappe.throw(_("Total weightage assigned should be 100%. It is {0}").format(str(total_w) + "%"))
-
-	def validate_appraisee(self):
-		if self.type == "Individual":
-			if self.appraisee is None:
-				frappe.throw(_("Select Appraisee"))
-		elif self.type == "Department":
-			if self.department is None:
-				frappe.throw(_("Select Department"))
-				
-	def get_type(self):
-		return self.type
 
 	def set_header(self):
 		header = "STANDARDS:"

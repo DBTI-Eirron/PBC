@@ -88,9 +88,18 @@ class AttendanceProcessing(Document):
 					register = frappe.new_doc("Attendance Register")
 					register.update(entry)
 					register.insert()
-						
+					frappe.db.commit()
 
 				payslip_label = "Created for "+ cstr(emp_dict.get('employee_name')) +""
+					if no_work == 1:
+						if entry['work'] > 0:
+							no_work = 0
+
+				payslip_label = "Created for "+ cstr(emp.full_name) +" "
+				if not schedule:
+					payslip_label = cstr(payslip_label)+" <span class='label label-danger'> No schedule </span>"+" "
+				if no_work == 1:
+					payslip_label = cstr(payslip_label)+" <span class='label label-danger'> No Work </span>"+" "
 				ss_list.append(payslip_label)
 		else:
 			frappe.throw(_("No Employee Found"))

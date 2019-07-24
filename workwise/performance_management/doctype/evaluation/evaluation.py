@@ -9,11 +9,11 @@ from frappe import _
 from frappe.model.mapper import get_mapped_doc
 from frappe.model.document import Document
 
-class Appraisal(Document):
+
+class Evaluation(Document):
 	def validate(self):
 		self.validate_fields()
 		self.validate_rating()
-		
 
 	def on_submit(self):
 		frappe.db.set(self, 'status', 'Submitted/Completed')
@@ -29,7 +29,7 @@ class Appraisal(Document):
 
 
 	def get_performance_planning(self):
-		kra = frappe.db.sql("""SELECT PP.type,PP.header,PP.department,PP.appraisee,PP.company,PP.appraisee_name,PP.from_date,PP.to_date,PP.date_joined,PP.job_title,KI.key_result_area,KI.key_indicator,KI.weight FROM `tabTarget Setting` PP INNER JOIN `tabPerformance Planning KI` KI ON KI.parent = PP.name WHERE PP.name = %s ORDER BY KI.`idx` ASC""",(self.target_setting),as_dict=True)
+		kra = frappe.db.sql("""SELECT PP.type,PP.header,PP.department,PP.appraisee,PP.company,PP.appraisee_name,PP.from_date,PP.to_date,PP.date_joined,PP.job_title,KI.key_result_area,KI.key_indicator,KI.weight FROM `tabTarget Settings` PP INNER JOIN `tabPerformance Planning KI` KI ON KI.parent = PP.name WHERE PP.name = %s ORDER BY KI.`idx` ASC""",(self.target_setting),as_dict=True)
 		entries = []
 		for d in kra:
 			self.appraisee = d.appraisee

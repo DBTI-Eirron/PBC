@@ -16,9 +16,9 @@ frappe.ui.form.on('Change Request Application', {
 	},
 
 	onload: function(frm) {
-		if (!frm.doc.posting_date && frm.doc.docstatus < 1) {
-			frm.set_value("date_submitted", get_today());
-		}
+		//if (!frm.doc.posting_date && frm.doc.docstatus < 1) {
+		//	frm.set_value("date_submitted", get_today());
+		//}
 	},
 	
 });

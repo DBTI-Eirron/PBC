@@ -6,5 +6,5 @@ from __future__ import unicode_literals
 import frappe
 import unittest
 
-class TestAppraisalPeriod(unittest.TestCase):
+class TestTargetSettings(unittest.TestCase):
 	pass
