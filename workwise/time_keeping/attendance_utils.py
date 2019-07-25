@@ -1292,16 +1292,16 @@ def get_overtime_map():
 	return ot_map
 
 def insert_overtime(entry):
-	for d in entry.get('ot_list'):
-		ot = frappe.new_doc("Overtime")
-		ot.update({
-			"employee": d.get('employee'),
-			"target_date": d.get('target_date'),
-			"ot_code": d.get('ot_code'),	
-			"hrs": d.get('ot_hrs'),
-			"linked_ot": d.get('linked_ot'),
-		})
-		ot.insert()
+	#for d in entry.get('ot_list'):
+	#	ot = frappe.new_doc("Overtime")
+	#	ot.update({
+	#		"employee": d.get('employee'),
+	#		"target_date": d.get('target_date'),
+	#		"ot_code": d.get('ot_code'),	
+	#		"hrs": d.get('ot_hrs'),
+	#		"linked_ot": d.get('linked_ot'),
+	#	})
+	#	ot.insert()
 
 	entry['ot_list'] = 0.0
 	entry['ot_links'] = None
