@@ -1012,6 +1012,7 @@ def get_default_sched_template(def_sched):
 		for day in days:
 			shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched[0][day]), as_dict=1)
 			sched_template[day] = {
+				"name": shift[0]['name'],
 				"work_shift": shift[0]['name'],
 				"work_hours": shift[0]['work_hours'],
 				"break_mins": shift[0]['break_mins'],
@@ -1045,6 +1046,7 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 		info = {
 			"date": i,
 			"day": day,
+			"name": sched_map[day]['name'],
 			"work_shift": sched_map[day]['work_shift'],
 			"shift_type": sched_map[day]['shift_type'],
 			"work_hours": sched_map[day]['work_hours'],
@@ -1064,6 +1066,7 @@ def assign_default_schedule(employee, pay_from, pay_to, def_sched):
 		work_sched = {
 			"employee": employee,
 			"company": company,
+			"name": d["name"],
 			"target_date": d["date"],
 			"work_shift": d["work_shift"],
 			"shift_type": d["shift_type"],
