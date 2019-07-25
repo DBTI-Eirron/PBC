@@ -98,17 +98,17 @@ class AttendanceProcessing(Document):
 				payslip_label = "Created for "+ cstr(emp_dict.get('employee_name')) +""
 
 			for ot in ot_list:
-				ot = frappe.new_doc("Overtime")
-				ot.update({
-					"employee": d.get('employee'),
-					"target_date": d.get('target_date'),
-					"ot_code": d.get('ot_code'),	
-					"hrs": d.get('ot_hrs'),
-					"linked_ot": d.get('linked_ot'),
+				otdoc = frappe.new_doc("Overtime")
+				otdoc.update({
+					"employee": ot.get('employee'),
+					"target_date": ot.get('target_date'),
+					"ot_code": ot.get('ot_code'),	
+					"hrs": ot.get('ot_hrs'),
+					"linked_ot": ot.get('linked_ot'),
 				})
-				ot.flags.ignore_mandatory = True
-				ot.flags.ignore_permissions = True
-				ot.insert()				
+				otdoc.flags.ignore_mandatory = True
+				otdoc.flags.ignore_permissions = True
+				otdoc.insert()				
 
 			for reg in reg_list:
 				register = frappe.new_doc("Attendance Register")
