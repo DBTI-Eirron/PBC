@@ -110,6 +110,11 @@ def set_levelled_approval_to_progress(self, approver_level):
 	self.db_set("approval_history", approval_history)
 	self.db_set("last_approval_level", approver_level[0].level)
 	self.db_set("workflow_state", "Approval in Progress")
+	self.db_set("approved_by", frappe.session.user)
+	self.db_set("approved_on", nowdate())
+	approver_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
+	if approver_name:
+		self.db_set("approver_name", str(approver_name[0].full_name))
 	frappe.db.commit()
 	frappe.msgprint(_("<b>{0}: {1}</b><hr> Approval Successful").format(self.doctype, self.name))
 
@@ -126,6 +131,9 @@ def set_levelled_approval_to_approved(self, highest_level):
 	self.db_set("workflow_state", "Approved")
 	self.db_set("approved_by", frappe.session.user)
 	self.db_set("approved_on", nowdate())
+	approver_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
+	if approver_name:
+		self.db_set("approver_name", str(approver_name[0].full_name))
 	frappe.db.commit()
 	frappe.msgprint(_("<b>{0}: {1}</b><hr> Approval Successful").format(self.doctype, self.name))
 
@@ -146,6 +154,18 @@ def get_approver_and_date(self):
 	if self.workflow_state == "Approved":
 		self.db_set("approved_by", frappe.session.user)
 		self.db_set("approved_on", nowdate())
+		approver_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
+		if approver_name:
+			self.db_set("approver_name", str(approver_name[0].full_name))
+		frappe.db.commit()
+
+def get_cancelled_by_and_date(self):
+	if self.docstatus == 2:
+		self.db_set("cancelled_by", frappe.session.user)
+		self.db_set("cancelled_on", nowdate())
+		cancelled_by_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
+		if cancelled_by_name:
+			self.db_set("cancelled_by_name", str(cancelled_by_name[0].full_name))
 		frappe.db.commit()
 
 def get_current_logs(employee, target_date):
@@ -165,3 +185,33 @@ def get_current_logs(employee, target_date):
 		cin, cout = entry.get('card_in'), entry.get('card_out')
 
 	return cin, cout 
+
+def get_approver_email_list(self, event):
+	approver_recipients = []
+	next_approver_recipients = []
+	approvers = frappe.db.sql(""" SELECT TE.user_id, EA.`level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` 
+		WHERE EA.parenttype = "Employee" AND (EA.application = %s OR EA.application = "All") AND EA.parent = %s """,
+	(self.doctype, self.employee), as_dict=True)
+
+	self.db_set("approver_email_list", None)
+	self.db_set("next_approver_email_list", None)
+	if approvers:
+		for app in approvers:
+			if event == 'on_submit':
+				if (int(self.last_approval_level)+1 == int(app.level)):
+					approver_recipients.append(app.user_id)
+				if (int(self.last_approval_level)+2 == int(app.level)):
+					next_approver_recipients.append(app.user_id)
+			if event == 'before_update_after_submit':
+				if (int(self.last_approval_level)+2 == int(app.level)):
+					approver_recipients.append(app.user_id)
+				if (int(self.last_approval_level)+3 == int(app.level)):
+					next_approver_recipients.append(app.user_id)
+
+		if approver_recipients:
+			send_to_approver = ', '.join(str(x) for x in approver_recipients)
+			self.db_set("approver_email_list", send_to_approver)
+
+		if next_approver_recipients:
+			send_to_next_approver = ', '.join(str(x) for x in next_approver_recipients)
+			self.db_set("next_approver_email_list", send_to_next_approver)

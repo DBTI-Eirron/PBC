@@ -11,7 +11,7 @@ from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee )
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
@@ -38,8 +38,10 @@ class CompensatoryTimeOff(Document):
 			if emp_app < 1:
 				self.deduct_use_cto()
 		get_approver_and_date(self)
+		get_approver_email_list(self, 'on_submit')
 
 	def before_update_after_submit(self):
+		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
 	def on_update_after_submit(self):
@@ -55,6 +57,7 @@ class CompensatoryTimeOff(Document):
 			self.validate_cancel_file_cto()
 		if self.type == "Use":
 			self.revert_credit_deductions()
+		get_cancelled_by_and_date(self)
 
 	def get_timekeeping_settings_for_cto_use_type(self):
 		cto_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
