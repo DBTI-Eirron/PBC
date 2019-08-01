@@ -11,10 +11,14 @@ from frappe.model.mapper import get_mapped_doc
 
 class SchedulesandAssessment(Document):
 	def validate(self):
+		self.update_status_tpe()
 		self.get_department_head()
 
 	def on_submit(self):
 		self.update_applicant_status()
+
+	def update_status_tpe(self):
+		self.status_type = "Behavioral Interview"
 
 	def get_department_head(self):
 		if not self.interviewer:
