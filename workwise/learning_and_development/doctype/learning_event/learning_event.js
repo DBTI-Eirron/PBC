@@ -33,6 +33,16 @@ frappe.ui.form.on('Learning Event', {
 		});
 	},
 
+	learning_program: function(frm){
+		frappe.call({
+			method: "get_learning_program",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		});
+	},
+
 });
 
 cur_frm.cscript['Update Status'] = function() {

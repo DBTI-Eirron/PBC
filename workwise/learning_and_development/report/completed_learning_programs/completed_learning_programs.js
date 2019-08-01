@@ -16,17 +16,19 @@ frappe.query_reports["Completed Learning Programs"] = {
 			"label": __("Employee"),
 			"fieldtype": "Link",
 			"options": "Employee",
-			"reqd": 1,
+			"reqd": 0,
 			"on_change": function(query_report) {
 				var employee = query_report.get_values().employee;
 				if (!employee) {
-					return;
-				}
-				frappe.model.with_doc("Employee", employee, function(r) {
-					var emp = frappe.model.get_doc("Employee", employee);
-					frappe.query_report_filters_by_name.employee_name.set_input(emp.full_name);
+					frappe.query_report_filters_by_name.employee_name.set_input("");
 					query_report.trigger_refresh();
-				});
+				}else {
+					frappe.model.with_doc("Employee", employee, function(r) {
+						var emp = frappe.model.get_doc("Employee", employee);
+						frappe.query_report_filters_by_name.employee_name.set_input(emp.full_name);
+						query_report.trigger_refresh();
+					});
+				}
 			}
 		},
 		{
