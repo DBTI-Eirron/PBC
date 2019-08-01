@@ -11,6 +11,10 @@ from frappe.model.mapper import get_mapped_doc
 class WLDNeeds(Document):
 	def validate(self):
 		self.validate_duplicate_entry()
+		self.prompt_message()
+
+	def prompt_message(self):
+		frappe.msgprint('If you are done with this please submit.')
 
 	def validate_duplicate_entry(self):
 		unique_ent = []
@@ -27,6 +31,7 @@ class WLDNeeds(Document):
 					"purpose": d.purpose,
 					"budget": d.budget,
 					"status": d.status,
+					"target_date": d.target_date,
 				}
 				unique_entries.append(ent);
 

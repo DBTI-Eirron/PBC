@@ -27,8 +27,10 @@ class DTRProblemApplication(Document):
 		if not enable_employee_approvers > 0:
 			self.approve_request()
 		get_approver_and_date(self)
+		get_approver_email_list(self, 'on_submit')
 
 	def before_update_after_submit(self):
+		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 		enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 		if enable_employee_approvers > 0:
@@ -39,6 +41,7 @@ class DTRProblemApplication(Document):
 		validate_reject_cancel_own_application(self)
 		get_levelled_approval_rejection(self)
 		self.revert_request()
+		get_cancelled_by_and_date(self)
 
 	def validate_application(self):
 		if datetime.strptime(str(self.target_date), '%Y-%m-%d').date() > datetime.strptime(str(nowdate()), '%Y-%m-%d').date():
