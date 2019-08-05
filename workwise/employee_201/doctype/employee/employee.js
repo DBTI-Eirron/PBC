@@ -18,6 +18,13 @@ frappe.ui.form.on('Employee', {
 				}
 			};
 		});
+		cur_frm.set_query("reports_to", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
 	},
 
 	refresh: function(frm) {
