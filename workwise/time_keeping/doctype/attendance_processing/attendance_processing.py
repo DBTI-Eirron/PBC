@@ -10,11 +10,11 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, 
-get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime)
+get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,get_template_map)
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location,is_attendance_base, no_hours, rate_type FROM tabEmployee WHERE company = %(company)s 
+		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location, is_attendance_base, no_hours, rate_type, default_schedule FROM tabEmployee WHERE company = %(company)s 
 			AND payroll_schedule = %(schedule)s {conditions}
 			AND is_active = 1 ORDER BY `full_name` """.format(conditions=self.get_employee_conditions()),{ 
 				"company": self.company,
@@ -53,36 +53,36 @@ class AttendanceProcessing(Document):
 			frappe.throw(_("Period Group is required for Payroll Period {0}").format(self.period))
 
 		employees = self.get_employees()
-		ss_list = []
+		ss_list = 0
 
 		if employees:
 			pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to", "approval_cutoff"])
-			for emp in employees:
-				data = []
-				no_work = 1
-				pay_from, pay_to = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to"])
-				frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
-				frappe.db.commit()
-				frappe.db.sql("""DELETE FROM `tabOvertime` WHERE employee = %s AND target_date >= %s AND target_date <= %s """,(emp.name, pay_from, pay_to), as_dict=1)
-				frappe.db.commit()
-				
-				shift_map = get_shift_map()
-				timecard_list = get_timecard_list(emp.biometrics_id, pay_from, pay_to + datetime.timedelta(days=1))
-				schedule = get_schedule(emp.name, pay_from, pay_to)
-				holidays = get_holiday_list(emp.company, emp.location, pay_from, pay_to)
-				leaves = get_leave_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
-				ots = get_ot_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
-				obs = get_ob_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
-				uts = get_ut_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
-				ext = get_ext_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
-				cto = get_cto_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
-				wss = get_wss_list(emp.name, pay_from, pay_to, approval_cutoff, 0)
+			employee_list = self.convert_to_list(employees)
+			data = []
+			ot_list = []
+			reg_list = []
 
-				for sched in schedule:
-					entry = get_defaults(emp, sched, shift_map)
-					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list)
+			if self.employee:
+				employee = self.employee
+			else:
+				employee = None
+
+			frappe.db.sql("""DELETE FROM `tabAttendance Register` WHERE target_date >= %s AND target_date <= %s and employee IN %s """,(pay_from, pay_to,employee_list), as_dict=1)
+			frappe.db.sql("""DELETE FROM `tabOvertime` WHERE target_date >= %s AND target_date <= %s AND employee IN %s """,(pay_from, pay_to,employee_list), as_dict=1)
+			template_map = get_template_map()
+			shift_map = get_shift_map()
+			emp_map = init_employee_map(employees, employee, self.company, pay_from, pay_to, approval_cutoff, 0)
+			for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
+				ss_list += 1
+				complete_sched(emp_dict, pay_from, pay_to, template_map)
+				for sched in emp_dict['schedules']:
+					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
+					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
+						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'))
 					get_sorted_card(entry, cards_in, cards_out)
-					get_attendance(entry, leaves, holidays, obs, ots, uts, ext, cto, wss)
+					get_attendance(entry, emp_dict.get('overrides'), emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
+						emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'))
+					
 					entry['break'] = self.convert_secs(entry['break'])
 					entry['work'] = self.convert_secs(entry['work'])
 					entry['late'] = self.convert_secs(entry['late'])
@@ -92,22 +92,30 @@ class AttendanceProcessing(Document):
 					entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
 					entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
 					entry['cto'] = self.convert_secs(entry['cto'])
+					ot_list.extend(entry.get('ot_list'))
 					insert_overtime(entry)
-					register = frappe.new_doc("Attendance Register")
-					register.update(entry)
-					register.insert()
-					frappe.db.commit()
+					reg_list.append(entry)
+				payslip_label = "Created for "+ cstr(emp_dict.get('employee_name')) +""
 
-					if no_work == 1:
-						if entry['work'] > 0:
-							no_work = 0
+			for ot in ot_list:
+				otdoc = frappe.new_doc("Overtime")
+				otdoc.update({
+					"employee": ot.get('employee'),
+					"target_date": ot.get('target_date'),
+					"ot_code": ot.get('ot_code'),	
+					"hrs": ot.get('ot_hrs'),
+					"linked_ot": ot.get('linked_ot'),
+				})
+				otdoc.flags.ignore_mandatory = True
+				otdoc.flags.ignore_permissions = True
+				otdoc.insert()				
 
-				payslip_label = "Created for "+ cstr(emp.full_name) +" "
-				if not schedule:
-					payslip_label = cstr(payslip_label)+" <span class='label label-danger'> No schedule </span>"+" "
-				if no_work == 1:
-					payslip_label = cstr(payslip_label)+" <span class='label label-danger'> No Work </span>"+" "
-				ss_list.append(payslip_label)
+			for reg in reg_list:
+				register = frappe.new_doc("Attendance Register")
+				register.update(reg)
+				register.flags.ignore_mandatory = True
+				register.flags.ignore_permissions = True
+				register.insert()
 		else:
 			frappe.throw(_("No Employee Found"))
 		
@@ -115,9 +123,8 @@ class AttendanceProcessing(Document):
 
 	def create_log(self, ss_list):
 		log = "<p>" + _("No Employee for the above selected criteria Attendance or Already Created") + "</p>"
-		if ss_list:
-			log = "<b>" + _("Attendance Registers Created") + "</b>\
-			<br><br>%s" % '<br>'.join(self.format_as_links(ss_list))
+		if ss_list > 0:
+			log = "<b>Attendance Registers Created for"+cstr(ss_list)+" Employees</b>"
 		return log
 
 	def format_as_links(self, ss_list):
@@ -127,3 +134,9 @@ class AttendanceProcessing(Document):
 		# Converts to HR
 		con = (secs / 60) / 60
 		return con
+
+	def convert_to_list(self, dic):
+		data = []
+		for d in dic:
+			data.append(d.name)
+		return data

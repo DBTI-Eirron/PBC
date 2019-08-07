@@ -33,6 +33,14 @@ class Interview(Document):
 		elif interview_status == "Third" and third:
 			frappe.throw(_("Third Interview for this Schedule Already exist "))
 
+		if interview_status =="First":
+			self.status_type = "Behavioral Interview"
+
+		if interview_status =="Second":
+			self.status_type = "Technical Interview"
+
+		if interview_status =="Third":
+			self.status_type = "Final Interview"
 
 	def calculate_score(self):
 		overall_score=0
@@ -52,10 +60,10 @@ class Interview(Document):
 
 	def update_applicant_status(self):
 		if self.interview_status == "First":
-			frappe.db.sql(""" Update `tabSchedules and Assessment` SET interview_status='Second' where name=%s""", (self.schedule))
+			frappe.db.sql(""" Update `tabSchedules and Assessment` SET interview_status='Second', status_type='Technical Interview' where name=%s""", (self.schedule))
 
 		if self.interview_status == "Second":
-			frappe.db.sql(""" Update `tabSchedules and Assessment` SET interview_status='Third' where name=%s""", (self.schedule))
+			frappe.db.sql(""" Update `tabSchedules and Assessment` SET interview_status='Third', status_type='Final Interview' where name=%s""", (self.schedule))
 
 		if self.interview_status == "Third":
 			frappe.db.sql(""" Update `tabSchedules and Assessment` SET apply_type='Background Investigation', interview_status='Completed' where name=%s""", (self.schedule))

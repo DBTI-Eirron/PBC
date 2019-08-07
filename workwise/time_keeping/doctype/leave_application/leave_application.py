@@ -8,7 +8,7 @@ from workwise.time_keeping.timekeeping_utils import datediff_days_raw
 from workwise.payroll.policy_utils import get_policy
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee )
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
 from frappe.model.document import Document
 
 class LeaveApplication(Document):
@@ -35,8 +35,10 @@ class LeaveApplication(Document):
 		self.validate_balance()
 		self.update_leave_credits()
 		get_approver_and_date(self)
+		get_approver_email_list(self, 'on_submit')
 
 	def before_update_after_submit(self):
+		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
 	def on_cancel(self):
@@ -45,6 +47,7 @@ class LeaveApplication(Document):
 		frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits - %s 
 			WHERE name = %s """, (self.total_leave_days, self.from_balance))
 		frappe.db.commit()
+		get_cancelled_by_and_date(self)
 
 	def get_recipients(self):
 		recipients = []
@@ -66,7 +69,7 @@ class LeaveApplication(Document):
 			if not d.is_excluded:
 				schedule = get_schedule(self.employee, d.leave_date, d.leave_date)
 				if schedule:
-					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 					if shifts:
 						if shifts[0].is_restday > 0:
 							if not leave_code == 'BL':
@@ -184,7 +187,7 @@ class LeaveApplication(Document):
 			if leave_code == "BL":
 				schedule = get_schedule(self.employee, d.leave_date, d.leave_date)
 				if schedule:
-					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 					if shifts:
 						if shifts[0].is_restday > 0:
 							total_leave_days = 0

@@ -10,7 +10,7 @@ from frappe.utils import nowdate
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee)
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
 
 class ExcuseTardinessApplication(Document):
 	def validate(self):
@@ -27,13 +27,16 @@ class ExcuseTardinessApplication(Document):
 	def on_submit(self):
 		validate_approve_own_application(self)
 		get_approver_and_date(self)
+		get_approver_email_list(self, 'on_submit')
 
 	def before_update_after_submit(self):
+		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
 		get_levelled_approval_rejection(self)
+		get_cancelled_by_and_date(self)
 
 	def load_timecard(self):
 		time_in, time_out = self.get_timelogs()
@@ -57,7 +60,7 @@ class ExcuseTardinessApplication(Document):
 
 		schedule = get_schedule(self.employee, self.date, self.date)
 		if schedule:
-			work_sched = frappe.db.sql("""SELECT DISTINCT `o_time_in`, `o_time_out` FROM `tabWork Schedule` WHERE `work_shift` = %s AND `employee` = %s AND `target_date` = %s LIMIT 1""",(schedule[0].work_shift, self.employee, self.date), as_dict=True)
+			work_sched = frappe.db.sql("""SELECT DISTINCT `o_time_in`, `o_time_out` FROM `tabWork Schedule` WHERE `work_shift` = %s AND `employee` = %s AND `target_date` = %s LIMIT 1""",(schedule[0]['work_shift'], self.employee, self.date), as_dict=True)
 			for ws in work_sched:
 				if ws.o_time_in:
 					time_in = datetime.strftime(ws.o_time_in, '%H:%M:%S')

@@ -10,7 +10,7 @@ from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, chk_time_format, timediff_hrs, timediff_mins, str_datetime
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee )
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
 
 class OvertimeApplication(Document):
 	def validate(self):
@@ -30,13 +30,16 @@ class OvertimeApplication(Document):
 	def on_submit(self):
 		validate_approve_own_application(self)
 		get_approver_and_date(self)
+		get_approver_email_list(self, 'on_submit')
 
 	def before_update_after_submit(self):
+		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
 		get_levelled_approval_rejection(self)
+		get_cancelled_by_and_date(self)
 
 	def validate_time_format(self):
 		time_fds = ['from_time', 'to_time']
@@ -101,7 +104,7 @@ class OvertimeApplication(Document):
 
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabOvertime Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
 				if autobreak_setup:
@@ -113,7 +116,7 @@ class OvertimeApplication(Document):
 	def validate_overtime(self):
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				if shifts[0].min_ot_hrs > 0:
 					if flt(self.total_hrs, 2) < flt(shifts[0].min_ot_hrs, 2):

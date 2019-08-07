@@ -38,21 +38,30 @@ class LearningSessionEvaluation(Document):
 					self.append(t, f)
 
 	def calculate_final_grade(self):
-		i = 0
-		a = 0
+		i = 1
 		final_g = 0
-		for d in self.session_table:
+		for d in self.evaluation_table:
 			i += 1
 			final_g	+= flt(d.rating, 2)
-
-		for f in self.facilitator_table:
-			a += 1
-			final_g	+= flt(f.rating, 2)
-
-		divisor = i + a
-		if divisor > 0:
-			final_grade = flt(final_g, 2) / flt(divisor, 2)
-		else:
-			final_grade = flt(final_g, 2) / 1
-
+		final_grade = flt(final_g, 2) / i - 1
+		if final_grade < 0:
+			final_grade = 0
 		self.average_rating = flt(final_grade, 2)
+
+	def get_evaluation_items(self):
+		self.evaluation_table = None
+
+		parent = frappe.db.sql(""" SELECT `parent` FROM `tabLearning Evaluation Template Table Apply For` WHERE `apply_for` = %s """, (self.learning_event), as_dict=True)
+		if parent:
+			for p in parent:
+				if frappe.db.get_value("Learning Evaluation Template", p.parent, "type") == "Session Evaluation":
+					items = frappe.db.sql(""" SELECT `items_for_evaluation` FROM `tabLearning Evaluation Template Table` WHERE `parent` = %s ORDER BY `idx` ASC """, (p.parent), as_dict=True)
+
+					for i in items:
+						ue = {
+							"items": i.items_for_evaluation,
+							"rating": 0.00,
+						}
+
+						row = self.append('evaluation_table', {})
+						row.update(ue)

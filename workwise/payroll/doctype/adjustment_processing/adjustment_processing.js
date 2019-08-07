@@ -20,6 +20,15 @@ frappe.ui.form.on('Adjustment Processing', {
 		frm.set_query('period', function(doc) {
 			return {
 				filters: {
+					"status": "Closed",
+					"company": doc.company
+				}
+			};
+		});
+
+		frm.set_query('target_period', function(doc) {
+			return {
+				filters: {
 					"status": "Open",
 					"company": doc.company
 				}
@@ -48,6 +57,7 @@ frappe.ui.form.on('Adjustment Processing', {
 
 	company: function(frm){
 		frm.set_value("period", null);
+		frm.set_value("target_period", null);
 		frm.set_value("employee", null);
 	}
 });

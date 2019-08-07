@@ -7,54 +7,65 @@ from frappe.utils import cint, flt, getdate, cstr
 from frappe import _
 
 def execute(filters=None):
-	columns = get_columns(filters)
-	employee_list = get_employees(filters)
+	columns, data = [], []
+	columns = get_columns(filters, columns)
+	data = get_data(filters, data)
 	
-	if not employee_list:
+	if not data:
 		frappe.throw(_("No record found"))
-		return columns, employee_list
-
-	data = []
-
-	for emp in employee_list:
-		row = [emp.employee, emp.employee_name, emp.learning_session, emp.average_rating]
-
-		data.append(row)
+		return columns, data
 
 	return columns, data
 
-def get_columns(filters):
+def get_columns(filters, columns):
 	columns = [
-		{
-			"fieldname": "employee",
-			"label": _("Employee"),
-			"fieldtype": "Link",
-			"options": "Employee",
-			"width": 100
-		},
-		{
-			"fieldname": "employee_name",
-			"label": _("Employee Name"),
-			"fieldtype": "Data",
-			"width": 200
-		},
 		{
 			"fieldname": "session",
 			"label": _("Session"),
 			"fieldtype": "Data",
-			"width": 200
+			"width": 400
 		},
 		{
 			"fieldname": "average_rating",
 			"label": _("Average Rating"),
-			"fieldtype": "Float",
-			"width": 200
+			"fieldtype": "Data",
+			"width": 160
+		},
+		{
+			"fieldname": "evaluators",
+			"label": _("Evaluators"),
+			"fieldtype": "data",
+			"width": 160
 		},
 	]
 
 	return columns
 
-def get_employees(filters):
-	employees = frappe.db.sql(""" SELECT DISTINCT employee, employee_name, `learning_session`, average_rating FROM `tabLearning Session Evaluation` WHERE learning_event = %s AND company = %s AND docstatus = 1 """, (filters.event, filters.company), as_dict=True)
+def get_data(filters, data):
+	data_entry = {}
+	evaluation_list = frappe.db.sql(""" SELECT `learning_session`, average_rating FROM `tabLearning Session Evaluation` 
+		WHERE learning_event = %s  AND docstatus = 1 AND `company` = %s GROUP BY `name` """, (filters.event, filters.company), as_dict=True)
+	
+	for s in evaluation_list:
+		if s.learning_session not in data_entry:
+			data_entry[s.learning_session] = {
+				"average_rating": 0.00,
+				"evaluators": 0,
+			}
 
-	return employees
+		data_entry[s.learning_session]['average_rating'] += flt(s.average_rating, 2)
+		data_entry[s.learning_session]['evaluators'] += 1
+
+	for dat in data_entry:
+		if data_entry[dat]['evaluators'] > 1:
+			data_entry[dat]['average_rating'] = flt(data_entry[dat]["average_rating"], 2) / flt(data_entry[dat]["evaluators"], 2)
+
+		row = {
+			"session" : dat,
+			"average_rating" : data_entry[dat]['average_rating'],
+			"evaluators" : data_entry[dat]['evaluators'],
+		}
+				
+		data.append(row)
+
+	return data

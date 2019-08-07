@@ -15,6 +15,17 @@ frappe.query_reports["My Loans"] = {
 			"label": __("To Date"),
 			"fieldtype": "Date",
 			"reqd": 1
+		},
+		{
+			"fieldname": "type",
+			"label": __("Type"),
+			"fieldtype": "Select",
+			"options": [
+				{ "value": "Detailed", "label": __("Detailed") },
+				{ "value": "Summary	", "label": __("Summary") }
+			],
+			"default": "Detailed",
+			"reqd": 1
 		},	
 	]
 }

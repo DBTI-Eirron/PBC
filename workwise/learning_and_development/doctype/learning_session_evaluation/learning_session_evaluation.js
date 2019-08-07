@@ -1,5 +1,7 @@
 // Copyright (c) 2018, HDI Systech and contributors
 // For license information, please see license.txt
+cur_frm.add_fetch('employee','full_name','employee_name');
+cur_frm.add_fetch('employee','company','company');
 
 frappe.ui.form.on('Learning Session Evaluation', {
 	refresh: function(frm) {
@@ -17,15 +19,16 @@ frappe.ui.form.on('Learning Session Evaluation', {
 				});
 			}
 		});
+
+		hideTheButtonWrapper = $('*[data-fieldname="evaluation_table"]');
+		hideTheButtonWrapper.find('.grid-add-row').hide();
+		//hideTheButtonWrapper.find('.grid-remove-row').hide();
+		frm.get_field("evaluation_table").grid.only_sortable()
 	},
 
-	learning_session: function(frm) {
-		frm.trigger("get_items");
-	},
-
-	get_items: function(frm) {
+	learning_event: function(frm) {
 		frappe.call({
-			method: "get_items",
+			method: "get_evaluation_items",
 			doc: frm.doc,
 			callback: function(r) {
 				frm.refresh_fields();

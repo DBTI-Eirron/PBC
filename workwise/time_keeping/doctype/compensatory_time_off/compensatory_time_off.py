@@ -11,7 +11,7 @@ from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee )
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
@@ -38,8 +38,10 @@ class CompensatoryTimeOff(Document):
 			if emp_app < 1:
 				self.deduct_use_cto()
 		get_approver_and_date(self)
+		get_approver_email_list(self, 'on_submit')
 
 	def before_update_after_submit(self):
+		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
 	def on_update_after_submit(self):
@@ -55,6 +57,7 @@ class CompensatoryTimeOff(Document):
 			self.validate_cancel_file_cto()
 		if self.type == "Use":
 			self.revert_credit_deductions()
+		get_cancelled_by_and_date(self)
 
 	def get_timekeeping_settings_for_cto_use_type(self):
 		cto_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
@@ -66,7 +69,7 @@ class CompensatoryTimeOff(Document):
 	def get_cto_workshift_file_setup(self):
 		schedule = get_schedule(self.employee, self.date, self.date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				if self.type == "File":
 					if shifts[0].cto_min_filing_hrs > 0:
@@ -79,7 +82,7 @@ class CompensatoryTimeOff(Document):
 	def get_cto_workshift_use_setup(self):
 		schedule = get_schedule(self.employee, self.use_date, self.use_date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				if self.type == "Use":
 					if shifts[0].cto_min_usage_hrs > 0:
@@ -106,8 +109,8 @@ class CompensatoryTimeOff(Document):
 		schedule = get_schedule(self.employee, self.date, self.date)
 		if schedule:
 			for d in schedule:
-				if d.work_hours > 0:
-					work_hours = flt(d.work_hours)
+				if d['work_hours'] > 0:
+					work_hours = flt(['work_hours'])
 				else:
 					work_hours = 8
 
@@ -159,7 +162,7 @@ class CompensatoryTimeOff(Document):
 		else:
 			schedule = get_schedule(self.employee, self.date, self.date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabCTO Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
 				if autobreak_setup:
@@ -191,8 +194,8 @@ class CompensatoryTimeOff(Document):
 		schedule = get_schedule(self.employee, self.use_date, self.use_date)
 		if schedule:
 			for d in schedule:
-				if d.work_hours > 0:
-					work_hours = flt(d.work_hours)
+				if d['work_hours'] > 0:
+					work_hours = flt(d['work_hours'])
 				else:
 					work_hours = 8
 

@@ -29,3 +29,21 @@ class EvaluationforLearners(Document):
 		if final_grade < 0:
 			final_grade = 0
 		self.average_rating = flt(final_grade, 2)
+
+	def get_evaluation_items(self):
+		self.evaluation_table = None
+
+		parent = frappe.db.sql(""" SELECT `parent` FROM `tabLearning Evaluation Template Table Apply For` WHERE `apply_for` = %s """, (self.event), as_dict=True)
+		if parent:
+			for p in parent:
+				if frappe.db.get_value("Learning Evaluation Template", p.parent, "type") == "Evaluation for Learners":
+					items = frappe.db.sql(""" SELECT `items_for_evaluation` FROM `tabLearning Evaluation Template Table` WHERE `parent` = %s ORDER BY `idx` ASC """, (p.parent), as_dict=True)
+
+					for i in items:
+						ue = {
+							"items": i.items_for_evaluation,
+							"rating": 0.00,
+						}
+
+						row = self.append('evaluation_table', {})
+						row.update(ue)

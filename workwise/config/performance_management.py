@@ -4,17 +4,17 @@ from frappe import _
 def get_data():
 	return [
 		{
-			"label": _("Appraisal"),
+			"label": _("Evaluation"),
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Appraisal",
-					"description": _("Appraisal"),
+					"name": "Evaluation",
+					"description": _("Evaluation"),
 				},
 				{
 					"type": "doctype",
-					"name": "Appraisal Period",
-					"description": _("Appraisal Period"),
+					"name": "Target Settings",
+					"description": _("Target Settings"),
 				},
 			]
 		},
@@ -35,8 +35,8 @@ def get_data():
 				},
 				{
 					"type": "report",
-					"name": "Rewards and Recognition",
-					"doctype": "Rewards and Recognition",	
+					"name": "Performance Summary",
+					"doctype": "Performance Summary",	
 					"is_query_report": True
 				},
 			]

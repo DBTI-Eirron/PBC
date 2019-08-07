@@ -85,7 +85,7 @@
 				{% for (var i=0; i < interview.length; i++) { var d = interview[i] %}
 					<li class="strong module-sidebar-item">
 						<a class="module-link" data-name="my_payslip" href="desk#Form/Schedules%20and%20Assessment/{{ d.name }}"><i class="fa fa-chevron-right pull-right" style="display: none;"></i>
-							<span>{{ d.applicant_name }} </span><span class="label label-info">  {{ d.interview_date }}</span><span class="label label-success">  {{ d.interview_status }}</span>
+							<span>{{ d.applicant_name }} </span><span class="label label-info">  {{ d.interview_date }}</span><span class="label label-success">  {{ d.status_type }}</span>
 						</a>
 					</li>
 				{% } %}

@@ -7,116 +7,218 @@ from frappe.utils import cint, flt, getdate, cstr
 from frappe import _
 
 def execute(filters=None):
-	
 	columns = get_columns(filters)
 	results = get_result(filters)
 
 	return columns, results
 
 def get_columns(filters):
-
-	columns = [
-		{
-			"fieldname": "posting_date",
-			"label": _("Posting Date"),
-			"fieldtype": "Date",
-			"width": 140
-		},
-		{
-			"fieldname": "loan_type",
-			"label": _("Loan Type"),
-			"fieldtype": "Data",
-			"width": 140
-		},
-		{
-			"fieldname": "loan_amount",
-			"label": _("Loan Amount"),
-			"fieldtype": "Float",
-			"width": 140
-		},		
-		{
-			"fieldname": "interest",
-			"label": _("Interest"),
-			"fieldtype": "Float",
-			"width": 140
-		},
-		{
-			"fieldname": "total_loan",
-			"label": _("Total Loan"),
-			"fieldtype": "Float",
-			"width": 140
-		},
-		{
-			"fieldname": "total_paid",
-			"label": _("Total Paid Amount"),
-			"fieldtype": "Float",
-			"width": 140
-		},
-		{
-			"fieldname": "total_unpaid",
-			"label": _("Total Unpaid Amount"),
-			"fieldtype": "Float",
-			"width": 140
-		},	
-	]
+	if filters.type == "Detailed":
+		columns = [
+			{
+				"fieldname": "posting_date",
+				"label": _("Posting Date"),
+				"fieldtype": "Date",
+				"width": 140
+			},
+			{
+				"fieldname": "loan_type",
+				"label": _("Loan Type"),
+				"fieldtype": "Data",
+				"width": 140
+			},
+			{
+				"fieldname": "loan_amount",
+				"label": _("Loan Amount"),
+				"fieldtype": "Float",
+				"width": 140
+			},		
+			{
+				"fieldname": "interest",
+				"label": _("Interest"),
+				"fieldtype": "Float",
+				"width": 140
+			},
+			{
+				"fieldname": "total_loan",
+				"label": _("Total Loan"),
+				"fieldtype": "Float",
+				"width": 140
+			},
+			{
+				"fieldname": "amortization",
+				"label": _("Amortization"),
+				"fieldtype": "Float",
+				"width": 140
+			},
+			{
+				"fieldname": "total_paid",
+				"label": _("Total Paid Amount"),
+				"fieldtype": "Float",
+				"width": 140
+			},
+			{
+				"fieldname": "total_unpaid",
+				"label": _("Total Unpaid Amount"),
+				"fieldtype": "Float",
+				"width": 140
+			},	
+			{
+				"fieldname": "loan_application",
+				"label": _("Loan Application"),
+				"fieldtype": "Link",
+				"options": "Loan Application",
+				"width": 140
+			},	
+		]
+	else:
+		columns = [
+			{
+				"fieldname": "loan_application",
+				"label": _("Loan Application"),
+				"fieldtype": "Link",
+				"options": "Loan Application",
+				"width": 140
+			},	
+			{
+				"fieldname": "loan_type",
+				"label": _("Loan Type"),
+				"fieldtype": "Data",
+				"width": 140
+			},
+			{
+				"fieldname": "loan_amount",
+				"label": _("Loan Amount"),
+				"fieldtype": "Float",
+				"width": 140
+			},		
+			{
+				"fieldname": "interest",
+				"label": _("Interest"),
+				"fieldtype": "Float",
+				"width": 140
+			},
+			{
+				"fieldname": "total_loan",
+				"label": _("Total Loan"),
+				"fieldtype": "Float",
+				"width": 140
+			},
+			{
+				"fieldname": "amortization",
+				"label": _("Amortization"),
+				"fieldtype": "Float",
+				"width": 140
+			},
+			{
+				"fieldname": "total_paid",
+				"label": _("Total Paid Amount"),
+				"fieldtype": "Float",
+				"width": 140
+			},
+			{
+				"fieldname": "total_unpaid",
+				"label": _("Total Unpaid Amount"),
+				"fieldtype": "Float",
+				"width": 140
+			},
+		]
 
 	return columns
 
 def get_result(filters):
+	data = []
+	loan_list = []
 
-	data = get_data(filters)
-	result = get_result_as_list(data, filters)
-
-	return result
-
-def get_loans(filters):
-	loans = frappe.db.sql("""SELECT
+	if filters.type == "Detailed":
+		loans = frappe.db.sql("""SELECT 
 			LA.`name`,
-			LA.employee,
-			LA.employee_name,
-			LA.posting_date,
-			LA.interest,
-			LA.loan_type,
-			LA.loan_amount,
-			LA.total_loan,
-			( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
-		FROM
-			`tabLoan Application` AS LA
-			INNER JOIN `tabEmployee` AS TE ON TE.`name` = LA.employee 
-		WHERE
-			TE.user_id = %(cur_user)s 
-			AND LA.docstatus = 1 
-		ORDER BY
-			LA.employee_name ASC """,{
-					"cur_user": frappe.session.user,
-					"from_date": filters.from_date,
-					"to_date": filters.to_date,
+			LP.`payment_date` as posting_date, 
+			LA.`loan_type`,
+			LA.`loan_amount`,
+			LA.`interest`,
+			LA.`total_loan`,
+			LP.`payment_amount` as amortization
+			FROM `tabLoan Application Payments` LP 
+			INNER JOIN `tabLoan Application` LA ON LP.`parent`=LA.`name` 
+			INNER JOIN `tabEmployee` TE ON LA.`employee`=TE.`name`
+			WHERE LP.`payment_status` = 'Paid' 
+			AND TE.`user_id`=%(cur_user)s 
+			AND LP.`payment_date` >= %(from_date)s AND LP.`payment_date` <= %(to_date)s
+			GROUP BY LP.`name`
+			ORDER BY LP.`payment_date` ASC """,{
+			"cur_user": frappe.session.user,
+			"from_date": getdate(filters.from_date),
+			"to_date": getdate(filters.to_date),
 		}, as_dict=True)
 
-	return loans
+		loan_app = {}
+		for l in loans:
+			if l.name not in loan_app:
+				loan_app.update({ l.name: 0.00 })
+			loan_app[l.name] += flt(l.amortization, 8)
 
-def get_data(filters):
-	data = []
-	loans = get_loans(filters)
+			loan = {
+				"posting_date": l.posting_date,
+				"loan_type": l.loan_type,
+				"loan_amount": l.loan_amount,
+				"interest": l.interest,
+				"total_loan": l.total_loan,
+				"amortization": l.amortization,
+				"total_paid": loan_app[l.name],
+				"total_unpaid": flt(l.total_loan, 8) - flt(loan_app[l.name], 8),
+				"loan_application": l.name
+			}
+			data.append(loan)
+	else:
+		loans = frappe.db.sql("""SELECT 
+			LA.`name`,
+			LP.`payment_date` as posting_date, 
+			LA.`loan_type`,
+			LA.`loan_amount`,
+			LA.`interest`,
+			LA.`total_loan`,
+			LP.`payment_amount` as amortization
+			FROM `tabLoan Application Payments` LP 
+			INNER JOIN `tabLoan Application` LA ON LP.`parent`=LA.`name` 
+			INNER JOIN `tabEmployee` TE ON LA.`employee`=TE.`name`
+			WHERE LP.`payment_status` = 'Paid' 
+			AND TE.`user_id`=%(cur_user)s 
+			AND LP.`payment_date` >= %(from_date)s AND LP.`payment_date` <= %(to_date)s
+			GROUP BY LP.`name`
+			ORDER BY LP.`payment_date` ASC """,{
+			"cur_user": frappe.session.user,
+			"from_date": getdate(filters.from_date),
+			"to_date": getdate(filters.to_date),
+		}, as_dict=True)
 
-	for loan in loans: 
-		data.append(loan)
+		loan_app = {}
+		for l in loans:
+			if l.name not in loan_app:
+				loan_app.update({ l.name:{
+						"loan_type": l.loan_type,
+						"loan_amount": l.loan_amount,
+						"interest": l.interest,
+						"total_loan": l.total_loan,
+						"amortization": l.amortization,
+						"total_paid": 0.00,
+						"total_unpaid": 0.00,
+					} 
+				})
+			loan_app[l.name]['total_paid'] += flt(l.amortization, 8)
+			loan_app[l.name]['total_unpaid'] += flt(l.total_loan, 8) - flt(l.amortization, 8)
+
+		for dat in loan_app:
+			row = {
+				"loan_application": dat, 
+				"loan_type": loan_app[dat]['loan_type'],
+				"loan_amount": loan_app[dat]['loan_amount'],
+				"interest": loan_app[dat]['interest'],
+				"total_loan": loan_app[dat]['total_loan'],
+				"amortization": loan_app[dat]['amortization'],
+				"total_paid": loan_app[dat]['total_paid'],
+				"total_unpaid": loan_app[dat]['total_unpaid'],
+			}
+			data.append(row)
 
 	return data
- 
-def get_result_as_list(data, filters):
-	result = []
-	for d in data:
-		row = {
-			"posting_date": d.get("posting_date"),
-			"loan_type": d.get("loan_type"),
-			"loan_amount": d.get("loan_amount"),
-			"interest": d.get("interest"),
-			"total_loan": d.get("total_loan"),			
-			"total_paid": d.get("total_paid"),
-			"total_unpaid": flt(d.get("total_loan"), 2) - flt(d.get("total_paid"), 2)
-		}
-		
-		result.append(row)
-		
-	return result

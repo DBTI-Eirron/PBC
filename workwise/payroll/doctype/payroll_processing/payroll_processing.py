@@ -14,9 +14,10 @@ from workwise.payroll.loans_utils import get_loans_map, get_employee_loan, updat
 
 class PayrollProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
+		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, 
+			min_take_home, mth_percentage, cost_center, no_hours, 
 			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-			whtax_manual, whtax_freq, is_attendance_base, ignore_late, ignore_ut, on_hold, sensitivity
+			whtax_manual, whtax_freq, is_attendance_base, ignore_late, ignore_nd, ignore_ut, on_hold, sensitivity
 				FROM tabEmployee
 			WHERE company = %(company)s
 			AND payroll_schedule = %(pay_sched)s 
@@ -101,6 +102,7 @@ class PayrollProcessing(Document):
 		if employees:
 			no_emp = len(employees)
 			proc_emp = 0
+			error_emp = 0
 			for emp in employees:
 				frappe.db.sql("""DELETE FROM `tabPayroll Register` WHERE employee = %s AND period = %s """,(emp.name, self.period ), as_dict=1)
 				register = []
@@ -173,6 +175,7 @@ class PayrollProcessing(Document):
 					'mo_amt_smdl': mo_amt_smdl,
 					'hd_no_uho': hd_no_uho,
 					'ignore_uho': ignore_uho,
+					'no_attendance': 0,
 				}
 
 				#Calculate Rates and Previous Entries
@@ -219,18 +222,38 @@ class PayrollProcessing(Document):
 							"is_bonus": tr_map[d.get('pay_code')]['is_bonus'],
 						})
 
-				if pr.insert():
-					#update other entries like loans
-					proc_emp += 1
-					for d in register:
-						if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
-							update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
-				payslip_label = " " + emp.full_name +""
-				if emp.on_hold:
-					payslip_label += " <span class='label label-danger'> On-Hold </span>"
-				ss_list.append(payslip_label)
+				#Compute Minimum Wage
+				minimum_wage = 0
+				if emp.get('mth_percentage'):
+					minimum_wage = header.get('basic') * (flt(emp.get('min_take_home'), 8) / 100)
+				else:
+					minimum_wage = flt(emp.get('min_take_home'), 8)
 
-			ss_list.append("<b>Processed "+ str(proc_emp)+" / "+str(no_emp)+" Employees</b>")
+				if header.get('net_payroll') < minimum_wage and emp.get('min_take_home') > 0:
+					payslip_label = " " + emp.full_name +" <span class='label label-danger'> Below Min Take Home </span>"
+					ss_list.append(payslip_label)
+				else:
+					#Check if employee has attendance/work
+					if emp.is_attendance_base == 1 and header['no_attendance'] == 1:
+						proc_emp += 1
+						error_emp += 1
+						payslip_label = " " + emp.full_name +"<span class='label label-danger'> No Work </span>"
+						ss_list.append(payslip_label)
+						
+					else:
+						if pr.insert():
+							#update other entries like loans
+							proc_emp += 1
+							for d in register:
+								if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
+									update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
+						payslip_label = " " + emp.full_name +""
+						if emp.on_hold:
+							error_emp += 1
+							payslip_label += " <span class='label label-danger'> On-Hold </span>"
+						ss_list.append(payslip_label)
+
+			ss_list.append("<b>Processed "+ str(proc_emp)+" / "+str(no_emp)+" Employees ("+str(error_emp)+") with Issues </b>")
 		else:
 			frappe.throw(_("No Employee Found"))
 		
@@ -329,6 +352,7 @@ class PayrollProcessing(Document):
 		elif emp.get('payroll_schedule') == "Semi-Monthly":
 			amt = rates.get('semi_rate')
 
+		header['basic'] = amt
 		register.append({"pay_code": "BS", "amount": amt})
 
 	def get_sss(self, emp, rates, header, register, tr_map, sss_table, weekly_prev_map):
@@ -446,7 +470,7 @@ class PayrollProcessing(Document):
 					elif emp.get('phic_freq') == 'Both':
 						target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
 							(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
-							
+				
 				if mode != "None" and target_amt:
 					phic, phice = 0, 0
 					if target_amt < 10000:
@@ -731,7 +755,7 @@ class PayrollProcessing(Document):
 	def get_adjustment(self, emp, rates, header, register, adjset):
 		adjustment_register = []
 		adjustment = frappe.db.sql("""SELECT name, absent, unpaid_holiday, overtime, nightdiff, late, undertime 
-			FROM `tabAdjustment Register`WHERE employee = %s AND payroll_period = %s """,(emp.get('name'), self.period), as_dict=True )
+			FROM `tabAdjustment Register`WHERE employee = %s AND target_period = %s """,(emp.get('name'), self.period), as_dict=True )
 		
 		for d in adjustment:
 			if d.absent != 0:
@@ -766,6 +790,7 @@ class PayrollProcessing(Document):
 						"amount": abs(flt(d.unpaid_holiday, 8)),
 					})
 
+			#Overtime and Nightdiff is Reversed due to Income Nature
 			if d.overtime != 0:
 				if d.overtime < 0:
 					adjustment_register.append({
@@ -851,7 +876,7 @@ class PayrollProcessing(Document):
 		attendance_register = []
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, cto, cto_days, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
-			unpaid_holiday, prev_lwop, prev_absent, is_uho, leave_days, nwho_days  =  0, 0 ,0, 0, 0, 0
+			unpaid_holiday, prev_lwop, prev_absent, is_uho, leave_days, nwho_days, total_work  =  0, 0 ,0, 0, 0, 0, 0
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
 
@@ -865,179 +890,179 @@ class PayrollProcessing(Document):
 					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
 
 			cto_check = []
-			for at in attendance:
-				if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
-					if at.is_absent or at.is_lwop:
-						is_uho = 1
-
-						if header.get('lwop_uho') == 1:
-							if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
-								is_uho = 0
-								if at.is_absent:
-									is_uho = 1
-
-				else: 
-					if (emp.get("rate_type") == "Daily Rate" and at.is_holiday == 1 and at.is_absent != 1):
-						work_days += 0
-					elif not at.is_restday:
-						work_days += 1
-
-					if at.late > 0:
-						late += flt(at.late, 8) * flt(rates.get('hourly_rate'), 8)
-					
-					if at.undertime > 0:
-						undertime += flt(at.undertime, 8) * flt(rates.get('hourly_rate'), 8)
-
-					if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
-						if at.nightdiff:
-							nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
-					
-					if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
-						if at.is_lwop == 1 and at.lv_status > 1:
-							absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8)
-							absent_days += 0.5
-						else:
-							absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else ( at.work_hours ) * flt(rates.get('hourly_rate'), 8)
-							absent_days += 0.5 if at.is_halfday == 1 else 1
-
-					#Add to leave days
-					if at.lv_status == 1 and not at.is_lwop:
-						leave_days += 1
-					elif at.lv_status > 1  and not at.is_lwop:
-						leave_days += 0.5
-
-					#Add to No Work holiday days
-					if at.is_holiday:						
-						if at.work and at.work < ( at.work_hours / 2 ):
-							nwho_days += 0.5
-						else:
-							nwho_days += 1
-							
-					if at.cto:
-						max_cto = 0
-						max_cto += at.undertime
-						max_cto += at.late
-						if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
-							if at.is_lwop == 1 and at.lv_status > 1:
-								max_cto += ( at.work_hours / 2 )
-							else:
-								max_cto += ( at.work_hours / 2 ) if at.is_halfday == 1 else at.work_hours
-
-						if max_cto < at.cto:
-							cto += ( max_cto ) * flt(rates.get('hourly_rate'), 8)
-						else:
-							cto += ( at.cto ) * flt(rates.get('hourly_rate'), 8)
-
-						if at.is_absent == 1:
-							if at.is_halfday == 1 and max_cto >= (at.work_hours / 2):
-								cto_days += 0.5
-							elif max_cto >= at.work_hours:
-								cto_days += 1
-
-					if at.is_holiday == 1 and is_uho == 1 and not at.is_ob:
-						unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
-						if header.get('uho_ab_days') == 1:
-							absent_days += 1
-
-					#check if this attendance is lwop or absent for next attendance
-					if is_uho == 1:
-						#if present
-						if at.work and not at.is_lwop and not at.absent and not at.is_restday and not at.is_halfday:
-							is_uho = 0
-
-						#if Halfday next day
-						if header.get('hd_no_uho') and at.is_halfday:
-							is_uho = 0
-
-						#if Proper Leave next day is not UHO
-						if at.lv_status == 1 and not at.is_lwop:
-							is_uho = 0
-
-						#if proper OB next day is not UHO
-						if at.is_ob:
-							is_uho = 0	
-
-						if at.is_absent and at.is_lwop:
+			if attendance:
+				for at in attendance:
+					if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
+						if at.is_absent or at.is_lwop:
 							is_uho = 1
-
-						if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
-							is_uho = 0
-							if header.get('lwop_uho') == 1 and at.is_lwop:
-								is_uho = 1
-						
-						#strictly No UHO if CTO can cover absent work hours
-						if at.is_absent and at.work_hours <= at.cto:
-							is_uho = 0						
-					else:
-						is_uho = 0
-						if (at.is_absent or at.is_lwop) and not at.is_ob:
-							is_uho = 1
-
 							if header.get('lwop_uho') == 1:
-								if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
+								if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
 									is_uho = 0
 									if at.is_absent:
 										is_uho = 1
-
-						#If Halfday is LWOP but not absent
-						if header.get('lwop_uho') == 1:
-							if (at.lv_status == 2 or at.lv_status == 3) and at.is_lwop and (not at.is_absent):
-								is_uho = 0
-						
-						#strictly No UHO if CTO can cover absent work hours
-						if at.is_absent and at.work_hours <= at.cto:
-							is_uho = 0
-
-						#if Halfday next day will not be UHO
-						if header.get('hd_no_uho') and at.is_halfday:
-							is_uho = 0
-				
-					if emp.get("rate_type") == "Daily Rate":
-						#if daily rate, holiday is considered paid
-						if at.is_holiday and not at.is_restday:
+					else: 
+						if (emp.get("rate_type") == "Daily Rate" and at.is_holiday == 1 and at.is_absent != 1):
+							work_days += 0
+						elif not at.is_restday:
 							work_days += 1
-							if at.is_absent and at.is_sp_holiday and header.get('uho_ab_spnw'):
-								work_days -= 1
+
+						if at.late > 0:
+							late += flt(at.late, 8) * flt(rates.get('hourly_rate'), 8)
+						
+						if at.undertime > 0:
+							undertime += flt(at.undertime, 8) * flt(rates.get('hourly_rate'), 8)
+
+						if at.nightdiff:
+							nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
+
+						if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
+							if at.is_lwop == 1 and at.lv_status > 1:
+								absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8)
+								absent_days += 0.5
+							else:
+								absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else ( at.work_hours ) * flt(rates.get('hourly_rate'), 8)
+								absent_days += 0.5 if at.is_halfday == 1 else 1
+
+						if at.cto:
+							max_cto = 0
+							max_cto += at.undertime
+							max_cto += at.late
+							if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
+								if at.is_lwop == 1 and at.lv_status > 1:
+									max_cto += ( at.work_hours / 2 )
+								else:
+									max_cto += ( at.work_hours / 2 ) if at.is_halfday == 1 else at.work_hours
+
+							if max_cto < at.cto:
+								cto += ( max_cto ) * flt(rates.get('hourly_rate'), 8)
+							else:
+								cto += ( at.cto ) * flt(rates.get('hourly_rate'), 8)
+
+							if at.is_absent == 1:
+								if at.is_halfday == 1 and max_cto >= (at.work_hours / 2):
+									cto_days += 0.5
+								elif max_cto >= at.work_hours:
+									cto_days += 1
+
+						if at.is_holiday == 1 and is_uho == 1 and (not at.is_ob) and not at.is_restday:
+							if emp.get("rate_type") == "Daily Rate" and at.is_absent:
+								#if Daily Rate is Absent on Holiday should not have Unpaid Holiday
+								unpaid_holiday += 0
+							else:
 								unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
+								if header.get('uho_ab_days') == 1:
+									absent_days += 1
 
-				#unhash to check cto configuration
-				#cto_check.append(_("{0}_{1}_{2}").format(at.target_date, is_uho, flt(unpaid_holiday, 8)))
-			#frappe.throw(_(cto_check))
-			#Daily rate should have no absent
-			if emp.get("rate_type") == "Daily Rate":
-				absent = 0
+						#check if this attendance is lwop or absent for next attendance
+						if is_uho == 1:
+							#if present
+							if at.work and (not at.is_lwop) and (not at.absent) and (not at.is_restday) and (not at.is_halfday):
+								is_uho = 0
 
-			if emp.get('ignore_late'):
-				late = 0
+							#if Halfday next day
+							if header.get('hd_no_uho') and at.is_halfday:
+								is_uho = 0
 
-			if emp.get('ignore_ut'):
-				undertime = 0
+							#if Proper Leave next day is not UHO
+							if at.lv_status == 1 and not at.is_lwop:
+								is_uho = 0
 
-			if header.get('ignore_uho'):
-				unpaid_holiday = 0
+							#if proper OB next day is not UHO
+							if at.is_ob:
+								is_uho = 0	
+
+							#UHO if Absent and leave withoutpay
+							if at.is_absent and at.is_lwop:
+								is_uho = 1
+
+							#Not UHO if halfday and halfday leave
+							if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
+								is_uho = 0
+								if header.get('lwop_uho') == 1 and at.is_lwop:
+									is_uho = 1
+						
+							#strictly No UHO if CTO can cover absent work hours
+							if at.is_absent and at.work_hours <= at.cto:
+								is_uho = 0						
+						else:
+							is_uho = 0
+							if (at.is_absent or at.is_lwop) and not at.is_ob:
+								is_uho = 1
+
+								if header.get('lwop_uho') == 1:
+									if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
+										is_uho = 0
+										if at.is_absent:
+											is_uho = 1
+
+							#If Halfday is LWOP but not absent
+							if header.get('lwop_uho') == 1:
+								if (at.lv_status == 2 or at.lv_status == 3) and at.is_lwop and (not at.is_absent):
+									is_uho = 0
+							
+							#strictly No UHO if CTO can cover absent work hours
+							if at.is_absent and at.work_hours <= at.cto:
+								is_uho = 0
+
+							#if Halfday next day will not be UHO
+							if header.get('hd_no_uho') and at.is_halfday:
+								is_uho = 0
+					
+						if emp.get("rate_type") == "Daily Rate":
+							#if daily rate, holiday is considered paid
+							if at.is_holiday and not at.is_restday:
+								work_days += 1
+								if at.is_absent and at.is_sp_holiday and header.get('uho_ab_spnw'):
+									work_days -= 1
+									unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
+
+					#Check if employee has attendance
+					if at.work:
+						total_work += at.work
+				header['no_attendance'] = 1
+				if total_work > 0:
+					header['no_attendance'] = 0
+
+					#unhash to check cto configuration
+					#cto_check.append(_("{0}_{1}_{2}").format(at.target_date, is_uho, flt(unpaid_holiday, 8)))
+				#frappe.throw(_(cto_check))
+				#Daily rate should have no absent
+				if emp.get("rate_type") == "Daily Rate":
+					absent = 0
+
+				if header.get('ignore_uho'):
+					unpaid_holiday = 0
+
+				if emp.get('ignore_late'):
+					late = 0
+
+				if emp.get('ignore_ut'):
+					undertime = 0
+
+				if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
+					nightdiff = 0
+					
+				attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
+				attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
+				attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
+				attendance_register.append({"pay_code": "OT", "amount": flt(overtime, 8) })
+				attendance_register.append({"pay_code": "ND", "amount": flt(nightdiff, 8) })
+				attendance_register.append({"pay_code": "LT", "amount": flt(late, 8) })
+				attendance_register.append({"pay_code": "UT", "amount": flt(undertime, 8) })
 				
-			attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
-			attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
-			attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
-			attendance_register.append({"pay_code": "OT", "amount": flt(overtime, 8) })
-			attendance_register.append({"pay_code": "ND", "amount": flt(nightdiff, 8) })
-			attendance_register.append({"pay_code": "LT", "amount": flt(late, 8) })
-			attendance_register.append({"pay_code": "UT", "amount": flt(undertime, 8) })
-			
-			#frappe.throw(_(flt(late, 8)))
-			for d in attendance_register:
-				register.append(d)
+				for d in attendance_register:
+					register.append(d)
 
-			header['cto_days'] = cto_days
-			header['work_days'] = work_days
-			header['absent_days'] = absent_days
-			header['present_days'] = work_days - absent_days
-			header['leave_days'] = leave_days
-			header['nwho_days'] = nwho_days
+				header['cto_days'] = cto_days
+				header['work_days'] = work_days
+				header['absent_days'] = absent_days
+				header['present_days'] = work_days - absent_days
+			else:
+				header['no_attendance'] = 1
 
 	def get_transaction_map(self):
 		tr_map = {}
-		tr = frappe.db.sql("""SELECT code, title, type, entry_type, account, is_taxable, is_bonus, is_government, is_standard, is_active FROM `tabTransaction Type` """, as_dict=1)
+		tr = frappe.db.sql("""SELECT code, title, type, entry_type, account, is_taxable, is_bonus, is_government, is_standard, is_active, is_sss, is_phic, is_hdmf FROM `tabTransaction Type` """, as_dict=1)
 		for t in tr:
 			tr_map[t.code] = {"code": t.code, "title": t.title, "type": t.type, "entry_type": t.entry_type,	"account": t.account, 
 				"is_taxable": t.is_taxable, "is_standard": t.is_standard, "is_active": t.is_active, "is_bonus": t.is_bonus, "is_government": t.is_government,

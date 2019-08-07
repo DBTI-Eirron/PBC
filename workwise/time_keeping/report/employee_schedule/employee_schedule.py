@@ -79,13 +79,13 @@ def get_data(filters):
 	schedule = get_schedule(filters.employee, pay_from, pay_to)
 	for sched in schedule: 
 		entry = {
-			"work_shift": sched.work_shift,
-			"time_in": sched.datetime_in,
-			"time_out": sched.datetime_out,
-			"pre_shift": sched.pre_shift,
-			"post_shift": sched.post_shift,
-			"break_start": sched.break_start,
-			"break_end": sched.break_end,
+			"work_shift": sched['work_shift'],
+			"time_in": sched['datetime_in'],
+			"time_out": sched['datetime_out'],
+			"break_start": sched['break_start'],
+			"break_end": sched['break_end'],
+			"pre_shift": add_to_date(sched['datetime_in'], hours=(0 - pre_shift) ),
+			"post_shift": add_to_date(sched['datetime_out'], hours=post_shift ),	
 		}
 		data.append(entry)
 
