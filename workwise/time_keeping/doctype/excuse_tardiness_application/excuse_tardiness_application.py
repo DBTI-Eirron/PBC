@@ -60,7 +60,7 @@ class ExcuseTardinessApplication(Document):
 
 		schedule = get_schedule(self.employee, self.date, self.date)
 		if schedule:
-			work_sched = frappe.db.sql("""SELECT DISTINCT `o_time_in`, `o_time_out` FROM `tabWork Schedule` WHERE `work_shift` = %s AND `employee` = %s AND `target_date` = %s LIMIT 1""",(schedule[0].work_shift, self.employee, self.date), as_dict=True)
+			work_sched = frappe.db.sql("""SELECT DISTINCT `o_time_in`, `o_time_out` FROM `tabWork Schedule` WHERE `work_shift` = %s AND `employee` = %s AND `target_date` = %s LIMIT 1""",(schedule[0]['work_shift'], self.employee, self.date), as_dict=True)
 			for ws in work_sched:
 				if ws.o_time_in:
 					time_in = datetime.strftime(ws.o_time_in, '%H:%M:%S')

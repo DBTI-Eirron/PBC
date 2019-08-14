@@ -69,7 +69,7 @@ class LeaveApplication(Document):
 			if not d.is_excluded:
 				schedule = get_schedule(self.employee, d.leave_date, d.leave_date)
 				if schedule:
-					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 					if shifts:
 						if shifts[0].is_restday > 0:
 							if not leave_code == 'BL':
@@ -187,7 +187,7 @@ class LeaveApplication(Document):
 			if leave_code == "BL":
 				schedule = get_schedule(self.employee, d.leave_date, d.leave_date)
 				if schedule:
-					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 					if shifts:
 						if shifts[0].is_restday > 0:
 							total_leave_days = 0

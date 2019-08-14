@@ -64,14 +64,12 @@ class TimelogsOverride(Document):
 			self.change_sched(d) 
 
 	def save_time_logs(self,d,bio_id):
-		for item in self.get("timelogs_override"):
-			schedule = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, d.target_date), as_dict=True)
-			for sched in schedule:
-				frappe.db.sql("""UPDATE `tabWork Schedule`
-				SET o_time_in = %s, o_break_in = %s, o_break_out =%s, o_time_out =%s
-				WHERE `name` =%s""",(d.o_time_in,d.o_break_in,d.o_break_out,d.o_time_out,sched.name),as_dict=True)
-			
-	
+		override = frappe.db.sql("""SELECT `name` FROM `tabOverride List` WHERE employee = %s AND target_date = %s """, (self.employee, d.target_date), as_dict=True)
+		for over in override:
+			frappe.db.sql("""DELETE FROM `tabOverride List` WHERE `name` = %s""",(over.name),as_dict=True)
+		if d.o_time_in or d.o_break_in or d.o_break_out or d.o_time_out:
+			frappe.db.sql("""INSERT INTO `tabOverride List` (`name`, employee, target_date, time_in, break_in, break_out, time_out) VALUES (%s, %s, %s, %s, %s, %s, %s)""",(self.employee + " " + d.target_date,self.employee,d.target_date, d.o_time_in,d.o_break_in,d.o_break_out,d.o_time_out),as_dict=True)
+
 	def change_sched(self,d):
 		work_shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(d.work_shift), as_dict=True)
 		exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (self.employee, d.target_date), as_dict=True)
@@ -133,18 +131,21 @@ class TimelogsOverride(Document):
 		bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
 		pay_from, pay_to = frappe.db.get_value("Payroll Period", self.payroll_period, ["attendance_from", "attendance_to"])
 		schedule = get_schedule(self.employee, pay_from, pay_to)
+		override_list = self.get_override_list(pay_from,pay_to)
 		entries = []
 		for d in schedule:
 			row = {
-				"schedule_name": d.name,
-				"work_shift": d.work_shift,
-				"old_shift": d.work_shift,
-				"target_date": d.target_date,
-				"o_time_in":d.o_time_in,
-				"o_break_in":d.o_break_in,
-				"o_break_out":d.o_break_out,
-				"o_time_out":d.o_time_out
+				"schedule_name": d['name'],
+				"work_shift": d['work_shift'],
+				"target_date": d['target_date'],
 			}
+			if str(d['target_date']) in override_list:
+				row.update({
+					"o_time_in": override_list[str(d['target_date'])]['time_in'],
+					"o_break_in": override_list[str(d['target_date'])]['break_in'],
+					"o_break_out": override_list[str(d['target_date'])]['break_out'],
+					"o_time_out": override_list[str(d['target_date'])]['time_out'],
+				})
 			entries.append(row);
 
 		for d in entries:
@@ -152,7 +153,14 @@ class TimelogsOverride(Document):
 			row.update(d)
 		self.print_entries(pay_from,pay_to)
 
-	def  print_entries(self,pay_from,pay_to):
+	def get_override_list(self,pay_from,pay_to):
+		final_list = frappe._dict()
+		override_list = frappe.db.sql("""SELECT * FROM `tabOverride List` WHERE employee = %s AND target_date BETWEEN %s and %s""",(self.employee,pay_from,pay_to),as_dict=True)
+		for override in override_list:
+			final_list.setdefault(str(override.target_date),frappe._dict({'time_in':override.time_in,'break_in':override.break_in,'break_out':override.break_out,'time_out':override.time_out}))
+		return final_list
+
+	def print_entries(self,pay_from,pay_to):
 		for d in self.get("timelogs_override"):
 			employee = frappe.db.sql("""SELECT * FROM `tabEmployee` WHERE `name`= %s LIMIT 1""",(self.employee),as_dict=True)
 			for emp in employee:
@@ -160,8 +168,9 @@ class TimelogsOverride(Document):
 				timecard_list = get_timecard_list(bio_id, pay_from, pay_to + datetime.timedelta(days=1))
 				shift_map = get_shift_map()
 				schedule = frappe.db.sql("""SELECT * FROM `tabWork Schedule` WHERE employee = %s AND target_date =%s""",(self.employee,d.target_date),as_dict=True)
+				overrides = []
 				for sched in schedule:
-					entry = get_defaults(emp, sched, shift_map)
+					entry = get_defaults(emp, sched, shift_map, overrides)
 					datetime_in = sched['datetime_in']
 					datetime_out = sched['datetime_out']
 					setup_preshift, end_preshift, setup_postshift, end_postshift = frappe.get_value('Work Shift',d.work_shift,['setup_preshift','end_preshift','setup_postshift','end_postshift'])
@@ -179,9 +188,3 @@ class TimelogsOverride(Document):
 					# d.o_break_in = sched['o_break_in']
 					# d.o_break_out = sched['o_break_out']
 					# d.o_time_out = sched['o_time_out']
-
-
-					
-					
-
-			

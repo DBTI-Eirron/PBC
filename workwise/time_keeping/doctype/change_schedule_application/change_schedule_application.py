@@ -16,19 +16,19 @@ class ChangeScheduleApplication(Document):
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)
 		validate_approve_own_application(self)
-		emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-		if emp_app < 1:
-			self.change_sched()
+		#emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+		#if emp_app < 1:
+		#	self.change_sched()
 		change_owner(self)
 		self.get_recipients()
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 
-	def on_update_after_submit(self):
-		emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-		if emp_app > 0:
-			if self.workflow_state == "Approved":
-				self.change_sched()
+	#def on_update_after_submit(self):
+	#	emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+	#	if emp_app > 0:
+	#		if self.workflow_state == "Approved":
+	#			self.change_sched()
 
 	def before_update_after_submit(self):
 		get_levelled_approval(self)
@@ -220,4 +220,4 @@ class ChangeScheduleApplication(Document):
 			if d.target_date:
 				schedule = get_schedule(self.employee, d.target_date, d.target_date)
 				for x in schedule:
-					d.current_shift = x.work_shift
+					d.current_shift = x['work_shift']

@@ -67,7 +67,7 @@ class Employee(Document):
 
 	def validate_biometric_id(self):
 		if self.biometrics_id:
-			bio_list = frappe.db.sql(""" SELECT DISTINCT `biometrics_id` FROM `tabEmployee` WHERE `name` != %s """,(self.name) , as_dict=1)
+			bio_list = frappe.db.sql(""" SELECT DISTINCT `biometrics_id` FROM `tabEmployee` WHERE `is_active` = 1 AND `name` != %s """,(self.name) , as_dict=1)
 			for b in bio_list:
 				if self.biometrics_id == b.biometrics_id:
 					frappe.throw(_("Biometric ID is already taken"))

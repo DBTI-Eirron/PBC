@@ -104,7 +104,7 @@ class OvertimeApplication(Document):
 
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabOvertime Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
 				if autobreak_setup:
@@ -116,7 +116,7 @@ class OvertimeApplication(Document):
 	def validate_overtime(self):
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
 		if schedule:
-			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0].work_shift), as_dict=True)
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				if shifts[0].min_ot_hrs > 0:
 					if flt(self.total_hrs, 2) < flt(shifts[0].min_ot_hrs, 2):

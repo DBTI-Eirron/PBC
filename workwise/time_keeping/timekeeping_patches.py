@@ -303,3 +303,50 @@ def run_change_schedule_applications():
 			})
 			work_sched.insert()
 			frappe.db.commit()
+
+def update_override():
+	all_sched = frappe.db.sql("""SELECT `employee`,`target_date`,`o_time_in`,`o_break_in`,`o_break_out`,`o_time_out` FROM `tabWork Schedule` WHERE `o_time_in` <> NULL OR `o_break_in` <> NULL OR `o_break_out` <> NULL OR `o_time_out`""",as_dict=True)
+	for s in all_sched:
+		override = frappe.new_doc("Override List")
+		override.update({
+			"name":s.employee+" "+str(s.target_date),
+			"employee":s.employee,
+			"target_date": s.target_date,
+		})
+		if s.o_time_in:
+			override.update({
+				"time_in":s.o_time_in
+			})
+		if s.o_break_in:
+			override.update({
+				"break_in":s.o_break_in
+			})
+		if s.o_break_out:
+			override.update({
+				"break_out":s.o_break_out
+			})
+		if s.o_time_out:
+			override.update({
+				"time_out":s.o_time_out
+			})
+		override.save()
+
+def update_split_govt():  #1.0.61
+	tt = frappe.db.sql("""SELECT `name` FROM `tabTransaction Type` WHERE is_government = 1 """,as_dict=True)
+	for t in tt:
+		document = frappe.get_doc("Transaction Type", t.name)
+		document.update({
+			"is_sss": 1,
+		})
+		document.save()
+
+def update_split_govt_all(): #1.0.61
+	tt = frappe.db.sql("""SELECT `name` FROM `tabTransaction Type` WHERE is_government = 1 """,as_dict=True)
+	for t in tt:
+		document = frappe.get_doc("Transaction Type", t.name)
+		document.update({
+			"is_sss": 1,
+			"is_hdmf": 1,
+			"is_phic": 1,
+		})
+		document.save()
