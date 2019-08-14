@@ -350,3 +350,12 @@ def update_split_govt_all(): #1.0.61
 			"is_phic": 1,
 		})
 		document.save()
+
+def update_cardtype_in_dtrp(): #1.0.62
+	frappe.db.sql(""" UPDATE `tabDTR Problem Table`
+		SET card_type= CASE
+		   WHEN `type`='Time In' THEN 0
+		   WHEN `type`='Time Out' THEN 1
+			 WHEN `type`='Break Out' THEN 2
+			 WHEN `type`='Break In' THEN 3
+		END """,as_dict=True)

@@ -7,7 +7,7 @@ from frappe.model.document import Document
 from frappe	import _
 from frappe.utils import flt, getdate, formatdate, cstr, nowdate, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
-from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, 
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_all_dtrp,
 get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_datetime)
 
 class TimelogsOverride(Document):
@@ -178,7 +178,7 @@ class TimelogsOverride(Document):
 					end_pre_shift = datetime_in + datetime.timedelta(hours=end_preshift)
 					post_shift = datetime_out - datetime.timedelta(hours=setup_postshift)
 					end_post_shift = datetime_out + datetime.timedelta(hours=end_postshift)
-					cards_in, cards_out = get_card_within(pre_shift, end_pre_shift, post_shift, end_post_shift, timecard_list)
+					cards_in, cards_out = get_card_within(pre_shift, end_pre_shift, post_shift, end_post_shift, timecard_list, get_all_dtrp)
 					sorted_card_list = get_sorted_card(entry, cards_in, cards_out)
 					d.time_in = sorted_card_list['card_in']
 					d.break_in = sorted_card_list['break_in']
