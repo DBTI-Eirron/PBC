@@ -1372,6 +1372,7 @@ def insert_overtime(entry):
 	entry['ext_links'] = None
 	entry['ut_links'] = None
 	entry['cto_links'] = None
+	entry['dtrp_links'] = None
 
 def get_defaults(emp, sched, shift_map, overrides):
 	post_shift_date = getdate(sched['target_date'])
