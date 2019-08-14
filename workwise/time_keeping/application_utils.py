@@ -106,7 +106,7 @@ def set_levelled_approval_to_progress(self, approver_level):
 	approval_history = ""
 	if self.approval_history is not None:
 		approval_history = self.approval_history
-	approval_history = str(approval_history)+"Level "+str(approver_level[0].level)+": "+str(frappe.session.user)+" approved on "+str(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
+	approval_history = cstr(approval_history)+"Level "+cstr(approver_level[0].level)+": "+cstr(frappe.session.user)+" approved on "+cstr(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
 	self.db_set("approval_history", approval_history)
 	self.db_set("last_approval_level", approver_level[0].level)
 	self.db_set("workflow_state", "Approval in Progress")
@@ -114,7 +114,7 @@ def set_levelled_approval_to_progress(self, approver_level):
 	self.db_set("approved_on", nowdate())
 	approver_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
 	if approver_name:
-		self.db_set("approver_name", str(approver_name[0].full_name))
+		self.db_set("approver_name", cstr(approver_name[0].full_name))
 	frappe.db.commit()
 	frappe.msgprint(_("<b>{0}: {1}</b><hr> Approval Successful").format(self.doctype, self.name))
 
@@ -123,9 +123,9 @@ def set_levelled_approval_to_approved(self, highest_level):
 	if self.approval_history is not None:
 		approval_history = self.approval_history
 	if highest_level[0].level is None:
-		approval_history = str(approval_history)+str(frappe.session.user)+" approved on "+str(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
+		approval_history = cstr(approval_history)+cstr(frappe.session.user)+" approved on "+cstr(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
 	else:
-		approval_history = str(approval_history)+"Level "+str(highest_level[0].level)+": "+str(frappe.session.user)+" approved on "+str(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
+		approval_history = cstr(approval_history)+"Level "+cstr(highest_level[0].level)+": "+cstr(frappe.session.user)+" approved on "+cstr(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
 	self.db_set("approval_history", approval_history)
 	self.db_set("last_approval_level", highest_level[0].level)
 	self.db_set("workflow_state", "Approved")
@@ -133,7 +133,7 @@ def set_levelled_approval_to_approved(self, highest_level):
 	self.db_set("approved_on", nowdate())
 	approver_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
 	if approver_name:
-		self.db_set("approver_name", str(approver_name[0].full_name))
+		self.db_set("approver_name", cstr(approver_name[0].full_name))
 	frappe.db.commit()
 	frappe.msgprint(_("<b>{0}: {1}</b><hr> Approval Successful").format(self.doctype, self.name))
 
@@ -156,7 +156,7 @@ def get_approver_and_date(self):
 		self.db_set("approved_on", nowdate())
 		approver_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
 		if approver_name:
-			self.db_set("approver_name", str(approver_name[0].full_name))
+			self.db_set("approver_name", cstr(approver_name[0].full_name))
 		frappe.db.commit()
 
 def get_cancelled_by_and_date(self):
@@ -165,7 +165,7 @@ def get_cancelled_by_and_date(self):
 		self.db_set("cancelled_on", nowdate())
 		cancelled_by_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
 		if cancelled_by_name:
-			self.db_set("cancelled_by_name", str(cancelled_by_name[0].full_name))
+			self.db_set("cancelled_by_name", cstr(cancelled_by_name[0].full_name))
 		frappe.db.commit()
 
 def get_current_logs(employee, target_date):
@@ -209,9 +209,9 @@ def get_approver_email_list(self, event):
 					next_approver_recipients.append(app.user_id)
 
 		if approver_recipients:
-			send_to_approver = ', '.join(str(x) for x in approver_recipients)
+			send_to_approver = ', '.join(cstr(x) for x in approver_recipients)
 			self.db_set("approver_email_list", send_to_approver)
 
 		if next_approver_recipients:
-			send_to_next_approver = ', '.join(str(x) for x in next_approver_recipients)
+			send_to_next_approver = ', '.join(cstr(x) for x in next_approver_recipients)
 			self.db_set("next_approver_email_list", send_to_next_approver)
