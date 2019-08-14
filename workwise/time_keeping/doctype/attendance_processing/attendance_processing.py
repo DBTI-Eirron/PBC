@@ -10,7 +10,7 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, 
-get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,get_template_map)
+get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,change_sched,get_template_map)
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
@@ -75,6 +75,7 @@ class AttendanceProcessing(Document):
 			for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 				ss_list += 1
 				complete_sched(emp_dict, pay_from, pay_to, template_map)
+				change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 				for sched in emp_dict['schedules']:
 					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
 					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 

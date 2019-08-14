@@ -736,7 +736,7 @@
   }, 
   {
    "allow_bulk_edit": 0, 
-   "allow_on_submit": 0, 
+   "allow_on_submit": 1, 
    "bold": 0, 
    "collapsible": 0, 
    "columns": 0, 
@@ -929,7 +929,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2019-07-31 17:15:25.227214", 
+ "modified": "2019-08-14 12:56:35.816959", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Change Schedule Application", 

@@ -1456,6 +1456,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 				"ext": [],
 				"cto": [],
 				"wss": [],
+				"csa": [],
 			})
 		)
 
@@ -1471,6 +1472,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 
 	return emp_map
 
@@ -1675,7 +1677,29 @@ def get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 		if d.employee in emp_map:
 			emp_map[d.employee].wss.append(d)
 
-	return ws_apps
+def get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	#if adjustment == 1:
+	#	conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	#else:
+	#	conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	#
+	if employee:
+		conditions_list.append("employee='"+cstr(employee)+"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
+	cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
+		FROM `tabChange Schedule Application` CSA 
+		INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
+		WHERE CSA.docstatus = 1
+		AND workflow_state = 'Approved'
+		AND CSAT.target_date >= %s 
+		AND CSAT.target_date <= %s  {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+
+	for d in cs_apps:
+		if d.employee in emp_map:
+			emp_map[d.employee].csa.append(d)
 
 def complete_sched(emp_dict, pay_from, pay_to, template_map):
 	complete_schedules = []
@@ -1700,6 +1724,12 @@ def complete_sched(emp_dict, pay_from, pay_to, template_map):
 				})
 	emp_dict['schedules'] = complete_schedules
 
+def change_sched(emp_dict, completed_schedules, csa):
+	for d in completed_schedules:
+		for cs in csa:
+			if cs['target_date'] == d['target_date']:
+				d['work_shift'] = cs['new_shift']
+		
 def daterange(start_date, end_date):
     for n in range( int((end_date - start_date).days) + 1):
         yield start_date + timedelta(n)
