@@ -38,10 +38,11 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
-				ob_in = get_datetime( str(entry.get('target_date'))+" "+ str(ob.from_time) )
-				ob_out = get_datetime( str(entry.get('target_date'))+" "+ str(ob.to_time) )
+
+				ob_in = get_datetime( str(ob.date)+" "+ str(ob.from_time) )
+				ob_out = get_datetime( str(ob.to_date)+" "+ str(ob.to_time) )
 				if ob_out < ob_in:
-					ob_out = get_datetime( str(add_days(entry.get('target_date'), 1))+" "+ str(ob.to_time) )
+					ob_out = get_datetime( str(add_days(ob.date, 1))+" "+ str(ob.to_time) )
 
 				if not (ob_in <= entry.get('time_in') and ob_out <= entry.get('time_in')):
 					entry['ob_links'].append(ob.name) 
@@ -386,10 +387,35 @@ def get_ndiff(entry):
 		#set min ND and max ND
 		min_nd, max_nd, nd_pro  = entry.get('nd_start'),  entry.get('nd_end'), 1
 
+		card_in = entry.get('card_in')
+		card_out = entry.get('card_out')
+
+		#OB Triggers for nightdiff
+		if entry.get('ob_stat') == 1:
+			#if wholeday OB and no in and out logs set in and out as OB
+			if (not entry.get('card_in')) and (not entry.get('card_out')):
+				card_in = entry.get('ob_in')
+				card_out = entry.get('ob_out')
+
+			elif entry.get('card_in') and entry.get('card_out'):
+				card_in = entry.get('card_in')
+				if entry.get('ob_in') < entry.get('card_in'):
+					card_in = entry.get('ob_in')
+
+				card_out = entry.get('card_out')
+				if entry.get('ob_out') > entry.get('card_out'):
+					card_out = entry.get('ob_out')
+
+		elif entry.get('ob_stat') == 3:
+			if entry.get('card_in') and entry.get('card_out'):
+				card_out = entry.get('card_out')
+				if entry.get('ob_out') > entry.get('card_out'):
+					card_out = entry.get('ob_out')
+
 		#check shift if eligible for nightdiff based from time in and time out:
-		min_nd, max_nd, nd_pro= get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
-		if entry.get('card_in') and entry.get('card_out') and nd_pro == 1:
-			nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, entry.get('card_out'), entry.get('card_in'))
+		min_nd, max_nd, nd_pro = get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
+		if card_in and card_out and nd_pro == 1:
+			nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, card_out, card_in)
 			if get_nd:
 				entry['nightdiff'] = abs((nd_out - nd_in).total_seconds())
 
@@ -1626,7 +1652,7 @@ def get_all_obs(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 
-	ob_apps = frappe.db.sql("""SELECT OBA.`name`, OBA.employee, OBAT.target_date, OBAT.from_time, OBAT.to_time, OBAT.hrs, OBAT.is_holiday, OBAT.is_excluded 
+	ob_apps = frappe.db.sql("""SELECT OBA.`name`, OBA.employee, OBAT.target_date, OBAT.date, OBAT.to_date,OBAT.from_time, OBAT.to_time, OBAT.hrs, OBAT.is_holiday, OBAT.is_excluded 
 		FROM `tabOfficial Business Application Table` OBAT
 		INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
 		WHERE OBA.workflow_state = 'Approved' AND OBAT.target_date >= %s 
