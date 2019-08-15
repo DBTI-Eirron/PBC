@@ -4,6 +4,10 @@ cur_frm.add_fetch('payroll_period','payroll_date','payroll_date');
 
 frappe.ui.form.on('Bank Remittance Setup', {
 	onload: function(frm){
+		
+	},
+
+	refresh: function(frm) {
 		frm.set_query("payroll_period", function() {
 			return {
 				"filters": {
@@ -12,10 +16,6 @@ frappe.ui.form.on('Bank Remittance Setup', {
 				}
 			};
 		});
-	},
-
-	refresh: function(frm) {
-
 	},
 
 	bank: function(frm) {

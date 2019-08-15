@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
-from frappe.utils import cint, flt, getdate, cstr
+from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import get_schedule
