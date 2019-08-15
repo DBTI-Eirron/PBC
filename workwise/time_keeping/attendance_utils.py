@@ -386,10 +386,18 @@ def get_ndiff(entry):
 		#set min ND and max ND
 		min_nd, max_nd, nd_pro  = entry.get('nd_start'),  entry.get('nd_end'), 1
 
+		card_in = entry.get('card_in')
+		card_out = entry.get('card_out')
+		
+		#if wholeday OB and no in and out logs set in and out as OB
+		if entry.get('ob_stat') == 1 and (not entry.get('card_in')) and (not entry.get('card_out')):
+			card_in = entry.get('ob_in')
+			card_out = entry.get('ob_out')
+
 		#check shift if eligible for nightdiff based from time in and time out:
-		min_nd, max_nd, nd_pro= get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
-		if entry.get('card_in') and entry.get('card_out') and nd_pro == 1:
-			nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, entry.get('card_out'), entry.get('card_in'))
+		min_nd, max_nd, nd_pro = get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
+		if card_in and card_out and nd_pro == 1:
+			nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, card_out, card_in)
 			if get_nd:
 				entry['nightdiff'] = abs((nd_out - nd_in).total_seconds())
 
