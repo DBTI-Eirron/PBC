@@ -192,6 +192,7 @@ def get_overtime(entry, ot_apps):
 	ot_list = []
 	ot_map = get_overtime_map()
 	total_ot, total_brk, total_ot_n, total_ot_nd, total_ot_ex = 0.0, 0.0, 0.0, 0.0, 0.0
+	otho_total, otho_used = 0.00, 0.00
 
 	#Get Nigthdiff Setup
 	if entry.get('nd_start') and entry.get('nd_end'):
@@ -258,6 +259,24 @@ def get_overtime(entry, ot_apps):
 						else:
 							if entry.get('card_out') < ot_out:
 								ot_out = entry.get('card_out')
+
+				#get Max Holiday OT per day
+				if entry.get('is_holiday') == 1:
+					if entry.get('max_holiday_ot'):
+						otho_maxdiff = (ot_out - ot_in).total_seconds() / 60.0
+
+						if otho_total < entry.get('max_holiday_ot'):
+							if (otho_total + otho_maxdiff) <= entry.get('max_holiday_ot'):
+								otho_total += otho_maxdiff
+							else:
+								otho_total = entry.get('max_holiday_ot')
+ 
+							otho_out = ot_in + datetime.timedelta(minutes=otho_total-otho_used)
+							if otho_out <= ot_out:
+								ot_out = otho_out
+							otho_used += otho_total
+						else:
+							ot_out = ot_in
 
 				# OT IN should not be greater than OT Out
 				if ot_in > ot_out:
@@ -1514,6 +1533,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"ot_deduct_late": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_deduct_late'), 8),
 		"ot_start_delay": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_start_delay'), 8),
 		"ot_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_interval'), 8),
+		"max_holiday_ot": flt(frappe.db.get_single_value('Timekeeping Settings', 'max_holiday_ot'), 8),
 		"late_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'late_interval'), 8),
 		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
 		"strict_otcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard'), 8),
