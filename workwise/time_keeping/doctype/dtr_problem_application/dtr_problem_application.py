@@ -9,38 +9,38 @@ from frappe import _
 from frappe.utils import nowdate, cstr, getdate
 from frappe.model.document import Document
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee)
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
 
 class DTRProblemApplication(Document):
 	def validate(self):
 		validate_inactive_employee(self)
 		clear_approval_history(self)
+		self.update_target_date()
 		self.validate_application()
 		self.get_timekeeping_settings()
 		grant_head_subordinate_access(self)
-		self.get_request()
 		change_owner(self)
 		
 	def on_submit(self):
 		validate_approve_own_application(self)
-		enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-		if not enable_employee_approvers > 0:
-			self.approve_request()
+		#enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+		#if not enable_employee_approvers > 0:
+		#	self.approve_request()
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
-		enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-		if enable_employee_approvers > 0:
-			if self.workflow_state == "Approved":
-				self.approve_request()
+		#enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+		#if enable_employee_approvers > 0:
+		#	if self.workflow_state == "Approved":
+		#		self.approve_request()
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
 		get_levelled_approval_rejection(self)
-		self.revert_request()
+		#self.revert_request()
 		get_cancelled_by_and_date(self)
 
 	def validate_application(self):
@@ -54,18 +54,36 @@ class DTRProblemApplication(Document):
 		max_year = frappe.db.get_single_value('Timekeeping Settings', 'dtrp_max_yearly')
 
 		dtrp_record_month = frappe.db.sql("""SELECT count(`name`) as count FROM `tabDTR Problem Application` 
-			WHERE docstatus = 1 AND employee = %s AND company = %s AND MONTH(`target_date`) = %s AND YEAR(`target_date`) = %s """, (self.employee, self.company, cur_month, cur_year), as_dict=True)
+			WHERE docstatus != 2 AND employee = %s AND company = %s AND MONTH(`target_date`) = %s AND YEAR(`target_date`) = %s """, (self.employee, self.company, cur_month, cur_year), as_dict=True)
 		if dtrp_record_month:
 			if max_month != 0:
 				if int(dtrp_record_month[0].count) > int(max_month):
 					frappe.throw(_("<b>DTR Problem Application: {0}</b><hr> You have reached the maximum number of filing per month").format(self.name))
 
 		dtrp_record_year = frappe.db.sql("""SELECT count(`name`) as count FROM `tabDTR Problem Application` 
-			WHERE docstatus = 1 AND employee = %s AND company = %s AND YEAR(`target_date`) = %s """, (self.employee, self.company, cur_year), as_dict=True)
+			WHERE docstatus != 2 AND employee = %s AND company = %s AND YEAR(`target_date`) = %s """, (self.employee, self.company, cur_year), as_dict=True)
 		if dtrp_record_year:
 			if max_year != 0:
 				if int(dtrp_record_year[0].count) > int(max_year):
 					frappe.throw(_("<b>DTR Problem Application: {0}</b><hr> You have reached the maximum number of filing per year").format(self.name))
+
+	def update_target_date(self):		
+		if self.is_previous:
+			target_date = datetime.strptime(str(self.dtr_date) + ' ' + '00:00:00', '%Y-%m-%d %H:%M:%S').date()
+			target_date = target_date - timedelta(days=1)
+		else:
+			target_date = self.dtr_date
+		self.target_date = getdate(target_date)
+
+		for req in self.get("time_record_request"):
+			if req.type == "Time In":
+				req.card_type = 0
+			if req.type == "Time Out":
+				req.card_type = 1
+			if req.type == "Break In":
+				req.card_type = 3
+			if req.type == "Break Out":
+				req.card_type = 2
 
 	def get_request(self):
 		for req in self.get("time_record_request"):
@@ -123,16 +141,6 @@ class DTRProblemApplication(Document):
 	def get_timecard(self, card):
 		timecard_sel = frappe.db.sql("""SELECT TC.`name` FROM `tabTime Card` TC JOIN `tabEmployee` TE WHERE TC.biometrics_id = TE.biometrics_id  AND TC.`date` = %s AND TC.`card_type` = %s AND TE.`name` = %s LIMIT 1 """, (self.target_date, card, self.employee), as_dict=True)
 		return timecard_sel
-
-	def update_target_date(self):
-		target_date = datetime.strptime(str(self.target_date) + ' ' + '00:00:00', '%Y-%m-%d %H:%M:%S').date()
-		#frappe.throw(_(target_date))
-		if self.is_previous:
-			target_date = target_date - timedelta(days=1)
-		else:
-			target_date = self.target_date
-
-		return target_date
 
 	def make_timecard(self, req):
 		target_date = self.update_target_date()

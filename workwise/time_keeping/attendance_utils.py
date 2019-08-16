@@ -4,7 +4,14 @@ from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money,
 from frappe import _
 from datetime import timedelta, date
 
-def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss):
+def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp):
+	if dtrp:
+		for dt in dtrp:
+			if dt['target_date'] == entry['target_date']:
+				entry['is_dtrp'] = 1
+				if dt['name'] not in entry['dtrp_links']:
+					entry['dtrp_links'].append(dt['name'])
+
 	for over in overrides:
 		if over['target_date'] == entry['target_date']:
 			if over.get("time_in"):
@@ -31,10 +38,11 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
-				ob_in = get_datetime( str(entry.get('target_date'))+" "+ str(ob.from_time) )
-				ob_out = get_datetime( str(entry.get('target_date'))+" "+ str(ob.to_time) )
+
+				ob_in = get_datetime( str(ob.date)+" "+ str(ob.from_time) )
+				ob_out = get_datetime( str(ob.to_date)+" "+ str(ob.to_time) )
 				if ob_out < ob_in:
-					ob_out = get_datetime( str(add_days(entry.get('target_date'), 1))+" "+ str(ob.to_time) )
+					ob_out = get_datetime( str(add_days(ob.date, 1))+" "+ str(ob.to_time) )
 
 				if not (ob_in <= entry.get('time_in') and ob_out <= entry.get('time_in')):
 					entry['ob_links'].append(ob.name) 
@@ -379,10 +387,35 @@ def get_ndiff(entry):
 		#set min ND and max ND
 		min_nd, max_nd, nd_pro  = entry.get('nd_start'),  entry.get('nd_end'), 1
 
+		card_in = entry.get('card_in')
+		card_out = entry.get('card_out')
+
+		#OB Triggers for nightdiff
+		if entry.get('ob_stat') == 1:
+			#if wholeday OB and no in and out logs set in and out as OB
+			if (not entry.get('card_in')) and (not entry.get('card_out')):
+				card_in = entry.get('ob_in')
+				card_out = entry.get('ob_out')
+
+			elif entry.get('card_in') and entry.get('card_out'):
+				card_in = entry.get('card_in')
+				if entry.get('ob_in') < entry.get('card_in'):
+					card_in = entry.get('ob_in')
+
+				card_out = entry.get('card_out')
+				if entry.get('ob_out') > entry.get('card_out'):
+					card_out = entry.get('ob_out')
+
+		elif entry.get('ob_stat') == 3:
+			if entry.get('card_in') and entry.get('card_out'):
+				card_out = entry.get('card_out')
+				if entry.get('ob_out') > entry.get('card_out'):
+					card_out = entry.get('ob_out')
+
 		#check shift if eligible for nightdiff based from time in and time out:
-		min_nd, max_nd, nd_pro= get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
-		if entry.get('card_in') and entry.get('card_out') and nd_pro == 1:
-			nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, entry.get('card_out'), entry.get('card_in'))
+		min_nd, max_nd, nd_pro = get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
+		if card_in and card_out and nd_pro == 1:
+			nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, card_out, card_in)
 			if get_nd:
 				entry['nightdiff'] = abs((nd_out - nd_in).total_seconds())
 
@@ -987,6 +1020,9 @@ def get_links(entry):
 	for d in entry.get('cto_links'):
 		entry["links"] += "<span class='label label-success'><a href='/desk#Form/Compensatory Time Off/"+d+"'> "+d+" </a></span>"
 
+	for d in entry.get('dtrp_links'):
+		entry["links"] += "<span class='label label-success'><a href='/desk#Form/DTR Problem Application/"+d+"'> "+d+" </a></span>"
+
 	return entry
 
 def default_schedule_delta_to_time(delta_obj):
@@ -1232,9 +1268,10 @@ def get_wss_list(employee, from_date, to_date, approval_cutoff, adjustment):
 
 	return ws_apps
 
-def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list):
+def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp):
 	cards_in = []
 	cards_out = []
+
 	for tc in timecard_list:
 		if pre_shift <= tc.card_datetime <= max_preshift and (tc.card_type == 0 or tc.card_type == 2):
 			cards_in.append({
@@ -1251,6 +1288,54 @@ def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard
 				"card_datetime": tc.card_datetime,
 				"card_type": tc.card_type
 			})
+
+	no_card_in, no_card_out, no_break_out, no_break_in = 1, 1, 1, 1
+	for dt in dtrp:
+		for c_in in cards_in:
+			if pre_shift <= dt['card_datetime'] <= max_preshift and dt['card_type'] == c_in['card_type']:
+				c_in['card_name'] = dt['name']
+				c_in['card_date'] = dt['target_date']
+				c_in['card_time'] = dt['request']
+				c_in['card_datetime'] = dt['card_datetime']
+				c_in['card_type'] = dt['card_type']
+
+				if dt['card_type'] == 0:
+					no_card_in = 0
+				if dt['card_type'] == 2:
+					no_break_out = 0
+
+		for c_out in cards_out:
+			if post_shift <= dt['card_datetime'] <= max_postshift and dt['card_type'] == c_out['card_type']:
+				c_out['card_name'] = dt['name']
+				c_out['card_date'] = dt['target_date']
+				c_out['card_time'] = dt['request']
+				c_out['card_datetime'] = dt['card_datetime']
+				c_out['card_type'] = dt['card_type']
+
+				if dt['card_type'] == 1:
+					no_card_out = 0
+				if dt['card_type'] == 3:
+					no_break_in = 0
+		
+		if no_card_in == 1 or no_break_out == 1:
+			if pre_shift <= dt['card_datetime'] <= max_preshift and (dt['card_type'] == 0 or dt['card_type'] == 2):
+				cards_in.append({
+					"card_name": dt['name'],
+					"card_date": dt['target_date'],
+					"card_time": dt['request'],
+					"card_datetime": dt['card_datetime'],
+					"card_type": dt['card_type']
+				})
+
+		if no_card_out == 1 or no_break_in == 1:
+			if post_shift <= dt['card_datetime'] <= max_postshift and (dt['card_type'] == 1 or dt['card_type'] == 3):
+				cards_out.append({
+					"card_name": dt['name'],
+					"card_date": dt['target_date'],
+					"card_time": dt['request'],
+					"card_datetime": dt['card_datetime'],
+					"card_type": dt['card_type']
+				})
 
 	return cards_in, cards_out
 
@@ -1313,6 +1398,7 @@ def insert_overtime(entry):
 	entry['ext_links'] = None
 	entry['ut_links'] = None
 	entry['cto_links'] = None
+	entry['dtrp_links'] = None
 
 def get_defaults(emp, sched, shift_map, overrides):
 	post_shift_date = getdate(sched['target_date'])
@@ -1419,6 +1505,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"ext_links": [],
 		"ut_links": [],
 		"cto_links": [],
+		"dtrp_links": [],
 		#SHIFT POLICIES
 		"graceperiod_late": shift_map[sched['work_shift']]['graceperiod_late'],
 		"straight_ot": shift_map[sched['work_shift']]['straight_ot'],
@@ -1456,6 +1543,8 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 				"ext": [],
 				"cto": [],
 				"wss": [],
+				"csa": [],
+				"dtrp": [],
 			})
 		)
 
@@ -1471,9 +1560,10 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 
 	return emp_map
-
 
 def get_all_timecards(emp_map, employee, pay_from, pay_to):
 	condition = "AND EMP.name = '"+ cstr(employee) +"'" if employee else ""
@@ -1562,7 +1652,7 @@ def get_all_obs(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 
-	ob_apps = frappe.db.sql("""SELECT OBA.`name`, OBA.employee, OBAT.target_date, OBAT.from_time, OBAT.to_time, OBAT.hrs, OBAT.is_holiday, OBAT.is_excluded 
+	ob_apps = frappe.db.sql("""SELECT OBA.`name`, OBA.employee, OBAT.target_date, OBAT.date, OBAT.to_date,OBAT.from_time, OBAT.to_time, OBAT.hrs, OBAT.is_holiday, OBAT.is_excluded 
 		FROM `tabOfficial Business Application Table` OBAT
 		INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
 		WHERE OBA.workflow_state = 'Approved' AND OBAT.target_date >= %s 
@@ -1675,7 +1765,52 @@ def get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 		if d.employee in emp_map:
 			emp_map[d.employee].wss.append(d)
 
-	return ws_apps
+def get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	#if adjustment == 1:
+	#	conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	#else:
+	#	conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	#
+	if employee:
+		conditions_list.append("employee='"+cstr(employee)+"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
+	cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
+		FROM `tabChange Schedule Application` CSA 
+		INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
+		WHERE CSA.docstatus = 1
+		AND workflow_state = 'Approved'
+		AND CSAT.target_date >= %s 
+		AND CSAT.target_date <= %s  {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+
+	for d in cs_apps:
+		if d.employee in emp_map:
+			emp_map[d.employee].csa.append(d)
+
+def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	#if adjustment == 1:
+	#	conditions_list.append("DA.approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
+	#else:
+	#	conditions_list.append("DA.approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
+
+	if employee:
+		conditions_list.append("DA.employee='"+ cstr(employee) +"'")
+
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+
+	dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+		DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`
+		FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` 
+		WHERE DA.`workflow_state` = 'Approved'
+		AND DA.`target_date` >= %s AND DA.`target_date` <= %s {conditions}
+		ORDER BY card_datetime """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+
+	for d in dtr_apps:
+		if d.employee in emp_map:
+			emp_map[d.employee].dtrp.append(d)
 
 def complete_sched(emp_dict, pay_from, pay_to, template_map):
 	complete_schedules = []
@@ -1700,6 +1835,12 @@ def complete_sched(emp_dict, pay_from, pay_to, template_map):
 				})
 	emp_dict['schedules'] = complete_schedules
 
+def change_sched(emp_dict, completed_schedules, csa):
+	for d in completed_schedules:
+		for cs in csa:
+			if cs['target_date'] == d['target_date']:
+				d['work_shift'] = cs['new_shift']
+		
 def daterange(start_date, end_date):
     for n in range( int((end_date - start_date).days) + 1):
         yield start_date + timedelta(n)

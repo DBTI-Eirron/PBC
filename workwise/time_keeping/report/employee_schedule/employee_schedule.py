@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
-from frappe.utils import cint, flt, getdate, cstr
+from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import get_schedule
@@ -77,7 +77,8 @@ def get_data(filters):
 
 	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
 	schedule = get_schedule(filters.employee, pay_from, pay_to)
-	for sched in schedule: 
+	for sched in schedule:
+		pre_shift, post_shift = frappe.db.get_value("Work Shift", sched['work_shift'], ["setup_preshift", "end_postshift"]) 
 		entry = {
 			"work_shift": sched['work_shift'],
 			"time_in": sched['datetime_in'],

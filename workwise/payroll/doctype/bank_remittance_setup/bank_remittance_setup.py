@@ -10,6 +10,7 @@ from frappe.model.document import Document
 
 class BankRemittanceSetup(Document):
 	def validate(self):
+		self.validate_fields()
 		self.validate_duplicate_document()
 		self.fill_company()
 		self.remove_duplicates()
@@ -17,7 +18,7 @@ class BankRemittanceSetup(Document):
 		self.validate_duplicate_employees_with_bank_remittance_setup()
 
 	def on_submit(self):
-		pass
+		self.validate_fields()
 
 	def validate_duplicate_employees_with_bank_remittance_setup(self):
 		for d in self.get("employees"):
@@ -29,6 +30,11 @@ class BankRemittanceSetup(Document):
 
 			if setup:
 				frappe.throw(_("Setup for Payroll Period {0} for employee {1} already exists").format(self.payroll_period, d.employee))
+
+	def validate_fields(self):
+		if self.payroll_period:
+			if frappe.get_value('Payroll Period', self.payroll_period, 'status') != 'Closed':
+				frappe.throw(_("Payroll Period {0} is not yet Closed").format(self.payroll_period))
 			
 	def validate_duplicate_document(self):
 		documents = frappe.db.sql(""" SELECT `name`, payroll_period, company FROM `tabBank Remittance Setup` WHERE `docstatus` = 1 AND bank = %(bank)s AND company = %(company)s AND payroll_period = %(period)s """,{ 
@@ -92,18 +98,19 @@ class BankRemittanceSetup(Document):
 			else:
 				net_payroll = d.net_payroll
 
-			i = {
-				"employee": d.employee,
-				"employee_name": d.employee_name,
-				"employee_account": d.bank_account,
-				"bank_type": d.bank_type,
-				"branch_code": d.branch_code,
-				"amount": '{:,.2f}'.format( flt(net_payroll, 8) ),
-				"remarks": ""
-			}
+			if flt(net_payroll) > 0:
+				i = {
+					"employee": d.employee,
+					"employee_name": d.employee_name,
+					"employee_account": d.bank_account,
+					"bank_type": d.bank_type,
+					"branch_code": d.branch_code,
+					"amount": '{:,.2f}'.format( flt(net_payroll, 8) ),
+					"remarks": ""
+				}
 
-			row = self.append('employees', {})
-			row.update(i)
+				row = self.append('employees', {})
+				row.update(i)
 
 		self.remove_duplicates()
 		self.get_employees_count()

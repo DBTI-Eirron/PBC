@@ -290,14 +290,13 @@ def get_result_as_list(data, filters):
 	funding_account = ""
 
 	for d in data:
-		if flt(d.amount) < 0:
-			d.amount = 0.00
-		total_amount += flt(d.amount, 8)
-		total_count += 1
-		if d.payroll_time:
-			payroll_schedule = d.payroll_schedule
-			payroll_time = d.payroll_time
-		funding_account = d.funding_account
+		if flt(d.amount) > 0:
+			total_amount += flt(d.amount, 8)
+			total_count += 1
+			if d.payroll_time:
+				payroll_schedule = d.payroll_schedule
+				payroll_time = d.payroll_time
+			funding_account = d.funding_account
 
 	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
 		if filters.include_header:
@@ -329,14 +328,15 @@ def get_result_as_list(data, filters):
 		}
 		result.append(fields)
 		for d in data:
-			row = {
-				"detail": "D",
-				"employee_name": d.get("employee_name"),
-				"employee_account": d.get("employee_account"),
-				"amount": '{:,.2f}'.format(d.get("amount")),
-				"remarks": d.get("remarks"),
-			}
-			result.append(row)
+			if flt(d.amount) > 0:
+				row = {
+					"detail": "D",
+					"employee_name": d.get("employee_name"),
+					"employee_account": d.get("employee_account"),
+					"amount": '{:,.2f}'.format(d.get("amount")),
+					"remarks": d.get("remarks"),
+				}
+				result.append(row)
 		total = {
 			"amount": '{:,.2f}'.format(total_amount),
 			"employee": "TOTAL",
@@ -346,13 +346,14 @@ def get_result_as_list(data, filters):
 
 	elif filters.bank == "EastWest Bank":
 		for d in data:
-			row = {
-				"hdr": "DTL",
-				"account_number": d.get("employee_account"),
-				"amount": '{:,.2f}'.format(d.get("amount")),
-				"remarks": str(d.get("last_name"))+", "+str(d.get("first_name"))+", "+str(d.get("middle_name")),
-			}
-			result.append(row)
+			if flt(d.amount) > 0:
+				row = {
+					"hdr": "DTL",
+					"account_number": d.get("employee_account"),
+					"amount": '{:,.2f}'.format(d.get("amount")),
+					"remarks": str(d.get("last_name"))+", "+str(d.get("first_name"))+", "+str(d.get("middle_name")),
+				}
+				result.append(row)
 		total = {
 			"hdr": "TLR",
 			"account_number": total_count,
@@ -363,14 +364,15 @@ def get_result_as_list(data, filters):
 
 	elif filters.bank == "China Banking Corporation" or filters.bank == "Chinabank" or filters.bank == "China Bank" or filters.bank == "CBC":
 		for d in data:
-			row = {
-				"last_name" : d.get("last_name"),
-				"first_name" : d.get("first_name"),
-				"account_number" : d.get("employee_account"),
-				"account_type" : d.get("bank_type"),
-				"amount": '{:,.2f}'.format(d.get("amount")),
-			}
-			result.append(row)
+			if flt(d.amount) > 0:
+				row = {
+					"last_name" : d.get("last_name"),
+					"first_name" : d.get("first_name"),
+					"account_number" : d.get("employee_account"),
+					"account_type" : d.get("bank_type"),
+					"amount": '{:,.2f}'.format(d.get("amount")),
+				}
+				result.append(row)
 		total = {
 			"last_name" : "",
 			"first_name" : "",
@@ -383,15 +385,16 @@ def get_result_as_list(data, filters):
 	elif filters.bank == "Metrobank" or filters.bank == "Metro Bank" or filters.bank == "MB":
 		count = 1
 		for d in data:
-			row = {
-			"employee_code": count,
-			"employee_name": d.get("employee_name"),
-			"branch_code": d.get("branch_code"),
-			"payroll_acct_no": d.get("employee_account"),
-			"amount": '{:,.2f}'.format(d.get("amount")),
-			}
-			result.append(row)
-			count += 1
+			if flt(d.amount) > 0:
+				row = {
+					"employee_code": count,
+					"employee_name": d.get("employee_name"),
+					"branch_code": d.get("branch_code"),
+					"payroll_acct_no": d.get("employee_account"),
+					"amount": '{:,.2f}'.format(d.get("amount")),
+				}
+				result.append(row)
+				count += 1
 		total = {
 			"employee_code": "",
 			"employee_name": "",
@@ -403,13 +406,14 @@ def get_result_as_list(data, filters):
 
 	elif filters.bank == "Banco de Oro" or filters.bank == "BDO":
 		for d in data:
-			row = {
-				"account_number": d.get("employee_account"),
-				"amount": '{:,.2f}'.format(d.get("amount")),
-				"employee_name": d.get("employee_name"),
-				"remarks": d.get("remarks"),	
-			}
-			result.append(row)
+			if flt(d.amount) > 0:
+				row = {
+					"account_number": d.get("employee_account"),
+					"amount": '{:,.2f}'.format(d.get("amount")),
+					"employee_name": d.get("employee_name"),
+					"remarks": d.get("remarks"),	
+				}
+				result.append(row)
 		#total = {
 		#	"account_number": d.get("employee_account"),
 		#	"amount": '{:,.2f}'.format(d.get("amount")),
@@ -420,13 +424,14 @@ def get_result_as_list(data, filters):
 
 	else:
 		for d in data:
-			row = {
-				"employee": d.get("employee"),
-				"employee_name": d.get("employee_name"),
-				"amount": '{:,.2f}'.format(d.get("amount")),
-				"remarks": d.get("remarks"),
-			}
-			result.append(row)
+			if flt(d.amount) > 0:
+				row = {
+					"employee": d.get("employee"),
+					"employee_name": d.get("employee_name"),
+					"amount": '{:,.2f}'.format(d.get("amount")),
+					"remarks": d.get("remarks"),
+				}
+				result.append(row)
 		total = {
 			"employee": "TOTAL",
 			"employee_name": total_count,

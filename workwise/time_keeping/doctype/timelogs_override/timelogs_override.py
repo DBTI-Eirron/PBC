@@ -7,7 +7,7 @@ from frappe.model.document import Document
 from frappe	import _
 from frappe.utils import flt, getdate, formatdate, cstr, nowdate, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
-from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, 
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_all_dtrp,
 get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_datetime)
 
 class TimelogsOverride(Document):
@@ -169,6 +169,7 @@ class TimelogsOverride(Document):
 				shift_map = get_shift_map()
 				schedule = frappe.db.sql("""SELECT * FROM `tabWork Schedule` WHERE employee = %s AND target_date =%s""",(self.employee,d.target_date),as_dict=True)
 				overrides = []
+				dtrp = self.get_dtrp(self.employee, pay_from, pay_to)
 				for sched in schedule:
 					entry = get_defaults(emp, sched, shift_map, overrides)
 					datetime_in = sched['datetime_in']
@@ -178,7 +179,7 @@ class TimelogsOverride(Document):
 					end_pre_shift = datetime_in + datetime.timedelta(hours=end_preshift)
 					post_shift = datetime_out - datetime.timedelta(hours=setup_postshift)
 					end_post_shift = datetime_out + datetime.timedelta(hours=end_postshift)
-					cards_in, cards_out = get_card_within(pre_shift, end_pre_shift, post_shift, end_post_shift, timecard_list)
+					cards_in, cards_out = get_card_within(pre_shift, end_pre_shift, post_shift, end_post_shift, timecard_list, dtrp)
 					sorted_card_list = get_sorted_card(entry, cards_in, cards_out)
 					d.time_in = sorted_card_list['card_in']
 					d.break_in = sorted_card_list['break_in']
@@ -188,3 +189,13 @@ class TimelogsOverride(Document):
 					# d.o_break_in = sched['o_break_in']
 					# d.o_break_out = sched['o_break_out']
 					# d.o_time_out = sched['o_time_out']
+
+	def get_dtrp(self, employee, pay_from, pay_to):
+		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`
+			FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` 
+			WHERE DA.`workflow_state` = 'Approved' AND DA.employee = %s
+			AND DA.`target_date` >= %s AND DA.`target_date` <= %s
+			ORDER BY card_datetime """, (employee, pay_from, pay_to), as_dict=1)
+
+		return dtr_apps
