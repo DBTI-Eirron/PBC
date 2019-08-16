@@ -155,26 +155,27 @@ class CompensatoryTimeOff(Document):
 	def get_autobreak_hrs(self):
 		if self.is_new():
 			if not self.amended_from:
-				self.break_hrs = 0.00
+				if not self.break_hours:
+					self.break_hours = 0.00
 
 		if self.type == "Use":
 			schedule = get_schedule(self.employee, self.use_date, self.use_date)
 		else:
 			schedule = get_schedule(self.employee, self.date, self.date)
+			
 		if schedule:
 			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabCTO Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
 				if autobreak_setup:
+					self.break_hours, self.use_break_hours = 0.00, 0.00
 					for a in autobreak_setup:
 						if self.type == "Use":
 							if a.from_hrs <= self.use_total_hours <= a.to_hrs:
-								self.break_hrs = 0.00
 								self.use_break_hours = flt(a.break_mins, 2)/60
 								break
 						else:
 							if a.from_hrs <= self.total_hours <= a.to_hrs:
-								self.break_hrs = 0.00
 								self.break_hours = flt(a.break_mins, 2)/60
 								break
 

@@ -108,6 +108,7 @@ class OvertimeApplication(Document):
 			if shifts:
 				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabOvertime Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
 				if autobreak_setup:
+					self.break_hrs = 0.00
 					for a in autobreak_setup:
 						if flt(a.from_hrs) <= flt(total_hrs) <= flt(a.to_hrs):
 							self.break_hrs = flt(a.break_mins, 2)/60
