@@ -91,7 +91,7 @@ frappe.ui.form.on('Compensatory Time Off', {
 	},
 
 	validate_use_cto: function(frm) {
-		if(frm.doc.use_fromtime && frm.doc.use_totime && frm.doc.use_date && frm.doc.filed_cto) {
+		if(frm.doc.use_fromtime && frm.doc.use_totime && frm.doc.use_date ) {
 			return frappe.call({
 				method: "validate_use_cto",
 				doc: frm.doc,
