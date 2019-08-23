@@ -227,7 +227,8 @@ class CompensatoryTimeOff(Document):
 			if shifts:
 				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabCTO Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
 				if autobreak_setup:
-					self.break_hours, self.use_break_hours = 0.00, 0.00
+					self.break_hours = 0.00
+					self.use_break_hours = 0.00
 					for a in autobreak_setup:
 						if self.type == "Use":
 							if a.from_hrs <= self.use_total_hours <= a.to_hrs:
