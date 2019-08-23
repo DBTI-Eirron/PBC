@@ -8,10 +8,10 @@ from datetime import datetime, timedelta
 from frappe import _
 from frappe.utils import nowdate, get_time, flt, getdate
 from frappe.model.document import Document
-from workwise.time_keeping.attendance_utils import get_schedule
+from workwise.time_keeping.attendance_utils import get_schedule, get_ob_list
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs )
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
@@ -23,12 +23,14 @@ class CompensatoryTimeOff(Document):
 			self.validate_duplicate_file_cto()
 			self.validate_file_cto()
 			self.get_cto_workshift_file_setup()
+			self.validate_credits_earned()
 		if self.type == "Use":
 			self.validate_fields_use_cto()
 			self.validate_use_cto()
 			self.validate_date_use_cto()
 			self.validate_use_credits()
 			self.get_cto_workshift_use_setup()
+			self.validate_required_credits()
 		change_owner(self)
 
 	def on_submit(self):
@@ -45,10 +47,11 @@ class CompensatoryTimeOff(Document):
 		get_levelled_approval(self)
 
 	def on_update_after_submit(self):
-		emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-		if emp_app > 0:
-			if self.workflow_state == "Approved":
-				self.deduct_use_cto()
+		if self.type == "Use":
+			emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+			if emp_app > 0:
+				if self.workflow_state == "Approved":
+					self.deduct_use_cto()
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
@@ -96,6 +99,11 @@ class CompensatoryTimeOff(Document):
 	def validate_file_cto(self):
 		from_date = datetime.strptime(str(self.date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S')
 		to_date = datetime.strptime(str(self.date) + ' ' + str(self.to_time), '%Y-%m-%d %H:%M:%S')
+
+		cto_filed_credits_on_logs = frappe.db.get_single_value('Timekeeping Settings', 'cto_filed_credits_on_logs')
+		if cto_filed_credits_on_logs:
+			from_date, to_date = self.validate_cto_filed_credits_on_logs(from_date, to_date)
+
 		if from_date <= to_date:
 			total_hrs = to_date - from_date
 		else:
@@ -110,7 +118,7 @@ class CompensatoryTimeOff(Document):
 		if schedule:
 			for d in schedule:
 				if d['work_hours'] > 0:
-					work_hours = flt(['work_hours'])
+					work_hours = flt(d['work_hours'])
 				else:
 					work_hours = 8
 
@@ -125,9 +133,60 @@ class CompensatoryTimeOff(Document):
 
 		self.balance = flt(self.credits_earned,2) - flt(self.credits_used,2)
 
+	def validate_cto_filed_credits_on_logs(self, from_date, to_date):
+		tc_from_date, tc_to_date, ob_from_date, ob_to_date = None, None, None, None
+
+		time_in, time_out = get_current_logs(self.employee, getdate(self.date))
+		if (time_in) or (time_out):
+			tc_from_date = datetime.strptime(str(time_in), '%Y-%m-%d %H:%M:%S')
+			tc_to_date = datetime.strptime(str(time_out), '%Y-%m-%d %H:%M:%S')
+
+		obs = get_ob_list(self.employee, getdate(self.date), getdate(self.date), getdate(self.date), 0)
+		for ob in obs:
+			if ob_from_date:
+				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S') < ob_from_date:
+					ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
+			else:
+				ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
+
+			if ob_to_date:
+				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S') > ob_to_date:
+					ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
+			else:
+				ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
+
+		if tc_from_date:
+			from_date = tc_from_date
+		if ob_from_date:
+			from_date = ob_from_date
+		if tc_to_date:
+			to_date = tc_to_date
+		if ob_to_date:
+			to_date = ob_to_date
+		if (tc_from_date) and (ob_from_date):
+			if tc_from_date < ob_from_date:
+				from_date = tc_from_date
+			else:
+				from_date = ob_from_date
+		if (tc_to_date) and (ob_to_date):
+			if tc_to_date > ob_to_date:
+				to_date = tc_to_date
+			else:
+				to_date = ob_to_date
+
+		return from_date, to_date
+
 	def validate_fields_file_cto(self):
 		if not self.date:
 			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Date is required").format(self.name))
+
+	def validate_credits_earned(self):
+		if self.credits_earned <= 0:
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Credits Earned must be greater than 0").format(self.name))
+
+	def validate_required_credits(self):
+		if self.required_credits <= 0:
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Required Credits must be greater than 0").format(self.name))
 
 	def validate_duplicate_file_cto(self):
 		existing_application = frappe.db.sql("""SELECT DISTINCT `name`, `date`, from_time, to_time FROM `tabCompensatory Time Off` WHERE `employee` = %s AND `type` = "File" AND `date` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" LIMIT 1""",( self.employee, self.date ), as_dict=1)
@@ -168,7 +227,8 @@ class CompensatoryTimeOff(Document):
 			if shifts:
 				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabCTO Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
 				if autobreak_setup:
-					self.break_hours, self.use_break_hours = 0.00, 0.00
+					self.break_hours = 0.00
+					self.use_break_hours = 0.00
 					for a in autobreak_setup:
 						if self.type == "Use":
 							if a.from_hrs <= self.use_total_hours <= a.to_hrs:

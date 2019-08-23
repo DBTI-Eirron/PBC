@@ -359,3 +359,68 @@ def update_cardtype_in_dtrp(): #1.0.62
 			 WHEN `type`='Break Out' THEN 2
 			 WHEN `type`='Break In' THEN 3
 		END """,as_dict=True)
+
+def cto_fix(): #For Rephil Only
+	used_cto_dict = {}
+	uc_cnt = 0
+	ent_cnt = 0
+
+	fix_filed_cto = frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET credits_earned=total_hours/8 WHERE credits_earned = 0 """, as_dict=1)
+
+	used_cto_list = frappe.db.sql(""" SELECT CO.`name`, CO.`employee`, CO.`use_date`, CO.`required_credits` FROM `tabCompensatory Time Off` CO
+	WHERE CO.`name` NOT IN (SELECT `parent` FROM `tabCompensatory Time Off Table` GROUP BY `parent`)
+	AND CO.`type` = 'Use' AND CO.`workflow_state` = 'Approved' AND CO.`required_credits` > 0 """, as_dict=1)
+
+	filed_cto_list = frappe.db.sql(""" SELECT CO.`name`, CO.`employee`, CO.`date`, CO.`balance`, CO.`credits_used` FROM `tabCompensatory Time Off` CO
+	WHERE CO.`balance` > 0 AND CO.`type` = 'FILE' AND CO.`workflow_state` = 'Approved' GROUP BY CO.`name` ORDER BY CO.`employee`, CO.`date` DESC """, as_dict=1)
+
+	for used in used_cto_list:
+		if used.name not in used_cto_dict:
+			used_cto_dict[used.name] = flt(used.required_credits, 2)
+		used_cto_dict[used.name] += flt(used.required_credits, 2)
+
+	for uc in used_cto_list:
+		uc_cnt += 1
+		entries = []
+		req_credits = flt(uc.required_credits, 2)
+		for a in filed_cto_list:
+			cred_used = 0.0
+			if req_credits > 0: 
+				if flt(a.balance, 2) >= req_credits:
+					remain_bal = flt(a.balance, 2) - req_credits
+					cred_used = flt(a.credits_used, 2) + req_credits
+					req_credits = 0.0
+				else:
+					remain_bal = 0.0
+					req_credits = req_credits - flt(a.balance, 2)
+					cred_used = flt(a.balance, 2)
+				
+				row = {
+					"cto_name": str(uc.name),
+					"filed_cto": a.name,
+					"date": a.date,
+					"balance": flt(a.balance, 2),
+					"credits_used": cred_used
+				}
+				entries.append(row);
+				
+				frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (remain_bal, cred_used, a.name))
+				frappe.db.commit()
+			else:
+				break
+
+		if entries:
+			for ent in entries:
+				ent_cnt += 1
+				transaction = frappe.new_doc("Compensatory Time Off Table")
+				transaction.update({
+					"filed_cto": ent['filed_cto'],
+					"date": ent['date'],
+					"balance": ent['balance'],
+					"credits_used":ent['credits_used'],
+					"docstatus": 1,
+					"parent": ent['cto_name'],
+					"parentfield": 'use_cto_table',
+					"parenttype": 'Compensatory Time Off',
+				})
+				transaction.insert()

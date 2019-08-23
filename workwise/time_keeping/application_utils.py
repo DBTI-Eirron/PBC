@@ -1,9 +1,9 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from datetime import time, datetime, timedelta
-from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money, now_datetime
+from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money, now_datetime, add_to_date
 from frappe import _, msgprint
-from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card)
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card, get_all_dtrp)
 
 def grant_head_subordinate_access(self):
 	if self.is_new():
@@ -170,21 +170,38 @@ def get_cancelled_by_and_date(self):
 
 def get_current_logs(employee, target_date):
 	cin, cout = "", ""
-	schedule = frappe.db.sql("""SELECT work_shift FROM `tabWork Schedule` 
+	schedule = frappe.db.sql("""SELECT work_shift, datetime_in, datetime_out FROM `tabWork Schedule` 
 		WHERE employee = %(employee)s AND target_date = %(target_date)s ORDER BY target_date ASC""",{
 			"employee": employee, "target_date": target_date,
 		}, as_dict=True)
 
 	for d in schedule:
 		entry = {"card_in": "", "card_out": "", "override_in": "", "override_out": "", "break_out": "", "break_in": ""}
-		preshift, end_preshift, postshift, end_postshift = frappe.get_value("Work Shift", d.work_shift, ["setup_preshift","end_preshift", "setup_postshift", "end_postshift"])
+
+		shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s """,(d.work_shift), as_dict=True)
+		pre_shift = add_to_date(d.datetime_in, hours= (0 -  shift[0].setup_preshift) )
+		end_preshift = add_to_date(d.datetime_in, hours=  shift[0].end_preshift )
+		post_shift = add_to_date(d.datetime_out, hours= (0 -  shift[0].setup_postshift) )
+		end_postshift = add_to_date(d.datetime_out, hours= shift[0].end_postshift )
+
 		bio = frappe.get_value("Employee", employee, "biometrics_id")
 		timecard_list = get_timecard_list(bio, add_days(getdate(target_date), -1), add_days(getdate(target_date), +1))
-		cards_in, cards_out = get_card_within(preshift, end_preshift, postshift, end_postshift, timecard_list)
+		dtrp = get_dtrp(employee, add_days(getdate(target_date), -1), add_days(getdate(target_date), +1))
+		cards_in, cards_out = get_card_within(pre_shift, end_preshift, post_shift, end_postshift, timecard_list, dtrp)
 		get_sorted_card(entry, cards_in, cards_out)
 		cin, cout = entry.get('card_in'), entry.get('card_out')
 
 	return cin, cout 
+
+def get_dtrp(employee, pay_from, pay_to):
+		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`
+			FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` 
+			WHERE DA.`workflow_state` = 'Approved' AND DA.employee = %s
+			AND DA.`target_date` >= %s AND DA.`target_date` <= %s
+			ORDER BY card_datetime """, (employee, pay_from, pay_to), as_dict=1)
+
+		return dtr_apps
 
 def get_approver_email_list(self, event):
 	approver_recipients = []
