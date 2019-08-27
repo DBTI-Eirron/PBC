@@ -43,15 +43,20 @@ class CompensatoryTimeOff(Document):
 		get_approver_email_list(self, 'on_submit')
 
 	def before_update_after_submit(self):
-		get_approver_email_list(self, 'before_update_after_submit')
-		get_levelled_approval(self)
-
-	def on_update_after_submit(self):
 		if self.type == "Use":
 			emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 			if emp_app > 0:
-				if self.workflow_state == "Approved":
-					self.deduct_use_cto()
+				self.deduct_use_cto()
+
+		get_approver_email_list(self, 'before_update_after_submit')
+		get_levelled_approval(self)
+
+	#def on_update_after_submit(self):
+	#	if self.type == "Use":
+	#		emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+	#		if emp_app > 0:
+	#			if self.workflow_state == "Approved":
+	#				self.deduct_use_cto()
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
@@ -131,7 +136,7 @@ class CompensatoryTimeOff(Document):
 			else:
 				self.credits_earned = flt(self.total_hours,2)/flt(work_hours, 2)
 
-		self.balance = flt(self.credits_earned,2) - flt(self.credits_used,2)
+		self.balance = self.credits_earned - self.credits_used
 
 	def validate_cto_filed_credits_on_logs(self, from_date, to_date):
 		tc_from_date, tc_to_date, ob_from_date, ob_to_date = None, None, None, None
@@ -272,13 +277,13 @@ class CompensatoryTimeOff(Document):
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
 		if cto_validity > 0:
-			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -%(cto_validity)s DAY)) "
+			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -"+int(cto_validity)+" DAY)) "
 		else:
 			cto_validity_condition = ""
 
 		if cto_use_type == "Day":
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s {conditions} """.format(conditions=cto_validity_condition),{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s AND `balance` > 0 {conditions} """.format(conditions=cto_validity_condition),{
 				"employee": self.employee,
 				"filed_cto": self.filed_cto,
 				"use_date": getdate(self.use_date),
@@ -286,25 +291,25 @@ class CompensatoryTimeOff(Document):
 			}, as_dict=True)
 		else:
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved' {conditions} ORDER BY `date` DESC""".format(conditions=cto_validity_condition),{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved' AND `balance` > 0 {conditions} ORDER BY `date` ASC """.format(conditions=cto_validity_condition),{
 				"employee": self.employee,
-				"use_date": self.use_date,
+				"use_date": getdate(self.use_date),
 				"cto_validity": cto_validity,
 			}, as_dict=True)
 
 		if current_credits:
 			for d in current_credits:
-				total_credits_earned += flt(d.cred_balance, 2)
+				total_credits_earned += d.cred_balance
 				date_list.append(d.date)
 
 			last_date = date_list[-1]
 
-		self.total_credits_earned = total_credits_earned	
+		self.total_credits_earned = total_credits_earned
 		
 		return last_date
 
 	def validate_use_credits(self):
-		if flt(self.required_credits, 2) > flt(self.total_credits_earned, 2):
+		if self.required_credits > self.total_credits_earned:
 			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You dont have enough credits").format(self.name))
 
 	def validate_date_use_cto(self):
@@ -315,47 +320,71 @@ class CompensatoryTimeOff(Document):
 
 	def deduct_use_cto(self):
 		entries = [] 
-		req_credits = flt(self.required_credits, 2)
+		req_credits = self.required_credits
 
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
+		if cto_validity > 0:
+			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -"+int(cto_validity)+" DAY)) "
+		else:
+			cto_validity_condition = ""
+
 		if cto_use_type == "Day":
 			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %s AND (%s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -%s DAY) ) """,( self.employee, self.filed_cto, self.use_date, cto_validity ), as_dict=1)
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s AND `balance` > 0 {conditions} """.format(conditions=cto_validity_condition),{
+				"employee": self.employee,
+				"filed_cto": self.filed_cto,
+				"use_date": getdate(self.use_date),
+				"cto_validity": cto_validity,
+				}, as_dict=True)
 		else:
 			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `balance` > 0 AND (%s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -%s DAY) ) ORDER BY `date` DESC""",( self.employee, self.use_date, cto_validity ), as_dict=1)
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `balance` > 0 {conditions} ORDER BY `date` ASC""".format(conditions=cto_validity_condition),{
+				"employee": self.employee,
+				"use_date": getdate(self.use_date),
+				"cto_validity": cto_validity,
+				}, as_dict=True)
 
 		if filed_cto:
+			#Validate credits
+			fc_credits_earned = 0.00
+			for fc in filed_cto:
+				fc_credits_earned += fc.balance
+			if fc_credits_earned < req_credits:
+				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You dont have enough credits").format(self.name))
+			#Map CTO
 			for a in filed_cto:
-				cred_used = 0.0
 				if req_credits > 0: 
-					if a.balance >= req_credits:
-						remain_bal = a.balance - req_credits
-						cred_used = a.credits_used + req_credits
-						req_credits = 0.0
-					else:
-						remain_bal = 0.0
-						req_credits = req_credits - a.balance
-						cred_used = a.balance
-					
-					row = {
-						"filed_cto": a.name,
-						"date": a.date,
-						"balance": a.balance,
-						"credits_used": cred_used
-					}
-					entries.append(row);
-					
-					frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (remain_bal, cred_used, a.name))
-					frappe.db.commit()
+					cred_used = 0.0
+					if a.balance > 0:
+						if a.balance >= req_credits:
+							remain_bal = a.balance - req_credits
+							cred_used = a.credits_used + req_credits
+							req_credits = 0.0
+						else:
+							remain_bal = 0.0
+							req_credits = req_credits - a.balance
+							cred_used = a.balance
+						
+						row = {
+							"filed_cto": a.name,
+							"date": a.date,
+							"balance": a.balance,
+							"credits_used": cred_used - flt(a.balance, 2) if cred_used > a.balance else cred_used
+						}
+						entries.append(row);
+						
+						frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (remain_bal, cred_used, a.name))
+						frappe.db.commit()
 				else:
 					break
 
 			for d in entries:
 				row = self.append('use_cto_table', {})
 				row.update(d)
-				row.save(d)
+				#row.save(d)
+		else:
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You dont have enough credits").format(self.name))
 
 	#Cancel Use CTO
 	def revert_credit_deductions(self):

@@ -365,49 +365,45 @@ def cto_fix(): #For Rephil Only
 	uc_cnt = 0
 	ent_cnt = 0
 
-	fix_filed_cto = frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET credits_earned=total_hours/8 WHERE credits_earned = 0 """, as_dict=1)
-
-	used_cto_list = frappe.db.sql(""" SELECT CO.`name`, CO.`employee`, CO.`use_date`, CO.`required_credits` FROM `tabCompensatory Time Off` CO
-	WHERE CO.`name` NOT IN (SELECT `parent` FROM `tabCompensatory Time Off Table` GROUP BY `parent`)
-	AND CO.`type` = 'Use' AND CO.`workflow_state` = 'Approved' AND CO.`required_credits` > 0 """, as_dict=1)
-
-	filed_cto_list = frappe.db.sql(""" SELECT CO.`name`, CO.`employee`, CO.`date`, CO.`balance`, CO.`credits_used` FROM `tabCompensatory Time Off` CO
-	WHERE CO.`balance` > 0 AND CO.`type` = 'FILE' AND CO.`workflow_state` = 'Approved' GROUP BY CO.`name` ORDER BY CO.`employee`, CO.`date` DESC """, as_dict=1)
-
-	for used in used_cto_list:
-		if used.name not in used_cto_dict:
-			used_cto_dict[used.name] = flt(used.required_credits, 2)
-		used_cto_dict[used.name] += flt(used.required_credits, 2)
-
+	used_cto_list = frappe.db.sql(""" SELECT * FROM `tabCompensatory Time Off` CO WHERE  CO.`type` = 'Use' AND CO.`workflow_state` = 'Approved' AND CO.`required_credits` > 0 """, as_dict=1)
 	for uc in used_cto_list:
 		uc_cnt += 1
 		entries = []
 		req_credits = flt(uc.required_credits, 2)
-		for a in filed_cto_list:
-			cred_used = 0.0
-			if req_credits > 0: 
-				if flt(a.balance, 2) >= req_credits:
-					remain_bal = flt(a.balance, 2) - req_credits
-					cred_used = flt(a.credits_used, 2) + req_credits
-					req_credits = 0.0
+		req_cr = 0.00
+		ucto_trans = frappe.db.sql(""" SELECT * FROM `tabCompensatory Time Off Table` WHERE `parent` = %s """,(uc.name), as_dict=1)
+		for trn in ucto_trans:
+			req_cr += trn.credits_used
+
+		if flt(req_credits, 2) != flt(req_cr, 2):
+			filed_ctos = frappe.db.sql(""" SELECT * FROM `tabCompensatory Time Off` WHERE `employee` = %s AND `balance` > 0 AND `type` = 'FILE' AND `workflow_state` = 'Approved' GROUP BY `name` 
+			ORDER BY `employee`, `date` DESC """,(uc.employee), as_dict=1)
+			for a in filed_ctos:
+				cred_used = 0.0
+				if a.balance > 0:
+					if req_credits > 0: 
+						if flt(a.balance, 2) >= req_credits:
+							remain_bal = flt(a.balance, 2) - req_credits
+							cred_used = flt(a.credits_used, 2) + req_credits
+							req_credits = 0.0
+						else:
+							remain_bal = 0.0
+							req_credits = req_credits - flt(a.balance, 2)
+							cred_used = flt(a.balance, 2)
+						
+						row = {
+							"cto_name": str(uc.name),
+							"filed_cto": a.name,
+							"date": a.date,
+							"balance": flt(a.balance, 2),
+							"credits_used": cred_used - flt(a.balance, 2) if cred_used > a.balance else cred_used
+						}
+						entries.append(row);
+						
+						frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (remain_bal, cred_used, a.name))
+						frappe.db.commit()
 				else:
-					remain_bal = 0.0
-					req_credits = req_credits - flt(a.balance, 2)
-					cred_used = flt(a.balance, 2)
-				
-				row = {
-					"cto_name": str(uc.name),
-					"filed_cto": a.name,
-					"date": a.date,
-					"balance": flt(a.balance, 2),
-					"credits_used": cred_used
-				}
-				entries.append(row);
-				
-				frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (remain_bal, cred_used, a.name))
-				frappe.db.commit()
-			else:
-				break
+					break
 
 		if entries:
 			for ent in entries:
@@ -424,3 +420,27 @@ def cto_fix(): #For Rephil Only
 					"parenttype": 'Compensatory Time Off',
 				})
 				transaction.insert()
+				frappe.db.commit()
+
+def cto_transaction_fix(): #For Rephil Only
+	fix_filed_cto = frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET credits_earned=total_hours/8 WHERE credits_earned <= 0 AND type = 'File' """)
+	frappe.db.commit()
+
+	use_cto_list = frappe.db.sql(""" SELECT CO.`name`, CO.`employee` FROM `tabCompensatory Time Off` CO
+	WHERE CO.`workflow_state` = 'Approved' AND CO.`type` = 'Use' """, as_dict=1)
+
+	for use in use_cto_list:
+		use_transaction = frappe.db.sql(""" SELECT * FROM `tabCompensatory Time Off Table` WHERE `parent` = %s """,(use.name), as_dict=1)
+		for trn in use_transaction:
+			if trn.name != use.name:
+				filed_cto_list = frappe.db.sql(""" SELECT `name` FROM `tabCompensatory Time Off` WHERE `name` = %s AND type = 'File' LIMIT 1 """,(trn.filed_cto), as_dict=1)
+				for a in filed_cto_list:
+					if use.employee != a.employee:
+						frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET credits_used = credits_used - %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (trn.credits_used, trn.filed_cto))
+						frappe.db.commit()
+
+						frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = (credits_earned - credits_used) WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (trn.filed_cto))
+						frappe.db.commit()
+
+						frappe.db.sql(""" DELETE FROM `tabCompensatory Time Off Table` WHERE filed_cto = %s AND `date` = %s """, (trn.filed_cto, trn.date))
+						frappe.db.commit()

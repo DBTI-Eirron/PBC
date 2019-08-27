@@ -680,7 +680,7 @@
   }, 
   {
    "allow_bulk_edit": 0, 
-   "allow_on_submit": 0, 
+   "allow_on_submit": 1, 
    "bold": 0, 
    "collapsible": 0, 
    "columns": 0, 
@@ -981,7 +981,7 @@
   }, 
   {
    "allow_bulk_edit": 0, 
-   "allow_on_submit": 0, 
+   "allow_on_submit": 1, 
    "bold": 0, 
    "collapsible": 0, 
    "columns": 0, 
@@ -1534,7 +1534,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2019-07-31 17:56:23.344828", 
+ "modified": "2019-08-27 17:08:17.227642", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Compensatory Time Off", 
