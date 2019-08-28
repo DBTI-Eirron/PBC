@@ -403,8 +403,9 @@ class PayrollProcessing(Document):
 					elif emp.get('sss_freq') == 'Both':
 							target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
 								(header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
-					
-				sss, ssse, sssc = get_sss_amount(target_amt, sss_table)
+								
+				#Round target_amt to against SSS table	
+				sss, ssse, sssc = get_sss_amount(flt(target_amt, 2), sss_table)
 				for l in sss_list:
 					if emp.get('sss_freq') == "Both" and self.schedule == "Weekly":
 						amt = flt(eval(l), 8) / 2
