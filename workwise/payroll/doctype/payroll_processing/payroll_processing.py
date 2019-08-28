@@ -1045,7 +1045,6 @@ class PayrollProcessing(Document):
 						if emp.get("rate_type") == "Hourly Rate":
 							hour_bs = ((WK_days - AT_days) * at.work_hours) * flt(rates.get('hourly_rate'), 8)
 							hourly_basic += hour_bs
-							test.append(_("{0}_{1}_{2} hrs").format(at.target_date, hour_bs, (WK_days - AT_days) * at.work_hours))
 
 						#Check if employee has attendance
 						if at.work:
