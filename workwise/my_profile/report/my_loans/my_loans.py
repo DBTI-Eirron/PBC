@@ -66,8 +66,7 @@ def get_columns(filters):
 			{
 				"fieldname": "loan_application",
 				"label": _("Loan Application"),
-				"fieldtype": "Link",
-				"options": "Loan Application",
+				"fieldtype": "Data",
 				"width": 140
 			},	
 		]
