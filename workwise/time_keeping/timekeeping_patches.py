@@ -444,3 +444,59 @@ def cto_transaction_fix(): #For Rephil Only
 
 						frappe.db.sql(""" DELETE FROM `tabCompensatory Time Off Table` WHERE filed_cto = %s AND `date` = %s """, (trn.filed_cto, trn.date))
 						frappe.db.commit()
+
+def cto_hard_reset():
+	fix_filed_cto = frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET balance=credits_earned, credits_used=0 WHERE `type` = 'File' """)
+	truncate_cto = frappe.db.sql(""" TRUNCATE `tabCompensatory Time Off Table` """)
+
+	use_cto = frappe.db.sql(""" SELECT * FROM `tabCompensatory Time Off` WHERE `type` = 'Use' AND `workflow_state` = 'Approved' GROUP BY `name` ORDER BY `employee`, `use_date` ASC """, as_dict=1)
+	for uc in use_cto:
+		entries = []
+		req_credits = uc.required_credits
+
+		filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` 
+		WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `balance` > 0 GROUP BY `name` ORDER BY `date` ASC""",{
+		"employee": uc.employee,
+		"use_date": getdate(uc.use_date),
+		}, as_dict=True)
+		
+		if filed_cto:
+			for a in filed_cto:
+				if req_credits > 0: 
+					cred_used = 0.0
+					if a.balance > 0:
+						if flt(a.balance) >= flt(req_credits):
+							remain_bal = a.balance - req_credits
+							cred_used = req_credits
+							req_credits = req_credits - cred_used
+						else:
+							remain_bal = 0.00
+							cred_used = a.balance
+							req_credits = req_credits - cred_used
+
+						frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET `credits_used` = %s WHERE `name` = %s """,( flt(a.credits_used)+flt(cred_used), a.name))
+						frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET `balance` = credits_earned-credits_used WHERE `name` = %s """,(a.name))
+						row = {
+							"cto_name": uc.name,
+							"filed_cto": a.name,
+							"date": a.date,
+							"balance": a.balance,
+							"credits_used": cred_used
+						}
+						entries.append(row);
+
+		if entries:
+			for ent in entries:
+				transaction = frappe.new_doc("Compensatory Time Off Table")
+				transaction.update({
+					"filed_cto": ent['filed_cto'],
+					"date": ent['date'],
+					"balance": ent['balance'],
+					"credits_used":ent['credits_used'],
+					"docstatus": 1,
+					"parent": ent['cto_name'],
+					"parentfield": 'use_cto_table',
+					"parenttype": 'Compensatory Time Off',
+				})
+				transaction.insert()
+				frappe.db.commit()

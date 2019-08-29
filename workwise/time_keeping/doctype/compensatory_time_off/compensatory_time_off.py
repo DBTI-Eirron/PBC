@@ -357,24 +357,25 @@ class CompensatoryTimeOff(Document):
 				if req_credits > 0: 
 					cred_used = 0.0
 					if a.balance > 0:
-						if a.balance >= req_credits:
+						if flt(a.balance) >= flt(req_credits):
 							remain_bal = a.balance - req_credits
-							cred_used = a.credits_used + req_credits
-							req_credits = 0.0
+							cred_used = req_credits
+							req_credits = req_credits - cred_used
 						else:
-							remain_bal = 0.0
-							req_credits = req_credits - a.balance
+							remain_bal = 0.00
 							cred_used = a.balance
+							req_credits = req_credits - cred_used
 						
 						row = {
 							"filed_cto": a.name,
 							"date": a.date,
 							"balance": a.balance,
-							"credits_used": cred_used - flt(a.balance, 2) if cred_used > a.balance else cred_used
+							"credits_used": cred_used
 						}
 						entries.append(row);
 						
-						frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = %s, credits_used = %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (remain_bal, cred_used, a.name))
+						frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET `credits_used` = %s WHERE `name` = %s """,( flt(a.credits_used)+flt(cred_used), a.name))
+						frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET `balance` = credits_earned-credits_used WHERE `name` = %s """,(a.name))
 						frappe.db.commit()
 				else:
 					break
