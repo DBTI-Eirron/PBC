@@ -1,0 +1,50 @@
+{% 	var l_len = data.length - 1;
+	if (filters.include_header == 1) {
+	var col_lbl = 3;
+	var dat_lbl = 4;
+%}
+	<p>{%= data[0]["employee"] %}</p>
+	<p>{%= data[1]["employee"] %}</p>
+	{% 
+		if(filters.location) {
+		col_lbl = 4;
+		dat_lbl = 5;
+	%}
+		<p>{%= data[2]["employee"] %}</p>
+	{%	
+		}
+	%}
+	<table class="table table-bordered">
+		<tr>
+		{% for(var x=0, z=data[l_len]["columns_labels"].length; x<z; x++) { %}
+			<th>{%= data[col_lbl][ String(data[l_len]["columns_names"][x]) ] %}</th>
+		{% } %}
+		</tr>
+		{% for(var i=dat_lbl, l=l_len; i<l; i++) { %}
+			<tr>
+				{% for(var c=0, f=data[l_len]["columns_names"].length; c<f; c++) { %}
+					<td>{%= data[i][ String(data[l_len]["columns_names"][c]) ] %}</td>
+				{% } %}
+			</tr>
+		{% } %}
+	</table>
+{%
+	}else{
+%}
+	<table class="table table-bordered">
+		<tr>
+		{% for(var x=0, z=data[l_len]["columns_labels"].length; x<z; x++) { %}
+			<th>{%= data[l_len]["columns_labels"][x] %}</th>
+		{% } %}
+		</tr>
+		{% for(var i=0, l=l_len; i<l; i++) { %}
+			<tr>
+				{% for(var c=0, f=data[l_len]["columns_names"].length; c<f; c++) { %}
+					<td>{%= data[i][ String(data[l_len]["columns_names"][c]) ] %}</td>
+				{% } %}
+			</tr>
+		{% } %}
+	</table>
+{%
+	}
+%}

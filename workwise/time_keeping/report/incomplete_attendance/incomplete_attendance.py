@@ -64,11 +64,11 @@ def get_result(filters):
 
 	return result
 
-def get_register(emp, pay_from, pay_to):
-	register = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
-		WHERE employee = %(employee)s AND target_date >= %(from_date)s AND target_date <= %(to_date)s AND (late > 0 OR undertime > 0 OR is_absent = 1)
-		ORDER BY target_date ASC""",{
-			"employee": emp,
+def get_register(filters, pay_from, pay_to):
+	register = frappe.db.sql("""SELECT AR.target_date, AR.work_shift, AR.card_in, AR.card_out, AR.employee, TE.full_name, AR.is_absent, AR.late, AR.undertime
+		FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.`employee` = TE.`name`
+		WHERE AR.target_date >= %(from_date)s AND AR.target_date <= %(to_date)s {conditions}
+		ORDER BY TE.full_name, AR.target_date ASC""".format(conditions=get_conditions(filters)),{
 			"from_date": pay_from,
 			"to_date": pay_to,
 		}, as_dict=True)
@@ -78,90 +78,68 @@ def get_register(emp, pay_from, pay_to):
 def get_data(filters):
 	#Initialize
 	data = []
-	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["from_date", "to_date"])
-	employees = get_employees(filters)
-	data.append({
-		"emp_name":"<b>Company: </b>"+filters.company+"",
-	})
-	if filters.department:
-		data.append({
-			"emp_name":"<b>Department: </b>"+filters.department+"</b>",
-		})
-	data.append({
-		"emp_name":"<b>Period: </b>"+cstr(filters.payroll_period)+"</b>",
-	})
+	data_entry = {}
+	#pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["from_date", "to_date"])
+	pay_from = getdate(filters.from_date)
+	pay_to = getdate(filters.to_date)
 
+	data.append({	"emp_name":"<b>Company: </b>"+filters.company+"",	})
+	if filters.department:
+		data.append({	"emp_name":"<b>Department: </b>"+filters.department+"</b>",	})
+	data.append({	"emp_name":"<b>Period: </b>"+cstr(filters.payroll_period)+"</b>",	})
 	data.append({})
 
-	for emp in employees:
-		register = get_register(emp.name, pay_from, pay_to)
-		if register:
-			data.append({
-				"emp_name":"<b>Employee Name: </b>"+cstr(emp.full_name)+"</b>",
-			})
-			data.append({
-				"emp_name":"<b>ID Number: </b>"+cstr(emp.name)+"</b>",
-			})
-			
-			for r in register:
-				emp_late = 0
-				schedule = ""
-				schedule = frappe.db.sql("""SELECT *
-					FROM `tabWork Schedule` 
-					WHERE employee = %(employee)s AND target_date = %(date)s
-					ORDER BY target_date ASC""",{
-						"employee": r.employee,
-						"date": r.target_date,
-				}, as_dict=True)
-				for s in schedule:
-					shift = ""
-					shift = frappe.db.sql("""SELECT *
-						FROM `tabWork Shift` WHERE `name` = %(w_shift)s """,{
-						"w_shift": r.work_shift,
-					}, as_dict=True)
-					for w in shift:
-						if r.is_leave != 0 and r.is_holiday != 0 and r.is_ob != 0 and r.is_lwop != 0:
-							if r.card_in > s.time_in + datetime.timedelta(minutes=w.grace):
-								if frappe.db.get_single_value('Timekeeping Settings', 'graceperiod_late'):
-									emp_late += ( r.card_in - (s.time_in + datetime.timedelta(minutes=w.grace))  ).total_seconds()
-								else:
-									emp_late += (r.card_in - s.time_in).total_seconds()
-						if r.late > 0:
-							emp_late = 1
+	register = get_register(filters, pay_from, pay_to)
+	if register:
+		for reg in register:
+			tags = ""
+			if reg.is_absent > 0 or reg.late > 0 or reg.undertime > 0:
+				if reg.employee not in data_entry:
+					data_entry[cstr(reg.employee)] = {
+						"employee": cstr(reg.employee),
+						"employee_name": cstr(reg.full_name),
+						"incomlete_attendance": {}
+					}
 
-				tags = ""
-				if (emp_late > 0) or (r.undertime > 0) or (r.is_absent == 1):
-					tags += " <span class='label label-danger'> Late </span> " if emp_late > 0 else ""
-					tags += " <span class='label label-danger'> Undertime </span> " if 	r['undertime'] > 0 else ""
-					if 	r.is_absent == 1:
-						tags += " <span class='label label-danger'> Absent </span> "
+				tags += " <span class='label label-danger'> Late </span> " if reg.late > 0 else ""
+				tags += " <span class='label label-danger'> Undertime </span> " if reg.undertime > 0 else ""
+				tags += " <span class='label label-danger'> Absent </span> " if reg.is_absent > 0 else ""
 
-					if tags and tags != "":
-						data.append({
-							"date": r.target_date,
-							"shift": r.work_shift,
-							"time_in": r.card_in,
-							"time_out": r.card_out,
-							"particulars": tags,
-						})	
+				data_entry[reg.employee]['incomlete_attendance'][reg.target_date] = {
+					"date": reg.target_date,
+					"shift": reg.work_shift,
+					"time_in": reg.card_in,
+					"time_out": reg.card_out,
+					"particulars": tags,
+				}
+		#frappe.throw(_(sorted(data_entry.items(), key=lambda x: x['employee_name'])))
+		for dat in data_entry:
+			data.append({	"emp_name":"<b>Employee Name: </b>"+cstr(data_entry[dat]['employee_name'])+"</b>",	})
+			data.append({	"emp_name":"<b>ID Number: </b>"+cstr(dat)+"</b>",	})
+
+			for i in sorted(data_entry[dat]['incomlete_attendance']):
+				data.append({
+					"date": data_entry[dat]['incomlete_attendance'][i]['date'],
+					"shift": data_entry[dat]['incomlete_attendance'][i]['shift'],
+					"time_in": data_entry[dat]['incomlete_attendance'][i]['time_in'],
+					"time_out": data_entry[dat]['incomlete_attendance'][i]['time_out'],
+					"particulars": data_entry[dat]['incomlete_attendance'][i]['particulars'],
+				})
 
 	return data
-
-def get_employees(filters):
-	register = frappe.db.sql("""SELECT `name`, full_name FROM `tabEmployee` 
-		WHERE company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
-
-	return register
 
 def get_conditions(filters):
 	conditions = []
 	if filters.get("employee"):
-		conditions.append("`name`=%(employee)s")
+		conditions.append("AR.`employee`='{0}'".format(filters.employee))
 
 	if filters.get("department"):
-		conditions.append("department=%(department)s")
+		conditions.append("TE.`department`='{0}'".format(filters.department))
 
-	return "and {}".format(" and ".join(conditions)) if conditions else "" 
+	if filters.get("company"):
+		conditions.append("TE.`company`='{0}'".format(filters.company))
+
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 def get_result_as_list(data, filters):
 	result = []
