@@ -4,35 +4,43 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
+from datetime import timedelta
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import get_schedule
 
 def execute(filters=None):
-	columns = get_columns(filters)
-	results = get_result(filters)
+	columns, results = [], []
+	if filters.employee or filters.period_group or filters.location or filters.department or filters.position_title:
+		columns = get_columns(filters)
+		results = get_result(filters)
 
 	return columns, results
 
 def get_columns(filters):
 	columns = [
 		{
+			"fieldname": "target_date",
+			"label": _("Date"),
+			"fieldtype": "Data",
+			"width": 260
+		},
+		{
 			"fieldname": "work_shift",
 			"label": _("Shift"),
 			"fieldtype": "Link",
 			"options": "Work Shift",
-			"width": 140
+			"width": 180
 		},
-		{
-			"fieldname": "pre_shift",
-			"label": _("PRE"),
-			"fieldtype": "Data",
-			"width": 140
-		},
-
+		#{
+		#	"fieldname": "pre_shift",
+		#	"label": _("PRE"),
+		#	"fieldtype": "Data",
+		#	"width": 140
+		#},
 		{
 			"fieldname": "time_in",
-			"label": _("Time IN"),
+			"label": _("Time In"),
 			"fieldtype": "Data",
 			"width": 140
 		},
@@ -54,12 +62,12 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 140
 		},
-		{
-			"fieldname": "post_shift",
-			"label": _("POST"),
-			"fieldtype": "Data",
-			"width": 140
-		},
+		#{
+		#	"fieldname": "post_shift",
+		#	"label": _("POST"),
+		#	"fieldtype": "Data",
+		#	"width": 140
+		#},
 	]
 
 	return columns
@@ -74,21 +82,138 @@ def get_result(filters):
 def get_data(filters):
 	#Initialize
 	data = []
-
+	employee_schedule = {}
+	employee_list = []
+	shift_map = {}
+	shift_list = []
+	template_map = {}
 	pay_from, pay_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
-	schedule = get_schedule(filters.employee, pay_from, pay_to)
-	for sched in schedule:
-		pre_shift, post_shift = frappe.db.get_value("Work Shift", sched['work_shift'], ["setup_preshift", "end_postshift"]) 
+	pay_to = getdate(pay_to)
+	pay_from = getdate(pay_from)
+	employees = get_employees(filters)
+	if not employees:
+		return frappe.throw(_("No Record Found"))
+
+	#Get Work Sched Template
+	templates = frappe.db.sql("""SELECT `name`, monday, tuesday, wednesday, thursday, friday, saturday, sunday FROM `tabWork Schedule Template` """,as_dict=True)
+	for t in templates:
+		template_map[t.name]={
+			"0":t.monday,
+			"1":t.tuesday,
+			"2":t.wednesday,
+			"3":t.thursday,
+			"4":t.friday,
+			"5":t.saturday,
+			"6":t.sunday
+		}
+
+	#Get Shift Map
+	shifts = frappe.db.sql("""SELECT * FROM `tabWork Shift` """, as_dict=True)
+	for d in shifts:
+		shift_map[d.name] = {
+			"work_shift": d['name'],
+			"shift_type": d['work_shift_type'],
+			"time_in": d['time_in'],
+			"time_out": d['time_out'],
+			"break_start": d['break_start'],
+			"break_end": d['break_end'],
+			"pre_shift": add_to_date( d['time_in'], hours = (0 - d['setup_preshift']) ),
+			"post_shift": add_to_date( d['time_out'], hours = d['end_postshift'] ),
+		}
+		shift_list.append(d.name)
+
+	#Set Default
+	for emp in employees:
+		employee_schedule[cstr(emp.name)] = {
+			"employee_name": cstr(emp.full_name),
+			"default_schedule": cstr(emp.default_schedule),
+		}
+		employee_list.append(emp.name)
+		for target_date in daterange(pay_from, pay_to):
+			employee_schedule[emp.name][target_date] = None
+	
+	#Get Change Schedule Application
+	cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
+		FROM `tabChange Schedule Application` CSA INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
+		WHERE CSA.docstatus = 1 AND CSA.workflow_state = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s """,(pay_from, pay_to), as_dict=1)
+	for d in cs_apps:
+		if d.employee in employee_list:
+			employee_schedule[d['employee']][d['target_date']] = {
+				"target_date": d['target_date'],
+				"work_shift": d['new_shift'],
+				"pre_shift": shift_map[d['new_shift']]['pre_shift'],
+				"post_shift": shift_map[d['new_shift']]['post_shift'],
+				"time_in": get_date(d['target_date'], shift_map[d['new_shift']]['time_in'], shift_map[d['new_shift']]['time_out'], shift_map[d['new_shift']]['shift_type'], 0),
+				"time_out": get_date(d['target_date'], shift_map[d['new_shift']]['time_in'], shift_map[d['new_shift']]['time_out'], shift_map[d['new_shift']]['shift_type'], 1),
+				"break_start": get_date(d['target_date'], shift_map[d['new_shift']]['break_start'], shift_map[d['new_shift']]['break_end'], shift_map[d['new_shift']]['shift_type'], 0),
+				"break_end": get_date(d['target_date'], shift_map[d['new_shift']]['break_start'], shift_map[d['new_shift']]['break_end'], shift_map[d['new_shift']]['shift_type'], 1),
+			}
+
+	#Get Work Schedule
+	for emp in employees:
+		schedule = frappe.db.sql("""SELECT employee, company, work_shift, target_date, datetime_in, datetime_out, break_start, break_end
+			FROM `tabWork Schedule` WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s AND employee = %(employee)s
+			ORDER BY target_date ASC""",{
+			"from_date": pay_from, "to_date": pay_to, "employee": cstr(emp.name),
+		}, as_dict=True)
+		
+		for d in schedule:
+			if emp.name in employee_list:
+				if employee_schedule[d.employee][d.target_date] == None:
+					employee_schedule[d.employee][d.target_date] = {
+						"target_date": d['target_date'],
+						"work_shift": d['work_shift'],
+						"time_in": d['datetime_in'],
+						"time_out": d['datetime_out'],
+						"break_start": d['break_start'],
+						"break_end": d['break_end'],
+						"pre_shift": shift_map[d['work_shift']]['pre_shift'],
+						"post_shift": shift_map[d['work_shift']]['post_shift'],
+					}
+
+	#Get Default Schedule
+	for emp in employee_schedule:
+		for target_date in daterange(pay_from, pay_to):
+			if employee_schedule[emp][target_date] == None:
+				template_work_shift = template_map[employee_schedule[emp]['default_schedule']][str(target_date.weekday())]
+				employee_schedule[emp][d.target_date] = {
+					"target_date": target_date,
+					"work_shift": template_work_shift,
+					"time_in": get_date(target_date, shift_map[template_work_shift]['time_in'], shift_map[template_work_shift]['time_out'], shift_map[template_work_shift]['shift_type'], 0),
+					"time_out": get_date(target_date, shift_map[template_work_shift]['time_in'], shift_map[template_work_shift]['time_out'], shift_map[template_work_shift]['shift_type'], 1),
+					"break_start": get_date(target_date, shift_map[template_work_shift]['break_start'], shift_map[template_work_shift]['break_end'], shift_map[template_work_shift]['shift_type'], 0),
+					"break_end": get_date(target_date, shift_map[template_work_shift]['break_start'], shift_map[template_work_shift]['break_end'], shift_map[template_work_shift]['shift_type'], 1),
+					"pre_shift": shift_map[template_work_shift]['pre_shift'],
+					"post_shift": shift_map[template_work_shift]['post_shift'],
+				}
+	
+	#Set Data Entry
+	for emp in employees:
 		entry = {
-			"work_shift": sched['work_shift'],
-			"time_in": sched['datetime_in'],
-			"time_out": sched['datetime_out'],
-			"break_start": sched['break_start'],
-			"break_end": sched['break_end'],
-			"pre_shift": add_to_date(sched['datetime_in'], hours=(0 - pre_shift) ),
-			"post_shift": add_to_date(sched['datetime_out'], hours=post_shift ),	
+			"target_date": "<b>"+cstr(emp.name)+": "+cstr(emp.full_name)+"</b>",
+			"work_shift": "",
+			"time_in": "",
+			"time_out": "",
+			"break_start": "",
+			"break_end": "",
+			"pre_shift": "",
+			"post_shift": "",
 		}
 		data.append(entry)
+		for target_date in daterange(pay_from, pay_to):
+			if employee_schedule[emp.name][target_date] != None:
+				entry = {
+					"target_date": target_date,
+					"work_shift": employee_schedule[emp.name][target_date]['work_shift'],
+					"time_in": employee_schedule[emp.name][target_date]['time_in'],
+					"time_out": employee_schedule[emp.name][target_date]['time_out'],
+					"break_start": employee_schedule[emp.name][target_date]['break_start'],
+					"break_end": employee_schedule[emp.name][target_date]['break_end'],
+					"pre_shift": "", #employee_schedule[emp.name][target_date]['pre_shift'],
+					"post_shift": "", #employee_schedule[emp.name][target_date]['post_shift'],
+				}
+				data.append(entry)
+		data.append({})
 
 	return data
  
@@ -96,6 +221,7 @@ def get_result_as_list(data, filters):
 	result = []
 	for d in data:
 		row = {
+			"target_date": d.get("target_date"),
 			"work_shift": d.get("work_shift"),
 			"pre_shift": d.get("pre_shift"),
 			"post_shift": d.get("post_shift"),
@@ -107,3 +233,46 @@ def get_result_as_list(data, filters):
 		
 		result.append(row)
 	return result
+
+def daterange(start_date, end_date):
+    for n in range( int((end_date - start_date).days) + 1):
+        yield start_date + timedelta(n)
+
+def get_date(date, start, end, type, is_end):
+	if is_end == 1:
+		if delta_to_time(start) > delta_to_time(end):
+			dt = (datetime.datetime.combine(date, delta_to_time(end) ) + timedelta(days=1) ).strftime('%Y-%m-%d %H:%M:%S')
+		else:
+			dt = datetime.datetime.combine(date, delta_to_time(end) ).strftime('%Y-%m-%d %H:%M:%S') 
+	else:
+		dt = datetime.datetime.combine(date, delta_to_time(start) ).strftime('%Y-%m-%d %H:%M:%S') 
+
+	return dt
+
+def delta_to_time(delta_obj):
+		return (datetime.datetime.min + delta_obj).time()
+
+def get_employees(filters):
+	register = frappe.db.sql("""SELECT `name`, `full_name`, `default_schedule` FROM `tabEmployee` 
+		WHERE is_active = 1 AND company = %(company)s {conditions} ORDER BY full_name """.format(conditions=get_conditions(filters)), filters, as_dict=1)
+
+	return register
+
+def get_conditions(filters):
+	conditions = []
+	if filters.get("employee"):
+		conditions.append("`name`='{0}'".format(filters.employee))
+
+	if filters.get("period_group"):
+		conditions.append("period_group='{0}'".format(filters.period_group))
+
+	if filters.get("position_title"):
+		conditions.append("`position_title`='{0}'".format(filters.position_title))
+
+	if filters.get("department"):
+		conditions.append("`department`='{0}'".format(filters.department))
+
+	if filters.get("location"):
+		conditions.append("`location`='{0}'".format(filters.location))
+
+	return "and {}".format(" and ".join(conditions)) if conditions else "" 
