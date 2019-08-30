@@ -23,6 +23,21 @@ frappe.query_reports["Payroll Register Report"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "location",
+			"label": __("Location"),
+			"fieldtype": "Link",
+			"options": "Location",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company
+					}
+				};
+			},
+			"reqd": 0
+		},
+		{
 			"fieldname": "employee",
 			"label": __("Employee"),
 			"fieldtype": "Link",
@@ -39,6 +54,11 @@ frappe.query_reports["Payroll Register Report"] = {
 		{
 			"fieldname": "hide_zero",
 			"label": __("Hide zero value"),
+			"fieldtype": "Check",
+		},
+		{
+			"fieldname": "include_header",
+			"label": __("Include Header"),
 			"fieldtype": "Check",
 		},	
 	]/*,

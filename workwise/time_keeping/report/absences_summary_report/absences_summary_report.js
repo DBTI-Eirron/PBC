@@ -5,13 +5,6 @@
 frappe.query_reports["Absences Summary Report"] = {
 	"filters": [
 		{
-			"fieldname": "payroll_period",
-			"label": __("Payroll Period"),
-			"fieldtype": "Link",
-			"options": "Payroll Period",
-			"reqd": 1
-		},
-		{
 			"fieldname": "company",
 			"label": __("Company"),
 			"fieldtype": "Link",
@@ -19,10 +12,28 @@ frappe.query_reports["Absences Summary Report"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "from_date",
+			"label": __("From Date"),
+			"fieldtype": "Date",
+			"reqd": 1
+		},
+		{
+			"fieldname": "to_date",
+			"label": __("To Date"),
+			"fieldtype": "Date",
+			"reqd": 1
+		},
+		{
 			"fieldname": "employee",
 			"label": __("Employee"),
 			"fieldtype": "Link",
 			"options": "Employee",
+		},
+		{
+			"fieldname": "department",
+			"label": __("Department"),
+			"fieldtype": "Link",
+			"options": "Department",
 		},
 	]
 }

@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import flt
+from frappe.utils import flt, getdate, cstr
 from frappe import _
 
 def execute(filters=None):
@@ -41,54 +41,56 @@ def get_result_as_list(data, filters):
 def get_data(filters):
 	#Initialize
 	data = []
-	company, att_from, att_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["company", "attendance_from", "attendance_to"])
+	data_entry = {}
+	company = frappe.db.get_value("Payroll Period", filters.payroll_period, ["company"])
+	att_to = getdate(filters.from_date)
+	att_from = getdate(filters.to_date)
 
-	data.append({
-		"data":"<b>Company: </b>"+filters.company+"",
-	})
+	data.append({	"data":"<b>Company: </b>"+filters.company+"",	})
 	data.append({})
 
-	employees = get_employees(filters)
+	employees = get_employees(filters, att_to, att_from)
 	for emp in employees:
-		total_count = 0
-		included = 0
-		absent_result = frappe.db.sql(""" SELECT `target_date` FROM `tabAttendance Register` WHERE (is_absent != 0 or is_lwop != 0) AND target_date >= %(from)s AND target_date <= %(to)s AND `employee` = %(employee)s ORDER BY `target_date` """,{
-			"to": att_to,
-			"from": att_from,
-			"employee": emp.name,
-		}, as_dict=True)
+		if emp.employee not in data_entry:
+			data_entry[emp.employee] = {
+				"employee_id": cstr(emp.employee),
+				"employee_name": cstr(emp.full_name),
+				"absents": [],
+				"absent_count": 0,
+			}
 
-		if absent_result:
-			included = 1
-		else:
-			if included == 0:
-				included = 0
+		data_entry[emp.employee]['absents'].append( getdate(emp.target_date) )
+		data_entry[emp.employee]['absent_count'] += 1
 
-		if included == 1:
-			data.append({"data":"<b>Employee: </b>"+emp.full_name+"",})
-			data.append({"data":"<b>Absent</b>",})
-
-			for absents in absent_result:
-				entry = {
-					"data": absents.target_date,
-				}
-				total_count += 1
-				data.append(entry)
-			
-			data.append({"data":"<b>Count: </b>"+str(total_count),})
-			data.append({})
+	for dat in data_entry:
+		data.append({"data":"<b>Employee: </b>"+cstr(data_entry[dat]['employee_name'])+"",})
+		data.append({"data":"<b>Absent</b>",})
+		for ab in sorted(data_entry[dat]['absents']):
+			data.append( {"data": str(ab) })
+		data.append({"data":"<b>Count: </b>"+str(data_entry[dat]['absent_count']),})
+		data.append({})
 
 	return data
 
-def get_employees(filters):
-	register = frappe.db.sql("""SELECT `name`, full_name FROM `tabEmployee` 
-		WHERE company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
-
+def get_employees(filters, att_to, att_from):
+	register = frappe.db.sql(""" SELECT AR.`target_date`, TE.`full_name`, AR.`employee` FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.`employee` = TE.`name`
+		WHERE (AR.is_absent > 0 OR AR.is_lwop > 0) AND AR.target_date >= %(date_to)s AND AR.target_date <= %(date_from)s 
+		{conditions} GROUP BY AR.`name` ORDER BY AR.`target_date` """.format(conditions=get_conditions(filters)),{
+		"date_to": getdate(att_to),
+		"date_from": getdate(att_from),
+	}, as_dict=True)
+	
 	return register
 
 def get_conditions(filters):
 	conditions = []
 	if filters.get("employee"):
-		conditions.append("`name`=%(employee)s")
+		conditions.append("AR.`employee`='{0}'".format(filters.employee))
 
-	return "and {}".format(" and ".join(conditions)) if conditions else "" 
+	if filters.get("department"):
+		conditions.append("TE.`department`='{0}'".format(filters.department))
+
+	if filters.get("company"):
+		conditions.append("TE.`company`='{0}'".format(filters.company))
+
+	return "AND {}".format(" AND ".join(conditions)) if conditions else ""
