@@ -3,7 +3,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, datetime
 from frappe.model.naming import make_autoname
 from frappe import throw, _, scrub
 from frappe.utils import getdate, validate_email_add, today, add_years, nowdate, cstr, getdate
@@ -22,6 +22,16 @@ class Employee(Document):
 			if not self.employee_id:
 				frappe.throw(_("Employee ID is mandatory"), frappe.MandatoryError)
 			self.name = self.employee_id
+		elif employee_naming == "Hired Date Series":
+			if self.employee_id:
+				self.name = self.employee_id
+			else:
+				if not self.date_hired:
+					frappe.throw(_("Hired Date is mandatory"), frappe.MandatoryError)
+				date_format = datetime.datetime.strptime(str(getdate(self.date_hired)), '%Y-%m-%d').strftime('%m%y')
+				date_format = cstr(date_format)+"-"+".####"
+				self.name = make_autoname(cstr(date_format))
+				self.employee_id = self.name
 		else:
 			if not series_format:
 				frappe.throw(_("Series Format is mandatory"), frappe.MandatoryError)
@@ -185,16 +195,19 @@ class Employee(Document):
 
 	def get_user_sensitivity_level(self):
 		cur_user = frappe.session.user
-		if not "Administrator" in frappe.get_roles(cur_user):
-			if self.sensitivity:
-				sensitivy_user = frappe.db.sql(""" SELECT count(*) as `result` FROM `tabSensitivity Users` WHERE `allow_user` = %s AND `parent` = %s """,( cur_user, self.sensitivity ), as_dict=1)
-				for user in sensitivy_user:
-					if user.result != 0:
-						return "access_granted"
-					else:
-						return "access_denied"
+		if not self.is_new():
+			if not "Administrator" in frappe.get_roles(cur_user):
+				if self.sensitivity:
+					sensitivy_user = frappe.db.sql(""" SELECT count(*) as `result` FROM `tabSensitivity Users` WHERE `allow_user` = %s AND `parent` = %s """,( cur_user, self.sensitivity ), as_dict=1)
+					for user in sensitivy_user:
+						if user.result != 0:
+							return "access_granted"
+						else:
+							return "access_denied"
+				else:
+					return "access_denied"
 			else:
-				return "access_denied"
+				return "access_granted"
 		else:
 			return "access_granted"
 
@@ -220,7 +233,6 @@ class Employee(Document):
 				i = {
 					"approver": d.approver,
 					"approver_name": d.approver_name,
-					"approver_userid": d.approver_userid,
 					"application": d.application,
 					"level": d.level
 				}	
@@ -242,21 +254,21 @@ class Employee(Document):
 		if self.reports_to:
 			sub_list.append(str(self.reports_to))
 
+		cur_subordinates = frappe.db.sql(""" SELECT TS.`parent`, TS.`subordinate`, TE.`user_id` FROM `tabSubordinates` TS INNER JOIN `tabEmployee` TE ON TS.`parent`=TE.`name` 
+			WHERE TS.`created_from_employee` = %s """,( self.name ), as_dict=1)
+		for cur in cur_subordinates:
+			if not cur.subordinate in sub_list:
+				frappe.db.sql("""DELETE FROM `tabSubordinates` WHERE `created_from_employee` = %(employee)s AND `subordinate` = %(employee)s AND `parent` = %(head)s """,
+				({ 	"head": cur.parent, "employee": self.name,	}), as_dict=True)
+				frappe.db.commit()
+
+				frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `is_automated` = 1 AND `user` = %(user_id)s AND `allow` = 'Employee' AND `for_value` = %(employee)s """,
+				({ 	"user_id": cur.user_id, "employee": self.name,	}), as_dict=True)
+				frappe.db.commit()
+				frappe.cache().delete_value('user_permissions')
+		
 		for sub in sub_list:
 			self.add_to_subordinate(sub)
-
-		cur_subordinates = frappe.db.sql(""" SELECT `parent` FROM `tabSubordinates` WHERE `created_from_employee` = %s """,( self.name ), as_dict=1)
-		for cur in cur_subordinates:
-			cur_sub_list.append(cur.parent)
-			
-		for su in cur_sub_list:
-			if not su in sub_list:
-				frappe.db.sql("""DELETE FROM `tabSubordinates` WHERE `created_from_employee` = %(employee)s AND `subordinate` = %(employee)s AND `parent` = %(head)s """,
-				({ 
-					"head": su,
-					"employee": self.name,
-				}), as_dict=True)
-				frappe.db.commit()
 
 	def add_to_subordinate(self, emp):
 		in_subordinate = frappe.db.sql(""" SELECT * FROM `tabSubordinates` WHERE `parent`= %s AND `subordinate` = %s """,( emp, self.name ), as_dict=1)

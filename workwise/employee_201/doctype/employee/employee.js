@@ -50,6 +50,14 @@ frappe.ui.form.on('Employee', {
 				}
 			}
 		});
+
+		frappe.call({
+			method: "get_age",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		});
 	}
 	
 });

@@ -13,10 +13,21 @@ class EmployeeSubordinates(Document):
 		if self.employee:
 			user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 			if user_id:
+				self.remove_all_permissions()
 				for d in self.get("subordinates"):
 					exists = frappe.db.sql(""" SELECT `name`, for_value FROM `tabUser Permission` WHERE `allow` = 'Employee' AND `user` = %s AND `for_value` = %s  """, (user_id, d.subordinate), as_dict=1)
 					if not exists:
-						frappe.permissions.add_user_permission("Employee", d.subordinate, user_id)
+						user_perm = frappe.new_doc("User Permission")
+						user_perm.update({
+							"allow": "Employee",
+							"for_value": d.subordinate,
+							"user": user_id,
+							"apply_for_all_roles": 0,
+							"is_automated": 1
+						})	
+						user_perm.insert()
+						frappe.db.commit()
+						#frappe.permissions.add_user_permission("Employee", d.subordinate, user_id, 0, 1)
 				frappe.cache().delete_value('user_permissions')
 			else:
 				frappe.throw(_("Employee {0} has no User ID.").format(self.employee))
@@ -24,10 +35,11 @@ class EmployeeSubordinates(Document):
 	def remove_all_permissions(self):
 		user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 		if user_id:
-			perms = frappe.db.sql("""SELECT `name`, for_value FROM `tabUser Permission` WHERE allow = 'Employee' AND `user` = %s AND for_value != %s """, (user_id, self.employee), as_dict=1)
+			perms = frappe.db.sql("""SELECT `name`, `for_value`, `is_automated` FROM `tabUser Permission` WHERE allow = 'Employee' AND `user` = %s AND for_value != %s """, (user_id, self.employee), as_dict=1)
 			if perms:
 				for d in perms:
-					frappe.permissions.remove_user_permission("Employee", d.for_value, user_id)
+					if d.is_automated > 0:
+						frappe.permissions.remove_user_permission("Employee", d.for_value, user_id)
 				frappe.cache().delete_value('user_permissions')
 		else:
 			frappe.throw(_("Employee {0} has no User ID.").format(self.employee))
