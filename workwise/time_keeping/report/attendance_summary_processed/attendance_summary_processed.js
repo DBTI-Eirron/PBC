@@ -30,6 +30,12 @@ frappe.query_reports["Attendance Summary Processed"] = {
 			"options": "Location",
 		},
 		{
+			"fieldname": "position_title",
+			"label": __("Position Title"),
+			"fieldtype": "Link",
+			"options": "Position Title",
+		},
+		{
 			"fieldname": "time_options",
 			"label": __("Options"),
 			"fieldtype": "Data",
@@ -38,11 +44,6 @@ frappe.query_reports["Attendance Summary Processed"] = {
 			],
 			"default": "Hrs",
 			"reqd": 1
-		},
-		{
-			"fieldname": "show_break",
-			"label": __("Show Break Time"),
-			"fieldtype": "Check",
 		},
 		{
 			"fieldname": "employee",
@@ -60,10 +61,14 @@ frappe.query_reports["Attendance Summary Processed"] = {
 			},
 		},
 		{
-			"fieldname": "position_title",
-			"label": __("Position Title"),
-			"fieldtype": "Link",
-			"options": "Position Title",
+			"fieldname": "show_break",
+			"label": __("Show Break Time"),
+			"fieldtype": "Check",
+		},
+		{
+			"fieldname": "ignore_payroll_schedule",
+			"label": __("Ignore Payroll Schedule Policy"),
+			"fieldtype": "Check",
 		},
 	]
 };

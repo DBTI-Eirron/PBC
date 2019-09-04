@@ -268,7 +268,8 @@ def get_conditions(filters, schedule):
 	if filters.get("position_title"):
 		conditions.append("position_title=%(position_title)s")
 
-	conditions.append(_("payroll_schedule='"+_(cstr(schedule))+"'"))
+	if not filters.ignore_payroll_schedule:
+		conditions.append(_("payroll_schedule='"+_(cstr(schedule))+"'"))
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 
