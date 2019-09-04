@@ -277,7 +277,7 @@ class CompensatoryTimeOff(Document):
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
 		if cto_validity > 0:
-			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -"+int(cto_validity)+" DAY)) "
+			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
 		else:
 			cto_validity_condition = ""
 
@@ -325,7 +325,7 @@ class CompensatoryTimeOff(Document):
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
 		if cto_validity > 0:
-			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -"+int(cto_validity)+" DAY)) "
+			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
 		else:
 			cto_validity_condition = ""
 

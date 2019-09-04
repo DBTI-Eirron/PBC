@@ -244,7 +244,10 @@ def get_overtime(entry, ot_apps):
 						if entry.get('ob_in') and entry.get('ob_in') < entry.get('card_in'):
 							ot_in = entry.get('ob_in')
 						else:
-							ot_in = entry.get('card_in')
+							if ot_in > entry.get('card_in'): #for Early OT
+								ot_in = ot_in
+							else:
+								ot_in = entry.get('card_in')
 					else:
 						if ot_in < entry.get('card_in'):
 							if entry.get('ob_in') and entry.get('ob_in') < entry.get('card_in'):
@@ -259,6 +262,8 @@ def get_overtime(entry, ot_apps):
 						else:
 							if entry.get('card_out') < ot_out:
 								ot_out = entry.get('card_out')
+
+
 
 				#get Max Holiday OT per day
 				if entry.get('is_holiday') == 1:
@@ -1754,9 +1759,7 @@ def get_all_obs(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 def get_all_ots(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
-	if adjustment == 1:
-		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
-	else:
+	if adjustment != 1:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
