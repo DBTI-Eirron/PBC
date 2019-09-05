@@ -980,6 +980,10 @@ class PayrollProcessing(Document):
 							if(at.work or (not at.is_absent)) and (not at.is_lwop):
 								dl_absent = 0
 
+							#leave triggers
+							if at.lv_status == 1 and (not at.is_lwop):
+								dl_absent = 0
+
 							#check if holiday
 							if at.is_holiday:
 								if at.is_restday:
@@ -989,7 +993,9 @@ class PayrollProcessing(Document):
 									if dl_absent == 1 and at.is_sp_holiday and header.get('uho_ab_spnw'):
 										ho_paid = 0 #no paid holiday on special HO
 									elif dl_absent == 1 and (not is_uho):
-										ho_paid = 1 #paid holiday if absend and not UHO
+										ho_paid = 1 #paid holiday if absent and not UHO
+									elif dl_absent == 0 and (not is_uho):
+										ho_paid = 1 #paid holiday if not absent and not UHO
 							else: 
 								if dl_absent == 0 and (not at.is_restday):
 									dl_days += 1
