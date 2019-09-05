@@ -146,6 +146,7 @@ class PayrollProcessing(Document):
 					'present_days': 0.0,
 					'leave_days': 0.0,
 					'nwho_days': 0.0,
+					'paid_holidays': 0.0,
 					'net_payroll': 0.0,
 					'gross_payroll': 0.0,
 					'bonus': 0.0,
@@ -340,7 +341,7 @@ class PayrollProcessing(Document):
 			rates['monthly_rate'] = amt
 		
 		elif emp.get('rate_type') == "Daily Rate":
-			amt = flt(rates.get('daily_rate'), 8) * header.get('present_days')
+			amt = flt(rates.get('daily_rate'), 8) * (header.get('present_days') + header.get('paid_holidays') )
 			if (emp.get('payroll_schedule') == "Semi-Monthly" or emp.get('payroll_schedule') == "Monthly") and header.get('mo_amt_smdl'):
 				rates['monthly_rate'] = rates.get('monthly_rate')
 			else:
@@ -456,24 +457,27 @@ class PayrollProcessing(Document):
 						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
 
 				else:
-					if emp.get('phic_freq') == '1st':
-						target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
-
-					elif emp.get('phic_freq') == '2nd':
-						if emp.get('payroll_schedule') == "Semi-Monthly":
-							if header.get('prev_monthly_rate') != rates.get('monthly_rate') and header.get('prev_monthly_basis') > 0:
-								target_amt = rates.get('monthly_rate') / 2 + \
-									(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))							
-							else:
-								target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
-									(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
-							
-						elif emp.get('payroll_schedule') == "Monthly":
+					if emp.get('phic_mode') == "ME Table":
+						target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+					else:
+						if emp.get('phic_freq') == '1st':
 							target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
 
-					elif emp.get('phic_freq') == 'Both':
-						target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
-							(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
+						elif emp.get('phic_freq') == '2nd':
+							if emp.get('payroll_schedule') == "Semi-Monthly":
+								if header.get('prev_monthly_rate') != rates.get('monthly_rate') and header.get('prev_monthly_basis') > 0:
+									target_amt = rates.get('monthly_rate') / 2 + \
+										(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))							
+								else:
+									target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
+										(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
+								
+							elif emp.get('payroll_schedule') == "Monthly":
+								target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
+
+						elif emp.get('phic_freq') == 'Both':
+							target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
+								(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
 				
 				if mode != "None" and target_amt:
 					phic, phice = 0, 0
@@ -489,18 +493,23 @@ class PayrollProcessing(Document):
 						phice = percent_rate 
 					
 					for l in phic_list:
-						if emp.get('phic_freq') == "Both" and self.schedule == "Weekly":
-							amt = flt(eval(l), 8) / 2
-						elif emp.get('phic_freq') == "All" and self.schedule == "Weekly":
-							amt = flt(eval(l), 8) / 4
+						if emp.get('phic_mode') == "ME Table" and self.schedule != "Weekly":
+							if emp.get('phic_freq') == "Both":
+								amt = flt(eval(l), 8) / 2
+							else:
+								amt = flt(eval(l), 8)
 						else:
-							amt = flt(eval(l), 8)
+							if emp.get('phic_freq') == "Both" and self.schedule == "Weekly":
+								amt = flt(eval(l), 8) / 2
+							elif emp.get('phic_freq') == "All" and self.schedule == "Weekly":
+								amt = flt(eval(l), 8) / 4
+							else:
+								amt = flt(eval(l), 8)
 
-						if header.get('prev_phic_amt') and emp.get('phic_freq') == "Both":
-							
-							amt = amt - header.get('prev_phic_amt') 
-							if amt < 1:
-								amt = 0
+							if header.get('prev_phic_amt') and emp.get('phic_freq') == "Both":
+								amt = amt - header.get('prev_phic_amt') 
+								if amt < 1:
+									amt = 0
 
 						phic_register.append({"pay_code": l.upper(), "amount": amt })
 
@@ -888,8 +897,9 @@ class PayrollProcessing(Document):
 	def get_attendance(self, emp, rates, header, register, ot_map):
 		attendance_register = []
 		if emp.get('is_attendance_base') > 0:
-			late, overtime, undertime, absent, nightdiff, cto, cto_days, work_days, absent_days, dl_days = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+			late, overtime, undertime, absent, nightdiff, cto, cto_days, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
 			unpaid_holiday, prev_lwop, prev_absent, is_uho, leave_days, nwho_days, total_work  =  0, 0 ,0, 0, 0, 0, 0
+			pho_days, uho_days, dl_days = 0, 0, 0
 			hourly_basic = 0
 			test = []
 
@@ -962,14 +972,36 @@ class PayrollProcessing(Document):
 								elif max_cto >= at.work_hours:
 									cto_days += 1
 
+						if emp.get("rate_type") == "Daily Rate":
+							dl_absent = 1 #set default alaways absent
+							ho_paid = 0 # set default not paid on holiday
+
+							#check if employee is not absent
+							if(at.work or (not at.is_absent)) and (not at.is_lwop):
+								dl_absent = 0
+
+							#check if holiday
+							if at.is_holiday:
+								if at.is_restday:
+									if (not at.is_sp_holiday) and (not is_uho):
+										ho_paid = 1 #paid on regular holiday if not UHO
+								else:
+									if dl_absent == 1 and at.is_sp_holiday and header.get('uho_ab_spnw'):
+										ho_paid = 0 #no paid holiday on special HO
+									elif dl_absent == 1 and (not is_uho):
+										ho_paid = 1 #paid holiday if absend and not UHO
+							else: 
+								if dl_absent == 0 and (not at.is_restday):
+									dl_days += 1
+
+							if ho_paid == 1:
+								pho_days += 1
+
 						if at.is_holiday == 1 and is_uho == 1 and (not at.is_ob) and not at.is_restday:
 							#if present not UHO
-							if at.work and (not at.is_lwop) and (not at.absent) and (not at.is_restday) and (not at.is_halfday):
-								is_uho = 0
-							else:
-								if emp.get("rate_type") == "Daily Rate" and at.is_absent:
-									#if Daily Rate is Absent on Holiday should not have Unpaid Holiday
-									unpaid_holiday += 0
+							if emp.get("rate_type") != "Daily Rate":
+								if at.work and (not at.is_lwop) and (not at.absent) and (not at.is_restday) and (not at.is_halfday):
+									is_uho = 0
 								else:
 									unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 									if header.get('uho_ab_days') == 1:
@@ -1030,18 +1062,6 @@ class PayrollProcessing(Document):
 							#if Halfday next day will not be UHO
 							if header.get('hd_no_uho') and at.is_halfday:
 								is_uho = 0
-					
-						if emp.get("rate_type") == "Daily Rate":
-							if at.is_absent and not at.is_restday:
-								if at.is_holiday:
-									dl_days += 1 #if daily rate, holiday is considered paid
-									if at.is_sp_holiday and header.get('uho_ab_spnw'):
-										dl_days -= 1
-								else:
-									dl_days -= 1
-
-							elif not at.is_restday:
-								dl_days += 1
 
 						if emp.get("rate_type") == "Hourly Rate":
 							hour_bs = ((WK_days - AT_days) * at.work_hours) * flt(rates.get('hourly_rate'), 8)
@@ -1073,7 +1093,7 @@ class PayrollProcessing(Document):
 
 				if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
 					nightdiff = 0
-					
+
 				attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 				attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
 				attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
@@ -1089,6 +1109,7 @@ class PayrollProcessing(Document):
 				header['work_days'] = work_days
 				header['absent_days'] = absent_days
 				header['present_days'] = present_days
+				header['paid_holidays'] = pho_days
 			else:
 				header['no_attendance'] = 1
 
