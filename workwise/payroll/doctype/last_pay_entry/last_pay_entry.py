@@ -110,6 +110,7 @@ class LastPayEntry(Document):
 		entry["pres_total_tax"] += pres_total_tax
 
 	def get_pro_rated(self, employee ,register, entry):
+		period_map = self.get_period_map()
 		for emp in employee:
 			present_days = 0
 			total_bonus = 0
@@ -129,12 +130,13 @@ class LastPayEntry(Document):
 				total_rate = 0.0
 				months = 0.0
 				for d in registerx:
-					if d.schedule == "Semi-Monthly":
-						months += 0.5
-						total_rate = d.monthly_rate
-					if d.schedule == "Monthly":
-						months += 1
-						total_rate = d.monthly_rate
+					if d.period in period_map:
+						if d.schedule == "Semi-Monthly":
+							months += 0.5
+							total_rate = d.monthly_rate
+						if d.schedule == "Monthly":
+							months += 1
+							total_rate = d.monthly_rate
 
 				total_bonus += total_rate * months / 12
 				remarks = "( "+ str(total_rate) +" x "+ str(months)+" / 12 " + ")"
@@ -207,6 +209,16 @@ class LastPayEntry(Document):
 		entry["net_pay"] -= total
 
 		return register
+
+	def get_period_map(self):
+		period_map = {}
+		period = frappe.db.sql(""" SELECT name, payroll_year FROM `tabPayroll Period` WHERE payroll_year = %s """, self.payroll_year, as_dict=True)
+		for pr in period:
+			period_map[pr.name] = {
+				"payroll_year": pr.payroll_year,
+				"name": pr.name,
+			}
+		return period_map
 
 	def get_leave_conversion(self, employee, register, entry):
 		for emp in employee:
