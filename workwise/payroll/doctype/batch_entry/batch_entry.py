@@ -24,6 +24,7 @@ class BatchEntry(Document):
 	def remove_duplicates(self):
 		unique_emp = []
 		unique_entries = []
+		total_amount = 0
 		for d in self.employees:
 			if d.employee not in unique_emp:
 				unique_emp.append(d.employee);
@@ -38,13 +39,15 @@ class BatchEntry(Document):
 					"employee": d.employee,
 					"employee_name": d.employee_name,
 					"amount": amt
-				}	
+				}
+				total_amount += amt	
 				unique_entries.append(i);
 
 		self.set('employees', [])
 		for ue in unique_entries:
 			row = self.append('employees', {})
 			row.update(ue)
+		self.total_amount = total_amount
 
 	def filter_add(self):
 		if not self.company:
