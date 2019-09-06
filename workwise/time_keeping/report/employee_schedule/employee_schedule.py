@@ -173,20 +173,21 @@ def get_data(filters):
 
 	#Get Default Schedule
 	for emp in employee_schedule:
-		for target_date in daterange(pay_from, pay_to):
-			if employee_schedule[emp][target_date] == None:
-				template_work_shift = template_map[employee_schedule[emp]['default_schedule']][str(target_date.weekday())]
-				employee_schedule[emp][d.target_date] = {
-					"target_date": target_date,
-					"work_shift": template_work_shift,
-					"time_in": get_date(target_date, shift_map[template_work_shift]['time_in'], shift_map[template_work_shift]['time_out'], shift_map[template_work_shift]['shift_type'], 0),
-					"time_out": get_date(target_date, shift_map[template_work_shift]['time_in'], shift_map[template_work_shift]['time_out'], shift_map[template_work_shift]['shift_type'], 1),
-					"break_start": get_date(target_date, shift_map[template_work_shift]['break_start'], shift_map[template_work_shift]['break_end'], shift_map[template_work_shift]['shift_type'], 0),
-					"break_end": get_date(target_date, shift_map[template_work_shift]['break_start'], shift_map[template_work_shift]['break_end'], shift_map[template_work_shift]['shift_type'], 1),
-					"pre_shift": shift_map[template_work_shift]['pre_shift'],
-					"post_shift": shift_map[template_work_shift]['post_shift'],
-				}
-	
+		if employee_schedule[emp]['default_schedule']:
+			for target_date in daterange(pay_from, pay_to):
+				if employee_schedule[emp][target_date] == None:
+					template_work_shift = template_map[employee_schedule[emp]['default_schedule']][str(target_date.weekday())]
+					employee_schedule[emp][d.target_date] = {
+						"target_date": target_date,
+						"work_shift": template_work_shift,
+						"time_in": get_date(target_date, shift_map[template_work_shift]['time_in'], shift_map[template_work_shift]['time_out'], shift_map[template_work_shift]['shift_type'], 0),
+						"time_out": get_date(target_date, shift_map[template_work_shift]['time_in'], shift_map[template_work_shift]['time_out'], shift_map[template_work_shift]['shift_type'], 1),
+						"break_start": get_date(target_date, shift_map[template_work_shift]['break_start'], shift_map[template_work_shift]['break_end'], shift_map[template_work_shift]['shift_type'], 0),
+						"break_end": get_date(target_date, shift_map[template_work_shift]['break_start'], shift_map[template_work_shift]['break_end'], shift_map[template_work_shift]['shift_type'], 1),
+						"pre_shift": shift_map[template_work_shift]['pre_shift'],
+						"post_shift": shift_map[template_work_shift]['post_shift'],
+					}
+
 	#Set Data Entry
 	for emp in employees:
 		entry = {
