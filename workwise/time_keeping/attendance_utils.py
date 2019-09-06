@@ -1049,190 +1049,180 @@ def get_links(entry):
 
 	return entry
 
-def default_schedule_delta_to_time(delta_obj):
+def get_schedule_daterange(start_date, end_date):
+    for n in range( int((end_date - start_date).days) + 1):
+        yield start_date + datetime.timedelta(n)
+
+def get_schedule_delta_to_time(delta_obj):
 	return (datetime.datetime.min + delta_obj).time()
 
-def default_schedule_get_date(date, start, end, type, is_end):
+def get_schedule_get_date(date, start, end, type, is_end):
 	if is_end == 1:
-		if default_schedule_delta_to_time(start) > default_schedule_delta_to_time(end):
-			dt = (datetime.datetime.combine(date, default_schedule_delta_to_time(end) ) + datetime.timedelta(days=1) ).strftime('%Y-%m-%d %H:%M:%S')
+		if get_schedule_delta_to_time(start) > get_schedule_delta_to_time(end):
+			dt = (datetime.datetime.combine(date, get_schedule_delta_to_time(end) ) + datetime.timedelta(days=1) ).strftime('%Y-%m-%d %H:%M:%S')
 		else:
-			dt = datetime.datetime.combine(date, default_schedule_delta_to_time(end) ).strftime('%Y-%m-%d %H:%M:%S') 
+			dt = datetime.datetime.combine(date, get_schedule_delta_to_time(end) ).strftime('%Y-%m-%d %H:%M:%S') 
 	else:
-		dt = datetime.datetime.combine(date, default_schedule_delta_to_time(start) ).strftime('%Y-%m-%d %H:%M:%S') 
+		dt = datetime.datetime.combine(date, get_schedule_delta_to_time(start) ).strftime('%Y-%m-%d %H:%M:%S') 
 
 	return dt
 
-def get_default_sched_template(def_sched):
-	sched_template = {}
-	sched = frappe.db.sql("""SELECT * FROM `tabWork Schedule Template` WHERE `name` = %s LIMIT 1""",(def_sched), as_dict=1)
+def get_schedule(employee, pay_from, pay_to):
+	schedule = []
+	schedule_entry = {}
+	shift_map = {}
+	template_map = {}
+	shift_list = []
+	pay_to = getdate(pay_to)
+	pay_from = getdate(pay_from)
+	def_sched = frappe.db.get_value("Employee", employee, "default_schedule")
+	company = frappe.db.get_value("Employee", employee, "company")
 
-	days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-	if sched:
-		for day in days:
-			shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched[0][day]), as_dict=1)
-			sched_template[day] = {
-				"name": shift[0]['name'],
-				"work_shift": shift[0]['name'],
-				"work_hours": shift[0]['work_hours'],
-				"break_mins": shift[0]['break_mins'],
-				"time_in": shift[0]['time_in'],
-				"time_out": shift[0]['time_out'],
-				"break_start": shift[0]['break_start'],
-				"break_end": shift[0]['break_end'],
-				"nd_start": shift[0]['nd_start'],
-				"nd_end": shift[0]['nd_end'],
-				"shift_type": shift[0]['work_shift_type'],
-			}
+	#set Default
+	for def_target_date in get_schedule_daterange(pay_from, pay_to):
+		schedule_entry[getdate(def_target_date)] = None
 
-	return sched_template
+	#Get Work Sched Template
+	templates = frappe.db.sql("""SELECT `name`, monday, tuesday, wednesday, thursday, friday, saturday, sunday FROM `tabWork Schedule Template` """,as_dict=True)
+	for t in templates:
+		template_map[t.name]={
+			"0":t.monday,
+			"1":t.tuesday,
+			"2":t.wednesday,
+			"3":t.thursday,
+			"4":t.friday,
+			"5":t.saturday,
+			"6":t.sunday
+		}
 
-def get_change_sched_application(def_sched):
-	shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(def_sched[0]['new_shift']), as_dict=1)
-	sched_template = {
-		"name": shift[0]['name'],
-		"work_shift": shift[0]['name'],
-		"work_hours": shift[0]['work_hours'],
-		"break_mins": shift[0]['break_mins'],
-		"time_in": shift[0]['time_in'],
-		"time_out": shift[0]['time_out'],
-		"shift_type": shift[0]['work_shift_type'],
-		"break_start": shift[0]['break_start'],
-		"break_end": shift[0]['break_end'],
-		"nd_start": shift[0]['nd_start'],
-		"nd_end": shift[0]['nd_end'],
-	}
+	#Get Shift Map
+	shifts = frappe.db.sql("""SELECT * FROM `tabWork Shift` """, as_dict=True)
+	for shft in shifts:
+		shift_map[shft.name] = {
+			"work_shift": shft['name'],
+			"shift_type": shft['work_shift_type'],
+			"work_hours": shft['work_hours'],
+			"break_mins": shft['break_mins'],
+			"time_in": shft['time_in'],
+			"time_out": shft['time_out'],
+			"break_start": shft['break_start'],
+			"break_end": shft['break_end'],
+			"nd_start": shft['nd_start'],
+			"nd_end": shft['nd_end'],
+			"pre_shift": add_to_date( shft['time_in'], hours = (0 - shft['setup_preshift']) ),
+			"post_shift": add_to_date( shft['time_out'], hours = shft['end_postshift'] ),
+		}
+		shift_list.append(shft.name)
 
-	return sched_template
-
-def assign_schedule(employee, pay_from, pay_to, def_sched):
-	has_csa = get_csa_list(employee, pay_from, pay_to, 0, 0)
-	if has_csa:
-		sched_map = get_change_sched_application(has_csa)
-		dates = []
-		date_list = []
-		schedule = []
-		label = ""
-		start = datetime.datetime.strptime(str(pay_from), '%Y-%m-%d')
-		end = datetime.datetime.strptime(str(pay_to), '%Y-%m-%d')
-		step = datetime.timedelta(days=1)
-		
-		while start <= end:
-			date_list.append(start.date())
-			start += step
-
-		work_sched_list = []
-		for i in date_list:
-			day = datetime.datetime.strptime(str(i), '%Y-%m-%d').strftime('%A').lower()
-			work_sched = {
-				"employee": employee,
-				"company": frappe.db.get_value("Employee", employee, "company"),
-				"name": sched_map["name"],
-				"target_date": i,
-				"work_shift": sched_map["work_shift"],
-				"shift_type": sched_map["shift_type"],
-				"work_hours": sched_map['work_hours'],
-				"break_mins": sched_map['break_mins'],
-				"datetime_in": datetime.datetime.strptime( default_schedule_get_date(i, sched_map['time_in'], sched_map['time_out'], sched_map['shift_type'], 0) , '%Y-%m-%d %H:%M:%S'),
-				"datetime_out": datetime.datetime.strptime( default_schedule_get_date(i, sched_map['time_in'], sched_map['time_out'], sched_map['shift_type'], 1) , '%Y-%m-%d %H:%M:%S'),
-				"break_start": datetime.datetime.strptime( default_schedule_get_date(i, sched_map['break_start'], sched_map['break_end'], sched_map['shift_type'], 0) , '%Y-%m-%d %H:%M:%S'),
-				"break_end": datetime.datetime.strptime( default_schedule_get_date(i, sched_map['break_start'], sched_map['break_end'], sched_map['shift_type'], 1) , '%Y-%m-%d %H:%M:%S'),
-				"nd_start": datetime.datetime.strptime( default_schedule_get_date(i, sched_map['nd_start'], sched_map['time_out'], sched_map['shift_type'], 0) , '%Y-%m-%d %H:%M:%S'),
-				"nd_end": datetime.datetime.strptime( default_schedule_get_date(i, sched_map['nd_start'], sched_map['time_out'], sched_map['shift_type'], 1) , '%Y-%m-%d %H:%M:%S'),
-				"o_time_in": "",
-				"o_break_in": "",
-				"o_break_out": "",
-				"o_time_out": "",
-			}
-			work_sched_list.append(work_sched)
-	else:
-		sched_map = get_default_sched_template(def_sched)
-		dates = []
-		date_list = []
-		schedule = []
-		label = ""
-		start = datetime.datetime.strptime(str(pay_from), '%Y-%m-%d')
-		end = datetime.datetime.strptime(str(pay_to), '%Y-%m-%d')
-		step = datetime.timedelta(days=1)
-		
-		while start <= end:
-			date_list.append(start.date())
-			start += step
-
-		for i in date_list:
-			day = datetime.datetime.strptime(str(i), '%Y-%m-%d').strftime('%A').lower()
-			info = {
-				"date": i,
-				"day": day,
-				"name": sched_map[day]['name'],
-				"work_shift": sched_map[day]['work_shift'],
-				"shift_type": sched_map[day]['shift_type'],
-				"work_hours": sched_map[day]['work_hours'],
-				"break_mins": sched_map[day]['break_mins'],
-				"datetime_in": default_schedule_get_date(i, sched_map[day]['time_in'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 0),
-				"datetime_out": default_schedule_get_date(i, sched_map[day]['time_in'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),
-				"break_start": default_schedule_get_date(i, sched_map[day]['break_start'], sched_map[day]['break_end'], sched_map[day]['shift_type'], 0),
-				"break_end": default_schedule_get_date(i, sched_map[day]['break_start'], sched_map[day]['break_end'], sched_map[day]['shift_type'], 1),
-				"nd_start": default_schedule_get_date(i, sched_map[day]['nd_start'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 0),
-				"nd_end": default_schedule_get_date(i, sched_map[day]['nd_start'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),	
-			}
-			dates.append(info)
-
-		company = frappe.db.get_value("Employee", employee, "company")
-		work_sched_list = []		
-		for d in dates:
-			work_sched = {
+	#Get Work Schedule
+	employee_work_schedule = frappe.db.sql("""SELECT `name`, employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
+		datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
+		FROM `tabWork Schedule` WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s AND employee = %(employee)s
+		ORDER BY target_date ASC""",{
+		"from_date": pay_from, "to_date": pay_to, "employee": employee,
+	}, as_dict=True)
+	for ews in employee_work_schedule:
+		if schedule_entry[getdate(ews.target_date)] == None:
+			schedule_entry[getdate(ews.target_date)] = {
 				"employee": employee,
 				"company": company,
-				"name": d["name"],
-				"target_date": d["date"],
-				"work_shift": d["work_shift"],
-				"shift_type": d["shift_type"],
-				"work_hours": d['work_hours'],
-				"break_mins": d['break_mins'],
-				"datetime_in": datetime.datetime.strptime(d["datetime_in"], '%Y-%m-%d %H:%M:%S'),
-				"datetime_out": datetime.datetime.strptime(d["datetime_out"], '%Y-%m-%d %H:%M:%S'),
-				"break_start": datetime.datetime.strptime(d["break_start"], '%Y-%m-%d %H:%M:%S'),
-				"break_end": datetime.datetime.strptime(d["break_end"], '%Y-%m-%d %H:%M:%S'),
-				"nd_start": datetime.datetime.strptime(d["nd_start"], '%Y-%m-%d %H:%M:%S'),
-				"nd_end": datetime.datetime.strptime(d["nd_end"], '%Y-%m-%d %H:%M:%S'),
-				"o_time_in": "",
-				"o_break_in": "",
-				"o_break_out": "",
-				"o_time_out": "",
-				"is_default_schedule": 1,
+				"name": ews["name"],
+				"target_date": ews["target_date"],
+				"work_shift": ews["work_shift"],
+				"shift_type": ews["shift_type"],
+				"work_hours": ews["work_hours"],
+				"break_mins": ews["break_mins"],
+				"datetime_in": ews["datetime_in"],
+				"datetime_out": ews["datetime_out"],
+				"break_start": ews["break_start"],
+				"break_end": ews["break_end"],
+				"nd_start": ews["nd_start"],
+				"nd_end": ews["nd_end"],
+				"o_time_in": ews["o_time_in"],
+				"o_break_in": ews["o_break_in"],
+				"o_break_out": ews["o_break_out"],
+				"o_time_out": ews["o_time_out"],
+				"is_default_schedule": 0,
 			}
-			work_sched_list.append(work_sched)
 
-	return work_sched_list
-
-def get_schedule(employee, pay_from, pay_to):
-	def_sched = frappe.db.get_value("Employee", employee, "default_schedule")
-	date_list = []
-	start = datetime.datetime.strptime(str(pay_from), '%Y-%m-%d')
-	end = datetime.datetime.strptime(str(pay_to), '%Y-%m-%d')
-	step = datetime.timedelta(days=1)
-	schedule = []
-	
+	#Get Default Schedule
 	if def_sched:
-		while start <= end:
-			date_list.append(start.date())
-			start += step
-
-		for d in date_list:
-			sched = frappe.db.sql("""SELECT `name`, employee, company, work_shift, work_hours, break_mins, target_date, shift_type, 
-				datetime_in, datetime_out, break_start, break_end, nd_start, nd_end, o_time_in, o_break_in, o_break_out, o_time_out
-				FROM `tabWork Schedule` 
-				WHERE employee = %(employee)s AND target_date = %(target_date)s """,{
+		for td in get_schedule_daterange(pay_from, pay_to):
+			if schedule_entry[getdate(td)] == None:
+				tmplt = template_map[def_sched][str(td.weekday())]
+				schedule_entry[getdate(td)] = {
 					"employee": employee,
-					"target_date": d
-				}, as_dict=True)
+					"company": company,
+					"name": tmplt,
+					"target_date": td,
+					"work_shift": tmplt,
+					"shift_type": shift_map[tmplt]["shift_type"],
+					"work_hours": shift_map[tmplt]['work_hours'],
+					"break_mins": shift_map[tmplt]['break_mins'],
+					"datetime_in": datetime.datetime.strptime( get_schedule_get_date(td, shift_map[tmplt]['time_in'], shift_map[tmplt]['time_out'], shift_map[tmplt]['shift_type'], 0) , '%Y-%m-%d %H:%M:%S'),
+					"datetime_out": datetime.datetime.strptime( get_schedule_get_date(td, shift_map[tmplt]['time_in'], shift_map[tmplt]['time_out'], shift_map[tmplt]['shift_type'], 1) , '%Y-%m-%d %H:%M:%S'),
+					"break_start": datetime.datetime.strptime( get_schedule_get_date(td, shift_map[tmplt]['break_start'], shift_map[tmplt]['break_end'], shift_map[tmplt]['shift_type'], 0) , '%Y-%m-%d %H:%M:%S'),
+					"break_end": datetime.datetime.strptime( get_schedule_get_date(td, shift_map[tmplt]['break_start'], shift_map[tmplt]['break_end'], shift_map[tmplt]['shift_type'], 1) , '%Y-%m-%d %H:%M:%S'),
+					"nd_start": datetime.datetime.strptime( get_schedule_get_date(td, shift_map[tmplt]['nd_start'], shift_map[tmplt]['time_out'], shift_map[tmplt]['shift_type'], 0) , '%Y-%m-%d %H:%M:%S'),
+					"nd_end": datetime.datetime.strptime( get_schedule_get_date(td, shift_map[tmplt]['nd_start'], shift_map[tmplt]['time_out'], shift_map[tmplt]['shift_type'], 1) , '%Y-%m-%d %H:%M:%S'),
+					"o_time_in": "",
+					"o_break_in": "",
+					"o_break_out": "",
+					"o_time_out": "",
+					"is_default_schedule": 0,
+				}
 
-			if not sched:
-				schedule += assign_schedule(employee, d, d, def_sched)
-			else:
-				schedule.append(sched[0])
-	schedule = sorted(schedule, key=lambda k: k['target_date']) 
+	#Get Change Schedule Application
+	cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift, CSA.name
+		FROM `tabChange Schedule Application` CSA INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
+		WHERE CSA.employee = %s AND CSA.docstatus = 1 AND CSA.workflow_state = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s """,(employee, pay_from, pay_to), as_dict=1)
+	for csa in cs_apps:
+		schedule_entry[getdate(csa.target_date)] = {
+			"employee": employee,
+			"company": company,
+			"name": csa["name"],
+			"target_date": getdate(csa["target_date"]),
+			"work_shift": csa["new_shift"],
+			"shift_type": shift_map[csa['new_shift']]["shift_type"],
+			"work_hours": shift_map[csa['new_shift']]['work_hours'],
+			"break_mins": shift_map[csa['new_shift']]['break_mins'],
+			"datetime_in": datetime.datetime.strptime( get_schedule_get_date(csa['target_date'], shift_map[csa['new_shift']]['time_in'], shift_map[csa['new_shift']]['time_out'], shift_map[csa['new_shift']]['shift_type'], 0) , '%Y-%m-%d %H:%M:%S'),
+			"datetime_out": datetime.datetime.strptime( get_schedule_get_date(csa['target_date'], shift_map[csa['new_shift']]['time_in'], shift_map[csa['new_shift']]['time_out'], shift_map[csa['new_shift']]['shift_type'], 1) , '%Y-%m-%d %H:%M:%S'),
+			"break_start": datetime.datetime.strptime( get_schedule_get_date(csa['target_date'], shift_map[csa['new_shift']]['break_start'], shift_map[csa['new_shift']]['break_end'], shift_map[csa['new_shift']]['shift_type'], 0) , '%Y-%m-%d %H:%M:%S'),
+			"break_end": datetime.datetime.strptime( get_schedule_get_date(csa['target_date'], shift_map[csa['new_shift']]['break_start'], shift_map[csa['new_shift']]['break_end'], shift_map[csa['new_shift']]['shift_type'], 1) , '%Y-%m-%d %H:%M:%S'),
+			"nd_start": datetime.datetime.strptime( get_schedule_get_date(csa['target_date'], shift_map[csa['new_shift']]['nd_start'], shift_map[csa['new_shift']]['time_out'], shift_map[csa['new_shift']]['shift_type'], 0) , '%Y-%m-%d %H:%M:%S'),
+			"nd_end": datetime.datetime.strptime( get_schedule_get_date(csa['target_date'], shift_map[csa['new_shift']]['nd_start'], shift_map[csa['new_shift']]['time_out'], shift_map[csa['new_shift']]['shift_type'], 1) , '%Y-%m-%d %H:%M:%S'),
+			"o_time_in": "",
+			"o_break_in": "",
+			"o_break_out": "",
+			"o_time_out": "",
+			"is_default_schedule": 0,
+		}
+
+	for sched in sorted(schedule_entry):
+		if schedule_entry[sched]:
+			row = {
+				"employee": schedule_entry[sched]['employee'],
+				"company": schedule_entry[sched]['company'],
+				"name": schedule_entry[sched]['name'],
+				"target_date": schedule_entry[sched]['target_date'],
+				"work_shift": schedule_entry[sched]['work_shift'],
+				"shift_type": schedule_entry[sched]['shift_type'],
+				"work_hours": schedule_entry[sched]['work_hours'],
+				"break_mins": schedule_entry[sched]['break_mins'],
+				"datetime_in": schedule_entry[sched]['datetime_in'],
+				"datetime_out": schedule_entry[sched]['datetime_out'],
+				"break_start": schedule_entry[sched]['break_start'],
+				"break_end": schedule_entry[sched]['break_end'],
+				"nd_start": schedule_entry[sched]['nd_start'],
+				"nd_end": schedule_entry[sched]['nd_end'],
+				"o_time_in": schedule_entry[sched]['o_time_in'],
+				"o_break_in": schedule_entry[sched]['o_break_in'],
+				"o_break_out": schedule_entry[sched]['o_break_out'],
+				"o_time_out": schedule_entry[sched]['o_time_out'],
+				"is_default_schedule": schedule_entry[sched]['is_default_schedule'],
+			}
+			schedule.append(row)
 
 	return schedule
 
