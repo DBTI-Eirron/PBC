@@ -280,8 +280,8 @@ class LeaveApplication(Document):
 
 	def validate_medical(self):
 		if self.leave_type == "Sick Leave":
-			#valid_day = frappe.db.get_single_value('Timekeeping Settings', 'require_medical')
-			valid_day = get_policy("TK-REQMED" ,self.company)
+			valid_day = frappe.db.get_single_value('Timekeeping Settings', 'require_medical')
+			#valid_day = get_policy("TK-REQMED" ,self.company)
 			if valid_day:
 				if flt(self.total_leave_days, 2) >= flt(valid_day, 2) and not self.medical_cert:
 					frappe.throw(_("<b>Leave Application: {0}</b><hr> Medical Certificate Required").format(self.name))
