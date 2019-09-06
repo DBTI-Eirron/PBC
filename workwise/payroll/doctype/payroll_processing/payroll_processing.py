@@ -980,6 +980,10 @@ class PayrollProcessing(Document):
 							if(at.work or (not at.is_absent)) and (not at.is_lwop):
 								dl_absent = 0
 
+							#if did not worked on a holiday tagged as uho uho
+							if at.is_holiday and at.work < 1 and not (at.is_restday):
+								dl_absent = 1
+
 							#leave triggers
 							if at.lv_status == 1 and (not at.is_lwop):
 								dl_absent = 0
@@ -994,7 +998,7 @@ class PayrollProcessing(Document):
 										ho_paid = 0 #no paid holiday on special HO
 									elif dl_absent == 1 and (not is_uho):
 										ho_paid = 1 #paid holiday if absent and not UHO
-									elif dl_absent == 0 and (not is_uho):
+									elif dl_absent == 0:
 										ho_paid = 1 #paid holiday if not absent and not UHO
 							else: 
 								if dl_absent == 0 and (not at.is_restday):

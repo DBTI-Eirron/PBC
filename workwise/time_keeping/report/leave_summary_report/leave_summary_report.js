@@ -28,6 +28,18 @@ frappe.query_reports["Leave Summary Report"] = {
 			"label": __("Leave Type"),
 			"fieldtype": "Link",
 			"options": "Leave Type",
+		},
+		{
+			"fieldname": "location",
+			"label": __("Location"),
+			"fieldtype": "Link",
+			"options": "Location",
+		},
+		{
+			"fieldname": "employee",
+			"label": __("Employee"),
+			"fieldtype": "Link",
+			"options": "Employee",
 		}
 	]
 }
