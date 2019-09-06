@@ -500,3 +500,10 @@ def cto_hard_reset():
 				})
 				transaction.insert()
 				frappe.db.commit()
+
+def add_total_amount_in_BE_and_RE(): #2019-09-02
+	frappe.db.sql("""UPDATE `tabRecurring Entry` BE SET BE.total_amount=(SELECT SUM(BEE.`amount`) FROM `tabRecurring Entry Employees` BEE WHERE BEE.`parent`=BE.`name`) """)
+	frappe.db.commit()
+
+	frappe.db.sql("""UPDATE `tabBatch Entry` BE SET BE.total_amount=(SELECT SUM(BEE.`amount`) FROM `tabBatch Entry Employees` BEE WHERE BEE.`parent`=BE.`name`) """)
+	frappe.db.commit()
