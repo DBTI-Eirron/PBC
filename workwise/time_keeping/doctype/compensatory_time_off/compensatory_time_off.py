@@ -43,20 +43,20 @@ class CompensatoryTimeOff(Document):
 		get_approver_email_list(self, 'on_submit')
 
 	def before_update_after_submit(self):
-		if self.type == "Use":
-			emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-			if emp_app > 0:
-				self.deduct_use_cto()
+		#if self.type == "Use":
+		#	emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+		#	if emp_app > 0:
+		#		self.deduct_use_cto()
 
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
-	#def on_update_after_submit(self):
-	#	if self.type == "Use":
-	#		emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-	#		if emp_app > 0:
-	#			if self.workflow_state == "Approved":
-	#				self.deduct_use_cto()
+	def on_update_after_submit(self):
+		if self.workflow_state == "Approved":
+			if self.type == "Use":
+				emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+				if emp_app > 0:
+					self.deduct_use_cto()
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
