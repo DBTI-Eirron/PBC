@@ -193,6 +193,9 @@ def get_overtime(entry, ot_apps):
 	ot_map = get_overtime_map()
 	total_ot, total_brk, total_ot_n, total_ot_nd, total_ot_ex = 0.0, 0.0, 0.0, 0.0, 0.0
 	otho_total, otho_used = 0.00, 0.00
+	nd_start = None
+	nd_end = None
+	nd_early_start = None
 
 	#Get Nigthdiff Setup
 	if entry.get('nd_start') and entry.get('nd_end'):
@@ -293,35 +296,37 @@ def get_overtime(entry, ot_apps):
 				#Get ND OT Start and End
 				ot_nd_start = None #Start Time of OT ND computation
 				ot_nd_end = None #End Time of OT ND computation
-				if ot_out > nd_start:
-					# GET ND OT START
-					if ot_in >= nd_start:
-						ot_nd_start = ot_in
-						# if OT in is greater than ot out set to None
-						if ot_in > ot_out:
-							ot_nd_start = None
-					elif ot_in < nd_start: #if OT IN is beyond ND, limit to ND START
-						ot_nd_start = nd_start
+				if nd_start and nd_end:
+					if ot_out > nd_start:
+						# GET ND OT START
+						if ot_in >= nd_start:
+							ot_nd_start = ot_in
+							# if OT in is greater than ot out set to None
+							if ot_in > ot_out:
+								ot_nd_start = None
+						elif ot_in < nd_start: #if OT IN is beyond ND, limit to ND START
+							ot_nd_start = nd_start
 
-					# GET ND OT END
-					if ot_out <= nd_end: #if OT OUT is inside ND
-						ot_nd_end = ot_out
-						# if OT OUT is less than OT IN set to none
-						if ot_out < nd_start:
-							ot_nd_end = None
-					elif ot_out > nd_end:  #if OT OUT is beyond ND, limit to ND END
-						ot_nd_end = nd_end
+						# GET ND OT END
+						if ot_out <= nd_end: #if OT OUT is inside ND
+							ot_nd_end = ot_out
+							# if OT OUT is less than OT IN set to none
+							if ot_out < nd_start:
+								ot_nd_end = None
+						elif ot_out > nd_end:  #if OT OUT is beyond ND, limit to ND END
+							ot_nd_end = nd_end
 
 				#Get ND OT and Calculate ND OT From Start to End
 				if ot_nd_start and ot_nd_end and ot_nd_start < ot_nd_end:
 					ot_nd = abs((ot_nd_start - ot_nd_end).total_seconds())
 
-				#Get early ND OT
-				if ot_in < nd_early_start:
-					if ot_out > nd_early_start:
-						ot_nd = abs((ot_in - nd_early_start).total_seconds())
-					else:
-						ot_nd = abs((ot_in - ot_out).total_seconds())
+				if nd_early_start:
+					#Get early ND OT
+					if ot_in < nd_early_start:
+						if ot_out > nd_early_start:
+							ot_nd = abs((ot_in - nd_early_start).total_seconds())
+						else:
+							ot_nd = abs((ot_in - ot_out).total_seconds())
 
 				if d.break_hrs:
 					total_brk += flt(d.break_hrs, 8) * 60 * 60
