@@ -915,9 +915,9 @@ class Blanket(Document):
 			
 		return card_type
 
-	def dtr_get_timecard(self, card, emp):
-		timecard_sel = frappe.db.sql("""SELECT TC.`name`, TC.`date`, TC.`time` FROM `tabTime Card` TC JOIN `tabEmployee` TE WHERE TC.biometrics_id = TE.biometrics_id  AND TC.`date` = %s AND TC.`card_type` = %s AND TE.`name` = %s LIMIT 1 """, (self.dtr_target_date, card, emp), as_dict=True)
-		return timecard_sel
+	#def dtr_get_timecard(self, card, emp):
+	#	timecard_sel = frappe.db.sql("""SELECT TC.`name`, TC.`date`, TC.`time` FROM `tabTime Card` TC JOIN `tabEmployee` TE WHERE TC.biometrics_id = TE.biometrics_id  AND TC.`date` = %s AND TC.`card_type` = %s AND TE.`name` = %s LIMIT 1 """, (self.dtr_target_date, card, emp), as_dict=True)
+	#	return timecard_sel
 
 	#Make DTR Problem Application(s)
 	def make_dtr_problem_application(self):
@@ -931,7 +931,6 @@ class Blanket(Document):
 				"posting_date": self.posting_date,
 				"company": self.company,
 				"target_date": self.dtr_target_date,
-				"is_previous": self.dtr_is_previous,
 				"reason": self.dtr_reason,
 				"attachment": self.dtr_attachment,
 				"approved_on": nowdate(),
@@ -944,18 +943,16 @@ class Blanket(Document):
 
 			for req in self.time_record_request:
 				card = self.dtr_get_card_type(req)
-				timecard_sel = self.dtr_get_timecard(card, d.employee)
-				current = ""
-				time_card = ""
-				for a in timecard_sel:
-					current = a.time
-					time_card = a.name
+				#timecard_sel = self.dtr_get_timecard(card, d.employee)
+				#current = ""
+				#time_card = ""
+				#for a in timecard_sel:
+				#	current = a.time
+				#	time_card = a.name
 				timecard_info = {
 					"type": req.type,
-					"current": current,
-					"time_card": time_card,
+					"card_type": card,
 					"request": req.request,
-					"action": "Approved",
 				}
 				new_dtr_app.append('time_record_request', timecard_info)
 
