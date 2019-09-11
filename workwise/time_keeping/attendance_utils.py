@@ -1909,7 +1909,7 @@ def complete_sched(emp_dict, pay_from, pay_to, template_map):
 				has_sched = True
 				break
 		if has_sched ==  False:
-			if emp_dict['employee_details']['default_schedule'] is not None:
+			if emp_dict['employee_details']['default_schedule']:
 				complete_schedules.append({
 					"employee":emp_dict['employee_details']['name'],
 					"company":emp_dict['employee_details']['company'],
