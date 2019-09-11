@@ -15,7 +15,7 @@ class DTRProblemApplication(Document):
 	def validate(self):
 		validate_inactive_employee(self)
 		clear_approval_history(self)
-		self.update_target_date()
+		self.update_card_type()
 		self.validate_application()
 		self.get_timekeeping_settings()
 		grant_head_subordinate_access(self)
@@ -67,14 +67,7 @@ class DTRProblemApplication(Document):
 				if int(dtrp_record_year[0].count) > int(max_year):
 					frappe.throw(_("<b>DTR Problem Application: {0}</b><hr> You have reached the maximum number of filing per year").format(self.name))
 
-	def update_target_date(self):		
-		if self.is_previous:
-			target_date = datetime.strptime(str(self.dtr_date) + ' ' + '00:00:00', '%Y-%m-%d %H:%M:%S').date()
-			target_date = target_date - timedelta(days=1)
-		else:
-			target_date = self.dtr_date
-		self.target_date = getdate(target_date)
-
+	def update_card_type(self):		
 		for req in self.get("time_record_request"):
 			if req.type == "Time In":
 				req.card_type = 0
@@ -119,7 +112,7 @@ class DTRProblemApplication(Document):
 					if frappe.db.exists("Time Card", req.time_card):
 						frappe.delete_doc("Time Card", req.time_card)
 				else:
-					dtr_date = self.update_target_date()
+					dtr_date = self.update_card_type()
 					bio = frappe.db.get_value("Employee", self.employee, "biometrics_id")
 					card = self.get_card_type(req)
 					frappe.db.sql(""" DELETE FROM `tabTime Card` WHERE `biometrics_id` = %s AND card_type = %s AND `date` = %s AND `time` = %s """, (bio, card, dtr_date, req.request), as_dict=True)
@@ -143,7 +136,6 @@ class DTRProblemApplication(Document):
 		return timecard_sel
 
 	def make_timecard(self, req):
-		target_date = self.update_target_date()
 		bio = frappe.db.get_value("Employee", self.employee, "biometrics_id")
 
 		card_type = self.get_card_type(req)
