@@ -15,6 +15,9 @@ change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_appr
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
+		if self.is_new():
+			self.use_cto_table = None
+
 		validate_inactive_employee(self)
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)
@@ -46,25 +49,26 @@ class CompensatoryTimeOff(Document):
 		if self.type == "Use":
 			emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 			if emp_app > 0:
-				self.deduct_use_cto()
+				self.validate_deduct_use_cto()
 
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
-	#def on_update_after_submit(self):
-	#	if self.type == "Use":
-	#		emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-	#		if emp_app > 0:
-	#			if self.workflow_state == "Approved":
-	#				self.deduct_use_cto()
+	def on_update_after_submit(self):
+		if self.workflow_state == "Approved":
+			if self.type == "Use":
+				emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+				if emp_app > 0:
+					self.deduct_use_cto()
 
 	def on_cancel(self):
-		validate_reject_cancel_own_application(self)
-		get_levelled_approval_rejection(self)
 		if self.type == "File":
 			self.validate_cancel_file_cto()
 		if self.type == "Use":
-			self.revert_credit_deductions()
+			if self.get('use_cto_table'):
+				self.revert_credit_deductions()
+		validate_reject_cancel_own_application(self)
+		get_levelled_approval_rejection(self)
 		get_cancelled_by_and_date(self)
 
 	def get_timekeeping_settings_for_cto_use_type(self):
@@ -317,6 +321,40 @@ class CompensatoryTimeOff(Document):
 		if last_date:
 			if getdate(self.use_date) < getdate(last_date):
 				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Cannot Use CTO Application for date {1} because last Filed CTO Application date is {2}").format(self.name, self.use_date, last_date))
+
+	def validate_deduct_use_cto(self):
+		req_credits = self.required_credits
+
+		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
+		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
+		if cto_validity > 0:
+			cto_validity_condition = " AND (%(use_date)s BETWEEN `date` AND DATE_SUB(`date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
+		else:
+			cto_validity_condition = ""
+
+		if cto_use_type == "Day":
+			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` 
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s AND `balance` > 0 {conditions} """.format(conditions=cto_validity_condition),{
+				"employee": self.employee,
+				"filed_cto": self.filed_cto,
+				"use_date": getdate(self.use_date),
+				"cto_validity": cto_validity,
+				}, as_dict=True)
+		else:
+			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `date` FROM `tabCompensatory Time Off` 
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `balance` > 0 {conditions} ORDER BY `date` ASC""".format(conditions=cto_validity_condition),{
+				"employee": self.employee,
+				"use_date": getdate(self.use_date),
+				"cto_validity": cto_validity,
+				}, as_dict=True)
+
+		if filed_cto:
+			#Validate credits
+			fc_credits_earned = 0.00
+			for fc in filed_cto:
+				fc_credits_earned += fc.balance
+			if fc_credits_earned < req_credits:
+				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You dont have enough credits").format(self.name))
 
 	def deduct_use_cto(self):
 		entries = [] 

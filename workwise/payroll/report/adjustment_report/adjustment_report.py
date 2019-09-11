@@ -108,7 +108,7 @@ def get_data(filters):
 	data = []
 	
 	register = frappe.db.sql("""SELECT * FROM `tabAdjustment Register` 
-		WHERE `company` = %(company)s AND `payroll_period` = %(payroll_period)s {conditions}
+		WHERE `company` = %(company)s AND `target_period` = %(payroll_period)s {conditions}
 		ORDER BY `employee_name` ASC""".format(conditions=get_conditions(filters)),{
 		"company": filters.company,
 		"employee": filters.employee,
@@ -130,35 +130,35 @@ def get_data(filters):
 			income_ut = 0
 			deduction_ut = 0
 
-			if income_absent > 0:
-				income_absent = flt(reg.absent)
+			if reg.absent < 0:
+				income_absent = flt(abs(reg.absent))
 			else:
-				deduction_absent = flt(reg.absent)
+				deduction_absent = flt(abs(reg.absent))
 
-			if income_uh > 0:
-				income_uh = flt(reg.unpaid_holiday)
+			if reg.unpaid_holiday < 0:
+				income_uh = flt(abs(reg.unpaid_holiday))
 			else:
-				deduction_uh = flt(reg.unpaid_holiday)
+				deduction_uh = flt(abs(reg.unpaid_holiday))
 
-			if income_ot > 0:
-				income_ot = flt(reg.overtime)
+			if reg.overtime < 0:
+				deduction_ot = flt(abs(reg.overtime))
 			else:
-				deduction_ot = flt(reg.overtime)
+				income_ot = flt(abs(reg.overtime))
 
-			if income_nd > 0:
-				income_nd = flt(reg.nightdiff)
+			if reg.nightdiff < 0:
+				deduction_nd = flt(abs(reg.nightdiff))
 			else:
-				income_nd = flt(reg.nightdiff)
+				income_nd = flt(abs(reg.nightdiff))
 
-			if income_late > 0:
-				income_late = flt(reg.late)
+			if reg.late < 0:
+				income_late = flt(abs(reg.late))
 			else:
-				deduction_late = flt(reg.late)
+				deduction_late = flt(abs(reg.late))
 
-			if income_ut > 0:
-				income_ut = flt(reg.undertime)
+			if reg.undertime < 0:
+				income_ut = flt(abs(reg.undertime))
 			else:
-				deduction_ut = flt(reg.undertime)
+				deduction_ut = flt(abs(reg.undertime))
 
 			if filters.hide_zero == 1:
 				emp_total = income_absent + deduction_absent + income_uh + deduction_uh + income_ot + deduction_ot + income_nd + deduction_nd + income_late + deduction_late + income_ut + deduction_ut
