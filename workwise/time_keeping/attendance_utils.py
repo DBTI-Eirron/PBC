@@ -740,7 +740,13 @@ def get_flexible(entry, obs):
 			#Reset Flexible values
 			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
 			if entry.get('flexible_type') == "In-Out":		
-				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds() - (entry.get('break_mins') * 60)  + flex_ob_time
+				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds() + flex_ob_time
+				if entry['lv_status'] == 2 or entry['lv_status'] == 3:
+					lv = (entry.get('worker_secs') / 2)
+				else:
+					diff -= (entry.get('break_mins') * 60)
+
+
 				if diff < (entry.get('worker_secs')):
 					ut = 0
 					lv = 0
@@ -753,7 +759,7 @@ def get_flexible(entry, obs):
 					if entry['lv_status'] == 2 or entry['lv_status'] == 3:
 						#less half of work time if halfday leave
 						ut -= (entry.get('worker_secs') / 2) #used to less UT hours
-						lv = (entry.get('worker_secs') / 2) #used to less work hours
+						 #used to less work hours
 
 					#UT Should not be negative
 					if ut < 0:
