@@ -4,9 +4,11 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
+from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
+from workwise.payroll.annualization import create_annualization
+from workwise.payroll.payroll_utils import get_rates
 
 class SpecialProcessing(Document):
 	def get_employees(self):
@@ -67,22 +69,24 @@ class SpecialProcessing(Document):
 		switcher = {
 			"13th Month": self.bonus_pay,
 			"Leave Balance to Cash": self.leave_to_cash,
+			"Annualization": self.annualization,
 		}
 
 		func = switcher.get(self.method, lambda: frapp.throw(_("Invalid Method")))
 		func(header, entries)
 
-		batch = frappe.new_doc("Batch Entry")
-		batch.update(header)
-		for d in entries:
-			if d.get('amount') > 0:
-				batch.append("employees", {
-					"employee": d.get('employee'),
-					"employee_name": d.get('employee_name'),
-					"amount": d.get('amount'),
-				})
+		if self.method != "Annualization":
+			batch = frappe.new_doc("Batch Entry")
+			batch.update(header)			
+			for d in entries:
+				if d.get('amount') > 0:
+					batch.append("employees", {
+						"employee": d.get('employee'),
+						"employee_name": d.get('employee_name'),
+						"amount": d.get('amount'),
+					})
 
-		batch.insert()
+			batch.insert()
 
 		return self.create_log(ss_list)
 
@@ -177,6 +181,11 @@ class SpecialProcessing(Document):
 
 		return header, entries
 
+	def annualization(self, header, entries):
+		log = "Created Annualization Entries"
+		create_annualization(self)
+		return log
+
 	def get_rates(self, emp):
 		monthly_rate = 0.0
 		hourly_rate = 0.0
@@ -210,6 +219,6 @@ class SpecialProcessing(Document):
 		}
 
 	def create_log(self, ss_list):
-		log = "<p>" + _("Batch Entries created") + "</p>"
+		log = "<p>" + _("Special Entries created") + "</p>"
 		return log
 
