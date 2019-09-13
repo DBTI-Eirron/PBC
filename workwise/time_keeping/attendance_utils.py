@@ -449,13 +449,14 @@ def get_ndiff(entry):
 				entry['nightdiff'] = abs((nd_out - nd_in).total_seconds())
 
 		#early nightdiff No need for early nightdiff ND should be insided shift
-		#nd_early_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
-		#if entry.get('time_in') <= nd_early_start:
-		#	if get_datetime(entry.get('card_in')) < nd_early_start:
-		#		if get_datetime(entry.get('card_in')) < get_datetime(entry.get('time_in')):
-		#			entry['nightdiff'] = abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())
-		#		else:
-		#			entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())
+		if card_in and card_out:
+			nd_early_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
+			if entry.get('time_in') <= nd_early_start:
+				if get_datetime(entry.get('card_in')) < nd_early_start:
+					if get_datetime(entry.get('card_in')) < get_datetime(entry.get('time_in')):
+						entry['nightdiff'] = abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())
+					else:
+						entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())
 
 	return entry
 
