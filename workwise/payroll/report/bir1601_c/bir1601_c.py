@@ -10,11 +10,17 @@ from workwise.payroll.payroll_utils import get_transaction_map
 
 def execute(filters=None):
 	columns = get_columns(filters)
-	data = get_data(filters)
+	data = get_data(filters, columns)
 	return columns, data
 
 def get_columns(filters):
 	columns = [
+		{
+			"fieldname": "employee",
+			"label": _("Employee ID"),
+			"fieldtype": "Data",
+			"width": 140
+		},
 		{
 			"fieldname": "employee_name",
 			"label": _("Employee Name"),
@@ -79,12 +85,13 @@ def get_columns(filters):
 
 	return columns
 
-def get_data(filters):
+def get_data(filters, columns):
 	data = []
+	emp_entries = {}
 
 	if filters.month and filters.year:
-		pay_from = str(filters.month)+"-01-"+filters.year
-		pay_to = str(filters.month)+"-"+str(calendar.monthrange(int(filters.year), int(filters.month))[1])+"-"+filters.year
+		pay_from = filters.year+"-"+str(filters.month)+"-01"
+		pay_to = filters.year+"-"+str(filters.month)+"-"+str(calendar.monthrange(int(filters.year), int(filters.month))[1])
 		pay_from = getdate(str(pay_from))
 		pay_to = getdate(str(pay_to))
 
@@ -102,129 +109,142 @@ def get_data(filters):
 		total_wht = 0.00
 
 		for emp in employee_list:
-			amount_compensation = 0.00
-			holiday_pay = 0.00
-			overtime_pay = 0.00
-			month_pay = 0.00
-			de_minimis = 0.00
-			statutory = 0.00
-			taxable_salary = 0.00
-			sss_hdmf_phic = 0.00
-			wht = 0.00
+			if emp.employee not in emp_entries:
+				emp_entries[emp.employee] = {
+					"employee_name": cstr(emp.full_name),
+					"amount_compensation": 0.00,
+					"taxable_salary": 0.00,
+					"holiday_pay": 0.00,
+					"overtime_pay": 0.00,
+					"13th_month_pay": 0.00,
+					"de_minimis": 0.00,
+					"statutory": 0.00,
+					"taxable_salary": 0.00,
+					"sss_hdmf_phic": 0.00,
+					"wht": 0.00,
+					"included_payreg": []
+				}
 
-			salary = frappe.db.sql("""SELECT pr.employee, pr.employee_name, pre.pay_code, pre.amount FROM `tabPayroll Register` pr
-			INNER JOIN `tabPayroll Register Entries` pre ON pre.parent = pr.`name`
-			WHERE  pr.company = %s AND pr.employee = %s AND pr.posting_date >= %s AND pr.posting_date <= %s """,(filters.company, emp.name, pay_from, pay_to), as_dict=True)
+			if emp.payreg not in emp_entries[emp.employee]["included_payreg"]:
+				emp_entries[emp.employee]["amount_compensation"] += flt(emp['total_income'] , 8)
+				emp_entries[emp.employee]["taxable_salary"] += flt(emp['taxable_income'] , 8)
+				emp_entries[emp.employee]["included_payreg"].append(emp.payreg)
 
-			for d in salary:
-				bir_type = tr_map[d.get("pay_code")]['bir_type']
-				tr_type = tr_map[d.get("pay_code")]['type']
-				is_taxable = tr_map[d.get("pay_code")]['is_taxable']
+			bir_type = tr_map[emp["pay_code"]]['bir_type']
+			tr_type = tr_map[emp["pay_code"]]['type']
+			is_taxable = tr_map[emp["pay_code"]]['is_taxable']
 
-				if tr_type != "None":
-					if bir_type == "Overtime" and tr_type == "Income":
-						overtime_pay += d.amount
-					if bir_type == "Overtime" and tr_type == "Deduction":
-						overtime_pay -= d.amount
-					if bir_type == "Holiday" and tr_type == "Income":
-						holiday_pay += d.amount
-					if bir_type == "Holiday" and tr_type == "Deduction":
-						holiday_pay -= d.amount
-					if bir_type == "13th Month" and tr_type == "Income":
-						month_pay += d.amount
-					if bir_type == "13th Month" and tr_type == "Deduction":
-						month_pay -= d.amount
-					if bir_type == "Deminimis" and tr_type == "Income":
-						de_minimis += d.amount
-					if bir_type == "Deminimis" and tr_type == "Deduction":
-						de_minimis -= d.amount
+			if tr_type != "None":
+				if bir_type == "Overtime" and tr_type == "Income":
+					emp_entries[emp.employee]["overtime_pay"] += emp['amount']
+				if bir_type == "Overtime" and tr_type == "Deduction":
+					emp_entries[emp.employee]["overtime_pay"] -= emp['amount']
+				if bir_type == "Holiday" and tr_type == "Income":
+					emp_entries[emp.employee]["holiday_pay"] += emp['amount']
+				if bir_type == "Holiday" and tr_type == "Deduction":
+					emp_entries[emp.employee]["holiday_pay"] -= emp['amount']
+				if bir_type == "13th Month" and tr_type == "Income":
+					emp_entries[emp.employee]["13th_month_pay"] += emp['amount']
+				if bir_type == "13th Month" and tr_type == "Deduction":
+					emp_entries[emp.employee]["13th_month_pay"] -= emp['amount']
+				if bir_type == "Deminimis" and tr_type == "Income":
+					emp_entries[emp.employee]["de_minimis"] += emp['amount']
+				if bir_type == "Deminimis" and tr_type == "Deduction":
+					emp_entries[emp.employee]["de_minimis"] -= emp['amount']
+				if emp['pay_code'] == "SSS":
+					emp_entries[emp.employee]["sss_hdmf_phic"] += emp['amount']
+				if emp['pay_code'] == "HDMF":
+					emp_entries[emp.employee]["sss_hdmf_phic"] += emp['amount']
+				if emp['pay_code'] == "PHIC":
+					emp_entries[emp.employee]["sss_hdmf_phic"] += emp['amount']
+				if emp['pay_code'] == "WHTAX":
+					emp_entries[emp.employee]["wht"] += emp['amount']
+				if emp['daily_rate'] <= emp['min_wage']:
 					if bir_type == "Basic" and tr_type == "Income":
-						statutory += d.amount
+						emp_entries[emp.employee]["statutory"] += emp['amount']
 					if bir_type == "Basic" and tr_type == "Deduction":
-						statutory -= d.amount
-					if d.pay_code == "SSS":
-						sss_hdmf_phic += d.amount
-					if d.pay_code == "HDMF":
-						sss_hdmf_phic += d.amount
-					if d.pay_code == "PHIC":
-						sss_hdmf_phic += d.amount
-					if d.pay_code == "WHTAX":
-						wht += d.amount
+						emp_entries[emp.employee]["statutory"] -= emp['amount']
 
-				emp_name = emp.employee_name
-				amount_compensation = emp.total_income	
-				taxable_salary = emp.taxable_income
-
+		for e in emp_entries:
 			row = {
-				"employee_name": emp_name,
-				"amount_compensation": '{:,.2f}'.format(amount_compensation),
-				"holiday_pay": '{:,.2f}'.format(holiday_pay),
-				"overtime_pay": '{:,.2f}'.format(overtime_pay),
-				"13th_month_pay": '{:,.2f}'.format(month_pay),
-				"de_minimis": '{:,.2f}'.format(de_minimis),
-				"statutory": '{:,.2f}'.format(statutory),
-				"taxable_salary": '{:,.2f}'.format(taxable_salary),
-				"sss_hdmf_phic": '{:,.2f}'.format(sss_hdmf_phic),
-				"wht": '{:,.2f}'.format(wht),
+				"employee": e,
+				"employee_name": emp_entries[e]["employee_name"],
+				"amount_compensation": '{:,.2f}'.format( flt(emp_entries[e]["amount_compensation"], 2) ),
+				"holiday_pay": '{:,.2f}'.format( flt(emp_entries[e]["holiday_pay"], 2) ),
+				"overtime_pay": '{:,.2f}'.format( flt(emp_entries[e]["overtime_pay"], 2) ),
+				"13th_month_pay": '{:,.2f}'.format( flt(emp_entries[e]["13th_month_pay"], 2) ),
+				"de_minimis": '{:,.2f}'.format( flt(emp_entries[e]["de_minimis"], 2) ),
+				"statutory": '{:,.2f}'.format( flt(emp_entries[e]["statutory"], 2) ),
+				"taxable_salary": '{:,.2f}'.format( flt(emp_entries[e]["taxable_salary"], 2) ),
+				"sss_hdmf_phic": '{:,.2f}'.format( flt(emp_entries[e]["sss_hdmf_phic"], 2) ),
+				"wht": '{:,.2f}'.format( flt(emp_entries[e]["wht"], 2) ),
 			}
 			data.append(row)
 
-			total_amount_compensation += amount_compensation
-			total_holiday_pay += holiday_pay
-			total_overtime_pay += overtime_pay
-			total_month_pay += month_pay
-			total_de_minimis += de_minimis
-			total_statutory += statutory
-			total_taxable_salary += taxable_salary
-			total_sss_hdmf_phic += sss_hdmf_phic
-			total_wht += wht
+			total_amount_compensation += flt(emp_entries[e]["amount_compensation"] , 8)
+			total_holiday_pay += flt(emp_entries[e]["holiday_pay"] , 8)
+			total_overtime_pay += flt(emp_entries[e]["overtime_pay"] , 8)
+			total_month_pay += flt(emp_entries[e]["13th_month_pay"] , 8)
+			total_de_minimis += flt(emp_entries[e]["de_minimis"] , 8)
+			total_statutory += flt(emp_entries[e]["statutory"] , 8)
+			total_taxable_salary += flt(emp_entries[e]["taxable_salary"] , 8)
+			total_sss_hdmf_phic += flt(emp_entries[e]["sss_hdmf_phic"] , 8)
+			total_wht += flt(emp_entries[e]["wht"] , 8)
+
+		data = sorted(data, key = lambda k:k['employee_name'])
 
 		total_row = {
+			"employee": "",
 			"employee_name": "",
-			"amount_compensation": '{:,.2f}'.format(total_amount_compensation),
-			"holiday_pay": '{:,.2f}'.format(total_holiday_pay),
-			"overtime_pay": '{:,.2f}'.format(total_overtime_pay),
-			"13th_month_pay": '{:,.2f}'.format(total_month_pay),
-			"de_minimis": '{:,.2f}'.format(total_de_minimis),
-			"statutory": '{:,.2f}'.format(total_statutory),
-			"taxable_salary": '{:,.2f}'.format(total_taxable_salary),
-			"sss_hdmf_phic": '{:,.2f}'.format(total_sss_hdmf_phic),
-			"wht": '{:,.2f}'.format(total_wht),
+			"amount_compensation": '{:,.2f}'.format( flt(total_amount_compensation, 2) ),
+			"holiday_pay": '{:,.2f}'.format( flt(total_holiday_pay, 2) ),
+			"overtime_pay": '{:,.2f}'.format( flt(total_overtime_pay, 2) ),
+			"13th_month_pay": '{:,.2f}'.format( flt(total_month_pay, 2) ),
+			"de_minimis": '{:,.2f}'.format( flt(total_de_minimis, 2) ),
+			"statutory": '{:,.2f}'.format( flt(total_statutory, 2) ),
+			"taxable_salary": '{:,.2f}'.format( flt(total_taxable_salary, 2) ),
+			"sss_hdmf_phic": '{:,.2f}'.format( flt(total_sss_hdmf_phic, 2) ),
+			"wht": '{:,.2f}'.format( flt(total_wht, 2) ),
 		}
 		data.append(total_row)
+
+		if filters.hide_zero:
+			total_rows = ["amount_compensation", "holiday_pay", "overtime_pay", "13th_month_pay", "de_minimis", "statutory", "taxable_salary", "sss_hdmf_phic", "wht"]
+			max_range = len(total_row)
+			idx = 2
+			for x in total_rows:
+				if flt(total_row[x], 2) <= 0:
+					del columns[idx]
+					idx -= 1
+				idx += 1
 
 	return data
 
 def get_employees(filters, pay_from, pay_to):
-	cur_user = frappe.session.user
-	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT DISTINCT TE.name, SUM(PR.total_income) as total_income, TE.`name`, SUM(PR.taxable_income) as taxable_income, PR.employee_name
-			FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-			WHERE TE.is_active = 1
-				AND PR.company = %(company)s 
-				AND PR.posting_date >= %(from_date)s
-				AND PR.posting_date <= %(to_date)s
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) 
-			GROUP BY PR.`employee`
-			ORDER BY PR.employee_name """,{ 
-			"company": filters.company,
-			"from_date": pay_from,
-			"to_date": pay_to,
-			"user": frappe.session.user
-		}, as_dict=True)
-	else:
-		employees = frappe.db.sql(""" SELECT DISTINCT TE.name, SUM(PR.total_income) as total_income, TE.`name`, SUM(PR.taxable_income) as taxable_income, PR.employee_name
-			FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-			WHERE TE.is_active = 1
-				AND PR.company = %(company)s 
-				AND PR.posting_date >= %(from_date)s
-				AND PR.posting_date <= %(to_date)s
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-			GROUP BY PR.`employee`
-			ORDER BY PR.employee_name """,{ 
-				"company": filters.company,
-				"from_date": pay_from,
-				"to_date": pay_to,
-			}, as_dict=True)
+	employees = frappe.db.sql("""SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`, PR.`name` as payreg, PR.`total_income`, 
+		PR.`taxable_income`, PR.`employee`, TE.`full_name`, PR.`daily_rate`, TL.`name` as location, TL.`min_wage`
+		FROM `tabPayroll Register Entries` PRE
+		INNER JOIN `tabPayroll Register` PR ON PRE.`parent` = PR.`name`
+		INNER JOIN `tabEmployee` TE ON PR.`employee` = TE.`name`
+		INNER JOIN `tabLocation` TL ON TE.`location` = TL.`name`
+		WHERE TE.is_active = 1
+		AND PR.company = %(company)s 
+		AND (PR.posting_date BETWEEN %(from_date)s AND %(to_date)s)
+		{conditions}
+		GROUP BY PRE.`name` """.format(conditions=get_conditions(filters)),{ 
+		"company": filters.company,
+		"from_date": getdate(pay_from),
+		"to_date": getdate(pay_to),
+	}, as_dict=True)
 
 	return employees
+
+def get_conditions(filters):
+	conditions = []
+	if filters.employee:
+		conditions.append(_("PR.`employee` = '{0}'").format(filters.employee))
+
+	if frappe.session.user != "Administrator":
+		conditions.append(_("TE.`sensitivity` IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
+
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
