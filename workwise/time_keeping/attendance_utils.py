@@ -1729,7 +1729,7 @@ def get_all_leaves(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustm
 		LA.is_half_day, LA.is_second_half, LA.is_holiday, LA.is_excluded, L.is_lwop
 		FROM `tabLeave Application Table` LA
 		INNER JOIN `tabLeave Application` L ON L.`name` = LA.parent
-		WHERE LA.leave_date >= %s AND LA.leave_date <= %s {conditions} AND L.docstatus = '1' 
+		WHERE LA.leave_date >= %s AND LA.leave_date <= %s {conditions} AND L.docstatus = '1' AND L.workflow_state = 'Approved'
 		ORDER BY LA.leave_date ASC """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in leaves:
