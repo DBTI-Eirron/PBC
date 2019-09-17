@@ -448,14 +448,15 @@ def get_ndiff(entry):
 			if get_nd:
 				entry['nightdiff'] = abs((nd_out - nd_in).total_seconds())
 
-		#early nightdiff
-		nd_early_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
-		if entry.get('time_in') <= nd_early_start:
-			if get_datetime(entry.get('card_in')) < nd_early_start:
-				if get_datetime(entry.get('card_in')) < get_datetime(entry.get('time_in')):
-					entry['nightdiff'] = abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())
-				else:
-					entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())
+		#early nightdiff No need for early nightdiff ND should be insided shift
+		if card_in and card_out:
+			nd_early_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
+			if entry.get('time_in') <= nd_early_start:
+				if get_datetime(entry.get('card_in')) < nd_early_start:
+					if get_datetime(entry.get('card_in')) < get_datetime(entry.get('time_in')):
+						entry['nightdiff'] = abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())
+					else:
+						entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())
 
 	return entry
 
@@ -740,7 +741,13 @@ def get_flexible(entry, obs):
 			#Reset Flexible values
 			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
 			if entry.get('flexible_type') == "In-Out":		
-				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds() - (entry.get('break_mins') * 60)  + flex_ob_time
+				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds() + flex_ob_time
+				if entry['lv_status'] == 2 or entry['lv_status'] == 3:
+					lv = (entry.get('worker_secs') / 2)
+				else:
+					diff -= (entry.get('break_mins') * 60)
+
+
 				if diff < (entry.get('worker_secs')):
 					ut = 0
 					lv = 0
@@ -753,7 +760,7 @@ def get_flexible(entry, obs):
 					if entry['lv_status'] == 2 or entry['lv_status'] == 3:
 						#less half of work time if halfday leave
 						ut -= (entry.get('worker_secs') / 2) #used to less UT hours
-						lv = (entry.get('worker_secs') / 2) #used to less work hours
+						 #used to less work hours
 
 					#UT Should not be negative
 					if ut < 0:
@@ -1722,7 +1729,7 @@ def get_all_leaves(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustm
 		LA.is_half_day, LA.is_second_half, LA.is_holiday, LA.is_excluded, L.is_lwop
 		FROM `tabLeave Application Table` LA
 		INNER JOIN `tabLeave Application` L ON L.`name` = LA.parent
-		WHERE LA.leave_date >= %s AND LA.leave_date <= %s {conditions} AND L.docstatus = '1' 
+		WHERE LA.leave_date >= %s AND LA.leave_date <= %s {conditions} AND L.docstatus = '1' AND L.workflow_state = 'Approved'
 		ORDER BY LA.leave_date ASC """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in leaves:

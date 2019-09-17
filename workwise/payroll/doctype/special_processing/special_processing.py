@@ -4,9 +4,12 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
+from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
+from workwise.payroll.annualization import create_annualization
+from workwise.payroll.payroll_utils import get_rates
+from workwise.payroll.payroll_utils import get_transaction_map
 
 class SpecialProcessing(Document):
 	def get_employees(self):
@@ -67,22 +70,24 @@ class SpecialProcessing(Document):
 		switcher = {
 			"13th Month": self.bonus_pay,
 			"Leave Balance to Cash": self.leave_to_cash,
+			"Annualization": self.annualization,
 		}
 
 		func = switcher.get(self.method, lambda: frapp.throw(_("Invalid Method")))
 		func(header, entries)
 
-		batch = frappe.new_doc("Batch Entry")
-		batch.update(header)
-		for d in entries:
-			if d.get('amount') > 0:
-				batch.append("employees", {
-					"employee": d.get('employee'),
-					"employee_name": d.get('employee_name'),
-					"amount": d.get('amount'),
-				})
+		if self.method != "Annualization":
+			batch = frappe.new_doc("Batch Entry")
+			batch.update(header)			
+			for d in entries:
+				if d.get('amount') > 0:
+					batch.append("employees", {
+						"employee": d.get('employee'),
+						"employee_name": d.get('employee_name'),
+						"amount": d.get('amount'),
+					})
 
-		batch.insert()
+			batch.insert()
 
 		return self.create_log(ss_list)
 
@@ -97,38 +102,70 @@ class SpecialProcessing(Document):
 			for emp in employees:
 				total_bonus = 0
 				if bonus_method == "Standard":
-					registerx = frappe.db.sql(""" SELECT schedule, bonus, monthly_rate FROM `tabPayroll Register` WHERE employee = %(employee)s 
-						AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s AND schedule = %(schedule)s """,{ 
-							"employee": emp.name,
-							"from_year": from_year,
-							"to_year": to_year,
-							"schedule": emp.payroll_schedule,
-					}, as_dict=True)
-
-					total_rate = 0.0
-					months = 0.0
-					for d in registerx:
-						if d.schedule == "Semi-Monthly":
-							months += 0.5
-							total_rate = d.monthly_rate
-						if d.schedule == "Monthly":
-							months += 1
-							total_rate = d.monthly_rate
-
-					total_bonus += total_rate * months / 12
-
-				elif bonus_method == "Attendance Base":
-					rates = self.get_rates(emp)
-					att = frappe.db.sql(""" SELECT bonus, present_days FROM `tabPayroll Register` WHERE employee = %(employee)s AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+					registerx = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`
+						FROM `tabPayroll Register Entries` PRE 
+						INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
+						WHERE PRE.`pay_code` = 'BS' AND PR.`employee` = %(employee)s 
+						AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s """,{ 
 						"employee": emp.name,
 						"from_year": from_year,
 						"to_year": to_year,
 					}, as_dict=True)
-					present_days = 0
-					for d in att:
-						present_days += d.present_days
 
-					total_bonus = ( present_days / emp.get('total_yr_days')) * flt(rates.get('monthly_rate'), 8)
+					for d in registerx:
+						if d.pay_code == 'BS':
+							total_bonus += d.amount
+
+					total_bonus = total_bonus / 12
+
+				elif bonus_method == "Bonus Basis":
+					bonus_basis = frappe.db.sql(""" SELECT bonus FROM `tabPayroll Register` WHERE employee = %(employee)s 
+						AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+							"employee": emp.name,
+							"from_year": from_year,
+							"to_year": to_year,
+					}, as_dict=True)
+
+					for d in bonus_basis:
+						total_bonus += d.bonus
+
+					total_bonus = total_bonus / 12
+
+				elif bonus_method == "Attendance Base":
+					#rates = self.get_rates(emp)
+					#att = frappe.db.sql(""" SELECT bonus, present_days FROM `tabPayroll Register` WHERE employee = %(employee)s AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+					#	"employee": emp.name,
+					#	"from_year": from_year,
+					#	"to_year": to_year,
+					#}, as_dict=True)
+
+					#present_days = 0
+					#for d in att:
+					#	present_days += d.present_days
+
+					#total_bonus = ( present_days / emp.get('total_yr_days')) * flt(rates.get('monthly_rate'), 8)
+
+					att = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`, TT.`entry_type`, TT.`type` 
+						FROM `tabPayroll Register Entries` PRE 
+						INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
+						INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code`=TT.`name` 
+						WHERE PR.`employee` = %(employee)s AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s """,{ 
+						"employee": emp.name,
+						"from_year": from_year,
+						"to_year": to_year,
+					}, as_dict=True)
+
+					for d in att:
+						if d.pay_code == 'BS':
+							total_bonus += d.amount
+
+						if d.entry_type == 'Attendance':
+							if d.type == 'Income':
+								total_bonus += d.amount
+							if d.type == 'Deduction':
+								total_bonus -= d.amount
+
+					total_bonus = total_bonus / 12
 
 				entries.append({
 					"employee": emp.name,
@@ -177,6 +214,11 @@ class SpecialProcessing(Document):
 
 		return header, entries
 
+	def annualization(self, header, entries):
+		log = "Created Annualization Entries"
+		create_annualization(self)
+		return log
+
 	def get_rates(self, emp):
 		monthly_rate = 0.0
 		hourly_rate = 0.0
@@ -210,6 +252,6 @@ class SpecialProcessing(Document):
 		}
 
 	def create_log(self, ss_list):
-		log = "<p>" + _("Batch Entries created") + "</p>"
+		log = "<p>" + _("Special Entries created") + "</p>"
 		return log
 

@@ -119,62 +119,60 @@ class LastPayEntry(Document):
 			bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method")
 
 			if bonus_method == "Standard":
-				registerx = frappe.db.sql(""" SELECT schedule, bonus, monthly_rate FROM `tabPayroll Register` WHERE employee = %(employee)s 
-					AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s AND schedule = %(schedule)s """,{ 
+				registerx = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`
+					FROM `tabPayroll Register Entries` PRE 
+					INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
+					WHERE PRE.`pay_code` = 'BS' AND PR.`employee` = %(employee)s 
+					AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s """,{ 
 					"employee": self.employee,
 					"from_year": self.from_year,
 					"to_year": self.to_year,
-					"schedule": emp.payroll_schedule,
 				}, as_dict=True)
 
-				total_rate = 0.0
-				months = 0.0
 				for d in registerx:
-					if d.period in period_map:
-						if d.schedule == "Semi-Monthly":
-							months += 0.5
-							total_rate = d.monthly_rate
-						if d.schedule == "Monthly":
-							months += 1
-							total_rate = d.monthly_rate
+					if d.pay_code == 'BS':
+						total_bonus += d.amount
 
-				total_bonus += total_rate * months / 12
-				remarks = "( "+ str(total_rate) +" x "+ str(months)+" / 12 " + ")"
+				remarks = "( "+ str(total_bonus) +" / 12 " + ")"
+				total_bonus = total_bonus / 12
 
 			if bonus_method == "Bonus Basis":
-				register = frappe.db.sql(""" SELECT schedule, bonus FROM `tabPayroll Register` WHERE employee = %(employee)s 
-					AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s AND schedule = %(schedule)s """,{ 
+				bonus_basis = frappe.db.sql(""" SELECT bonus FROM `tabPayroll Register` WHERE employee = %(employee)s 
+					AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
 					"employee": self.employee,
 					"from_year": self.from_year,
 					"to_year": self.to_year,
-					"schedule": emp.payroll_schedule,
 				}, as_dict=True)
 
-				total_rate = 0.0
-				months = 0.0
-				for d in register:
-					if d.schedule == "Semi-Monthly":
-						months += 0.5
-						total_rate += d.bonus
-					elif d.schedule == "Monthly":
-						months += 1
-						total_rate += d.bonus
+				for d in bonus_basis:
+					total_bonus += d.bonus
 
-				total_bonus += total_rate / 12
-				remarks = "( "+ str(total_rate) +" / "+ str(months)+" )"
+				remarks = "( "+ str(total_bonus) +" / 12 " + ")"
+				total_bonus = total_bonus / 12
 
 			if bonus_method == "Attendance Base":
-				att = frappe.db.sql(""" SELECT bonus, present_days FROM `tabPayroll Register` WHERE employee = %(employee)s AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+				att = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`, TT.`entry_type`, TT.`type` 
+					FROM `tabPayroll Register Entries` PRE 
+					INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
+					INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code`=TT.`name` 
+					WHERE PR.`employee` = %(employee)s AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s """,{ 
 					"employee": self.employee,
 					"from_year": self.from_year,
 					"to_year": self.to_year,
 				}, as_dict=True)
-				present_days = 0
-				for d in att:
-					present_days += d.present_days
 
-				total_bonus = ( present_days / emp.get('total_yr_days')) * flt(rates.get('monthly_rate'), 8)
-				remarks = "("+ str(present_days) +" / "+ str(emp.get('total_yr_days'))+") x "+ str(flt(rates.get('monthly_rate'), 8)) +""
+				for d in att:
+					if d.pay_code == 'BS':
+						total_bonus += d.amount
+
+					if d.entry_type == 'Attendance':
+						if d.type == 'Income':
+							total_bonus += d.amount
+						if d.type == 'Deduction':
+							total_bonus -= d.amount
+
+				remarks = "( "+ str(total_bonus) +" / 12 " + ")"
+				total_bonus = total_bonus / 12
 
 			register.append({
 				"description": "Pro Rated 13th Month",
@@ -182,7 +180,6 @@ class LastPayEntry(Document):
 				"remarks": remarks,
 				"amount": total_bonus,
 			})
-
 
 			entry["pres_total_tax"] += total_bonus
 			entry["gross_taxable"] += total_bonus
