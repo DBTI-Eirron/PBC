@@ -295,7 +295,7 @@ class CompensatoryTimeOff(Document):
 			}, as_dict=True)
 		else:
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved' AND `balance` > 0 {conditions} ORDER BY `date` ASC """.format(conditions=cto_validity_condition),{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved' AND `balance` > 0 AND `date` <= %(use_date)s {conditions} ORDER BY `date` ASC """.format(conditions=cto_validity_condition),{
 				"employee": self.employee,
 				"use_date": getdate(self.use_date),
 				"cto_validity": cto_validity,
@@ -306,8 +306,7 @@ class CompensatoryTimeOff(Document):
 				total_credits_earned += d.cred_balance
 				date_list.append(d.date)
 
-				if (not last_date) and (total_credits_earned > self.required_credits):
-					last_date = d.date
+			last_date = date_list[-1]
 
 		self.total_credits_earned = total_credits_earned
 		
