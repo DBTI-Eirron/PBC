@@ -4,13 +4,17 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_decimal_by_2
 from frappe import _, msgprint
 
 def execute(filters=None):
-	columns = get_columns(filters)
-	results = get_result(filters)
+	if not filters: filters = frappe._dict({})
+	validate_filters(filters)
 
-	return columns, results
+	columns = get_columns(filters)
+	data = get_data(filters)
+
+	return columns, data
 
 def get_columns(filters):
 	columns = [
@@ -132,64 +136,36 @@ def get_columns(filters):
 
 	return columns
 
-def get_result(filters):
-
-	data = get_data(filters)
-	result = get_result_as_list(data, filters)
-
-	return result
-
 def get_data(filters):
 	#Initialize
 	data = []
+	transaction_type = ['HDMF','HDMFE']
 
-	if not filters: filters = frappe._dict({})
-	validate_filters(filters)
-
-	employee_list = get_employees(filters)
-	if not employee_list:
+	gov_map = get_employees(filters,transaction_type)
+	if not gov_map:
 		frappe.msgprint("No Records Found");
 	else:
-		HDMF_types = ["HDMF", "HDMFE"]
-		HDMF_map = get_HDMF_map(filters, employee_list)
-
 		if filters.include_header:
-			employer_name = ""
-			address = ""
-			zip_code = ""
-			employer_type = ""
-			contact = ""
-			br_code = ""
-			hdmf_id = ""
-			payment_type = ""
+			company = frappe.db.sql("""SELECT TC.hdmf_id,TC.phone, TA.address_title, TA.city, TA.pincode
+				FROM `tabCompany` TC
+				LEFT JOIN `tabDynamic Link` DL ON TC.`name` = DL.link_name
+				LEFT JOIN `tabAddress` TA ON DL.parent = TA.`name`
+				LIMIT 1
+				""")
 
-			company = frappe.db.sql("""SELECT * FROM tabCompany WHERE `name` = %s LIMIT 1""",(filters.company), as_dict=True)
 			if company:
-				for d in company:
-					hdmf_id = d.hdmf_id
+				address = str(company[0]['address_title'])+", "+str(company[0]['city'])
+				zipcode = str(company[0]['pincode'])
+				contact = str(company[0]['phone'])
+				hdmf_id = str(company[0]['hdmf_id'])
+			else:
+				address = ""
+				zip_code = ""
+				contact = ""
+				hdmf_id = ""
 
-			company_address = frappe.db.sql(""" SELECT DISTINCT TA.`address_line1`, TA.`pincode`, TA.`address_type` 
-				FROM `tabDynamic Link` DL JOIN `tabAddress` TA 
-				WHERE DL.`parenttype` = "Address" 
-				AND DL.`link_doctype` = "Company" 
-				AND DL.`parent` = TA.`name` 
-				AND TA.`address_type` = "Registered" 
-				AND DL.`link_name` = %s """, (filters.company), as_dict=1)
-			if company_address:
-				for com in company_address:
-					address = com.address_line1
-					zip_code = com.pincode
 
-			company_contact = frappe.db.sql(""" SELECT DISTINCT TC.`phone` 
-				FROM `tabContact` TC JOIN `tabDynamic Link` DL 
-				WHERE DL.`parenttype` = "Contact" 
-				AND DL.`link_doctype` = "Company" 
-				AND DL.`link_name` = %s LIMIT 1""", (filters.company), as_dict=1)
-			if company_contact:
-				for con in company_contact:
-					contact = con.phone
-
-			report_columns = {
+			headers = ({
 				"hdmf_no": "Employer's Name: ",
 				"employee": filters.company,
 				"last_name": "",
@@ -199,10 +175,7 @@ def get_data(filters):
 				"HDMFE": "",
 				"tin": "",
 				"birthdate": "",
-			}
-			data.append(report_columns)
-
-			report_columns = {
+			},{
 				"hdmf_no": "Address: ",
 				"employee": address,
 				"last_name": "",
@@ -212,10 +185,7 @@ def get_data(filters):
 				"HDMFE": "",
 				"tin": "",
 				"birthdate": "",
-			}
-			data.append(report_columns)
-
-			report_columns = {
+			},{
 				"hdmf_no": "Zip Code: ",
 				"employee": zip_code,
 				"last_name": "",
@@ -225,10 +195,7 @@ def get_data(filters):
 				"HDMFE": "",
 				"tin": "",
 				"birthdate": "",
-			}
-			data.append(report_columns)
-
-			report_columns = {
+			},{
 				"hdmf_no": "Pad-IBIG ID",
 				"employee": "Employee ID",
 				"last_name": "Last Name",
@@ -238,95 +205,66 @@ def get_data(filters):
 				"HDMFE": "Employer Contribution",
 				"tin": "TIN",
 				"birthdate": "Birth Date",
-			}
-			data.append(report_columns)
+			})
+			data.append(headers)
 
-		for emp in employee_list:
-			HDMF_amount = flt(HDMF_map.get(emp.name, {}).get("HDMF"))
-			HDMF_amount += flt(HDMF_map.get(emp.name, {}).get("HDMFM"))
-			HDMFE_amount = flt(HDMF_map.get(emp.name, {}).get("HDMFE"))
+		for emp in gov_map:
 			row = {
-				"hdmf_no": emp.hdmf_no,
-				"employee": emp.employee,
-				"last_name": emp.last_name,
-				"first_name": emp.first_name,
-				"middle_name": emp.middle_name,
-				"HDMF": '{:,.2f}'.format(HDMF_amount),
-				"HDMFE": '{:,.2f}'.format(HDMFE_amount),
-				"tin": emp.tin,
-				"birthdate": datetime.datetime.strftime(getdate(emp.birthday), "%Y%m%d"),
+				"hdmf_no": gov_map[emp]['hdmf_no'],
+				"employee": emp,
+				"last_name": gov_map[emp]['last_name'],
+				"first_name": gov_map[emp]['first_name'],
+				"middle_name": gov_map[emp]['middle_name'],
+				"HDMF": format_decimal_by_2(gov_map[emp]['HDMF']),
+				"HDMFE": format_decimal_by_2(gov_map[emp]['HDMFE']),
+				"tin": gov_map[emp]['tin'],
+				"birthdate": gov_map[emp]['birthday']
 			}
-
 			data.append(row)
 
 	return data
 
-def get_result_as_list(data, filters):
-	result = []
-	for d in data:
-		row = {
-			"hdmf_no": d.get("hdmf_no"),
-			"employee": d.get("employee"),
-			"last_name": d.get("last_name"),
-			"first_name": d.get("first_name"),
-			"middle_name": d.get("middle_name"),
-			"HDMF": d.get("HDMF"),
-			"HDMFE": d.get("HDMFE"),
-			"tin": d.get("tin"),
-			"birthdate": d.get("birthdate"),
-		}
-		
-		result.append(row)
-	return result
+
+def get_employees(filters,transaction_type):
+	employees = frappe.db.sql("""SELECT PRE.pay_code, PRE.amount, PR.posting_date, PR.employee as `name`, PR.employee_name as full_name, TE.hdmf_no, TE.first_name, TE.last_name, TE.middle_name, TE.tin, TE.birthday
+		FROM `tabPayroll Register Entries` PRE
+		INNER JOIN `tabPayroll Register` PR ON PRE.`parent` = PR.`name`
+		INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
+		WHERE PRE.pay_code IN ('"""+"','".join(str(e) for e in transaction_type)+"""') 
+		AND PR.company = %(company)s 
+		AND PR.posting_date BETWEEN %(from_date)s AND %(to_date)s
+		AND TE.is_active = 1
+		{conditions}
+		ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)),{ 
+		"company": filters.company,
+		"from_date": filters.from_date,
+		"to_date": filters.to_date
+	}, as_dict=True)
+	if not employees:
+		frappe.throw(_("No Records Found"))
+
+	type_list = {}
+	for t in transaction_type:
+		type_list.update({t:0.0})
+
+	gov_map = {}
+	for d in employees:
+		if d.name not in gov_map:
+			type_list.update({"full_name":d.full_name,"hdmf_no":d.hdmf_no,"employee":d.name,"first_name":d.first_name,"last_name":d.last_name,"middle_name":d.middle_name,"tin":d.tin,"birthday":d.birthday})
+			gov_map.setdefault(d.name, frappe._dict(type_list))
+		gov_map[d.name][d.pay_code] += flt(d.amount)
+	return gov_map
+
+def get_conditions(filters):
+	conditions = []
+	if frappe.session.user != "Administrator":
+		conditions.append(_("TE.`sensitivity` IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
+
+	if filters.period_group:
+		conditions.append(_("TE.`period_group` = '{0}'").format(filters.period_group))
+
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 def validate_filters(filters):
 	if filters.from_date > filters.to_date:
 		frappe.throw(_("From Date must be before To Date"))
-
-def get_employees(filters):
-	cur_user = frappe.session.user
-	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql(""" SELECT DISTINCT TE.`name`, TE.hdmf_no, PR.`employee`, UPPER(TE.last_name) as last_name, UPPER(TE.first_name) as first_name, UPPER(TE.middle_name) as middle_name, TE.`tin`, TE.`birthday`
-			FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
-			WHERE PR.company = %(company)s 
-				AND PR.posting_date >= %(from_date)s
-				AND PR.posting_date <= %(to_date)s
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) 
-			ORDER BY PR.employee_name """,{ 
-			"company": filters.company,
-			"from_date": filters.from_date,
-			"to_date": filters.to_date,
-			"user": frappe.session.user
-		}, as_dict=True)
-	else:
-		employees = frappe.db.sql(""" SELECT DISTINCT TE.`name`, TE.hdmf_no, PR.`employee`, UPPER(TE.last_name) as last_name, UPPER(TE.first_name) as first_name, UPPER(TE.middle_name) as middle_name, TE.`tin`, TE.`birthday`
-			FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
-			WHERE PR.company = %(company)s 
-				AND PR.posting_date >= %(from_date)s
-				AND PR.posting_date <= %(to_date)s
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`) 
-			ORDER BY PR.employee_name """,{ 
-				"company": filters.company,
-				"from_date": filters.from_date,
-				"to_date": filters.to_date
-			}, as_dict=True)
-
-	return employees
-
-def get_HDMF_map(filters, employee_list):
-	HDMF_details = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
-		FROM `tabPayroll Register` PR 
-		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		WHERE employee in (%s) GROUP BY PRE.`name` """ %
-		', '.join(['%s']*len(employee_list)), tuple([emp.name for emp in employee_list]), as_dict=1)
-
-	HDMF_map = {}
-	for d in HDMF_details:
-		if getdate(filters.from_date) <= getdate(d.posting_date) <= getdate(filters.to_date):
-			HDMF_map.setdefault(d.employee, frappe._dict()).setdefault(d.pay_code, [])
-			if HDMF_map[d.employee][d.pay_code]:
-				HDMF_map[d.employee][d.pay_code] += flt(d.amount, 2)
-			else:
-				HDMF_map[d.employee][d.pay_code] = flt(d.amount, 2)
-
-	return HDMF_map

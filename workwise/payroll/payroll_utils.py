@@ -60,10 +60,11 @@ def get_overtime_map():
 def get_transaction_map():
 	tr_map = {}
 	tr = frappe.db.sql("""SELECT code, title, type, entry_type, account, is_taxable, 
-		is_bonus, is_government, is_standard, is_active, bir_type FROM `tabTransaction Type` """, as_dict=1)
+		is_bonus, is_sss, is_phic, is_hdmf, is_standard, is_active, bir_type FROM `tabTransaction Type` """, as_dict=1)
 	for t in tr:
 		tr_map[t.code] = {"code": t.code, "title": t.title, "type": t.type, "bir_type": t.bir_type, "entry_type": t.entry_type,	"account": t.account, 
 			"is_taxable": t.is_taxable, "is_standard": t.is_standard, "is_active": t.is_active, "is_bonus": t.is_bonus, "is_government": t.is_government,
+			"is_sss": t.is_sss, "is_phic": t.is_phic, "is_hdmf": t.is_hdmf,
 		}
 
 	return tr_map
@@ -123,3 +124,70 @@ def get_hdmf_amount(amount, hdmf_table):
 	for d in list(filter(lambda x: x['beginning'] <= amount <= x['ending'], hdmf_table)):
 		hdmf, hdmfe = d.employee, d.employer
 	return hdmf, hdmfe
+
+def update_transaction_accounts():
+	#bench execute workwise.payroll.payroll_utils.update_transaction_accounts
+	transaction_types = frappe.db.sql(""" SELECT `name`, debit_acct, credit_acct, debit_account, credit_account FROM `tabTransaction Type` """, as_dict=True )
+	period_groups = frappe.db.sql(""" SELECT `name` FROM `tabPeriod Group` """, as_dict=True)
+	groups = []
+
+	for pg in period_groups:
+		groups.append(pg.name)
+
+	for tt in transaction_types:
+		tr = frappe.get_doc('Transaction Type', tt.name)
+		existing = []
+
+		for acct in tr.get('accounts'):
+			existing.append(acct.get('period_group'))
+
+		for gr in groups:
+			if gr not in existing:
+				if tt.get('debit_acct') or tt.get('credit_account'):
+					tr.append("accounts", {
+						"period_group": gr,
+						"debit_account": tt.get('debit_acct'),
+						"debit_code": tt.get('debit_account'),	
+						"credit_account": tt.get('credit_acct'),
+						"credit_code": tt.get('credit_account'),
+					})
+
+		tr.flags.ignore_permissions = True
+		tr.save()
+
+def sssc_fix():
+	#bench execute workwise.payroll.payroll_utils.sssc_fix
+	fixes = frappe.db.sql(""" SELECT * FROM `SSSCFIX` """, as_dict=True )
+	for d in fixes:
+		fix = frappe.get_doc('Payroll Register', d.register_id)
+		pr_types = []
+		for pre in fix.get('payroll_register_entries'):
+			pr_types.append(pre.get('pay_code'))
+
+		if "SSSC" not in pr_types:
+			fix.append("payroll_register_entries", {
+				"pay_type": "None",
+				"pay_code": "SSSC",
+				"pay_description": "SSS Compensation",	
+				"entry_type": "Compensation",
+				"amount": d.change_to,
+				"cost_center": d.cost_center,
+				"is_taxable": 1,
+				"is_bonus": 0,
+			})
+		elif "SSSC" in pr_types:
+			for rf in fix.get('payroll_register_entries'):
+				if rf.get('pay_code') == "SSSC":
+					setattr(rf, 'amount', d.change_to)
+
+		fix.flags.ignore_permissions = True
+		fix.save()
+
+def format_decimal_by_2(figure):
+	return '{:,.2f}'.format( flt(figure, 2) )
+
+def format_decimal_by_2_align_right(figure):
+	return '<div align="right">'+str( '{:,.2f}'.format( flt(figure, 2) ) )+'</div>'
+
+def format_decimal_by_2_align_right_negative(figure):
+	return '<div align="right">('+str( '{:,.2f}'.format( flt(abs(figure), 2) ) )+')</div>'

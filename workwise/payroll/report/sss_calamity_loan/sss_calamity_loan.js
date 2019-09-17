@@ -24,6 +24,12 @@ frappe.query_reports["SSS Calamity Loan"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group",
+		},
+		{
 			"fieldname": "include_header",
 			"label": __("Include Header"),
 			"fieldtype": "Check",
