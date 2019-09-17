@@ -95,6 +95,7 @@ class PayrollProcessing(Document):
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
 		ignore_uho = frappe.db.get_single_value('Payroll Settings', 'ignore_uho')
 		whtax_persemi = frappe.db.get_single_value('Payroll Settings', 'whtax_persemi')
+		ignore_nd = frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd')
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
 		if self.schedule == "Weekly":
@@ -178,6 +179,7 @@ class PayrollProcessing(Document):
 					'mo_amt_smdl': mo_amt_smdl,
 					'hd_no_uho': hd_no_uho,
 					'ignore_uho': ignore_uho,
+					'ignore_nd': ignore_nd,
 					'whtax_persemi' : whtax_persemi,
 					'no_attendance': 0,
 				}
@@ -900,7 +902,7 @@ class PayrollProcessing(Document):
 			late, overtime, undertime, absent, nightdiff, cto, cto_days, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
 			unpaid_holiday, prev_lwop, prev_absent, is_uho, leave_days, nwho_days, total_work  =  0, 0 ,0, 0, 0, 0, 0
 			pho_days, uho_days, dl_days = 0, 0, 0.0
-			hourly_basic = 0
+			hourly_basic, no_previous = 0, 0
 			test = []
 
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
@@ -919,7 +921,9 @@ class PayrollProcessing(Document):
 				for at in attendance:
 					WK_days, AT_days = 0, 0
 					
+					
 					if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
+						no_previous = 1
 						if at.is_absent or at.is_lwop:
 							is_uho = 1
 							if header.get('lwop_uho') == 1:
@@ -927,7 +931,10 @@ class PayrollProcessing(Document):
 									is_uho = 0
 									if at.is_absent:
 										is_uho = 1
-					else: 
+					else:
+						if no_previous == 0:
+							is_uho = 1
+
 						if not at.is_restday:
 							WK_days += 1
 							work_days += 1
@@ -1104,7 +1111,7 @@ class PayrollProcessing(Document):
 				if emp.get('ignore_ut'):
 					undertime = 0
 
-				if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
+				if emp.get('ignore_nd') or header.get('ignore_nd'):
 					nightdiff = 0
 
 				attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
