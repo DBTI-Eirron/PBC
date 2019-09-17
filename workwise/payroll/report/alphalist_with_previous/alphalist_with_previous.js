@@ -19,13 +19,6 @@ frappe.query_reports["Alphalist With Previous"] = {
 			"reqd": 1
 		},
 		{
-			"fieldname": "schedule",
-			"label": __("Schedule"),
-			"fieldtype": "Select",
-			"options": "\nSemi-Monthly\nMonthly\nWeekly",
-			"reqd": 1
-		},
-		{
 			"fieldname": "employee",
 			"label": __("Employee"),
 			"fieldtype": "Link",

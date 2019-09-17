@@ -38,6 +38,17 @@ frappe.query_reports["BIR1601-C"] = {
 			"default": today.getMonth(),
 			"reqd": 1
 		},
+		{
+			"fieldname": "employee",
+			"label": __("Employee"),
+			"fieldtype": "Link",
+			"options": "Employee",
+		},
+		{
+			"fieldname": "hide_zero",
+			"label": __("Hide zero value"),
+			"fieldtype": "Check",
+		},
 	],
 
 	onload: function(report) {

@@ -276,7 +276,7 @@ class CompensatoryTimeOff(Document):
 
 		total_credits_earned = 0.00
 		date_list = []
-		last_date = ""
+		last_date = None
 		
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
@@ -295,7 +295,7 @@ class CompensatoryTimeOff(Document):
 			}, as_dict=True)
 		else:
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved' AND `balance` > 0 {conditions} ORDER BY `date` ASC """.format(conditions=cto_validity_condition),{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved' AND `balance` > 0 AND `date` <= %(use_date)s {conditions} ORDER BY `date` ASC """.format(conditions=cto_validity_condition),{
 				"employee": self.employee,
 				"use_date": getdate(self.use_date),
 				"cto_validity": cto_validity,
@@ -320,7 +320,7 @@ class CompensatoryTimeOff(Document):
 		last_date = self.validate_use_cto()
 		if last_date:
 			if getdate(self.use_date) < getdate(last_date):
-				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Cannot Use CTO Application for date {1} because last Filed CTO Application date is {2}").format(self.name, self.use_date, last_date))
+				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Insufficient Balance").format(self.name))
 
 	def validate_deduct_use_cto(self):
 		req_credits = self.required_credits
