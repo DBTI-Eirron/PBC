@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-04-15 09:28:59.731562", 
+ "modified": "2019-06-27 16:54:27.801802", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "PhilHealth Remittance", 
@@ -20,13 +20,10 @@
    "role": "Payroll Manager"
   }, 
   {
-   "role": "Rank and File"
+   "role": "HR Manager"
   }, 
   {
-   "role": "Approver"
-  }, 
-  {
-   "role": "Test"
+   "role": "CompBen"
   }
  ]
 }

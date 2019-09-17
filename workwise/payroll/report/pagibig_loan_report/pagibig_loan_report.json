@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-04-24 14:31:45.143272", 
+ "modified": "2019-06-27 16:51:35.437867", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "PagIbig Loan Report", 
@@ -21,6 +21,9 @@
   }, 
   {
    "role": "HR Manager"
+  }, 
+  {
+   "role": "CompBen"
   }
  ]
 }

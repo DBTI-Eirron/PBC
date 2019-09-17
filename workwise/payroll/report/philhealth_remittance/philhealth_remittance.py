@@ -1,42 +1,20 @@
-	# Copyright (c) 2013, HDI Systech and contributors
+# Copyright (c) 2013, HDI Systech and contributors
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right, format_decimal_by_2_align_right_negative
 from frappe import _, msgprint
 
-
 def execute(filters=None):
+	if not filters: filters = frappe._dict({})
 	validate_filters(filters)
-	data =  get_data(filters)
-	columns = get_columns(filters)
-	return columns, data
 
-def get_data(filters):
-	data = []
-	employee_list = get_employees(filters)
-	register_map = get_PHIC_map(filters, employee_list)
-	PHIC_types = ["PHIC","PHICE"]
-	total_ee = 0.00
-	total_er =0.00
-	for emp in employee_list:
-		emp_cont = 0.00
-		er_cont = 0.00
-		result = []
-		for d in PHIC_types:
-			PHIC_amount = flt(register_map.get(emp.name, {}).get(d))
-			result.append(PHIC_amount)
-		emp_cont = flt(result[0])
-		er_cont = flt(result[1])
-		if emp_cont > 0 or er_cont > 0:
-			status = get_status(emp,filters)
-			row = {'phic_no':emp.phic_no, 'monthly_rate':emp.rate, 'employee_name':emp.full_name, 'employee_status':status, 'date_hired':(emp.date_hired).strftime('%m/%d/%Y'), 'birth_day':(emp.birthday).strftime('%m/%d/%Y')}
-			row.update({'employee':emp_cont,'employer':er_cont})
-			total_ee += emp_cont
-			total_er += er_cont	
-			data.append(row)
-	return data
+	columns = get_columns(filters)
+	data = get_data(filters)
+
+	return columns, data
 
 def get_columns(filters):
 	columns = [
@@ -80,69 +58,76 @@ def get_columns(filters):
 		"label": _("Employer"),
 		"fieldtype": "Data",
 		"width": 100
-		}, 
+		},
 	]
 
 	return columns
 
-def get_employees(filters):
-	cur_user = frappe.session.user
-	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee as `name`, TE.full_name as full_name, TE.phic_no, TE.rate, TE.is_active, TE.date_hired, TE.birthday FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
-				WHERE PR.company = %(company)s 
-				AND PR.posting_date >= %(from_date)s
-				AND PR.posting_date <= %(to_date)s
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
-				GROUP BY PR.employee
-				ORDER BY PR.employee_name """,{ 
-				"company": filters.company,
-				"from_date": filters.from_date,
-				"to_date": filters.to_date,
-				"user": frappe.session.user
-			}, as_dict=True)
+def get_data(filters):
+	#Initialize
+	data = []
+	transaction_type = ['PHIC','PHICE']
+
+	gov_map = get_employees(filters,transaction_type)
+	if not gov_map:
+		frappe.msgprint("No Records Found");
 	else:
-		employees = frappe.db.sql(""" SELECT DISTINCT PR.employee as `name`, TE.full_name as full_name, TE.phic_no, TE.rate, TE.is_active, TE.date_hired, TE.birthday FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name` 
-				WHERE PR.company = %(company)s 
-				AND PR.posting_date >= %(from_date)s
-				AND PR.posting_date <= %(to_date)s
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
-				GROUP BY PR.employee
-				ORDER BY PR.employee_name """,{ 
-				"company": filters.company,
-				"from_date": filters.from_date,
-				"to_date": filters.to_date
-			}, as_dict=True)
+		for emp in gov_map:
+			row = {
+				"phic_no": gov_map[emp]['phic_no'],
+				"monthly_rate": gov_map[emp]['rate'],
+				"employee_name": gov_map[emp]['full_name'],
+				"employee_status": "Active" if gov_map[emp]['status'] == 1 else "Inactive",
+				"date_hired": gov_map[emp]['date_hired'],
+				"birth_day": gov_map[emp]['birthday'],
+				"employee": format_decimal_by_2(gov_map[emp]['PHIC']),
+				"employer": format_decimal_by_2(gov_map[emp]['PHICE']),
+			}
+			data.append(row)
 
-	return employees
+	return data
 
-def get_PHIC_map(filters, employee_list):
-	PHIC_details = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
-		FROM `tabPayroll Register` PR 
-		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		WHERE employee in (%s) GROUP BY PRE.`name` """ %
-		', '.join(['%s']*len(employee_list)), tuple([emp.name for emp in employee_list]), as_dict=1)
 
-	PHIC_map = {}
-	for d in PHIC_details:
-		if getdate(filters.from_date) <= getdate(d.posting_date) <= getdate(filters.to_date):
-			PHIC_map.setdefault(d.employee, frappe._dict()).setdefault(d.pay_code, [])
-			if PHIC_map[d.employee][d.pay_code]:
-				PHIC_map[d.employee][d.pay_code] += flt(d.amount, 2)
-			else:
-				PHIC_map[d.employee][d.pay_code] = flt(d.amount, 2)
+def get_employees(filters,transaction_type):
+	employees = frappe.db.sql("""SELECT PRE.pay_code, PRE.amount, PR.posting_date, PR.employee as `name`, PR.employee_name as full_name, TE.phic_no, TE.first_name, TE.last_name, TE.middle_name, TE.tin, TE.birthday,TE.rate,TE.is_active,TE.date_hired
+		FROM `tabPayroll Register Entries` PRE
+		INNER JOIN `tabPayroll Register` PR ON PRE.`parent` = PR.`name`
+		INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
+		WHERE PRE.pay_code IN ('"""+"','".join(str(e) for e in transaction_type)+"""') 
+		AND PR.company = %(company)s 
+		AND PR.posting_date BETWEEN %(from_date)s AND %(to_date)s
+		AND TE.is_active = 1
+		{conditions}
+		ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)),{ 
+		"company": filters.company,
+		"from_date": filters.from_date,
+		"to_date": filters.to_date
+	}, as_dict=True)
+	if not employees:
+		frappe.throw(_("No Records Found"))
 
-	return PHIC_map
+	type_list = {}
+	for t in transaction_type:
+		type_list.update({t:0.0})
+
+	gov_map = {}
+	for d in employees:
+		if d.name not in gov_map:
+			type_list.update({"full_name":d.full_name,"phic_no":d.phic_no,"employee":d.name,"first_name":d.first_name,"last_name":d.last_name,"middle_name":d.middle_name,"tin":d.tin,"birthday":d.birthday,"rate":d.rate,"status":d.is_active,"date_hired":d.date_hired})
+			gov_map.setdefault(d.name, frappe._dict(type_list))
+		gov_map[d.name][d.pay_code] += flt(d.amount)
+	return gov_map
+
+def get_conditions(filters):
+	conditions = []
+	if frappe.session.user != "Administrator":
+		conditions.append(_("TE.`sensitivity` IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
+
+	if filters.period_group:
+		conditions.append(_("TE.`period_group` = '{0}'").format(filters.period_group))
+
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 def validate_filters(filters):
 	if filters.from_date > filters.to_date:
 		frappe.throw(_("From Date must be before To Date"))
-
-def get_status(emp,filters):
-	if emp.is_active:
-		value = frappe.db.sql("""SELECT SUM(PR.`net_payroll`) as `value` FROM `tabPayroll Register` PR INNER JOIN `tabPayroll Period` PP ON PR.period = PP.`name` WHERE PR.employee = %s and PP.from_date >= %s and PP.to_date <= %s""",(emp.name,filters.from_date,filters.to_date),as_dict=True)
-		if value[0].value < 0:
-			return "NE"
-		else:
-			return "A"
-	else:
-		return "S"
