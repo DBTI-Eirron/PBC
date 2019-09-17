@@ -23,5 +23,11 @@ frappe.query_reports["PhilHealth Remittance"] = {
 			"fieldtype": "Date",
 			"reqd": 1
 		},
+		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group",
+		},
 	]
 }

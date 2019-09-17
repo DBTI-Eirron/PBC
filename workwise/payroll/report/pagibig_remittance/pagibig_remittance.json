@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-04-08 18:04:49.176440", 
+ "modified": "2019-06-27 16:52:51.907678", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "PagIbig Remittance", 
@@ -20,10 +20,10 @@
    "role": "Payroll Manager"
   }, 
   {
-   "role": "Rank and File"
+   "role": "HR Manager"
   }, 
   {
-   "role": "Approver"
+   "role": "CompBen"
   }
  ]
 }

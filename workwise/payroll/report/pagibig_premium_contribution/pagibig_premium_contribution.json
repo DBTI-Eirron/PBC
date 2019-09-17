@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-04-10 12:12:59.536255", 
+ "modified": "2019-06-27 16:52:30.819858", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "PagIbig Premium Contribution", 
@@ -20,7 +20,10 @@
    "role": "Payroll Manager"
   }, 
   {
-   "role": "Test"
+   "role": "HR Manager"
+  }, 
+  {
+   "role": "CompBen"
   }
  ]
 }
