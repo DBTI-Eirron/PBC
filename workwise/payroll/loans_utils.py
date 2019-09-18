@@ -41,20 +41,42 @@ def get_loans_map(employees, payroll_date, period_from, period_to):
 
 	return loans_map
 
-def get_employee_loan(emp, register, loans_map, frequency):
+def get_employee_loan(emp, header, register, loans_map, frequency):
 	loans_register = []
+
+	def append_al(al, loans_register):
+		loans_register.append({
+				"linked_document": al.name,
+				"linked_doctype": "Loan Application",
+				"loan_idx": al.idx,
+				"pay_code": al.loan_type,
+				"amount": flt(al.payment_amount, 8),
+			})		
+
 	if emp.get('name') in loans_map:
 		#automatic loans
 		for al in loans_map[emp.get('name')].automatic_loans:
-			if al.payment_frequency == frequency or al.payment_frequency == 'Both':
-				loans_register.append({
-						"linked_document": al.name,
-						"linked_doctype": "Loan Application",
-						"loan_idx": al.idx,
-						"pay_code": al.loan_type,
-						"amount": flt(al.payment_amount, 8),
-					})
+			if emp.get('payroll_schedule') == "Weekly":
+				if al.payment_frequency == 'Both':
+					if cint(header.get("no_weeks")) == cint(5):
+						if frequency in ["2nd", "5th"]:
+							append_al(al, loans_register)
+					elif cint(header.get("no_weeks")) == cint(4):
+						if frequency in ["2nd", "4th"]:
+							append_al(al, loans_register)
+				
+				if al.payment_frequency == '1st' and frequency == '2nd':
+					append_al(al, loans_register)
+				
+				if al.payment_frequency == '2nd':
+					if cint(header.get("no_weeks")) == cint(5) and frequency == "5th":
+						append_al(al, loans_register)
 
+					elif cint(header.get("no_weeks")) == cint(4) and frequency == "4th":
+						append_al(al, loans_register)
+			else:
+				if al.payment_frequency == frequency or al.payment_frequency == 'Both':
+					append_al(al, loans_register)
 		#dated loans
 		for dl in loans_map[emp.get('name')].dated_loans:
 			loans_register.append({
