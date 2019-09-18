@@ -194,7 +194,7 @@ class PayrollProcessing(Document):
 				self.get_recurring(emp, rates, header, register)
 				self.get_batch(emp, rates, header, register)
 				self.get_adjustment(emp, rates, header, register, adj_settings)
-				get_employee_loan(emp, register, loans_map, self.frequency)
+				get_employee_loan(emp, header, register, loans_map, self.frequency)
 
 				#Calculate Basic Entries to Header
 				self.calculate_basic_header(register, header, tr_map)
