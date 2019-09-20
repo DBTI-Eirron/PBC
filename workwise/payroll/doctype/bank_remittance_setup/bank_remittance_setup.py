@@ -11,41 +11,32 @@ from frappe.model.document import Document
 class BankRemittanceSetup(Document):
 	def validate(self):
 		self.validate_fields()
-		self.validate_duplicate_document()
 		self.fill_company()
 		self.remove_duplicates()
 		self.get_employees_count()
-		self.validate_duplicate_employees_with_bank_remittance_setup()
 
 	def on_submit(self):
 		self.validate_fields()
 
-	def validate_duplicate_employees_with_bank_remittance_setup(self):
-		for d in self.get("employees"):
-			setup = frappe.db.sql(""" SELECT DISTINCT BS.`name` FROM `tabBank Remittance Setup` BS JOIN `tabBank Remittance Setup Table` BT ON BS.`name` = BT.`parent` WHERE BS.`docstatus` = 1 AND BS.`company` = %(company)s AND BS.`payroll_period` = %(period)s AND BT.`employee` = %(employee)s """,{ 
+	def validate_duplicate_employees_with_bank_remittance_setup(self, employees):
+		employee_list = []
+
+		for emp in employees:
+			exists = frappe.db.sql(""" SELECT DISTINCT BS.`name` FROM `tabBank Remittance Setup` BS JOIN `tabBank Remittance Setup Table` BT ON BS.`name` = BT.`parent` WHERE BS.`docstatus` = 1 AND BS.`company` = %(company)s AND BS.`payroll_period` = %(period)s AND BT.`employee` = %(employee)s """,{ 
 				"period": self.payroll_period,
 				"company": self.company,
-				"employee": d.employee,
+				"employee": emp.employee,
 			}, as_dict=True)
 
-			if setup:
-				frappe.throw(_("Setup for Payroll Period {0} for employee {1} already exists").format(self.payroll_period, d.employee))
+			if not exists:
+				employee_list.append(emp)
+
+		return employee_list
 
 	def validate_fields(self):
 		if self.payroll_period:
 			if frappe.get_value('Payroll Period', self.payroll_period, 'status') != 'Closed':
 				frappe.throw(_("Payroll Period {0} is not yet Closed").format(self.payroll_period))
-			
-	def validate_duplicate_document(self):
-		documents = frappe.db.sql(""" SELECT `name`, payroll_period, company FROM `tabBank Remittance Setup` WHERE `docstatus` = 1 AND bank = %(bank)s AND company = %(company)s AND payroll_period = %(period)s """,{ 
-			"period": self.payroll_period,
-			"company": self.company,
-			"bank": self.bank,
-		}, as_dict=True)
-
-		for d in documents:
-			d.name != self.name
-			frappe.throw(_("Setup for Payroll Period {0} already exists").format(self.payroll_period))
 
 	def get_employees(self):
 		cur_user = frappe.session.user
@@ -55,27 +46,28 @@ class BankRemittanceSetup(Document):
 				JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` 
 				JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` 
 				WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) 
-				AND TE.`is_active` = 1 AND TE.`on_hold` = 0 
-				AND TE.`mode_of_payment` = "Bank" AND PR.`period` = %(period)s 
+				AND PR.`on_hold` = 0 AND TE.`mode_of_payment` = "Bank" AND PR.`period` = %(period)s 
 				AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s 
 				AND BR.`account_type` = %(account_type)s {conditions} """.format(conditions=self.get_employee_conditions()),{ 
 					"period": self.payroll_period,
 					"bank": self.bank,
 					"account_type": self.bank_account_type,
 					"bank_type": self.bank_type,
-					"user": cur_user
+					"user": cur_user,
+					"location": self.location
 			}, as_dict=True)
 		else:
 			employees = frappe.db.sql(""" SELECT DISTINCT PR.employee, PR.employee_name, PR.net_payroll, BR.bank_account, BR.bank_type, BR.branch_code
 				FROM `tabPayroll Register` PR 
 				JOIN `tabBank Setup Table` BR ON PR.`employee` = BR.`parent` 
 				JOIN `tabEmployee` TE ON PR.`employee` = TE.`name` 
-				WHERE TE.`is_active` = 1 AND TE.`on_hold` = 0 AND TE.`mode_of_payment` = "Bank" AND PR.`period` = %(period)s 
+				WHERE PR.`on_hold` = 0 AND TE.`mode_of_payment` = "Bank" AND PR.`period` = %(period)s 
 				AND BR.`parenttype` = "Employee" AND BR.`bank_name` = %(bank)s AND BR.`account_type` = %(account_type)s {conditions} """.format(conditions=self.get_employee_conditions()),{ 
 				"period": self.payroll_period,
 				"bank": self.bank,
 				"account_type": self.bank_account_type,
-				"bank_type": self.bank_type
+				"bank_type": self.bank_type,
+				"location": self.location
 			}, as_dict=True)
 
 		return employees
@@ -83,29 +75,34 @@ class BankRemittanceSetup(Document):
 	def get_employee_conditions(self):
 		conditions = []
 		if self.bank == "BDO" or self.bank == "Banco de Oro":
-			conditions.append("BR.`bank_type`=%(bank_type)s")
+			if not self.bank_type == "All":
+				conditions.append("BR.`bank_type`=%(bank_type)s")
 
-		return "and {}".format(" and ".join(conditions)) if conditions else "" 
+		if self.location:
+			conditions.append("TE.`location`=%(location)s")
+
+		return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 	def fill_employees(self):
 		self.set('employees', [])
 		employees = self.get_employees()
+		employee_list = self.validate_duplicate_employees_with_bank_remittance_setup(employees)
 		net_payroll = 0.00
 
-		for d in employees:
-			if flt(d.net_payroll) < 0:
+		for d in employee_list:
+			if flt(d.net_payroll, 8) < 0:
 				net_payroll = 0.00
 			else:
 				net_payroll = d.net_payroll
 
-			if flt(net_payroll) > 0:
+			if net_payroll > 0:
 				i = {
 					"employee": d.employee,
 					"employee_name": d.employee_name,
 					"employee_account": d.bank_account,
 					"bank_type": d.bank_type,
 					"branch_code": d.branch_code,
-					"amount": '{:,.2f}'.format( flt(net_payroll, 8) ),
+					"amount": net_payroll,
 					"remarks": ""
 				}
 
@@ -121,9 +118,9 @@ class BankRemittanceSetup(Document):
 		if self.employees:
 			for d in self.employees:
 				count += 1
-				total_amount += flt(d.amount, 8)
+				total_amount += d.amount
 
-			self.total_amount = '{:,.2f}'.format(total_amount)
+			self.total_amount = total_amount
 			self.total_count = count
 		else:
 			self.total_amount = 0.00
@@ -142,7 +139,7 @@ class BankRemittanceSetup(Document):
 					"employee_account": d.employee_account,
 					"bank_type": d.bank_type,
 					"branch_code": d.branch_code,
-					"amount": '{:,.2f}'.format( flt(d.amount, 8) ),
+					"amount": d.amount,
 					"remarks": d.remarks
 				}
 				unique_entries.append(i);

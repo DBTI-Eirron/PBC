@@ -48,6 +48,18 @@ frappe.ui.form.on('Bank Remittance Setup', {
 		frm.trigger("fill_employees");
 	},
 
+	location: function(frm) {
+		frm.trigger("fill_employees");
+	},
+
+	bank_type: function(frm) {
+		frm.trigger("fill_employees");
+	},
+
+	bank_account_type: function(frm) {
+		frm.trigger("fill_employees");
+	},
+
 	fill_company: function(frm) {
 		if(frm.doc.bank && frm.doc.company) {
 			return frappe.call({
