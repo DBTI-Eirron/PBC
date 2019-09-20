@@ -10,6 +10,10 @@ from frappe import _, msgprint
 from frappe.model.document import Document
 
 class BatchApproval(Document):
+	def clear_employee(self):
+		if self.is_new() and self.employee:
+			self.employee = None
+
 	def validate(self):
 		self.validate_entires()
 
@@ -101,7 +105,7 @@ class BatchApproval(Document):
 		for b in self.get("batch_table"):
 			if b.action == "Approved":
 				enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-				if enable_employee_approvers > 0:
+				if enable_employee_approvers == 0:
 					#approval_history = ""
 					#approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` WHERE EA.parenttype = "Employee" AND (EA.application = %s OR EA.application = "All") AND EA.parent = %s AND TE.user_id = %s """,(self.application_type, b.employee, frappe.session.user), as_dict=True)
 					#highest_level = frappe.db.sql(""" SELECT IFNULL(MAX(`level`), 0) as level FROM `tabEmployee Approvers` WHERE parenttype = "Employee" AND (`application` = %s OR `application` = "All") AND parent = %s """,(self.application_type, b.employee), as_dict=True)	
@@ -129,12 +133,17 @@ class BatchApproval(Document):
 					application.submit()
 				else:
 					application = frappe.get_doc(self.application_type, b.application)
+					#approval_history = ""
+					#if application.approval_history is not None:
+					#	approval_history = application.approval_history
+					#approval_history = str(approval_history)+"Level "+str(application.last_approval_level)+": "+str(frappe.session.user)+" batch approved on "+str(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
+
 					application.update({
 						"workflow_state": "Approved",
 						"approved_by": frappe.session.user,
 						"approved_on": nowdate(),
+						"approval_history": "Batch Approved: ",
 					})
-					application.save()
 					application.submit()
 			if b.action == "Rejected":
 				frappe.db.sql("""UPDATE """+table+""" SET docstatus = 2, workflow_state = "Rejected" WHERE `name` = %s """, (b.application))
@@ -199,7 +208,6 @@ class BatchApproval(Document):
 						FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` 
 						WHERE (AP.`workflow_state` = "Pending" OR AP.`workflow_state` = "Approval in Progress")
 						AND ("""+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s) 
-						AND TE.`name` IN (SELECT `for_value` FROM `tabUser Permission` WHERE `allow` = "Employee" AND `user` = %(cur_user)s)
 						{conditions} 
 						AND TE.company = %(company)s 
 					""".format(conditions=self.sql_select_filters()),{ 

@@ -4,7 +4,14 @@
 frappe.ui.form.on('Batch Approval', {
 	onload: function(frm) {
 		if (frm.doc.__islocal){
-			frm.set_value("employee", "");
+			frappe.call({
+				method: "clear_employee",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_field("employee");
+				}
+			});
+
 			if (!frm.doc.posting_date) {
 				frm.set_value("posting_date", get_today());
 			}
