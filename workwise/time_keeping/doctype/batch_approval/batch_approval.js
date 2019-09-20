@@ -52,7 +52,7 @@ frappe.ui.form.on('Batch Approval', {
 	},
 
 	map_applications_on_table: function(frm) {
-		if (frm.doc.company && frm.doc.from_date && frm.doc.to_date && frm.doc.posting_date && frm.doc.application_type) {
+		if (frm.doc.company && frm.doc.from_date && frm.doc.to_date && frm.doc.application_type) {
 			frappe.call({
 				method: "map_applications_on_table",
 				doc: frm.doc,
