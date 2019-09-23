@@ -15,13 +15,12 @@ from workwise.payroll.loans_utils import get_loans_map, get_employee_loan, updat
 class PayrollProcessing(Document):
 	def get_employees(self):
 		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, 
-			min_take_home, mth_percentage, cost_center, no_hours, 
+			min_take_home, mth_percentage, cost_center, no_hours, is_active,
 			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
 			whtax_manual, whtax_freq, is_attendance_base, ignore_late, ignore_nd, ignore_ut, on_hold, sensitivity
 				FROM tabEmployee
 			WHERE company = %(company)s
-			AND payroll_schedule = %(pay_sched)s 
-			AND is_active = 1
+			AND payroll_schedule = %(pay_sched)s
 			{conditions}
 			ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),
 			({ 
@@ -107,157 +106,160 @@ class PayrollProcessing(Document):
 			error_emp = 0
 			for emp in employees:
 				frappe.db.sql("""DELETE FROM `tabPayroll Register` WHERE employee = %s AND period = %s """,(emp.name, self.period ), as_dict=1)
-				register = []
-				header = {
-					'employee': emp.name,
-					'employee_name': emp.full_name,
-					'company': emp.company,
-					'on_hold': emp.on_hold,
-					'period_group': self.period_group,
-					'posting_date': self.payroll_date,
-					'process_date': nowdate(),
-					'period': self.period,
-					'weekly_set': weekly_set,
-					'sensitivity': emp.sensitivity,
-					'no_weeks': no_weeks,
-					'schedule': self.schedule,
-					'frequency': self.frequency,
-					'prev_monthly_rate': 0.0,
-					'govt_basic': 0.0,
-					'hourly_basic': 0.0,
-					'sss_inc': 0.0,
-					'sss_ded': 0.0,
-					'sss_amt': 0.0,
-					'phic_inc': 0.0,
-					'phic_ded': 0.0,
-					'phic_amt': 0.0,
-					'hdmf_inc': 0.0,
-					'hdmf_ded': 0.0,
-					'hdmf_amt': 0.0,
-					'whtax_amt': 0.0,
-					'bonus_income': 0.0,
-					'bonus_deduction': 0.0,
-					'taxable_income': 0.0,
-					'taxable_deduction': 0.0,
-					'total_income': 0.0,
-					'total_deduction': 0.0,
-					#Attendance
-					'work_days': 0.0,
-					'absent_days': 0.0,
-					'present_days': 0.0,
-					'leave_days': 0.0,
-					'nwho_days': 0.0,
-					'paid_holidays': 0.0,
-					'net_payroll': 0.0,
-					'gross_payroll': 0.0,
-					'bonus': 0.0,
-					'cto_days': 0.0,
-					#previous cutoff Data
-					'prev_govt_basic': 0.0,
-					'prev_sss_inc': 0.0,
-					'prev_sss_ded': 0.0,
-					'prev_sss_amt': 0.0,
-					'prev_phic_inc': 0.0,
-					'prev_phic_ded': 0.0,
-					'prev_phic_amt': 0.0,
-					'prev_hdmf_inc': 0.0,
-					'prev_hdmf_ded': 0.0,
-					'prev_hdmf_amt': 0.0,
-					'prev_whtax_amt': 0.0,
-					'previous_period': previous_period,
-					'previous_taxable_income': 0.0,
-					'prev_tax_ded': 0.0,
-					'previous_work_days': 0.0,
-					'previous_absent_days': 0.0,
-					'previous_present_days': 0.0,
-					'previous_gross_payroll': 0.0,
-					#Payroll Settings
-					'uho_ab_days': uho_ab_days,
-					'uho_ab_spnw': uho_ab_spnw,
-					'lwop_uho': lwop_uho,
-					'ex_uho_spnw': ex_uho_spnw,
-					'mo_amt_smdl': mo_amt_smdl,
-					'hd_no_uho': hd_no_uho,
-					'ignore_uho': ignore_uho,
-					'ignore_nd': ignore_nd,
-					'whtax_persemi' : whtax_persemi,
-					'no_attendance': 0,
-				}
+				if emp.is_active == 1:
+					register = []
+					header = {
+						'employee': emp.name,
+						'employee_name': emp.full_name,
+						'company': emp.company,
+						'on_hold': emp.on_hold,
+						'period_group': self.period_group,
+						'posting_date': self.payroll_date,
+						'process_date': nowdate(),
+						'period': self.period,
+						'weekly_set': weekly_set,
+						'sensitivity': emp.sensitivity,
+						'no_weeks': no_weeks,
+						'schedule': self.schedule,
+						'frequency': self.frequency,
+						'prev_monthly_rate': 0.0,
+						'govt_basic': 0.0,
+						'hourly_basic': 0.0,
+						'sss_inc': 0.0,
+						'sss_ded': 0.0,
+						'sss_amt': 0.0,
+						'phic_inc': 0.0,
+						'phic_ded': 0.0,
+						'phic_amt': 0.0,
+						'hdmf_inc': 0.0,
+						'hdmf_ded': 0.0,
+						'hdmf_amt': 0.0,
+						'whtax_amt': 0.0,
+						'bonus_income': 0.0,
+						'bonus_deduction': 0.0,
+						'taxable_income': 0.0,
+						'taxable_deduction': 0.0,
+						'total_income': 0.0,
+						'total_deduction': 0.0,
+						#Attendance
+						'work_days': 0.0,
+						'absent_days': 0.0,
+						'present_days': 0.0,
+						'leave_days': 0.0,
+						'nwho_days': 0.0,
+						'paid_holidays': 0.0,
+						'net_payroll': 0.0,
+						'gross_payroll': 0.0,
+						'bonus': 0.0,
+						'cto_days': 0.0,
+						#previous cutoff Data
+						'prev_govt_basic': 0.0,
+						'prev_sss_inc': 0.0,
+						'prev_sss_ded': 0.0,
+						'prev_sss_amt': 0.0,
+						'prev_phic_inc': 0.0,
+						'prev_phic_ded': 0.0,
+						'prev_phic_amt': 0.0,
+						'prev_hdmf_inc': 0.0,
+						'prev_hdmf_ded': 0.0,
+						'prev_hdmf_amt': 0.0,
+						'prev_whtax_amt': 0.0,
+						'previous_period': previous_period,
+						'previous_taxable_income': 0.0,
+						'prev_tax_ded': 0.0,
+						'previous_work_days': 0.0,
+						'previous_absent_days': 0.0,
+						'previous_present_days': 0.0,
+						'previous_gross_payroll': 0.0,
+						#Payroll Settings
+						'uho_ab_days': uho_ab_days,
+						'uho_ab_spnw': uho_ab_spnw,
+						'lwop_uho': lwop_uho,
+						'ex_uho_spnw': ex_uho_spnw,
+						'mo_amt_smdl': mo_amt_smdl,
+						'hd_no_uho': hd_no_uho,
+						'ignore_uho': ignore_uho,
+						'ignore_nd': ignore_nd,
+						'whtax_persemi' : whtax_persemi,
+						'no_attendance': 0,
+					}
 
-				#Calculate Rates and Previous Entries
-				rates = get_rates(emp)
-				self.get_previous(emp, header)
+					#Calculate Rates and Previous Entries
+					rates = get_rates(emp)
+					self.get_previous(emp, header)
 
-				#Calculate Basic Entries
-				self.get_attendance(emp, rates, header, register, ot_map)
-				self.get_basic(emp, rates, header, register)
-				self.get_recurring(emp, rates, header, register)
-				self.get_batch(emp, rates, header, register)
-				self.get_adjustment(emp, rates, header, register, adj_settings)
-				get_employee_loan(emp, header, register, loans_map, self.frequency)
+					#Calculate Basic Entries
+					self.get_attendance(emp, rates, header, register, ot_map)
+					self.get_basic(emp, rates, header, register)
+					self.get_recurring(emp, rates, header, register)
+					self.get_batch(emp, rates, header, register)
+					self.get_adjustment(emp, rates, header, register, adj_settings)
+					get_employee_loan(emp, header, register, loans_map, self.frequency)
 
-				#Calculate Basic Entries to Header
-				self.calculate_basic_header(register, header, tr_map)
+					#Calculate Basic Entries to Header
+					self.calculate_basic_header(register, header, tr_map)
 
-				#Calculate Special Entries
-				self.get_sss(emp, rates, header, register, tr_map, sss_table, weekly_prev_map)
-				self.get_phic(emp, rates, header, register, tr_map, weekly_prev_map)
-				self.get_hdmf(emp, rates, header, register, tr_map, hdmf_table, weekly_prev_map)
-				self.get_whtax(emp, rates, header, register)
+					#Calculate Special Entries
+					self.get_sss(emp, rates, header, register, tr_map, sss_table, weekly_prev_map)
+					self.get_phic(emp, rates, header, register, tr_map, weekly_prev_map)
+					self.get_hdmf(emp, rates, header, register, tr_map, hdmf_table, weekly_prev_map)
+					self.get_whtax(emp, rates, header, register)
 
-				#Calculate Totals
-				self.calculate_payroll_totals(header)
-				self.calculate_rates_header(header, rates)
-				
-				#Make Entry
-				pr = frappe.new_doc("Payroll Register")
-				pr.update(header)
-				for d in register:
-					if d['amount'] > 0:
-						pr.append("payroll_register_entries", {
-							"pay_type": tr_map[d.get('pay_code')]['type'],
-							"pay_code": d.get('pay_code'),
-							"pay_description": tr_map[d.get('pay_code')]['title'],	
-							"entry_type": tr_map[d.get('pay_code')]['entry_type'],
-							"amount": d.get('amount'),
-							"account": tr_map[d.get('pay_code')]['account'],
-							"linked_document": d.get('linked_document'),
-							"linked_doctype": d.get('linked_doctype'),
-							"cost_center": emp.cost_center,
-							"is_taxable": tr_map[d.get('pay_code')]['is_taxable'],
-							"is_bonus": tr_map[d.get('pay_code')]['is_bonus'],
-						})
+					#Calculate Totals
+					self.calculate_payroll_totals(header)
+					self.calculate_rates_header(header, rates)
+					
+					#Make Entry
+					pr = frappe.new_doc("Payroll Register")
+					pr.update(header)
+					for d in register:
+						if d['amount'] > 0:
+							pr.append("payroll_register_entries", {
+								"pay_type": tr_map[d.get('pay_code')]['type'],
+								"pay_code": d.get('pay_code'),
+								"pay_description": tr_map[d.get('pay_code')]['title'],	
+								"entry_type": tr_map[d.get('pay_code')]['entry_type'],
+								"amount": d.get('amount'),
+								"account": tr_map[d.get('pay_code')]['account'],
+								"linked_document": d.get('linked_document'),
+								"linked_doctype": d.get('linked_doctype'),
+								"cost_center": emp.cost_center,
+								"is_taxable": tr_map[d.get('pay_code')]['is_taxable'],
+								"is_bonus": tr_map[d.get('pay_code')]['is_bonus'],
+							})
 
-				#Compute Minimum Wage
-				minimum_wage = 0
-				if emp.get('mth_percentage'):
-					minimum_wage = header.get('basic') * (flt(emp.get('min_take_home'), 8) / 100)
-				else:
-					minimum_wage = flt(emp.get('min_take_home'), 8)
-
-				if header.get('net_payroll') < minimum_wage and emp.get('min_take_home') > 0:
-					payslip_label = " " + emp.full_name +" <span class='label label-danger'> Below Min Take Home </span>"
-					ss_list.append(payslip_label)
-				else:
-					#Check if employee has attendance/work
-					if emp.is_attendance_base == 1 and header['no_attendance'] == 1:
-						proc_emp += 1
-						error_emp += 1
-						payslip_label = " " + emp.full_name +"<span class='label label-danger'> No Work </span>"
-						ss_list.append(payslip_label)
-						
+					#Compute Minimum Wage
+					minimum_wage = 0
+					if emp.get('mth_percentage'):
+						minimum_wage = header.get('basic') * (flt(emp.get('min_take_home'), 8) / 100)
 					else:
-						if pr.insert():
-							#update other entries like loans
-							proc_emp += 1
-							for d in register:
-								if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
-									update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
-						payslip_label = " " + emp.full_name +""
-						if emp.on_hold:
-							error_emp += 1
-							payslip_label += " <span class='label label-danger'> On-Hold </span>"
+						minimum_wage = flt(emp.get('min_take_home'), 8)
+
+					if header.get('net_payroll') < minimum_wage and emp.get('min_take_home') > 0:
+						payslip_label = " " + emp.full_name +" <span class='label label-danger'> Below Min Take Home </span>"
 						ss_list.append(payslip_label)
+					else:
+						#Check if employee has attendance/work
+						if emp.is_attendance_base == 1 and header['no_attendance'] == 1:
+							proc_emp += 1
+							error_emp += 1
+							payslip_label = " " + emp.full_name +"<span class='label label-danger'> No Work </span>"
+							ss_list.append(payslip_label)
+							
+						else:
+							if pr.insert():
+								#update other entries like loans
+								proc_emp += 1
+								for d in register:
+									if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
+										update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
+							payslip_label = " " + emp.full_name +""
+							if emp.on_hold:
+								error_emp += 1
+								payslip_label += " <span class='label label-danger'> On-Hold </span>"
+							ss_list.append(payslip_label)
+				else:
+					no_emp -= 1
 
 			ss_list.append("<b>Processed "+ str(proc_emp)+" / "+str(no_emp)+" Employees ("+str(error_emp)+") with Issues </b>")
 		else:
