@@ -93,6 +93,7 @@ class PayrollProcessing(Document):
 		mo_amt_smdl = frappe.db.get_single_value('Payroll Settings', 'mo_amt_smdl')
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
 		ignore_uho = frappe.db.get_single_value('Payroll Settings', 'ignore_uho')
+		phic_mo_basis = frappe.db.get_single_value('Payroll Settings', 'phic_mo_basis')
 		whtax_persemi = frappe.db.get_single_value('Payroll Settings', 'whtax_persemi')
 		ignore_nd = frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd')
 		weekly_prev_map = frappe._dict()
@@ -179,6 +180,7 @@ class PayrollProcessing(Document):
 						'mo_amt_smdl': mo_amt_smdl,
 						'hd_no_uho': hd_no_uho,
 						'ignore_uho': ignore_uho,
+						'phic_mo_basis': phic_mo_basis,
 						'ignore_nd': ignore_nd,
 						'whtax_persemi' : whtax_persemi,
 						'no_attendance': 0,
@@ -461,8 +463,12 @@ class PayrollProcessing(Document):
 						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
 
 				else:
-					if emp.get('phic_mode') == "ME Table":
+					if header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('phic_freq') == 'Both':
+						target_amt = rates.get('monthly_rate')
+
+					elif emp.get('phic_mode') == "ME Table":
 						target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+						
 					else:
 						if emp.get('phic_freq') == '1st':
 							target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
@@ -507,10 +513,12 @@ class PayrollProcessing(Document):
 								amt = flt(eval(l), 8) / 2
 							elif emp.get('phic_freq') == "All" and self.schedule == "Weekly":
 								amt = flt(eval(l), 8) / 4
+							elif emp.get('phic_freq') == "Both" and header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly":
+								amt = flt(eval(l), 8) / 2
 							else:
 								amt = flt(eval(l), 8)
 
-							if header.get('prev_phic_amt') and emp.get('phic_freq') == "Both":
+							if header.get('prev_phic_amt') and emp.get('phic_freq') == "Both" and (not header.get('phic_mo_basis')):
 								amt = amt - header.get('prev_phic_amt') 
 								if amt < 1:
 									amt = 0
