@@ -376,59 +376,71 @@ class PayrollProcessing(Document):
 				sss, ssse, sssc = 0, 0, 0
 				target_amt = 0
 
-				if self.schedule == "Weekly":
-					if emp.get('sss_mode') == "ME Table":
-						if emp.get('sss_freq') == 'Both':
-							if cint(header.get("no_weeks")) == cint(5):
-								if self.frequency in ["2nd", "5th"]:
-									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-								else:
-									target_amt = 0
-									
-							elif cint(header.get("no_weeks")) == cint(4):
-								if self.frequency in ["2nd", "4th"]:
-									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-								else:
-									target_amt = 0
-					else:
-						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
- 
-				else:
-					if emp.get('sss_freq') == '1st':
-						target_amt = rates.get('monthly_rate') + header.get('sss_inc') - header.get('sss_ded')
+				if emp.get('sss_mode') == "Manual":
+					target_amt = emp.get('sss_manual')
+					sss, ssse, sssc = get_sss_amount(target_amt, sss_table)
+					sss = target_amt = emp.get('sss_manual')
+					for l in sss_list:
+						if emp.get('sss_freq') == "Both":
+							amt = flt(eval(l), 8) / 2
+						else:
+							amt = flt(eval(l), 8)
 
-					elif emp.get('sss_freq') == '2nd':
-						if emp.get('payroll_schedule') == "Semi-Monthly":
-							if header.get('prev_monthly_rate') != rates.get('monthly_rate') and header.get('prev_monthly_basis') > 0:
-								target_amt = (rates.get('monthly_rate') / 2)+ \
-									(header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))							
-							else:
+						sss_register.append({"pay_code": l.upper(), "amount": amt })
+				else:
+					if self.schedule == "Weekly":
+						if emp.get('sss_mode') == "ME Table":
+							if emp.get('sss_freq') == 'Both':
+								if cint(header.get("no_weeks")) == cint(5):
+									if self.frequency in ["2nd", "5th"]:
+										target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+									else:
+										target_amt = 0
+										
+								elif cint(header.get("no_weeks")) == cint(4):
+									if self.frequency in ["2nd", "4th"]:
+										target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+									else:
+										target_amt = 0
+						else:
+							target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
+	 
+					else:
+						if emp.get('sss_freq') == '1st':
+							target_amt = rates.get('monthly_rate') + header.get('sss_inc') - header.get('sss_ded')
+
+						elif emp.get('sss_freq') == '2nd':
+							if emp.get('payroll_schedule') == "Semi-Monthly":
+								if header.get('prev_monthly_rate') != rates.get('monthly_rate') and header.get('prev_monthly_basis') > 0:
+									target_amt = (rates.get('monthly_rate') / 2)+ \
+										(header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))							
+								else:
+									target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
+										(header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
+								
+							elif emp.get('payroll_schedule') == "Monthly":
+								target_amt = header.get('govt_basic') + header.get('sss_inc') - header.get('sss_ded')
+
+						elif emp.get('sss_freq') == 'Both':
 								target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
 									(header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
-							
-						elif emp.get('payroll_schedule') == "Monthly":
-							target_amt = header.get('govt_basic') + header.get('sss_inc') - header.get('sss_ded')
+									
+					#Round target_amt to against SSS table	
+					sss, ssse, sssc = get_sss_amount(flt(target_amt, 2), sss_table)
+					for l in sss_list:
+						if emp.get('sss_freq') == "Both" and self.schedule == "Weekly":
+							amt = flt(eval(l), 8) / 2
+						elif emp.get('sss_freq') == "All" and self.schedule == "Weekly":
+							amt = flt(eval(l), 8) / 4
+						else:
+							amt = flt(eval(l), 8)
 
-					elif emp.get('sss_freq') == 'Both':
-							target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
-								(header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
-								
-				#Round target_amt to against SSS table	
-				sss, ssse, sssc = get_sss_amount(flt(target_amt, 2), sss_table)
-				for l in sss_list:
-					if emp.get('sss_freq') == "Both" and self.schedule == "Weekly":
-						amt = flt(eval(l), 8) / 2
-					elif emp.get('sss_freq') == "All" and self.schedule == "Weekly":
-						amt = flt(eval(l), 8) / 4
-					else:
-						amt = flt(eval(l), 8)
+						if header.get('prev_sss_amt') and emp.get('sss_freq') == "Both":
+							amt = amt - header.get('prev_sss_amt') 
+							if amt < 1:
+								amt = 0
 
-					if header.get('prev_sss_amt') and emp.get('sss_freq') == "Both":
-						amt = amt - header.get('prev_sss_amt') 
-						if amt < 1:
-							amt = 0
-
-					sss_register.append({"pay_code": l.upper(), "amount": amt })
+						sss_register.append({"pay_code": l.upper(), "amount": amt })
 
 			for d in sss_register:
 				register.append(d)

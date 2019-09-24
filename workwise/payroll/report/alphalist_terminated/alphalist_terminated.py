@@ -4,247 +4,474 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from frappe import msgprint, _
+from frappe import _
+from workwise.payroll.payroll_utils import get_transaction_map
 
 def execute(filters=None):
+	pay_from, pay_to = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 	if not filters: filters = frappe._dict({})
-	validate_filters(filters)
+	columns = get_columns(filters)
+	results = get_result(filters)
 
-	employee_list = get_employees(filters)
-	columns, plus_types, less_types, tax_types = get_columns(employee_list)
+	return columns, results
 
-	if not employee_list:
-		msgprint(_("No record found"))
-		return columns, employee_list
+def get_result(filters):
+	registers = get_registers(filters)
+	data = get_data(filters, registers)
+	result = get_result_as_list(data, filters)
 
-	plus_map = get_plus_map(filters, employee_list)
-	less_map = get_less_map(filters, employee_list)
-	tax_map = get_tax_map(filters, employee_list)
+	return result
 
+def get_data(filters, registers):
 	data = []
-	for emp in employee_list:
-		total_gross = 0
-		total_plus = 0
-		total_less = 0
-		total_tax = 0
-		tax_due = 0
+	tr_map = get_transaction_map()
+	registers = get_registers(filters)
 
-		row = [emp.tin, emp.name, emp.full_name]
+	get_headers(filters, data)
+	seq = 0
+	for d in registers:
+		seq += 1
+		data.append({
+			"1": seq,
+			"2": d.tin,
+			"3": d.employee_name,
+			"4a": '{:0,.2f}'.format( flt(d.gross_compensation,8) ),
+			"4b": '{:0,.2f}'.format( flt(d.nt_benefits,8) ),
+			"4c": '{:0,.2f}'.format( flt(d.nt_demi,8) ),
+			"4d": '{:0,.2f}'.format( flt(d.nt_contrib,8) ),
+			"4e": '{:0,.2f}'.format( flt(d.nt_other,8) ),
+			"4f": '{:0,.2f}'.format( flt(0.0,8) ), #prev_ntax_total
+			"4g": '{:0,.2f}'.format( flt(d.t_basic,8) ),
+			"4h": '{:0,.2f}'.format( flt(0.0,8) ), #prev_tax_benefits
+			"4i": '{:0,.2f}'.format( flt(0.0,8) ), #prev_tax_other
+			"4j": '{:0,.2f}'.format( flt(0.0,8) ), #prev_tax_total
+			"4k": '{:0,.2f}'.format( flt(d.nt_benefits,8) ),
+			"4l": '{:0,.2f}'.format( flt(d.nt_demi,8) ),
+			"4m": '{:0,.2f}'.format( flt(d.nt_contrib,8) ),
+			"4n": '{:0,.2f}'.format( flt(d.nt_other,8) ),
+			"4o": '{:0,.2f}'.format( flt(d.non_taxable_total,8) ),  
+			"4p": '{:0,.2f}'.format( flt(d.t_basic,8) ),
+			"4q": '{:0,.2f}'.format( flt(d.t_benefits,8) ),
+			"4r": '{:0,.2f}'.format( flt(d.t_other,8) ),
+			"4s": '{:0,.2f}'.format( flt(d.taxable_total,8) ),
+			"4t": '{:0,.2f}'.format( flt(0.0,8) ), #grand_tax_total
+			"7": '{:0,.2f}'.format( flt(0.0,8) ), #grand_tax_total
+			"5": '{:0,.2f}'.format( flt(d.tax_due,8) ),
+			"6a": '{:0,.2f}'.format( flt(0.0,8)), #prev_tax_withheld
+			"6b": '{:0,.2f}'.format( flt(d.tax_withheld,8) ),
+			"7a": '{:0,.2f}'.format( flt(d.adj_amount_withheld,8) ),
+			"7b": '{:0,.2f}'.format( flt(d.adj_over_withheld,8) ),
+			"8": '{:0,.2f}'.format( flt(d.adj_withheld,8) ),
+		})
 
-		
-		for plus in plus_types:
-			plus_amount = flt(plus_map.get(emp.name, {}).get(plus), 2)
-			total_plus += flt(plus_amount, 2)
-			row.append(plus_amount)
-
-		for less in less_types:
-			less_amount = flt(less_map.get(emp.name, {}).get(less), 2)
-			total_less += flt(less_amount, 2)
-			row.append(less_amount)
-
-		for tax in tax_types:
-			tax_amount = flt(tax_map.get(emp.name, {}).get(tax), 2)
-			total_tax += flt(tax_amount, 2)
-		
-		gross_compensation = flt(total_plus, 2) - flt(total_less, 2)
-		
-		table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table` 
-			WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(total_plus, total_plus, 'Yearly'), as_dict=True )
-
-		for t in table:
-			tax_due = (flt(taxable, 8) - flt(t.compensatory ,8)) * flt(flt(t.percentage, 8) / 100 , 8)
-
-		adjustment, refund = get_adjustment(tax_due, total_tax)
-		row.insert(2 , gross_compensation)
-		row += [total_plus, total_less, tax_due, total_tax ,adjustment, refund, tax_due]
-
-		data.append(row)
-
-	return columns, data
-
-def get_adjustment(tax_due, total_tax):
-	adjustment, refund = 0, 0
-
-	amt = tax_due - total_tax
-	if amt > 0:
-		refund = abs(amt)
-	else:
-		adjustment = abs(amt)
-
-	return adjustment, refund
+	return data
 
 
-def validate_filters(filters):
-	if filters.from_date > filters.to_date:
-		frappe.throw(_("From Date must be before To Date"))
+def get_registers(filters):
+	registers = frappe.db.sql("""SELECT * FROM `tabAnnualization Register`
+		WHERE company=%(company)s AND payroll_year=%(year)s AND `is_terminated` = 1 {conditions} """.format( conditions=get_conditions(filters) ), filters, as_dict=1)
 
-def get_columns(employee_list):
-	plus_types, less_types, tax_types = [], [], []
+	return registers
+
+def get_conditions(filters):
+	conditions = []
+
+	if filters.get("employee"):
+		conditions.append("PR.employee=%(employee)s")
+
+	return "and {}".format(" and ".join(conditions)) if conditions else ""
+
+def get_result_as_list(data, filters):
+	result = []
+	for d in data:
+		row = [
+			d.get("1"),
+			d.get("2"),
+			d.get("3"), 
+			# PREVIOUS EMPLOYER
+			d.get("4a"),
+			d.get("4b"),
+			d.get("4c"),
+			d.get("4d"),
+			d.get("4e"),
+			d.get("4f"),
+			d.get("4g"),
+			d.get("4h"),
+			d.get("4i"),
+			d.get("4j"),
+			# PRESENT EMPLOYER
+			d.get("4k"),
+			d.get("4l"),
+			d.get("4m"),
+			d.get("4n"),
+			d.get("4o"),
+			d.get("4p"),
+			d.get("4q"),
+			d.get("4r"),
+			d.get("4s"),
+			d.get("4t"),
+			# TOTALS
+			d.get("7"),
+			d.get("5"),
+			d.get("6a"),
+			d.get("6b"),
+			d.get("7a"),
+			d.get("7b"),
+			d.get("8"),
+		]
+
+		result.append(row)
+
+	return result
+
+def get_headers(filters, data):
+	tax_id = frappe.db.get_value("Company", filters.company, "tax_id")
+
+	data.append({
+		"1": "<b> BIR FORM 1604CF - SCHEDULE 7.3 </b>",
+	})
+
+	data.append({
+		"1": "<b> ALPHALIST OF EMPLOYEES AS OF DECEMBER 31 WITH NO PREVIOUS EMPLOYER WITHIN THE YEAR </b>",
+	})	
+
+	data.append({
+		"1": "<b> AS OF DECEMBER 31 "+ str(filters.year) +"</b>",
+	})	
+
+	data.append({})
+	data.append({})	
+	
+	data.append({
+		"1": "<b> TIN: "+ str(tax_id) +"</b>",
+	})	
+	data.append({
+		"1": "<b> WITHHOLDING AGENT'S NAME: "+ str(filters.company) +"</b>",
+	})	
+	data.append({})
+	data.append({
+		"4a": "<b> (4) GROSS COMPENSATION INCOME </b>",
+	})
+
+	data.append({
+		"4b": "<b> PREVIOUS EMPLOYER </b>",
+		"4k": "<b> PRESENT EMPLOYER </b>",
+	})
+
+	data.append({
+		"4b": "<b> NON-TAXABLE </b>",
+		"4g": "<b> TAXABLE </b>",
+		"4k": "<b> NON-TAXABLE </b>",
+		"4p": "<b> TAXABLE </b>",
+		"4t": "<b> TOTAL </b>",
+		"6a": "<b> TAX WITHHELD </b>",
+		"7a": "<b> YEAR END ADJUSTMENT </b>",
+	})
+
+	data.append({
+		"1": "<b> SEQ </b>",
+		"2": "<b> TAX PAYER </b>",
+		"3": "<b> NAME OF EMPLOYEES </b>",
+		"4a": "<b> GROSS </b>",
+		"4b": "<b> 13th MONTH PAY </b>",
+		"4c": "<b> DE MINIMIS </b>",
+		"4d": "<b> SSS, GSIS, PHIC & </b>",
+		"4e": "<b> SALARIES & OTHER </b>",
+		"4f": "<b> TOTAL </b>",
+		"4g": "<b> BASIC </b>",
+		"4h": "<b> 13th MONTH PAY </b>",
+		"4i": "<b> SALARIES & OTHER </b>",
+		"4j": "<b> TOTAL TAXABLE </b>",
+		"4k": "<b> 13th MONTH PAY </b>",
+		"4l": "<b> DE MINIMIS </b>",
+		"4m": "<b> SSS, GSIS, PHIC & </b>",
+		"4n": "<b> SALARIES & OTHER </b>",
+		"4o": "<b> TOTAL </b>",
+		"4p": "<b> BASIC </b>",
+		"4q": "<b> 13th MONTH PAY </b>",
+		"4r": "<b> SALARIES & OTHER </b>",
+		"4s": "<b> TOTAL </b>",
+		"4t": "<b> TAXABLE </b>",
+		"7": "<b> NET TAXABLE </b>",
+		"5":  "<b> TAX DUE </b>",
+		"6a": "<b> (Jan. - Nov.) </b>",
+		"7a": "<b> AMT WITHHELD </b>",
+		"7b": "<b> OVER </b>",
+		"8": "<b> AMOUNT OF TAX </b>",
+	})
+
+	data.append({
+		"1": "<b> NO </b>",
+		"2": "<b> IDENTIFICATION </b>",
+		"3": "<b> (Last Name, First Name, Middle Name) </b>",
+		"4a": "<b> COMPENSATION </b>",
+		"4b": "<b> & OTHER BENEFITS </b>",
+		"4c": "<b> BENEFITS </b>",
+		"4d": "<b> PAG-IBIG CONTRIBUTIONS </b>",
+		"4e": "<b> FORMS OF </b>",
+		"4f": "<b> NON-TAXABLE/EXEMPT </b>",
+		"4g": "<b> SALARY </b>",
+		"4h": "<b> & OTHER BENEFITS </b>",
+		"4i": "<b> FORMS OF </b>",
+		"4j": "<b> (PREVIOUS EMPLOYER) </b>",
+		"4k": "<b> & OTHER BENEFITS </b>",
+		"4l": "<b> BENEFITS </b>",
+		"4m": "<b> PAG-IBIG CONTRIBUTIONS </b>",
+		"4n": "<b> FORMS OF </b>",
+		"4o": "<b> NON-TAXABLE/EXEMPT </b>",
+		"4p": "<b> SALARY </b>",
+		"4q": "<b> & OTHER BENEFITS </b>",
+		"4r": "<b> FORMS OF </b>",
+		"4s": "<b> COMPENSATION </b>",
+		"4t": "<b> (PREVIOUS and </b>",
+		"7": "<b> COMPESATION </b>",		
+		"5": "<b> (Jan. - Dec.) </b>",
+		"6a": "<b> PREVIOUS EMPLOYER </b>",
+		"6b": "<b> PRESENT EMPLOYER </b>",
+		"7a": "<b> & PAID FOR IN </b>",
+		"7b": "<b> WITHHELD TAX </b>",
+		"8": "<b> WITHHELD AS </b>",
+	})
+
+	data.append({
+		"2": "<b> NUMBER </b>",
+		"4a": "<b> INCOME </b>",
+		"4d": "<b> AND UNION DUES </b>",
+		"4e": "<b> COMPENSATION </b>",
+		"4f": "<b> COMPENSATION INCOME </b>",
+		"4i": "<b> COMPENSATION </b>",
+		"4m": "<b> AND UNION DUES </b>",
+		"4n": "<b> COMPENSATION </b>",
+		"4o": "<b> COMPENSATION INCOME </b>",
+		"4r": "<b> COMPENSATION </b>",
+		"4s": "<b> (PRESENT EMPLOYERS) </b>",
+		"4t": "<b> PRESENT EMPLOYERS) </b>",
+		"7": " <b> INCOME  </b>",
+		"7a": "<b> DECEMBER </b>",
+		"7b": "<b> EMPLOYEE </b>",
+		"8": "<b> ADJUSTED </b>",
+	})	
+
+	data.append({
+		"4f": "<b> (PREVIOUS) </b>",
+		"4o": "<b> (PRESENT) </b>",
+	})	
+
+	data.append({
+		"1": _("<b> (1) </b>"),
+		"2": "<b> (2) </b>",
+		"3": "<b> (3) </b>",
+		"4a": "<b> 4(a) </b>",
+		"4b": "<b> 4(b) </b>",
+		"4c": "<b> 4(c) </b>",
+		"4d": "<b> 4(d) </b>",
+		"4e": "<b> 4(e) </b>",
+		"4f": "<b> 4(f) </b>",
+		"4g": "<b> 4(g) </b>",
+		"4h": "<b> 4(h) </b>",
+		"4i": "<b> 4(i) </b>",
+		"4j": "<b> 4(j) </b>",
+
+		"4k": "<b> 4(k) </b>",
+		"4l": "<b> 4(l) </b>",
+		"4m": "<b> 4(m) </b>",
+		"4n": "<b> 4(n) </b>",
+		"4o": "<b> 4(o) </b>",
+		"4p": "<b> 4(p) </b>",
+		"4q": "<b> 4(q) </b>",
+		"4r": "<b> 4(r) </b>",
+		"4s": "<b> 4(s) </b>",
+		"4t": "<b> 4(t) </b>",
+
+
+		"7": "<b> (7) </b>",		
+		"5":  "<b> (5) </b>",
+		"6a": "<b> (6a) </b>",
+		"6b":  "<b> (6b) </b>",
+	})
+
+def get_columns(filters):
 	columns = [
 		{
-			"fieldname": "tin",
-			"label": _("TIN"),
+			"fieldname": "1",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 150
+		},
+		{
+			"fieldname": "2",
+			"label": _(""),
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "employee_name",
-			"label": _("Employee Name"),
+			"fieldname": "3",
+			"label": _(""),
 			"fieldtype": "Data",
 			"width": 200
 		},
 		{
-			"fieldname": "gross_payroll",
-			"label": _("Gross Payroll"),
-			"fieldtype": "Currency",
-			"width": 100
+			"fieldname": "4a",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4b",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4c",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4d",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4e",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4f",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4g",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4h",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4i",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4j",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4k",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4l",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4m",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4n",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4o",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4p",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4q",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4r",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4s",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "4t",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "7",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "6a",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "6b",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "7a",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "7b",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "8",
+			"label": _(""),
+			"fieldtype": "Data",
+			"width": 120
 		},
 	]
 
-	if employee_list:
-		plus_types = frappe.db.sql_list(""" SELECT `name`
-			FROM `tabAlphalist Consideration` WHERE `calculation` = 'Plus' """)
-
-		less_types = frappe.db.sql_list(""" SELECT `name`
-			FROM `tabAlphalist Consideration` WHERE `calculation` = 'Less' """)
-
-		tax_types = frappe.db.sql_list(""" SELECT `name`
-			FROM `tabAlphalist Consideration` WHERE `calculation` = 'Tax' """)
-
-
-	for plus in plus_types:
-		columns.append({			
-			"fieldname": plus,
-			"label": plus,
-			"fieldtype": "Float",
-			"width": 100
-		})
-
-	for less in less_types:
-		columns.append({			
-			"fieldname": less,
-			"label": less,
-			"fieldtype": "Float",
-			"width": 100
-		})
-
-	columns += [
-		{
-			"fieldname": "taxable_compensation",
-			"label": _("Taxable Compensation"),
-			"fieldtype": "Currency",
-			"width": 100
-		},
-		{
-			"fieldname": "exemption_amount",
-			"label": _("Exemption Amount"),
-			"fieldtype": "Float",
-			"width": 100
-		},
-		{
-			"fieldname": "tax_due",
-			"label": _("Tax Due"),
-			"fieldtype": "Float",
-			"width": 100
-		},
-		{
-			"fieldname": "tax_withheld",
-			"label": _("Tax Withheld"),
-			"fieldtype": "Float",
-			"width": 100
-		},
-		{
-			"fieldname": "adjustment",
-			"label": _("Adjustment Amount"),
-			"fieldtype": "Float",
-			"width": 100
-		},
-		{
-			"fieldname": "refund",
-			"label": _("Refunded Amount"),
-			"fieldtype": "Float",
-			"width": 100
-		},
-		{
-			"fieldname": "adj_tax_withheld",
-			"label": _("Amount  of Tax Withheld"),
-			"fieldtype": "Float",
-			"width": 100
-		},
-	]
-
-	return columns, plus_types, less_types, tax_types
-
-def get_employees(filters):
-	employees = frappe.db.sql("""SELECT `name`, full_name, first_name, middle_name, last_name, tin	FROM tabEmployee
-		WHERE company = %(company)s {conditions}
-		AND on_hold = 0 AND is_active = 0 ORDER BY last_name, first_name""".format(conditions=get_conditions(filters)), filters, as_dict=1)
-
-	return employees
-
-def get_conditions(filters):
-	conditions = []
-	if filters.get("employee"):
-		conditions.append("`name`=%(employee)s")
-
-	return "and {}".format(" and ".join(conditions)) if conditions else "" 
-
-def get_plus_map(filters, employee_list):
-	plus_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, AC.`name` as alpha_code, SUM(PRE.amount) as amount
-			FROM `tabPayroll Register` PR 
-			INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent`
-			INNER JOIN `tabTransaction Type` TT ON TT.`name` = PRE.pay_code
-			INNER JOIN `tabAlphalist Consideration` AC ON AC.`name` = TT.alphalist
-			WHERE AC.calculation = 'Plus'
-			AND year(posting_date) = %s AND employee in (%s) GROUP BY PRE.`name` """ %
-		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.year] + [emp.name for emp in employee_list]), as_dict=1)
-
-	plus_map = {}
-	for d in plus_details:
-		plus_map.setdefault(d.employee, frappe._dict()).setdefault(d.alpha_code, [])
-		if plus_map[d.employee][d.alpha_code]:
-			plus_map[d.employee][d.alpha_code] += flt(d.amount, 8)
-		else:
-			plus_map[d.employee][d.alpha_code] = flt(d.amount, 8)
-
-	return plus_map
-
-def get_less_map(filters, employee_list):
-	less_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, AC.`name` as alpha_code, SUM(PRE.amount) as amount
-			FROM `tabPayroll Register` PR 
-			INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent`
-			INNER JOIN `tabTransaction Type` TT ON TT.`name` = PRE.pay_code
-			INNER JOIN `tabAlphalist Consideration` AC ON AC.`name` = TT.alphalist
-			WHERE AC.calculation = 'Less'
-			AND year(posting_date) = %s AND employee in (%s) GROUP BY PRE.`name` """ %
-		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.year] + [emp.name for emp in employee_list]), as_dict=1)
-
-	less_map = {}
-	for d in less_details:
-		less_map.setdefault(d.employee, frappe._dict()).setdefault(d.alpha_code, [])
-		if less_map[d.employee][d.alpha_code]:
-			less_map[d.employee][d.alpha_code] += flt(d.amount, 8)
-		else: 
-			less_map[d.employee][d.alpha_code] = flt(d.amount, 8)
-
-	return  less_map
-
-def get_tax_map(filters, employee_list):
-	tax_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, AC.`name` as alpha_code, SUM(PRE.amount) as amount
-			FROM `tabPayroll Register` PR 
-			INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent`
-			INNER JOIN `tabTransaction Type` TT ON TT.`name` = PRE.pay_code
-			INNER JOIN `tabAlphalist Consideration` AC ON AC.`name` = TT.alphalist
-			WHERE AC.calculation = 'Tax'
-			AND year(posting_date) = %s AND employee in (%s) GROUP BY PRE.`name` """ %
-		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.year] + [emp.name for emp in employee_list]), as_dict=1)
-
-	tax_map = {}
-	for d in tax_details:
-		tax_map.setdefault(d.employee, frappe._dict()).setdefault(d.alpha_code, [])
-		if tax_map[d.employee][d.alpha_code]:
-			tax_map[d.employee][d.alpha_code] += flt(d.amount, 8)
-		else: 
-			tax_map[d.employee][d.alpha_code] = flt(d.amount, 8)
-
-	return  tax_map
+	return columns
