@@ -94,6 +94,7 @@ class PayrollProcessing(Document):
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
 		ignore_uho = frappe.db.get_single_value('Payroll Settings', 'ignore_uho')
 		phic_mo_basis = frappe.db.get_single_value('Payroll Settings', 'phic_mo_basis')
+		hdmf_strm = frappe.db.get_single_value('Payroll Settings', 'hdmf_strm')
 		whtax_persemi = frappe.db.get_single_value('Payroll Settings', 'whtax_persemi')
 		ignore_nd = frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd')
 		weekly_prev_map = frappe._dict()
@@ -181,6 +182,7 @@ class PayrollProcessing(Document):
 						'hd_no_uho': hd_no_uho,
 						'ignore_uho': ignore_uho,
 						'phic_mo_basis': phic_mo_basis,
+						'hdmf_strm': hdmf_strm,
 						'ignore_nd': ignore_nd,
 						'whtax_persemi' : whtax_persemi,
 						'no_attendance': 0,
@@ -536,7 +538,35 @@ class PayrollProcessing(Document):
 	def get_hdmf(self, emp, rates, header, register, tr_map, hdmf_table, weekly_prev_map):
 		hdmf_register = []
 		if self.frequency == emp.get('hdmf_freq') or emp.get('hdmf_freq') == 'Both':
-			if emp['hdmf_mode'] != "None":
+			if header.get('hdmf_strm') == 1 and emp.get('hdmf_mode') == "Manual":
+				hdmf_register = []
+				hdmf_list = ["hdmf","hdmfe","hdmfm"]
+				hdmf, hdmfe, hdmfm = 0, 0, 0
+				target_amt = 0
+
+				if emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('hdmf_freq') == 'Both':
+					hdmf = flt(emp.get('hdmf_manual'), 8) / 2
+					hdmfe = 50
+				elif emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('hdmf_freq') == '2nd':
+					hdmf = emp.get('hdmf_manual')
+					hdmfe = 100
+				elif emp.get('payroll_schedule') == "Monthly":
+					hdmf = emp.get('hdmf_manual')
+					hdmfe = 100
+
+				for l in hdmf_list:
+					amt = flt(eval(l), 8)
+					hdmf_register.append({"pay_code": l.upper(), "amount": amt })
+
+				for d in hdmf_register:
+					register.append(d)
+					if d.get("pay_code") == "HDMF" and d.get('amount') > 0:
+						header['hdmf_amt'] = d.get('amount')
+
+					if d.get("pay_code") == "HDMF" or d.get("pay_code") == "HDMFM":
+						self.calculate_special_header(d, header, tr_map)
+
+			elif emp['hdmf_mode'] != "None":
 				hdmf_register = []
 				hdmf_list = ["hdmf","hdmfe","hdmfm"]
 				hdmf, hdmfe, hdmfm = 0, 0, 0
