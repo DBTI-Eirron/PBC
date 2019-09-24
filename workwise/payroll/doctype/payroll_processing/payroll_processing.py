@@ -424,7 +424,7 @@ class PayrollProcessing(Document):
 						elif emp.get('sss_freq') == 'Both':
 								target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
 									(header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
-									
+
 					#Round target_amt to against SSS table	
 					sss, ssse, sssc = get_sss_amount(flt(target_amt, 2), sss_table)
 					for l in sss_list:
@@ -647,13 +647,13 @@ class PayrollProcessing(Document):
 
 					hdmf_register.append({"pay_code": l.upper(), "amount": amt })
 	
-			for d in hdmf_register:
-				register.append(d)
-				if d.get("pay_code") == "HDMF" and d.get('amount') > 0:
-					header['hdmf_amt'] = d.get('amount')
+				for d in hdmf_register:
+					register.append(d)
+					if d.get("pay_code") == "HDMF" and d.get('amount') > 0:
+						header['hdmf_amt'] = d.get('amount')
 
-				if d.get("pay_code") == "HDMF" or d.get("pay_code") == "HDMFM":
-					self.calculate_special_header(d, header, tr_map)
+					if d.get("pay_code") == "HDMF" or d.get("pay_code") == "HDMFM":
+						self.calculate_special_header(d, header, tr_map)
 
 	def get_whtax(self, emp, rates, header, register):
 		taxable = flt(header.get('taxable_income'), 8) - flt(header.get('taxable_deduction'), 8)
