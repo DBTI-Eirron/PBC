@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right
 from frappe import _
 
 def execute(filters=None):
@@ -31,7 +32,7 @@ def get_columns(filters):
 		{
 			"fieldname": "amount",
 			"label": _("Amount"),
-			"fieldtype": "Currency",
+			"fieldtype": "Float",
 			"width": 120
 		},
 		{
@@ -59,7 +60,7 @@ def get_columns(filters):
 			{
 				"fieldname": "amount",
 				"label": _("Amount"),
-				"fieldtype": "Currency",
+				"fieldtype": "Float",
 				"width": 120
 			},
 			{
@@ -98,7 +99,7 @@ def get_columns(filters):
 			{
 				"fieldname": "amount",
 				"label": _("Amount"),
-				"fieldtype": "Currency",
+				"fieldtype": "Float",
 				"width": 140
 			},
 		]
@@ -251,12 +252,13 @@ def get_net_pay(filters):
 			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account
 			FROM `tabBank Remittance Setup` BR JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
 			WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
-			AND BR.payroll_period = %(period)s AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s 
-			ORDER BY BT.employee_name ASC""",{
+			AND BR.payroll_period = %(period)s AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s {conditions}
+			ORDER BY BT.employee_name ASC""".format(conditions=get_conditions(filters)),{
 			"period": filters.payroll_period,
 			"company": filters.company,
 			"bank": filters.bank,
-			"user": frappe.session.user
+			"user": frappe.session.user,
+			"location": filters.location
 		}, as_dict=True)
 	else:
 		document = frappe.db.sql(""" SELECT DISTINCT TE.last_name, TE.first_name, TE.middle_name, 
@@ -264,14 +266,23 @@ def get_net_pay(filters):
 			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account
 			FROM `tabBank Remittance Setup` BR JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
 			WHERE BR.payroll_period = %(period)s 
-			AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s 
-			ORDER BY BT.employee_name ASC""",{
+			AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s {conditions}
+			ORDER BY BT.employee_name ASC """.format(conditions=get_conditions(filters)),{
 			"period": filters.payroll_period,
 			"company": filters.company,
 			"bank": filters.bank,
+			"location": filters.location
 		}, as_dict=True)
 
 	return document
+
+def get_conditions(filters):
+	conditions = []
+	if filters.get("location"):
+		conditions.append("TE.`location`=%(location)s")
+
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
+
 
 def get_data(filters):
 	data = []
@@ -281,22 +292,32 @@ def get_data(filters):
 
 	return data
  
-def get_result_as_list(data, filters):
+def get_result_as_list(data_list, filters):
 	result = []
+	data = []
 	total_count = 0
 	total_amount = 0.00
 	payroll_schedule = ""
 	payroll_time = ""
 	funding_account = ""
 
+	for d in data_list:
+		if filters.bank_type == "All":
+			data.append(d)
+		else:
+			if filters.bank_type == d.bank_type:
+				data.append(d)
+
 	for d in data:
-		if flt(d.amount) > 0:
-			total_amount += flt(d.amount, 8)
-			total_count += 1
-			if d.payroll_time:
-				payroll_schedule = d.payroll_schedule
-				payroll_time = d.payroll_time
-			funding_account = d.funding_account
+		amount = flt(d.amount)
+		if flt(d.amount) < 0:
+			amount = 0.00
+		total_amount += flt(amount, 8)
+		total_count += 1
+		if d.payroll_time:
+			payroll_schedule = d.payroll_schedule
+			payroll_time = d.payroll_time
+		funding_account = d.funding_account
 
 	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
 		if filters.include_header:
@@ -312,7 +333,7 @@ def get_result_as_list(data, filters):
 				"amount": "Payroll Time",
 				"remarks": payroll_time,
 				"lbl_total_amount": "Total Amount",
-				"total_amount": '{:,.2f}'.format(total_amount),
+				"total_amount": format_decimal_by_2_align_right(total_amount),
 				"lbl_total_count": "Total Count",
 				"total_count": total_count, 
 				"lbl_funding_account": "Funding Account", 
@@ -328,17 +349,16 @@ def get_result_as_list(data, filters):
 		}
 		result.append(fields)
 		for d in data:
-			if flt(d.amount) > 0:
-				row = {
-					"detail": "D",
-					"employee_name": d.get("employee_name"),
-					"employee_account": d.get("employee_account"),
-					"amount": '{:,.2f}'.format(d.get("amount")),
-					"remarks": d.get("remarks"),
-				}
-				result.append(row)
+			row = {
+				"detail": "D",
+				"employee_name": d.get("employee_name"),
+				"employee_account": d.get("employee_account"),
+				"amount": format_decimal_by_2_align_right(d.get("amount")),
+				"remarks": d.get("remarks"),
+			}
+			result.append(row)
 		total = {
-			"amount": '{:,.2f}'.format(total_amount),
+			"amount": format_decimal_by_2_align_right(total_amount),
 			"employee": "TOTAL",
 			"employee_name": total_count
 		}
@@ -346,96 +366,91 @@ def get_result_as_list(data, filters):
 
 	elif filters.bank == "EastWest Bank":
 		for d in data:
-			if flt(d.amount) > 0:
-				row = {
-					"hdr": "DTL",
-					"account_number": d.get("employee_account"),
-					"amount": '{:,.2f}'.format(d.get("amount")),
-					"remarks": str(d.get("last_name"))+", "+str(d.get("first_name"))+", "+str(d.get("middle_name")),
-				}
-				result.append(row)
+			row = {
+				"hdr": "DTL",
+				"account_number": d.get("employee_account"),
+				"amount": format_decimal_by_2_align_right(d.get("amount")),
+				"remarks": str(d.get("last_name"))+", "+str(d.get("first_name"))+", "+str(d.get("middle_name")),
+			}
+			result.append(row)
 		total = {
 			"hdr": "TLR",
 			"account_number": total_count,
-			"amount": '{:,.2f}'.format(total_amount),
+			"amount": format_decimal_by_2_align_right(total_amount),
 			"remarks": "",
 		}
 		result.append(total)
 
 	elif filters.bank == "China Banking Corporation" or filters.bank == "Chinabank" or filters.bank == "China Bank" or filters.bank == "CBC":
 		for d in data:
-			if flt(d.amount) > 0:
-				row = {
-					"last_name" : d.get("last_name"),
-					"first_name" : d.get("first_name"),
-					"account_number" : d.get("employee_account"),
-					"account_type" : d.get("bank_type"),
-					"amount": '{:,.2f}'.format(d.get("amount")),
-				}
-				result.append(row)
+			row = {
+				"last_name" : d.get("last_name"),
+				"first_name" : d.get("first_name"),
+				"account_number" : d.get("employee_account"),
+				"account_type" : d.get("bank_type"),
+				"amount": format_decimal_by_2_align_right(d.get("amount")),
+			}
+			result.append(row)
 		total = {
 			"last_name" : "",
 			"first_name" : "",
 			"account_number" : "",
 			"account_type" : "Total",
-			"amount": '{:,.2f}'.format(total_amount),
+			"amount": format_decimal_by_2_align_right(total_amount),
 		}
 		result.append(total)
 
 	elif filters.bank == "Metrobank" or filters.bank == "Metro Bank" or filters.bank == "MB":
 		count = 1
 		for d in data:
-			if flt(d.amount) > 0:
-				row = {
-					"employee_code": count,
-					"employee_name": d.get("employee_name"),
-					"branch_code": d.get("branch_code"),
-					"payroll_acct_no": d.get("employee_account"),
-					"amount": '{:,.2f}'.format(d.get("amount")),
-				}
-				result.append(row)
-				count += 1
+			row = {
+			"employee_code": count,
+			"employee_name": d.get("employee_name"),
+			"branch_code": d.get("branch_code"),
+			"payroll_acct_no": d.get("employee_account"),
+			"amount": format_decimal_by_2_align_right(d.get("amount")),
+			}
+			result.append(row)
+			count += 1
 		total = {
 			"employee_code": "",
 			"employee_name": "",
 			"branch_code":"",
 			"payroll_acct_no": "",
-			"amount": '{:,.2f}'.format(total_amount),
+			"amount": format_decimal_by_2_align_right(total_amount),
 		}
 		result.append(total)
 
 	elif filters.bank == "Banco de Oro" or filters.bank == "BDO":
 		for d in data:
-			if flt(d.amount) > 0:
-				row = {
-					"account_number": d.get("employee_account"),
-					"amount": '{:,.2f}'.format(d.get("amount")),
-					"employee_name": d.get("employee_name"),
-					"remarks": d.get("remarks"),	
-				}
-				result.append(row)
-		#total = {
-		#	"account_number": d.get("employee_account"),
-		#	"amount": '{:,.2f}'.format(d.get("amount")),
-		#	"employee_name": d.get("employee_name"),
-		#	"remarks": d.get("remarks"),	
-		#}
-		#result.append(total)
+			row = {
+				"account_number": d.get("employee_account"),
+				"amount": format_decimal_by_2_align_right(d.get("amount")),
+				"employee_name": d.get("employee_name"),
+				"remarks": d.get("remarks"),	
+			}
+			result.append(row)
+		total = {
+			"account_number": "Headcount: "+str(total_count),
+			"amount": "Total Amount: "+format_decimal_by_2(total_amount),
+			"employee_name": "",
+			"remarks": "",
+		}
+		result.append(total)
 
 	else:
 		for d in data:
-			if flt(d.amount) > 0:
-				row = {
-					"employee": d.get("employee"),
-					"employee_name": d.get("employee_name"),
-					"amount": '{:,.2f}'.format(d.get("amount")),
-					"remarks": d.get("remarks"),
-				}
-				result.append(row)
+			row = {
+				"employee": d.get("employee"),
+				"employee_name": d.get("employee_name"),
+				"amount": format_decimal_by_2_align_right(d.get("amount")),
+				"remarks": d.get("remarks"),
+			}
+			result.append(row)
 		total = {
 			"employee": "TOTAL",
 			"employee_name": total_count,
-			"amount": '{:,.2f}'.format(total_amount),
+			"amount": format_decimal_by_2_align_right(total_amount),
 			"remarks": "",
 		}
 		result.append(total)

@@ -36,6 +36,25 @@ frappe.query_reports["Bank Remittance"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "location",
+			"label": __("Location"),
+			"fieldtype": "Link",
+			"options": "Location",
+		},
+		{
+			"fieldname": "bank_type",
+			"label": __("Bank Type"),
+			"fieldtype": "Select",
+			"options": [
+				{ "value": "All", "label": __("All") },
+				{ "value": "Current", "label": __("Current") },
+				{ "value": "Savings", "label": __("Savings") },
+				{ "value": "Cash Card", "label": __("Cash Card") }
+			],
+			"default": "All",
+			"reqd": 0
+		},
+		{
 			"fieldname": "include_header",
 			"label": __("Include Header"),
 			"fieldtype": "Check",

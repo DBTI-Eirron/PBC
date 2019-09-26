@@ -8,10 +8,8 @@ from workwise.payroll.payroll_utils import get_transaction_map
 def create_annualization(self):
 	validate_filters(self)
 	from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
-
-	employees = frappe.db.sql("""select `name`, tin, full_name, company, tin from tabEmployee WHERE company = %(company)s AND payroll_schedule = %(schedule)s {conditions} 
-		AND `name` NOT IN (SELECT DISTINCT employee FROM `tabBIR2316` 
-		WHERE document_type = "Previous" AND docstatus = 1) ORDER BY full_name ASC """.format( conditions=get_employee_conditions(self) ),
+	employees = frappe.db.sql("""select `name`, tin, full_name, company, tin, date_retired, date_resigned, date_terminated from tabEmployee WHERE company = %(company)s AND payroll_schedule = %(schedule)s {conditions} 
+		ORDER BY full_name ASC """.format( conditions=get_employee_conditions(self) ),
 			({ 
 				"company": self.company,
 				"schedule": self.schedule,
@@ -21,7 +19,7 @@ def create_annualization(self):
 			}), as_dict=True)
 
 	registers = get_registers(self, from_year, to_year)
-	create_entries(self, employees, registers)	
+	create_entries(self, employees, registers, from_year, to_year)	
 
 def get_registers(self, from_year, to_year):
 	registers = frappe.db.sql("""SELECT PR.name, PR.employee, PR.employee_name, PR.company, PR.posting_date, PR.schedule, PR.gross_payroll,
@@ -140,7 +138,7 @@ def get_employee_wise_register(registers, emp_map):
 
 	return emp_map
 
-def create_entries(self, employees, registers):
+def create_entries(self, employees, registers, from_year, to_year):
 	emp_map = get_employee_map(self, employees)
 	emp_map = get_employee_wise_register(registers, emp_map)
 
@@ -149,6 +147,14 @@ def create_entries(self, employees, registers):
 		ntax_benefits, tax_benefits, tax_due, adj_tax = 0, 0, 0, 0
 		ntax_total, amt_withheld, over_withheld = 0, 0, 0
 		
+		if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired:
+			if getdate(emp_dict.date_terminated) < getdate(to_year):
+				emp_dict.is_terminated = 1
+			if getdate(emp_dict.date_resigned) < getdate(to_year):
+				emp_dict.is_terminated = 1
+			if getdate(emp_dict.date_retired) < getdate(to_year):
+				emp_dict.is_terminated = 1
+
 		if emp_dict.total_benefits > 90000:
 			emp_dict.nt_benefits  = 90000
 			emp_dict.t_benefits  = abs(emp_dict.total_benefits - 90000)
@@ -194,7 +200,14 @@ def get_employee_map(self, employees):
 				"company": emp.company,
 				"payroll_year": self.payroll_year,
 				"tax_id": emp.tin,
-				"emp_category": "",
+				#TERMINATION DATES
+				"date_terminated": emp.date_terminated,
+				"date_resigned": emp.date_resigned,
+				"date_retired": emp.date_retired,
+				#STATUS
+				"with_previous": 0,
+				"is_terminated": 0,
+				"minimum_wage": 0,		
 				#PREVIOUS NON-TAXABLE
 				"pnt_basic": 0,
 				"pnt_holiday": 0,
