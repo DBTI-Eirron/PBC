@@ -1657,7 +1657,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
-	get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_dtrp(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
 
 	return emp_map
 
