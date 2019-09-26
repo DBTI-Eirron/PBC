@@ -1,0 +1,47 @@
+{
+ "add_total_row": 0, 
+ "apply_user_permissions": 0, 
+ "creation": "2019-09-17 18:04:52.497813", 
+ "disabled": 0, 
+ "docstatus": 0, 
+ "doctype": "Report", 
+ "idx": 0, 
+ "is_standard": "Yes", 
+ "modified": "2019-09-20 13:11:23.117965", 
+ "modified_by": "Administrator", 
+ "module": "Time Keeping", 
+ "name": "Late Approval Applications", 
+ "owner": "Administrator", 
+ "ref_doctype": "Leave Application", 
+ "report_name": "Late Approval Applications", 
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "HR Manager"
+  }, 
+  {
+   "role": "Payroll Manager"
+  }, 
+  {
+   "role": "Time Keeping Manager"
+  }, 
+  {
+   "role": "Rank and File"
+  }, 
+  {
+   "role": "Manager"
+  }, 
+  {
+   "role": "Officer"
+  }, 
+  {
+   "role": "Approver"
+  }, 
+  {
+   "role": "System Manager"
+  }, 
+  {
+   "role": "HR Comp Ben"
+  }
+ ]
+}

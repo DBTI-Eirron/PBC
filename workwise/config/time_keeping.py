@@ -229,6 +229,12 @@ def get_data():
 					"doctype": "DTR Problem Application",
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "Late Approval Applications",
+					"doctype": "Leave Application",
+					"is_query_report": True
+				},
 			],
 		},	
 	]
