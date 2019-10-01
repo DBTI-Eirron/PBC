@@ -2,7 +2,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
 from workwise.payroll.payroll_utils import format_decimal_by_2
 from frappe import _, msgprint
@@ -42,17 +42,17 @@ def get_data(filters):
 		data.append({'pib':'Pag-Ibig ID','tin':'TIN','last_name':'Last Name','first_name':'First Name','middle_name':'Middle Name','birth_day':'Birth Date','map':'Monthly Amortization Payment'})
 
 	total_map = 0.00
-	for emp in gov_map:
+	for emp in sorted(gov_map.items(), key = lambda k:k[1]['full_name']):
 		row = {
-			'pib':gov_map[emp]['hdmf_no'], 
-			'tin':gov_map[emp]['tin'], 
-			'last_name':gov_map[emp]['last_name'], 
-			'first_name':gov_map[emp]['first_name'], 
-			'middle_name':gov_map[emp]['middle_name'], 
-			'birth_day':gov_map[emp]['birthday'],
-			'map':format_decimal_by_2(gov_map[emp]['HDMFCL'])
+			'pib':gov_map[emp[0]]['hdmf_no'], 
+			'tin':gov_map[emp[0]]['tin'], 
+			'last_name':gov_map[emp[0]]['last_name'], 
+			'first_name':gov_map[emp[0]]['first_name'], 
+			'middle_name':gov_map[emp[0]]['middle_name'], 
+			'birth_day':datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%Y%m%d"),
+			'map':format_decimal_by_2(gov_map[emp[0]]['HDMFCL'])
 		}
-		total_map += gov_map[emp]['HDMFCL']
+		total_map += gov_map[emp[0]]['HDMFCL']
 		entries.append(row)
 		entries = sorted(entries, key = lambda k:k['last_name'])
 	for ent in entries:

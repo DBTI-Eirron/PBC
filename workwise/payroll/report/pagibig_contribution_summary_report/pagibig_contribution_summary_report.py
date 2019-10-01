@@ -208,17 +208,17 @@ def get_data(filters):
 			})
 			data.append(headers)
 
-		for emp in gov_map:
+		for emp in sorted(gov_map.items(), key = lambda k:k[1]['full_name']):
 			row = {
-				"hdmf_no": gov_map[emp]['hdmf_no'],
-				"employee": emp,
-				"last_name": gov_map[emp]['last_name'],
-				"first_name": gov_map[emp]['first_name'],
-				"middle_name": gov_map[emp]['middle_name'],
-				"HDMF": format_decimal_by_2(gov_map[emp]['HDMF']),
-				"HDMFE": format_decimal_by_2(gov_map[emp]['HDMFE']),
-				"tin": gov_map[emp]['tin'],
-				"birthdate": gov_map[emp]['birthday']
+				"hdmf_no": gov_map[emp[0]]['hdmf_no'],
+				"employee": emp[0],
+				"last_name": gov_map[emp[0]]['last_name'],
+				"first_name": gov_map[emp[0]]['first_name'],
+				"middle_name": gov_map[emp[0]]['middle_name'],
+				"HDMF": format_decimal_by_2(gov_map[emp[0]]['HDMF']),
+				"HDMFE": format_decimal_by_2(gov_map[emp[0]]['HDMFE']),
+				"tin": gov_map[emp[0]]['tin'],
+				"birthdate": datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%Y%m%d"),
 			}
 			data.append(row)
 
