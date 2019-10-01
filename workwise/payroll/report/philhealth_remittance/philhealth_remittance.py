@@ -72,16 +72,16 @@ def get_data(filters):
 	if not gov_map:
 		frappe.msgprint("No Records Found");
 	else:
-		for emp in gov_map:
+		for emp in sorted(gov_map.items(), key = lambda k:k[1]['full_name']):
 			row = {
-				"phic_no": gov_map[emp]['phic_no'],
-				"monthly_rate": gov_map[emp]['rate'],
-				"employee_name": gov_map[emp]['full_name'],
-				"employee_status": "Active" if gov_map[emp]['status'] == 1 else "Inactive",
-				"date_hired": gov_map[emp]['date_hired'],
-				"birth_day": gov_map[emp]['birthday'],
-				"employee": format_decimal_by_2(gov_map[emp]['PHIC']),
-				"employer": format_decimal_by_2(gov_map[emp]['PHICE']),
+				"phic_no": gov_map[emp[0]]['phic_no'],
+				"monthly_rate": gov_map[emp[0]]['rate'],
+				"employee_name": gov_map[emp[0]]['full_name'],
+				"employee_status": "Active" if gov_map[emp[0]]['status'] == 1 else "Inactive",
+				"date_hired": gov_map[emp[0]]['date_hired'],
+				"birth_day": datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%m/%d/%Y"),
+				"employee": format_decimal_by_2(gov_map[emp[0]]['PHIC']),
+				"employer": format_decimal_by_2(gov_map[emp[0]]['PHICE']),
 			}
 			data.append(row)
 

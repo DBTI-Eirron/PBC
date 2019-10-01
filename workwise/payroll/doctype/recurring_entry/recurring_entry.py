@@ -78,6 +78,9 @@ class RecurringEntry(Document):
 					"user": frappe.session.user,
 				}, as_dict=True)
 
+				if not employees:
+					frappe.throw(_(" Employee may be inactive or does not belong to company "))
+
 			elif self.filter_type == 'Department':
 				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  
 						AND department = %(filter_value)s {conditions} 
@@ -86,6 +89,9 @@ class RecurringEntry(Document):
 					"filter_value": self.filter_value,
 					"user": frappe.session.user,
 				}, as_dict=True)
+
+				if not employees:
+					frappe.throw(_(" Employee does not belong to company or department "))
 
 			elif self.filter_type == 'Location':
 				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  
@@ -96,7 +102,9 @@ class RecurringEntry(Document):
 					"user": frappe.session.user,
 				}, as_dict=True)
 
-			
+				if not employees:
+					frappe.throw(_(" Employee does not belong to company or location "))
+	
 			if employees:
 				for d in employees:
 					row = {
