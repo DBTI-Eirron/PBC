@@ -19,14 +19,14 @@ class WorkShift(Document):
 		self.make_filter_name()
 
 	def make_filter_name(self):
-		self.filter_name = self.work_shift_type+" "+self.time_in+" - "+self.time_out
+		self.filter_name = cstr(self.work_shift_type)+" "+cstr(self.time_in)+" - "+cstr(self.time_out)
 		if self.is_restday:
-			self.filter_name = "RD "+self.time_in+" - "+self.time_out
+			self.filter_name = "RD "+cstr(self.time_in)+" - "+cstr(self.time_out)
 
 	def validate_time_format(self):
 		time_fds = ['time_in', 'time_out', 'break_start', 'break_end', 'nd_start', 'nd_end']
 		for fd in time_fds:
-			chk_time_format(self.get(fd), "%H:%M:%S")
+			chk_time_format(cstr(self.get(fd)), "%H:%M:%S")
 	
 	def validate_time(self):
 		time_in = get_datetime( str(nowdate() ) +" "+ str(self.time_in) )
