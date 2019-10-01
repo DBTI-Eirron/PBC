@@ -2,7 +2,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
 from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right, format_decimal_by_2_align_right_negative
 from frappe import _, msgprint
@@ -31,16 +31,16 @@ def get_data(filters):
 	total_ee = 0.00
 	total_er = 0.00
 	total_count = 0
-	for emp in gov_map:
-		employee = flt(gov_map[emp]['HDMFM'])+flt(gov_map[emp]['HDMF'])
-		employer = gov_map[emp]['HDMFE']
+	for emp in sorted(gov_map.items(), key = lambda k:k[1]['full_name']):
+		employee = flt(gov_map[emp[0]]['HDMFM'])+flt(gov_map[emp[0]]['HDMF'])
+		employer = gov_map[emp[0]]['HDMFE']
 		row = {
-			'mid':gov_map[emp]['hdmf_no'], 
-			'tin':gov_map[emp]['tin'], 
-			'last_name':gov_map[emp]['last_name'], 
-			'first_name':gov_map[emp]['first_name'], 
-			'middle_name':gov_map[emp]['middle_name'], 
-			'birth_day':gov_map[emp]['birthday'],
+			'mid':gov_map[emp[0]]['hdmf_no'], 
+			'tin':gov_map[emp[0]]['tin'], 
+			'last_name':gov_map[emp[0]]['last_name'], 
+			'first_name':gov_map[emp[0]]['first_name'], 
+			'middle_name':gov_map[emp[0]]['middle_name'], 
+			'birth_day': datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%Y%m%d"),
 			'ee':format_decimal_by_2(employee),
 			'er':format_decimal_by_2(employer)
 		}
