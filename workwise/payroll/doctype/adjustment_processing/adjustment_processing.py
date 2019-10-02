@@ -191,7 +191,7 @@ class AdjustmentProcessing(Document):
 
 	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map):
 		rates = get_rates(emp)
-		attendance_result = { "ab": 0.0, "uho": 0.0, "ot": 0.0, "nd": 0.0, "lt": 0.0, "ut": 0.0 }
+		attendance_result = { "ab": 0.0, "uho": 0.0, "ot": 0.0, "nd": 0.0, "lt": 0.0, "ut": 0.0, "cto": 0.0 }
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
