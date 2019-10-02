@@ -830,7 +830,7 @@ class PayrollProcessing(Document):
 
 	def get_adjustment(self, emp, rates, header, register, adjset):
 		adjustment_register = []
-		adjustment = frappe.db.sql("""SELECT name, absent, unpaid_holiday, overtime, nightdiff, late, undertime 
+		adjustment = frappe.db.sql("""SELECT name, absent, unpaid_holiday, overtime, nightdiff, late, undertime, compensatory
 			FROM `tabAdjustment Register`WHERE employee = %s AND target_period = %s """,(emp.get('name'), self.period), as_dict=True )
 		
 		for d in adjustment:
@@ -881,6 +881,22 @@ class PayrollProcessing(Document):
 						"linked_doctype": "Adjustment Register",
 						"pay_code": adjset.get('inc_ot'),
 						"amount": abs(flt(d.overtime, 8)),
+					})
+			
+			if d.compensatory != 0:
+				if d.compensatory < 0:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('ded_cto'),
+						"amount": abs(flt(d.compensatory, 8)),
+					})
+				else:
+					adjustment_register.append({
+						"linked_document": d.name,
+						"linked_doctype": "Adjustment Register",
+						"pay_code": adjset.get('inc_cto'),
+						"amount": abs(flt(d.compensatory, 8)),
 					})
 
 			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
