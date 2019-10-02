@@ -168,10 +168,11 @@ class AdjustmentProcessing(Document):
 				"overtime": adjustment.get('ot') - processed.get('ot'),
 				"nightdiff": adjustment.get('nd') - processed.get('nd'),
 				"late": adjustment.get('lt') - processed.get('lt'),
-				"undertime":  adjustment.get('ut') - processed.get('ut')
+				"undertime":  adjustment.get('ut') - processed.get('ut'),
+				"compensatory":  adjustment.get('cto') - original.get('cto'),
 			}
 
-			if reg.get('absent') or reg.get('unpaid_holiday') or reg.get('overtime') or reg.get('nightdiff') or reg.get('late') or reg.get('undertime'):
+			if reg.get('absent') or reg.get('unpaid_holiday') or reg.get('overtime') or reg.get('nightdiff') or reg.get('late') or reg.get('undertime') or reg.get('compensatory'):
 				adjr = frappe.new_doc("Adjustment Register")
 				adjr.update(reg)
 				adjr.insert()
@@ -342,7 +343,7 @@ class AdjustmentProcessing(Document):
 			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
 				nightdiff = 0
 
-			attendance_result.update({ "ab": flt(absent, 8), "uho": flt(unpaid_holiday, 8), "ot": flt(overtime, 8), "nd": flt(nightdiff, 8), "lt": flt(late, 8), "ut":flt(undertime, 8) })
+			attendance_result.update({ "ab": flt(absent, 8), "uho": flt(unpaid_holiday, 8), "ot": flt(overtime, 8), "nd": flt(nightdiff, 8), "lt": flt(late, 8), "ut":flt(undertime, 8), "cto":flt(cto, 8), "ab_days": absent_days, "wk_days": work_days })
 		
 		return attendance_result
 
