@@ -183,6 +183,17 @@ def sssc_fix():
 		fix.flags.ignore_permissions = True
 		fix.save()
 
+
+def update_multi_ot_trans(): 
+	#bench execute workwise.payroll.payroll_utils.update_multi_ot_trans
+	frappe.db.sql("""UPDATE `tabOvertime Rates` SET transaction_type = 'OT' """)
+	frappe.db.sql("""UPDATE `tabTransaction Type` SET entry_type = 'Overtime' WHERE `name` = 'OT' """)
+
+def update_daily_ot_rate(): 
+	#bench execute workwise.payroll.payroll_utils.update_daily_ot_rate
+	#Set Daily OT Rate Default equalt to OT Rate
+	frappe.db.sql("""UPDATE `tabOvertime Rates` SET daily_ot_rate = ot_rate """)
+
 def format_decimal_by_2(figure):
 	return '{:,.2f}'.format( flt(figure, 2) )
 
