@@ -950,6 +950,7 @@ class PayrollProcessing(Document):
 
 	def get_attendance(self, emp, rates, header, register, ot_map):
 		attendance_register = []
+		overtimes_register = []
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, cto, cto_days, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
 			unpaid_holiday, prev_lwop, prev_absent, is_uho, leave_days, nwho_days, total_work  =  0, 0 ,0, 0, 0, 0, 0
@@ -963,11 +964,54 @@ class PayrollProcessing(Document):
 			overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), self.attendance_from, self.attendance_to), as_dict=1)
 			
+			#Get Overtime
+			unique_ot = ["00000000"]
+			ot_register = []
+			overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
+				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), self.attendance_from, self.attendance_to), as_dict=1)
+			
+			#Get OT registers
 			for ot in overtime_list:
 				if ot.ot_code in ot_map:
-					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+					if ot.ot_code not in unique_ot:
+						unique_ot.append(ot.ot_code)
+
+					if emp.get("rate_type") == "Daily Rate":
+						amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['daily_rate'] / 100)
+					else:
+						amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+
+					ot_register.append({
+						"ot_code": ot.ot_code,
+						"hrs": flt( ot.hrs, 8),
+						"amount": amount, 
+					})
 				else:
-					overtime += flt( ot.hrs, 8) * rates.get('hourly_rate')
+					if emp.get("rate_type") == "Daily Rate":
+						amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['daily_rate'] / 100)
+					else:
+						amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+
+					ot_register.append({
+						"ot_code": "00000000", 
+						"hrs": flt( ot.hrs, 8),
+						"amount": amount, 
+					})
+
+			#Merge all OT Types based on Unique OT and create attendance registers
+			for uot in unique_ot:
+				merge_amount, merge_hrs = 0, 0
+				for otr in ot_register:
+					if uot == otr.get('ot_code'):
+						merge_amount += otr.get('amount')
+						merge_hrs += otr.get('hrs')
+
+				if merge_amount > 0:
+					overtimes_register.append({
+						"pay_code": ot_map[uot]['transaction_type'],
+						"pay_time": flt(merge_hrs, 8),
+						"amount": flt(merge_amount, 8) 
+					})
 
 			if attendance:
 				for at in attendance:
@@ -1177,6 +1221,9 @@ class PayrollProcessing(Document):
 				for d in attendance_register:
 					register.append(d)
 
+				for otr in overtimes_register:
+					register.append(otr)
+
 				header['cto_days'] = cto_days
 				header['work_days'] = work_days
 				header['absent_days'] = absent_days
@@ -1198,10 +1245,12 @@ class PayrollProcessing(Document):
 
 	def get_overtime_map(self):
 		ot_map = {}
-		ot = frappe.db.sql(""" SELECT `name`, ot_code, ot_rate FROM `tabOvertime Rates` """, as_dict=1)
+		ot = frappe.db.sql(""" SELECT `name`, transaction_type, ot_code, ot_rate, daily_ot_rate FROM `tabOvertime Rates` """, as_dict=1)
 		for t in ot:
 			ot_map[t.ot_code] = {
 				"rate": t.ot_rate,
+				"transaction_type": t.transaction_type if t.transaction_type else "OT",
+				"daily_rate": t.daily_ot_rate,
 				"name": t.name,
 			}
 		return ot_map
