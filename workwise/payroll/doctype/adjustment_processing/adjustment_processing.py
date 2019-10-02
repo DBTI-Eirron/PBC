@@ -141,6 +141,7 @@ class AdjustmentProcessing(Document):
 					"employee": emp.name,
 					"employee_name": emp.full_name,
 					"employee_details": emp,
+					"rate_type": emp.rate_type,
 					"processed": [],
 					"processed_ot": [],
 					"adjustment": [],
@@ -156,7 +157,8 @@ class AdjustmentProcessing(Document):
 			frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s AND payroll_period = %s  """,(emp_dict['employee'], self.period), as_dict=1)
 			adjustment = self.get_attendance_result(emp_dict['employee_details'], emp_dict['adjustment'], self.attendance_from, self.attendance_to, emp_dict['adjustment_ot'], ot_map)
 			processed = self.get_attendance_result(emp_dict['employee_details'], emp_dict['processed'], self.attendance_from, self.attendance_to, emp_dict['processed_ot'], ot_map)
-
+			rates = get_rates(emp_dict['employee_details'])
+			
 			reg = {
 				"employee": emp_dict['employee'],
 				"employee_name": emp_dict['employee_name'],
@@ -171,6 +173,9 @@ class AdjustmentProcessing(Document):
 				"undertime":  adjustment.get('ut') - processed.get('ut'),
 				"compensatory":  adjustment.get('cto') - original.get('cto'),
 			}
+			if emp_dict['rate_type'] == "Daily Rate" and adjustment.get('ab_days') != original.get('ab_days'):
+				ab_days = adjustment.get('ab_days') - original.get('ab_days')
+				reg['absent'] = flt(rates.get('daily_rate'), 8) * ab_days			
 
 			if reg.get('absent') or reg.get('unpaid_holiday') or reg.get('overtime') or reg.get('nightdiff') or reg.get('late') or reg.get('undertime') or reg.get('compensatory'):
 				adjr = frappe.new_doc("Adjustment Register")
