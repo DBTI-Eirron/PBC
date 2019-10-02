@@ -171,10 +171,10 @@ class AdjustmentProcessing(Document):
 				"nightdiff": adjustment.get('nd') - processed.get('nd'),
 				"late": adjustment.get('lt') - processed.get('lt'),
 				"undertime":  adjustment.get('ut') - processed.get('ut'),
-				"compensatory":  adjustment.get('cto') - original.get('cto'),
+				"compensatory":  adjustment.get('cto') - processed.get('cto'),
 			}
-			if emp_dict['rate_type'] == "Daily Rate" and adjustment.get('ab_days') != original.get('ab_days'):
-				ab_days = adjustment.get('ab_days') - original.get('ab_days')
+			if emp_dict['rate_type'] == "Daily Rate" and adjustment.get('ab_days') != processed.get('ab_days'):
+				ab_days = adjustment.get('ab_days') - processed.get('ab_days')
 				reg['absent'] = flt(rates.get('daily_rate'), 8) * ab_days			
 
 			if reg.get('absent') or reg.get('unpaid_holiday') or reg.get('overtime') or reg.get('nightdiff') or reg.get('late') or reg.get('undertime') or reg.get('compensatory'):
