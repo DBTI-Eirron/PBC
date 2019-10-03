@@ -247,6 +247,10 @@ def get_data():
 					"name": "PhilHealth Remittance",	
 					"is_query_report": True
 				},
+				{
+					"type": "doctype",
+					"name": "Government Certificate",	
+				}
 			],
 		},
 		{
