@@ -124,37 +124,20 @@ def get_data(filters):
 
 	#Set Default
 	for emp in employees:
-		employee_schedule[cstr(emp.name)] = {
+		employee_schedule[emp.name] = {
 			"employee_name": cstr(emp.full_name),
 			"default_schedule": cstr(emp.default_schedule),
 		}
 		employee_list.append(emp.name)
 		for target_date in daterange(pay_from, pay_to):
 			employee_schedule[emp.name][target_date] = None
-	
-	#Get Change Schedule Application
-	cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
-		FROM `tabChange Schedule Application` CSA INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
-		WHERE CSA.docstatus = 1 AND CSA.workflow_state = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s """,(pay_from, pay_to), as_dict=1)
-	for d in cs_apps:
-		if d.employee in employee_list:
-			employee_schedule[d['employee']][d['target_date']] = {
-				"target_date": d['target_date'],
-				"work_shift": d['new_shift'],
-				"pre_shift": shift_map[d['new_shift']]['pre_shift'],
-				"post_shift": shift_map[d['new_shift']]['post_shift'],
-				"time_in": get_date(d['target_date'], shift_map[d['new_shift']]['time_in'], shift_map[d['new_shift']]['time_out'], shift_map[d['new_shift']]['shift_type'], 0),
-				"time_out": get_date(d['target_date'], shift_map[d['new_shift']]['time_in'], shift_map[d['new_shift']]['time_out'], shift_map[d['new_shift']]['shift_type'], 1),
-				"break_start": get_date(d['target_date'], shift_map[d['new_shift']]['break_start'], shift_map[d['new_shift']]['break_end'], shift_map[d['new_shift']]['shift_type'], 0),
-				"break_end": get_date(d['target_date'], shift_map[d['new_shift']]['break_start'], shift_map[d['new_shift']]['break_end'], shift_map[d['new_shift']]['shift_type'], 1),
-			}
 
 	#Get Work Schedule
 	for emp in employees:
 		schedule = frappe.db.sql("""SELECT employee, company, work_shift, target_date, datetime_in, datetime_out, break_start, break_end
 			FROM `tabWork Schedule` WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s AND employee = %(employee)s
 			ORDER BY target_date ASC""",{
-			"from_date": pay_from, "to_date": pay_to, "employee": cstr(emp.name),
+			"from_date": pay_from, "to_date": pay_to, "employee": emp.name,
 		}, as_dict=True)
 		
 		for d in schedule:
@@ -177,7 +160,7 @@ def get_data(filters):
 			for target_date in daterange(pay_from, pay_to):
 				if employee_schedule[emp][target_date] == None:
 					template_work_shift = template_map[employee_schedule[emp]['default_schedule']][str(target_date.weekday())]
-					employee_schedule[emp][d.target_date] = {
+					employee_schedule[emp][target_date] = {
 						"target_date": target_date,
 						"work_shift": template_work_shift,
 						"time_in": get_date(target_date, shift_map[template_work_shift]['time_in'], shift_map[template_work_shift]['time_out'], shift_map[template_work_shift]['shift_type'], 0),
@@ -187,6 +170,23 @@ def get_data(filters):
 						"pre_shift": shift_map[template_work_shift]['pre_shift'],
 						"post_shift": shift_map[template_work_shift]['post_shift'],
 					}
+
+	#Get Change Schedule Application
+	cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
+		FROM `tabChange Schedule Application` CSA INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
+		WHERE CSA.docstatus = 1 AND CSA.workflow_state = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s """,(pay_from, pay_to), as_dict=1)
+	for cs in cs_apps:
+		if cs.employee in employee_list:
+			employee_schedule[cs['employee']][cs['target_date']] = {
+				"target_date": cs['target_date'],
+				"work_shift": cs['new_shift'],
+				"pre_shift": shift_map[cs['new_shift']]['pre_shift'],
+				"post_shift": shift_map[cs['new_shift']]['post_shift'],
+				"time_in": get_date(cs['target_date'], shift_map[cs['new_shift']]['time_in'], shift_map[cs['new_shift']]['time_out'], shift_map[cs['new_shift']]['shift_type'], 0),
+				"time_out": get_date(cs['target_date'], shift_map[cs['new_shift']]['time_in'], shift_map[cs['new_shift']]['time_out'], shift_map[cs['new_shift']]['shift_type'], 1),
+				"break_start": get_date(cs['target_date'], shift_map[cs['new_shift']]['break_start'], shift_map[cs['new_shift']]['break_end'], shift_map[cs['new_shift']]['shift_type'], 0),
+				"break_end": get_date(cs['target_date'], shift_map[cs['new_shift']]['break_start'], shift_map[cs['new_shift']]['break_end'], shift_map[cs['new_shift']]['shift_type'], 1),
+			}
 
 	#Set Data Entry
 	for emp in employees:
