@@ -4,13 +4,13 @@ from . import __version__ as app_version
 
 app_name = "Workwise"
 app_title = "Payroll Timekeeping Core"
-app_publisher = "HDI Systech"
+app_publisher = "OSI"
 app_description = "HRIS Developed by Opensoft Solutions Inc."
 app_icon = "octicon octicon-book"
 app_color = "#589494"
 app_email = "krefin.fagara@gmail.com"
 app_license = ""
-app_version = "1.0.62"
+app_version = "1.0.63"
 
 # Includes in <head>
 # ------------------

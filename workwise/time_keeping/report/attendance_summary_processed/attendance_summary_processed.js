@@ -55,7 +55,6 @@ frappe.query_reports["Attendance Summary Processed"] = {
 				return{
 					filters: {
 						'company': company,
-						'is_active': 1
 					}
 				};
 			},

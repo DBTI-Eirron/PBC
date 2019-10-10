@@ -89,6 +89,7 @@ def get_adjustment_settings():
 	inc_nd = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_nd')
 	inc_lt = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_lt')
 	inc_ut = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_ut')
+	inc_cto = frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_cto')
 
 	ded_ab = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ab')
 	ded_uho = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_uho')
@@ -96,10 +97,11 @@ def get_adjustment_settings():
 	ded_nd = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_nd')
 	ded_lt = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_lt')
 	ded_ut = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_ut')
+	ded_cto = frappe.db.get_single_value('Payroll Settings', 'def_adj_ded_cto')
 
 	settings.update({
-		"inc_ab": inc_ab, "inc_uho": inc_uho, "inc_ot": inc_ot, "inc_nd": inc_nd, "inc_lt": inc_lt, "inc_ut": inc_ut,
-		"ded_ab": ded_ab, "ded_uho": ded_uho, "ded_ot": ded_ot, "ded_nd": ded_nd, "ded_lt": ded_lt, "ded_ut": ded_ut,
+		"inc_ab": inc_ab, "inc_uho": inc_uho, "inc_ot": inc_ot, "inc_nd": inc_nd, "inc_lt": inc_lt, "inc_ut": inc_ut, "inc_cto": inc_cto,
+		"ded_ab": ded_ab, "ded_uho": ded_uho, "ded_ot": ded_ot, "ded_nd": ded_nd, "ded_lt": ded_lt, "ded_ut": ded_ut, "ded_cto": ded_cto,
 	})
 
 	return settings
@@ -182,6 +184,17 @@ def sssc_fix():
 
 		fix.flags.ignore_permissions = True
 		fix.save()
+
+
+def update_multi_ot_trans(): 
+	#bench execute workwise.payroll.payroll_utils.update_multi_ot_trans
+	frappe.db.sql("""UPDATE `tabOvertime Rates` SET transaction_type = 'OT' """)
+	frappe.db.sql("""UPDATE `tabTransaction Type` SET entry_type = 'Overtime' WHERE `name` = 'OT' """)
+
+def update_daily_ot_rate(): 
+	#bench execute workwise.payroll.payroll_utils.update_daily_ot_rate
+	#Set Daily OT Rate Default equalt to OT Rate
+	frappe.db.sql("""UPDATE `tabOvertime Rates` SET daily_ot_rate = ot_rate """)
 
 def format_decimal_by_2(figure):
 	return '{:,.2f}'.format( flt(figure, 2) )
