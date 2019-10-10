@@ -206,7 +206,7 @@ def get_data(filters):
 
 def init_employee_map(filters, pay_from, pay_to, schedule):
 	employees = frappe.db.sql("""SELECT `name`, full_name, company FROM `tabEmployee` 
-		WHERE is_active = 1 AND company = %(company)s {conditions} ORDER BY full_name""".format(conditions=get_conditions(filters, schedule)), filters, as_dict=1)
+		WHERE company = %(company)s {conditions} ORDER BY full_name""".format(conditions=get_conditions(filters, schedule)), filters, as_dict=1)
 
 	emp_map = frappe._dict()
 	for emp in employees:

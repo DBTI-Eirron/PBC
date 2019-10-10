@@ -902,9 +902,16 @@ def get_final_processing(entry):
 
 	#Holiday
 	if entry.get('is_holiday'):
+		exemption = 0
+		if entry.get('is_sp_holiday'):
+			#if Special Holiday treaet as absent
+			exemption = 1
+		elif (not entry.get('is_sp_holiday')) and entry.get('ab_regho'):
+			exemption = 1
+
 		if entry.get('rate_type') == "Daily Rate":
 			#daily rate has no card in and card out and holday is not restday, set to absent
-			if (not entry.get('card_out')) and (not entry.get('card_in')) and (not entry.get('is_restday')) and entry.get('is_sp_holiday'):
+			if (not entry.get('card_out')) and (not entry.get('card_in')) and (not entry.get('is_restday')) and exemption:
 				entry['is_absent'] = 1
 			else:
 				entry['late'] = 0
@@ -913,12 +920,21 @@ def get_final_processing(entry):
 				entry['is_absent'] = 0				
 
 		else:
-			# Strictly no work, late, undertime absent for non daily rate if holiday
-			entry['work'] = 0 
-			entry['nightdiff'] = 0 
-			entry['late'] = 0
-			entry['undertime'] = 0
-			entry['is_absent'] = 0
+			if entry.get('mo_abho'):
+				if (not entry.get('card_out')) and (not entry.get('card_in')) and (not entry.get('is_restday')) and exemption:
+					entry['is_absent'] = 1
+				else:
+					entry['late'] = 0
+					entry['undertime'] = 0
+					entry['nightdiff'] = 0
+					entry['is_absent'] = 0
+			else:
+				# Strictly no work, late, undertime absent for non daily rate if holiday
+				entry['work'] = 0 
+				entry['nightdiff'] = 0 
+				entry['late'] = 0
+				entry['undertime'] = 0
+				entry['is_absent'] = 0
 
 	#If not Restday, Holiday, Wholeday Leave and Wholeday OB
 	if entry.get('is_restday') != 1 and entry.get('is_holiday') != 1 and entry.get('lv_status') != 1 and entry.get('ob_status') != 1:
@@ -1616,6 +1632,8 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
 		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho'),
 		"at_work_rdho": frappe.db.get_single_value('Timekeeping Settings', 'at_work_rdho'),
+		"mo_abho": frappe.db.get_single_value('Timekeeping Settings', 'mo_abho'),
+		"ab_regho": frappe.db.get_single_value('Timekeeping Settings', 'ab_regho'),
 	}
 	
 	return entry
