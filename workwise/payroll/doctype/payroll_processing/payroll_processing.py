@@ -1045,8 +1045,10 @@ class PayrollProcessing(Document):
 									if at.is_absent:
 										is_uho = 1
 					else:
-						if no_previous == 0:
-							is_uho = 1
+						#if date is the first check if no_previous
+						if getdate(at.target_date) == getdate(self.attendance_from):
+							if no_previous == 0:
+								is_uho = 1
 
 						if not at.is_restday:
 							WK_days += 1
