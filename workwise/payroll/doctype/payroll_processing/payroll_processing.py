@@ -687,6 +687,24 @@ class PayrollProcessing(Document):
 							tax_amt = tax_amt - header.get('prev_whtax_amt') 
 							if tax_amt < 1:
 								tax_amt = 0
+
+					elif emp.get('whtax_freq') == "2nd":
+						if self.frequency == "2nd":
+							taxable = flt(header.get('previous_taxable_income'), 8) + flt(header.get('taxable_income'), 8) - \
+								( flt(header.get('prev_tax_ded'), 8) + flt(header.get('taxable_deduction'), 8) )
+							
+							table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
+									WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
+								
+							for t in table:
+								tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
+								if t.prescribed > 0:
+									tax_amt += flt(t.prescribed, 8)
+
+							if header.get('prev_whtax_amt') and emp.get('whtax_freq') == "Both":
+								tax_amt = tax_amt - header.get('prev_whtax_amt') 
+								if tax_amt < 1:
+									tax_amt = 0
 					else:
 						table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
 							WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Semi-Monthly'), as_dict=True )
