@@ -50,10 +50,12 @@ def get_rates(emp):
 
 def get_overtime_map():
 	ot_map = {}
-	ot = frappe.db.sql(""" SELECT ot_code, ot_rate FROM `tabOvertime Rates` """, as_dict=1)
+	ot = frappe.db.sql(""" SELECT ot_code, ot_rate, daily_ot_rate, transaction_type FROM `tabOvertime Rates` """, as_dict=1)
 	for t in ot:
 		ot_map[t.ot_code] = {
 			"rate": t.ot_rate,
+			"daily_rate": t.ot_daily_rate,
+			"transaction_type": t.transaction_type,
 		}
 	return ot_map
 
