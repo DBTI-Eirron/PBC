@@ -15,16 +15,16 @@ init_employee_map, complete_sched, get_template_map, change_sched)
 
 class AdjustmentProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, 
-			min_take_home, mth_percentage, cost_center, no_hours, 
-			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-			whtax_manual, whtax_freq, is_attendance_base, ignore_late, ignore_ut, on_hold, sensitivity, default_schedule, biometrics_id
-				FROM tabEmployee
-			WHERE company = %(company)s
-			AND payroll_schedule = %(pay_sched)s 
-			AND is_active = 1
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.location, TE.company, TE.total_yr_days, TE.rate_type, TE.rate, 
+			TE.payroll_schedule, TE.min_take_home, TE.mth_percentage, TE.cost_center, TE.no_hours, TE.sss_mode, TE.sss_manual, TE.sss_freq, 
+			TE.phic_mode, TE.phic_manual, TE.phic_freq, TE.hdmf_mode, TE.hdmf_manual, TE.hdmf_freq, TE.whtax_mode, TE.whtax_manual, TE.whtax_freq, 
+			TE.is_attendance_base, TE.ignore_late, TE.ignore_ut, TE.on_hold, TE.sensitivity, TE.default_schedule, TE.biometrics_id
+			FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+			WHERE TE.company = %(company)s
+			AND TE.payroll_schedule = %(pay_sched)s 
+			AND TE.is_active = 1
 			{conditions}
-			ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),
+			ORDER BY TE.last_name, TE.first_name""".format( conditions=self.get_conditions() ),
 			({ 
 				"company": self.company,
 				"pay_sched": self.schedule,
@@ -40,21 +40,22 @@ class AdjustmentProcessing(Document):
 		conditions = []
 		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
 		if self.employee:
-			conditions.append("`name`=%(employee)s")
+			conditions.append("TE.`name`=%(employee)s")
 
 		if self.department:
-			conditions.append("department=%(department)s")
+			lft, rgt = frappe.db.get_value("Department", self.department, ["lft", "rgt"])
+			conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 
 		if self.location:
-			conditions.append("location=%(location)s")
+			conditions.append("TE.location=%(location)s")
 
 		if strict_period_group:
-			conditions.append("period_group=%(period_group)s")
+			conditions.append("TE.period_group=%(period_group)s")
 		
 		if frappe.session.user != "Administrator":
-			conditions.append(_("sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
+			conditions.append(_("TE.sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
 
-		return "and {}".format(" and ".join(conditions)) if conditions else ""
+		return "AND {}".format(" AND ".join(conditions)) if conditions else ""
 
 	def validate_period(self):
 		p_stats, p_date, p_comp = frappe.db.get_value("Payroll Period", self.period,  ["status", "payroll_date", "company"])
@@ -155,8 +156,8 @@ class AdjustmentProcessing(Document):
 
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s AND payroll_period = %s  """,(emp_dict['employee'], self.period), as_dict=1)
-			adjustment = self.get_attendance_result(emp_dict['employee_details'], emp_dict['adjustment'], self.attendance_from, self.attendance_to, emp_dict['adjustment_ot'], ot_map)
-			processed = self.get_attendance_result(emp_dict['employee_details'], emp_dict['processed'], self.attendance_from, self.attendance_to, emp_dict['processed_ot'], ot_map)
+			adjustment = self.get_attendance_result(emp_dict['employee_details'], emp_dict['adjustment'], self.attendance_from, self.attendance_to, emp_dict['adjustment_ot'], ot_map, "adjustment")
+			processed = self.get_attendance_result(emp_dict['employee_details'], emp_dict['processed'], self.attendance_from, self.attendance_to, emp_dict['processed_ot'], ot_map, "processed")
 			rates = get_rates(emp_dict['employee_details'])
 			
 			reg = {
@@ -189,20 +190,89 @@ class AdjustmentProcessing(Document):
 		self.validate_period()
 		frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE payroll_period = %s  """, (self.period), as_dict=1)
 
-	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map):
+	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map, _type):
 		rates = get_rates(emp)
 		attendance_result = { "ab": 0.0, "uho": 0.0, "ot": 0.0, "nd": 0.0, "lt": 0.0, "ut": 0.0, "cto": 0.0 }
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
+		overtimes_register = []
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho, cto, cto_days = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0
 			
-			for ot in ot_list:
-				if ot.get('ot_code') in ot_map:
-					overtime += flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
-				else:
-					overtime += flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate')		
+			#Get OT registers
+			unique_ot = ["00000000"]
+			ot_register = []
+
+			if _type == "processed":
+				for ot in ot_list:
+					if ot.get('ot_code') in ot_map:
+						if ot.get('ot_code') not in unique_ot:
+							unique_ot.append(ot.get('ot_code'))
+
+						if emp.get("rate_type") == "Daily Rate":
+							amount = flt( ot.get('hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['daily_rate'] / 100)
+						else:
+							amount = flt( ot.get('hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+
+						ot_register.append({
+							"ot_code": ot.get('ot_code'),
+							"hrs": flt( ot.get('hrs'), 8),
+							"amount": amount, 
+						})
+					else:
+						if emp.get("rate_type") == "Daily Rate":
+							amount = flt( ot.get('hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['daily_rate'] / 100)
+						else:
+							amount = flt( ot.get('hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+
+						ot_register.append({
+							"ot_code": "00000000", 
+							"hrs": flt( ot.get('hrs'), 8),
+							"amount": amount, 
+						})
+			elif _type == "adjustment":
+				for ot in ot_list:
+					if ot.get('ot_code') in ot_map:
+						if ot.get('ot_code') not in unique_ot:
+							unique_ot.append(ot.get('ot_code'))
+
+						if emp.get("rate_type") == "Daily Rate":
+							amount = flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['daily_rate'] / 100)
+						else:
+							amount = flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+
+						ot_register.append({
+							"ot_code": ot.get('ot_code'),
+							"hrs": flt( ot.get('ot_hrs'), 8),
+							"amount": amount, 
+						})
+					else:
+						if emp.get("rate_type") == "Daily Rate":
+							amount = flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['daily_rate'] / 100)
+						else:
+							amount = flt( ot.get('ot_hrs'), 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+
+						ot_register.append({
+							"ot_code": "00000000", 
+							"hrs": flt( ot.get('ot_hrs'), 8),
+							"amount": amount, 
+						})
+
+			#Merge all OT Types based on Unique OT and create attendance registers
+			for uot in unique_ot:
+				merge_amount, merge_hrs = 0, 0
+				for otr in ot_register:
+					if uot == otr.get('ot_code'):
+						merge_amount += otr.get('amount')
+						merge_hrs += otr.get('hrs')
+
+				if merge_amount > 0:
+					overtimes_register.append({
+						"pay_code": ot_map[uot]['transaction_type'],
+						"pay_time": flt(merge_hrs, 8),
+						"amount": flt(merge_amount, 8) 
+					})	
 				
 			for at in attendance:
 				if getdate(at.get('target_date')) == getdate(add_days(attendance_from, -1)):
@@ -347,6 +417,9 @@ class AdjustmentProcessing(Document):
 
 			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
 				nightdiff = 0
+
+			for otr in overtimes_register:
+				overtime += otr.get('amount')
 
 			attendance_result.update({ "ab": flt(absent, 8), "uho": flt(unpaid_holiday, 8), "ot": flt(overtime, 8), "nd": flt(nightdiff, 8), "lt": flt(late, 8), "ut":flt(undertime, 8), "cto":flt(cto, 8), "ab_days": absent_days, "wk_days": work_days })
 		
