@@ -930,7 +930,11 @@ def get_final_processing(entry):
 					entry['is_absent'] = 0
 			else:
 				# Strictly no work, late, undertime absent for non daily rate if holiday
-				entry['work'] = 0 
+				if entry.get('card_in') and entry.get('card_out'):
+					entry['work'] = (entry.get('work_hours') * 60 * 60) #set work hours equal to wholeday of work
+				else:
+					entry['work'] = 0
+
 				entry['nightdiff'] = 0 
 				entry['late'] = 0
 				entry['undertime'] = 0
