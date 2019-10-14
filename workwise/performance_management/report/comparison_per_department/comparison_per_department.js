@@ -10,6 +10,11 @@ frappe.query_reports["Comparison per Department"] = {
 			"fieldtype": "Link",
 			"options": "Company",
 			"reqd": 1
+		},	{
+			"fieldname": "department",
+			"label": __("Department"),
+			"fieldtype": "Link",
+			"options": "Department",
 		},
 	]
 }

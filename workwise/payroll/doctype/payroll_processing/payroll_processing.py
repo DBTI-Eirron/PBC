@@ -1147,6 +1147,12 @@ class PayrollProcessing(Document):
 									else:
 										dl_days += 1
 
+							#check if lwop halfday
+							if dl_absent == 1 and at.is_lwop:
+								# if lwop halfday plus half day
+								if at.lv_status > 1:
+									dl_days += 0.5
+
 							if ho_paid == 1:
 								pho_days += 1
 
