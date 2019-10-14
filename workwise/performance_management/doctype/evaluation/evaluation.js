@@ -25,27 +25,6 @@ frappe.ui.form.on('Evaluation', {
 		}
 	},
 
-	onload: function(frm) {
-		if (!frm.doc.status) {
-			frm.set_value("status", 'Draft');
-		}
-		if (!frm.doc.date_created) {
-			frm.set_value("date_created", frappe.datetime.get_today());
-		}
-		if (frm.doc.status != 'Submitted/Completed') {
-			if (frm.doc.due_date < frappe.datetime.get_today()) {
-				frm.set_value("status", 'Behind Target');
-			}
-		}
-	},
-
-	get_behind_target: function(frm) {
-		frm.set_value("status", 'Behind Target');
-	},
-
-	get_not_behind_target: function(frm) {
-		frm.set_value("status", 'Draft');
-	},
 
 	target_setting: function(frm) {
 		frm.trigger("get_performance_planning");
@@ -98,6 +77,6 @@ frappe.ui.form.on("Appraisal", "onload", function(frm) {
 
 frappe.ui.form.on("Appraisal Goal", "score", function(frm, cdt, cdn) {
    var item = locals[cdt][cdn];
-   var score_earned = (item.weightage / 100) * item.score;
+   var score_earned = ((item.weightage / 100) * item.score).toFixed(2);
    frappe.model.set_value(cdt, cdn, 'score_earned',score_earned)
 });
