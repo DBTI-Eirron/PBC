@@ -54,7 +54,7 @@ def get_overtime_map():
 	for t in ot:
 		ot_map[t.ot_code] = {
 			"rate": t.ot_rate,
-			"daily_rate": t.ot_daily_rate,
+			"daily_rate": t.daily_ot_rate,
 			"transaction_type": t.transaction_type,
 		}
 	return ot_map
