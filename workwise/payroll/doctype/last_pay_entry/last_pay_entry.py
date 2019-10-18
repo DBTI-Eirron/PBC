@@ -257,7 +257,7 @@ class LastPayEntry(Document):
 
 		for d in loans:
 			if d.unpaid_amount > 0:
-				if d.loan_type != "CashFund":
+				if d.loan_type != "ES":
 					if d.loan_type not in unpaid_loans:
 						unpaid_loans[d.loan_type] = {
 							"transaction_type": d.loan_type,
@@ -270,10 +270,10 @@ class LastPayEntry(Document):
 						unpaid_loans[d.loan_type]['amount'] += d.unpaid_amount
 						total_unpaid += d.unpaid_amount
 
-				if d.loan_type == "CashFund":
+				if d.loan_type == "ES":
 					if d.loan_type not in paid_loans:
 						paid_loans[d.loan_type] = {
-							"transaction_type": "CashFund",
+							"transaction_type": "ES",
 							"description": "Employee Savings",
 							"type": "Add",
 							"remarks": ""+str(d.loan_name)+"",
@@ -466,7 +466,7 @@ class LastPayEntry(Document):
 				total_add += d.amount
 			elif d.type == "Less":
 				total_less += d.amount
-
+		
 		self.net_pay = flt(total_add, 8) - flt(total_less, 8) - flt(entry["not_yet_paid"], 8)
 		self.prev_total_tax = flt(entry["prev_total_tax"], 8)
 		self.pres_total_tax = flt(entry["pres_total_tax"], 8)
