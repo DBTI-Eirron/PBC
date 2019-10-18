@@ -137,6 +137,8 @@ def get_result(filters):
 def get_data(filters):
 	#Initialize
 	data = []
+	department_included = [filters.department]
+
 	pay_from, pay_to, schedule = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "schedule"])
 	emp_map = init_employee_map(filters, pay_from, pay_to, schedule)
 	grand_work, grand_break, grand_late, grand_ot, grand_otnd, grand_otex, grand_ut, grand_nd = 0, 0, 0, 0, 0, 0, 0, 0
@@ -156,39 +158,46 @@ def get_data(filters):
 	})
 
 	data.append({})
-	for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
-		data.append({"target_date":"<b>"+emp_dict['employee_name']+"</b>"}) #add employee name header
-		for r in emp_dict['registers']:
-			emp_dict['sub_work'] += r.work
-			emp_dict['sub_break'] += r.get('break')
-			emp_dict['sub_late'] += r.late
-			emp_dict['sub_overtime'] += r.overtime
-			emp_dict['sub_overtime_nd'] += r.overtime_nd
-			emp_dict['sub_overtime_ex'] += r.overtime_ex
-			emp_dict['sub_nightdiff'] += r.nightdiff
-			emp_dict['sub_undertime'] += r.undertime
-			data.append(r)
+	for emp, emp_dict in sorted(emp_map.items(), key=lambda x: (x[1]['employee_name'], x[1]['lft']) ):
+		if emp_dict['registers']:
+			if (filters.department) and (emp_dict['department'] not in department_included):
+				data.append({
+					"target_date":"<b>Department: </b>"+emp_dict['department']+"</b>",
+				})
+				department_included.append(emp_dict['department'])
 
-		grand_work += emp_dict['sub_work']
-		grand_break += emp_dict['sub_break']
-		grand_late += emp_dict['sub_late']
-		grand_ot += emp_dict['sub_overtime']
-		grand_otnd += emp_dict['sub_overtime_nd']
-		grand_otex += emp_dict['sub_overtime_ex']
-		grand_nd += emp_dict['sub_nightdiff']
-		grand_ut += emp_dict['sub_undertime']
-		data.append({
-			"target_date": _("TOTAL"),
-			"work": emp_dict['sub_work'],
-			"break": emp_dict['sub_break'],
-			"late": emp_dict['sub_late'],
-			"overtime": emp_dict['sub_overtime'],
-			"overtime_nd": emp_dict['sub_overtime_nd'],
-			"overtime_ex": emp_dict['sub_overtime_ex'],
-			"nightdiff": emp_dict['sub_nightdiff'],
-			"undertime": emp_dict['sub_undertime'],
-		})
-		data.append({})
+			data.append({"target_date":"<b>"+emp_dict['employee_name']+"</b>"}) #add employee name header
+			for r in emp_dict['registers']:
+				emp_dict['sub_work'] += r.work
+				emp_dict['sub_break'] += r.get('break')
+				emp_dict['sub_late'] += r.late
+				emp_dict['sub_overtime'] += r.overtime
+				emp_dict['sub_overtime_nd'] += r.overtime_nd
+				emp_dict['sub_overtime_ex'] += r.overtime_ex
+				emp_dict['sub_nightdiff'] += r.nightdiff
+				emp_dict['sub_undertime'] += r.undertime
+				data.append(r)
+
+			grand_work += emp_dict['sub_work']
+			grand_break += emp_dict['sub_break']
+			grand_late += emp_dict['sub_late']
+			grand_ot += emp_dict['sub_overtime']
+			grand_otnd += emp_dict['sub_overtime_nd']
+			grand_otex += emp_dict['sub_overtime_ex']
+			grand_nd += emp_dict['sub_nightdiff']
+			grand_ut += emp_dict['sub_undertime']
+			data.append({
+				"target_date": _("TOTAL"),
+				"work": emp_dict['sub_work'],
+				"break": emp_dict['sub_break'],
+				"late": emp_dict['sub_late'],
+				"overtime": emp_dict['sub_overtime'],
+				"overtime_nd": emp_dict['sub_overtime_nd'],
+				"overtime_ex": emp_dict['sub_overtime_ex'],
+				"nightdiff": emp_dict['sub_nightdiff'],
+				"undertime": emp_dict['sub_undertime'],
+			})
+			data.append({})
 
 	data.append({
 		"target_date": _("GRAND TOTAL"),
@@ -205,8 +214,9 @@ def get_data(filters):
 	return data
 
 def init_employee_map(filters, pay_from, pay_to, schedule):
-	employees = frappe.db.sql("""SELECT `name`, full_name, company FROM `tabEmployee` 
-		WHERE company = %(company)s {conditions} ORDER BY full_name""".format(conditions=get_conditions(filters, schedule)), filters, as_dict=1)
+	employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.company, TE.`department`, DEPT.`lft` FROM `tabEmployee` TE
+		INNER JOIN `tabDepartment` DEPT ON TE.`department` = DEPT.`name`
+		WHERE TE.company = %(company)s {conditions} ORDER BY TE.full_name""".format(conditions=get_conditions(filters, schedule)), filters, as_dict=1)
 
 	emp_map = frappe._dict()
 	for emp in employees:
@@ -214,6 +224,8 @@ def init_employee_map(filters, pay_from, pay_to, schedule):
 				"employee": emp.name,
 				"employee_name": emp.full_name,
 				"company": emp.company,
+				"department": emp.department,
+				"lft": emp.lft,
 				"registers": [],
 				"target_date": "",
 				"sub_work": 0.0,
@@ -246,21 +258,25 @@ def get_employee_wise_registers(emp_map, pay_from, pay_to):
 def get_conditions(filters, schedule):
 	conditions = []
 	if filters.get("employee"):
-		conditions.append("`name`=%(employee)s")
+		conditions.append("TE.`name`=%(employee)s")
 
 	if filters.get("department"):
-		conditions.append("department=%(department)s")
+		lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
+		conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 
 	if filters.get("location"):
-		conditions.append("location=%(location)s")
+		conditions.append("TE.location=%(location)s")
 
 	if filters.get("position_title"):
-		conditions.append("position_title=%(position_title)s")
+		conditions.append("TE.position_title=%(position_title)s")
+
+	if filters.get("show_active"):
+		conditions.append("TE.is_active=1")
 
 	if not filters.ignore_payroll_schedule:
-		conditions.append(_("payroll_schedule='"+_(cstr(schedule))+"'"))
+		conditions.append(_("TE.payroll_schedule='"+_(cstr(schedule))+"'"))
 
-	return "and {}".format(" and ".join(conditions)) if conditions else "" 
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 def get_result_as_list(data, filters):
 	result = []

@@ -19,6 +19,12 @@ frappe.query_reports["Detailed Attendance Report"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "location",
+			"label": __("Location"),
+			"fieldtype": "Link",
+			"options": "Location",
+		},
+		{
 			"fieldname": "employee",
 			"label": __("Employee"),
 			"fieldtype": "Link",
@@ -39,6 +45,17 @@ frappe.query_reports["Detailed Attendance Report"] = {
 			"fieldname": "hide_zero",
 			"label": __("Hide zero value"),
 			"fieldtype": "Check",
+		},
+		{
+			"fieldname": "show_total",
+			"label": __("Show Total"),
+			"fieldtype": "Check",
+		},
+		{
+			"fieldname": "show_active",
+			"label": __("Show Active Only"),
+			"fieldtype": "Check",
+			"default": 1,
 		},
 	]
 }
