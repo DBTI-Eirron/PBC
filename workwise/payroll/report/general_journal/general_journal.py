@@ -53,14 +53,14 @@ def get_result(filters):
 
 def get_accounts(filters):
 	accounts = frappe.db.sql("""SELECT * FROM `tabAccount` 
-		WHERE company = %(company)s ORDER BY account_code """,{
+		WHERE company = %(company)s """,{
 			"company": filters.company,
 		}, as_dict=True)
 
 	return accounts
 
 def get_register(filters):
-	register_list = frappe.db.sql("""SELECT PE.pay_code, PE.amount, TT.debit_account, TT.credit_account FROM `tabPayroll Register` PR 
+	register_list = frappe.db.sql("""SELECT PE.pay_code, PE.amount FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PE ON PE.parent = PR.`name`
 		INNER JOIN `tabTransaction Type` TT ON TT.code = PE.pay_code
 		WHERE PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""",{
@@ -74,15 +74,26 @@ def get_register(filters):
 def get_transaction_map():
 	tr_map = {}
 	tr = frappe.db.sql("""SELECT code, title, type, entry_type, account, is_taxable, is_bonus, 
-		is_government, is_standard, is_active, debit_account, credit_account
-		FROM `tabTransaction Type` """, as_dict=1)
+		is_government, is_standard, is_active FROM `tabTransaction Type` """, as_dict=1)
+
 	for t in tr:
 		tr_map[t.code] = {"code": t.code, "title": t.title, "type": t.type, "entry_type": t.entry_type,	"account": t.account, 
 			"is_taxable": t.is_taxable, "is_standard": t.is_standard, "is_active": t.is_active, "is_bonus": t.is_bonus, "is_government": t.is_government,
-			"debit_account": t.debit_account, "credit_account": t.credit_account,
 		}
 
 	return tr_map
+
+def get_transaction_accts_map(filters):
+	ta_map = {}
+	ta = frappe.db.sql("""SELECT TT.code, TTA.company, TTA.debit_account, TTA.credit_account FROM `tabTransaction Type` TT
+		INNER JOIN `tabTransaction Type Accounts` TTA ON TTA.parent = TT.`name` WHERE TTA.company = %s """, filters.company, as_dict=1)
+
+	for d in ta:
+		ta_map[d.code] = {"code": d.code, "company": d.company, 
+			"debit_account": d.debit_account, "credit_account": d.credit_account,
+		}
+
+	return ta_map
 
 def get_data(filters):
 	#Initialize
@@ -93,6 +104,7 @@ def get_data(filters):
 	accounts = get_accounts(filters)
 	register = get_register(filters)
 	tr_map = get_transaction_map()
+	ta_map = get_transaction_accts_map(filters)
 
 	if accounts and register:
 		for acc in accounts: 
@@ -106,12 +118,11 @@ def get_data(filters):
 			}
 
 			for r in register:
-				if r.get('debit_account'):
-					if r.get('debit_account') == entry['account_code']:
+				if r.get('pay_code') in ta_map:
+					if ta_map[r.get('pay_code')]['debit_account'] == entry['account']:
 						entry['debit'] += r['amount']
 
-				if r.get('credit_account'):
-					if r.get('credit_account') == entry['account_code']:
+					if ta_map[r.get('pay_code')]['credit_account']  == entry['account']:
 						entry['credit'] += r['amount']			
 
 			total_debit += entry['debit']
