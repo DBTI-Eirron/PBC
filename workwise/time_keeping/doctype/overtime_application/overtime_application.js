@@ -20,10 +20,12 @@ frappe.ui.form.on('Overtime Application', {
 
 	from_date: function(frm) {
 		frm.trigger("calculate_totals");
+		frm.trigger("update_target_date");
 	},
 
 	to_date: function(frm) {
 		frm.trigger("calculate_totals");
+		frm.trigger("update_target_date");
 	},
 
 	from_time: function(frm) {
@@ -36,6 +38,22 @@ frappe.ui.form.on('Overtime Application', {
 
 	break_hrs: function(frm) {
 		frm.trigger("calculate_totals");
+	},
+
+	is_previous: function(frm) {
+		frm.trigger("update_target_date");
+	},
+
+	update_target_date: function(frm) {
+		if(frm.doc.employee && frm.doc.from_date && frm.doc.to_date) {
+			return frappe.call({
+				method: "update_target_date",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		}
 	},
 
 	calculate_totals: function(frm) {
