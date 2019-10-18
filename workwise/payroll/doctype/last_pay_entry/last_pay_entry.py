@@ -4,13 +4,52 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
+from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, cstr
 from frappe import _
 from frappe.model.document import Document
 
 class LastPayEntry(Document):
 	def validate(self):
 		self.get_register()
+
+	def validate_entries(self):
+		unique_ent = []
+		unique_entries = []
+
+		for d in self.register_table:
+			if not d.manually_encoded:
+				if cstr(d.transaction_type)+cstr(d.description)+cstr(d.type)+cstr(flt(d.amount, 2))+cstr(d.remarks) not in unique_ent:
+					unique_ent.append( cstr(d.transaction_type)+cstr(d.description)+cstr(d.type)+cstr(flt(d.amount, 2))+cstr(d.remarks) );
+
+					i = {
+						"transaction_type": d.transaction_type,
+						"description": d.description,
+						"type": d.type,
+						"remarks": d.remarks,
+						"amount": d.amount,
+						"status": d.status,
+						"manually_encoded": d.manually_encoded,
+					}
+					unique_entries.append(i);
+			else:
+				if cstr(d.description)+cstr(d.type)+cstr(d.amount)+cstr(d.remarks) not in unique_ent:
+					unique_ent.append(cstr(d.description)+cstr(d.type)+cstr(d.amount)+cstr(d.remarks));
+
+					j = {
+						"transaction_type": d.transaction_type,
+						"description": d.description,
+						"type": d.type,
+						"remarks": d.remarks,
+						"amount": d.amount,
+						"status": d.status,
+						"manually_encoded": d.manually_encoded,
+					}
+					unique_entries.append(j);
+
+		self.set('register_table', [])
+		for ue in unique_entries:
+			row = self.append('register_table', {})
+			row.update(ue)
 
 	def get_register(self):
 		entry = {
@@ -25,11 +64,22 @@ class LastPayEntry(Document):
 		}
 
 		emp = frappe.db.sql("""SELECT * FROM tabEmployee WHERE `name` = %(employee)s LIMIT 1""",{ "employee": self.employee,}, as_dict=True)
-		self.set('register', [])
 		register = []
-
+		for r in self.get('register_table'):
+			if r.manually_encoded:
+				register.append({
+					"transaction_type": r.transaction_type,
+					"description": r.description,
+					"type": r.type,
+					"remarks": r.remarks,
+					"amount": r.amount,
+					"status": r.status,
+					"manually_encoded": r.manually_encoded,
+				})
+		self.set('register', [])
+		
 		self.get_on_hold(emp, register, entry)
-		self.get_register_entries(emp, register, entry)
+		#self.get_register_entries(emp, register, entry)
 		self.get_pro_rated(emp, register, entry)
 		self.get_leave_conversion(emp, register, entry)
 		self.get_loan(emp ,register, entry)
@@ -37,10 +87,13 @@ class LastPayEntry(Document):
 		self.get_paid_payroll(emp, register, entry)
 		self.get_present_tax_paid(emp, register, entry)
 		for d in register:
-			row = self.append('register', {})
+			row = self.append('register_table', {})
 			row.update(d)
+		self.validate_entries()
 		self.compute_summary(emp, register, entry)
 		self.set_summary(entry)
+
+		return entry
 
 	def get_on_hold(self, employee ,register, entry):
 		total_bonus = 0
@@ -54,13 +107,15 @@ class LastPayEntry(Document):
 		}, as_dict=True)
 
 		for d in bonus:
-			net_payroll += d.gross_payroll
-			pres_total_tax += d.gross_payroll
+			net_payroll += d.net_payroll
+			pres_total_tax += d.net_payroll
 			register.append({
+				"transaction_type": "OHP",
 				"description": "On Hold Payroll",
 				"type": "Add",
 				"remarks": ""+str(d.period)+"",
-				"amount": d.gross_payroll,
+				"amount": d.net_payroll,
+				"manually_encoded": 0,
 			})
 
 		entry["net_pay"] += net_payroll
@@ -89,6 +144,7 @@ class LastPayEntry(Document):
 				"type": "Less",
 				"remarks": "",
 				"amount": other_deductions,
+				"manually_encoded": 0,
 			})
 	
 		entry["net_pay"] -= other_deductions
@@ -175,10 +231,12 @@ class LastPayEntry(Document):
 				total_bonus = total_bonus / 12
 
 			register.append({
+				"transaction_type": "PR13th_Month",
 				"description": "Pro Rated 13th Month",
 				"type": "Add",
 				"remarks": remarks,
 				"amount": total_bonus,
+				"manually_encoded": 0,
 			})
 
 			entry["pres_total_tax"] += total_bonus
@@ -188,22 +246,67 @@ class LastPayEntry(Document):
 		return register
 
 	def get_loan(self, employee ,register, entry):
-		total = 0
-		loans = frappe.db.sql(""" SELECT * FROM `tabLoan Application` WHERE employee = %(employee)s AND docstatus = 1 """,{ 
+		unpaid_loans = {}
+		paid_loans = {}
+		total_unpaid = 0
+		total_paid = 0
+		loans = frappe.db.sql(""" SELECT LA.* FROM `tabLoan Application` LA INNER JOIN `tabTransaction Type` TT ON LA.`loan_type`=TT.`name`
+		WHERE LA.`employee` = %(employee)s AND LA.`docstatus` = 1 AND TT.`is_gov_loan` = 0 """,{ 
 			"employee": self.employee,
 		}, as_dict=True)
 
 		for d in loans:
-			total += d.unpaid_amount
+			if d.unpaid_amount > 0:
+				if d.loan_type != "CashFund":
+					if d.loan_type not in unpaid_loans:
+						unpaid_loans[d.loan_type] = {
+							"transaction_type": d.loan_type,
+							"description": "Unpaid Loans",
+							"type": "Less",
+							"remarks": ""+str(d.loan_name)+"",
+							"amount": 0,
+							"manually_encoded": 0,
+						}
+						unpaid_loans[d.loan_type]['amount'] += d.unpaid_amount
+						total_unpaid += d.unpaid_amount
+
+				if d.loan_type == "CashFund":
+					if d.loan_type not in paid_loans:
+						paid_loans[d.loan_type] = {
+							"transaction_type": "CashFund",
+							"description": "Employee Savings",
+							"type": "Add",
+							"remarks": ""+str(d.loan_name)+"",
+							"amount": 0,
+							"manually_encoded": 0,
+						}
+					paid_loans[d.loan_type]['amount'] += d.paid_amount
+					total_unpaid += d.paid_amount
+
+		for unp in unpaid_loans:
 			register.append({
-				"description": "Unpaid Loans",
-				"type": "Less",
-				"remarks": ""+str(d.loan_name)+"",
-				"amount": total,
+				"transaction_type": unpaid_loans[unp]['transaction_type'],
+				"description": unpaid_loans[unp]['description'],
+				"type": unpaid_loans[unp]['type'],
+				"remarks": unpaid_loans[unp]['remarks'],
+				"amount": unpaid_loans[unp]['amount'],
+				"manually_encoded": 0,
 			})
 
-		entry["pres_total_tax"] -= total
-		entry["net_pay"] -= total
+		for pd in paid_loans:
+			register.append({
+				"transaction_type": paid_loans[pd]['transaction_type'],
+				"description": paid_loans[pd]['description'],
+				"type": paid_loans[pd]['type'],
+				"remarks": paid_loans[pd]['remarks'],
+				"amount": paid_loans[pd]['amount'],
+				"manually_encoded": 0,
+			})
+
+		entry["pres_total_tax"] -= total_unpaid
+		entry["net_pay"] -= total_unpaid
+		entry["pres_total_tax"] += total_paid
+		entry["net_pay"] += total_paid
 
 		return register
 
@@ -232,10 +335,12 @@ class LastPayEntry(Document):
 					total_amt += rates.get('daily_rate') * (credits)
 					if total_amt:
 						register.append({
+							"transaction_type": "LC",
 							"description": "Convertible "+ str(b.leave_type) +"", 
 							"type": "Add",
 							"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(credits)+" Credit/s",
 							"amount": total_amt,
+							"manually_encoded": 0,
 						})
 
 				entry["pres_total_tax"] += total_amt
@@ -290,10 +395,12 @@ class LastPayEntry(Document):
 					prev_tax_paid += d.tax_paid
 					prev_total_tax += d.total_taxable
 					register.append({
+						"transaction_type": "PREVBIR2316",
 						"description": "Previous BIR 2316",
-						"type": "Add",
+						"type": "None",
 						"remarks": ""+str(d.name)+"",
 						"amount": d.total_taxable,
+						"manually_encoded": 0,
 					})
 				else:
 					break;
@@ -323,13 +430,6 @@ class LastPayEntry(Document):
 		return register
 
 	def compute_summary(self, employee, register, entry):
-		total_add, total_less = 0, 0
-		for d in self.register:
-			if d.type == "Add":
-				total_add += d.amount
-			elif d.type == "Less":
-				total_less += d.amount
-
 		entry["gross_taxable"] = entry["prev_total_tax"] + entry["pres_total_tax"]
 
 		tax_due = 0.0
@@ -348,7 +448,7 @@ class LastPayEntry(Document):
 					train_prescribed = d.prescribed
 					train_percentage = d.percentage
 
-		tax_due = entry["gross_taxable"] - train_compensatory
+		tax_due = entry["gross_taxable"] - train_compensatory 
 		tax_due = tax_due * (train_percentage / 100)
 		tax_due = tax_due + train_prescribed
 
@@ -360,7 +460,14 @@ class LastPayEntry(Document):
 			entry["not_yet_paid"] = entry["tax_due"] - entry["pres_tax_paid"] 
 
 	def set_summary(self, entry):
-		self.net_pay = flt(entry["net_pay"], 8) - flt(entry["not_yet_paid"], 8)
+		total_add, total_less = 0, 0
+		for d in self.register_table:
+			if d.type == "Add":
+				total_add += d.amount
+			elif d.type == "Less":
+				total_less += d.amount
+
+		self.net_pay = flt(total_add, 8) - flt(total_less, 8) - flt(entry["not_yet_paid"], 8)
 		self.prev_total_tax = flt(entry["prev_total_tax"], 8)
 		self.pres_total_tax = flt(entry["pres_total_tax"], 8)
 		self.gross_taxable = flt(entry["gross_taxable"], 8)
