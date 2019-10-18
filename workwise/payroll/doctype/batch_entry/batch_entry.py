@@ -74,12 +74,17 @@ class BatchEntry(Document):
 					frappe.throw(_(" Employee may be inactive or does not belong to company "))
 
 			elif self.filter_type == 'Department':
-				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  
-						AND department = %(filter_value)s {conditions} 
-						ORDER BY last_name, first_name""".format( conditions=conditions ),{ 
+				lft, rgt = frappe.db.get_value("Department", self.filter_value, ["lft", "rgt"])
+				employees = frappe.db.sql("""SELECT TE.`name`, TE.`full_name` FROM `tabEmployee` TE 
+					INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+					WHERE TE.company = %(company)s  
+					AND ( DEPT.`lft` BETWEEN %(lft)s AND %(rgt)s ) {conditions} 
+					ORDER BY TE.last_name, TE.first_name""".format( conditions=conditions ),{ 
 					"company": self.company,
 					"filter_value": self.filter_value,
 					"user": frappe.session.user,
+					"lft": lft,
+					"rgt": rgt,
 				}, as_dict=True)
 
 				if not employees:

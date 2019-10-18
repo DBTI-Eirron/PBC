@@ -254,26 +254,28 @@ def delta_to_time(delta_obj):
 		return (datetime.datetime.min + delta_obj).time()
 
 def get_employees(filters):
-	register = frappe.db.sql("""SELECT `name`, `full_name`, `default_schedule` FROM `tabEmployee` 
-		WHERE is_active = 1 AND company = %(company)s {conditions} ORDER BY full_name """.format(conditions=get_conditions(filters)), filters, as_dict=1)
+	register = frappe.db.sql("""SELECT TE.`name`, TE.`full_name`, TE.`default_schedule` FROM `tabEmployee` TE
+		INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+		WHERE TE.is_active = 1 AND TE.company = %(company)s {conditions} ORDER BY TE.full_name """.format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	return register
 
 def get_conditions(filters):
 	conditions = []
 	if filters.get("employee"):
-		conditions.append("`name`='{0}'".format(filters.employee))
+		conditions.append("TE.`name`='{0}'".format(filters.employee))
 
 	if filters.get("period_group"):
-		conditions.append("period_group='{0}'".format(filters.period_group))
+		conditions.append("TE.period_group='{0}'".format(filters.period_group))
 
 	if filters.get("position_title"):
-		conditions.append("`position_title`='{0}'".format(filters.position_title))
+		conditions.append("TE.`position_title`='{0}'".format(filters.position_title))
 
 	if filters.get("department"):
-		conditions.append("`department`='{0}'".format(filters.department))
+		lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
+		conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 
 	if filters.get("location"):
-		conditions.append("`location`='{0}'".format(filters.location))
+		conditions.append("TE.`location`='{0}'".format(filters.location))
 
-	return "and {}".format(" and ".join(conditions)) if conditions else "" 
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 

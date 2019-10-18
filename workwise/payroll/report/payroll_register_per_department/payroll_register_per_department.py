@@ -183,35 +183,18 @@ def get_columns(income_types, deduction_types):
 	return columns
 
 def get_employees(filters, department):
-	cur_user = frappe.session.user
-	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
-		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
-			AND PR.on_hold = 0
-			AND PR.period = %(period)s
-			AND PR.company = %(company)s
-			AND TE.department = '{department}'
-			{conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters), department=department), { 
-				"period": filters.payroll_period,
-				"company": filters.company,
-				"user": cur_user,
-				"employee": filters.employee,
-				"department": filters.department
-			}, as_dict=1)
-	else:
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
-		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-		WHERE PR.period = %(period)s
-			AND PR.on_hold = 0
-			AND TE.company = %(company)s 
-			AND TE.department = '{department}'
-			{conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters), department=department), { 
-				"period": filters.payroll_period,
-				"company": filters.company,
-				"employee": filters.employee,
-				"department": filters.department
-			}, as_dict=1)
+	employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
+	FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
+	INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+	WHERE PR.period = %(period)s
+	AND PR.on_hold = 0
+	AND TE.company = %(company)s
+	{conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+		"period": filters.payroll_period,
+		"company": filters.company,
+		"employee": filters.employee,
+		"department": filters.department
+	}, as_dict=1)
 
 	return employees
 
@@ -221,13 +204,17 @@ def get_department(filters):
 
 def get_conditions(filters):
 	conditions = []
+	if frappe.session.user != "Administrator":
+		conditions.append(_("TE.`sensitivity` IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
+
 	if filters.get("employee"):
 		conditions.append("TE.`name`=%(employee)s")
 		
 	if filters.get("department"):
-		conditions.append("TE.department=%(department)s")
+		lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
+		conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 
-	return "and {}".format(" and ".join(conditions)) if conditions else "" 
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 def get_income_map(filters, employee_list):
 	income_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
