@@ -50,7 +50,7 @@ def get_data(filters):
 	company, att_from, att_to = filters.company, filters.from_date, filters.to_date
 
 	data.append({
-		"data":"<b>Company: </b>"+filters.company+"",
+		"data":"Company: "+filters.company,
 	})
 	data.append({})
 
