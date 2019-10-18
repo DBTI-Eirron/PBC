@@ -165,11 +165,12 @@ class OvertimeApplication(Document):
 		if actual_logs:
 			if actual_logs[0]["card_in"]:
 				self.actual_in = actual_logs[0]["card_in"]
+			else:
+				self.actual_in = None
 			if actual_logs[0]["card_out"]:
 				self.actual_out = actual_logs[0]["card_out"]
-		else:
-			self.actual_in = None
-			self.actual_out = None
+			else:
+				self.actual_out = None
 
 	def validate_duplicate_ot_application(self):
 		application = frappe.db.sql(""" SELECT `name`, to_date, to_time, from_date, from_time FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)

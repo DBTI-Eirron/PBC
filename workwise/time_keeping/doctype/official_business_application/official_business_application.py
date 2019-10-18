@@ -142,12 +142,13 @@ class OfficialBusinessApplication(Document):
 			if actual_logs:
 				if actual_logs[0]["card_in"]:
 					d.actual_in = actual_logs[0]["card_in"]
+				else:
+					d.actual_in = None
 				if actual_logs[0]["card_out"]:
 					d.actual_out = actual_logs[0]["card_out"]
-			else:
-				d.actual_in = None
-				d.actual_out = None
-
+				else:
+					d.actual_out = None
+				
 	def change_time(self):
 		for d in self.get('official_business_application_table'):
 			#if d.from_time == "0:00:00" or d.from_time ==  "00:00:00":
