@@ -12,17 +12,10 @@ frappe.query_reports["Employee Information"] = {
 			"reqd": 1
 		},
 		{
-			"fieldname":"emp_name",
-			"label": __("Employee Name"),
-			"fieldtype": "Data",
-			"default": ""
-		},
-		{
-			"fieldname":"rate_type",
-			"label": __("Rate Type"),
-			"fieldtype": "Select",
-			"options": ["", "Hourly Rate", "Lead", "Opportunity", "Quotation"],
-			"default": ""
+			"fieldname":"employee",
+			"label": __("Employee"),
+			"fieldtype": "Link",
+			"options": "Employee"
 		},
 	]
 }
