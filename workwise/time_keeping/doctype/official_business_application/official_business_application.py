@@ -148,6 +148,9 @@ class OfficialBusinessApplication(Document):
 					d.actual_out = actual_logs[0]["card_out"]
 				else:
 					d.actual_out = None
+			else:
+				d.actual_in = None
+				d.actual_out = None
 				
 	def change_time(self):
 		for d in self.get('official_business_application_table'):
