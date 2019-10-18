@@ -2,7 +2,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe, datetime
+import frappe, datetime, ast
 from frappe.utils import cint, flt, getdate, cstr
 from frappe import _
 
@@ -26,20 +26,25 @@ def execute(filters=None):
 			}
 		data_entry[wld.employee]['programs'].append(wld.training)
 
-	event_list = frappe.db.sql(""" SELECT LP.`parent`, LP.`employee`, LP.`employee_name`, LP.`company`
+	event_list = frappe.db.sql(""" SELECT LP.`parent`, LP.`employee`, LP.`employee_name`, LP.`company`, LP.`attendance_data`
 		FROM `tabLearning Participants` LP INNER JOIN `tabLearning Event` LE ON LP.`parent` = LE.`name`
-		WHERE LP.`docstatus` = 1 AND LP.`status` = "Present" AND LP.`company` = %(company)s {conditions} """.format(conditions=get_employee_conditions(filters)),{ 
+		WHERE LP.`docstatus` = 1 AND LP.`company` = %(company)s {conditions} """.format(conditions=get_employee_conditions(filters)),{ 
 		"company": filters.company,
 		"employee": filters.employee,
 	}, as_dict=True)
 
 	for eve in event_list:
-		if eve.employee not in data_entry:
-			data_entry[eve.employee] = {
-				"programs": [],
-				"employee_name": eve.employee_name
-			}
-		data_entry[eve.employee]['programs'].append(cstr(eve.parent))
+		if eve.attendance_data:
+			attn_data = ast.literal_eval(eve.attendance_data)
+			for ses in attn_data:
+				if attn_data[ses] == "Present":
+					if eve.employee not in data_entry:
+						data_entry[eve.employee] = {
+							"programs": [],
+							"employee_name": eve.employee_name
+						}
+					if ses not in data_entry[eve.employee]['programs']:
+						data_entry[eve.employee]['programs'].append(cstr(ses))
 
 	if data_entry and (not filters.employee):
 		for dat in data_entry:

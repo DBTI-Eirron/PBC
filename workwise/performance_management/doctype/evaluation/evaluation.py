@@ -16,12 +16,8 @@ class Evaluation(Document):
 		self.validate_rating()
 
 	def on_submit(self):
-		frappe.db.set(self, 'status', 'Submitted/Completed')
 		frappe.db.set(self, 'date_completed', getdate(today()))
-
-	def on_cancel(self):
-		frappe.db.set(self, 'status', 'Cancelled')
-
+		self.validate_score()
 
 	def get_employee_name(self):
 		self.appraisee_name = frappe.db.get_value("Employee", self.appraisee, "full_name")
@@ -29,18 +25,10 @@ class Evaluation(Document):
 
 
 	def get_performance_planning(self):
-		kra = frappe.db.sql("""SELECT PP.type,PP.header,PP.department,PP.appraisee,PP.company,PP.appraisee_name,PP.from_date,PP.to_date,PP.date_joined,PP.job_title,KI.key_result_area,KI.key_indicator,KI.weight FROM `tabTarget Settings` PP INNER JOIN `tabPerformance Planning KI` KI ON KI.parent = PP.name WHERE PP.name = %s ORDER BY KI.`idx` ASC""",(self.target_setting),as_dict=True)
+		kra = frappe.db.sql("""SELECT PP.from_date,PP.to_date,KI.key_result_area,KI.key_indicator,KI.weight FROM `tabTarget Settings` PP INNER JOIN `tabPerformance Planning KI` KI ON KI.parent = PP.name WHERE PP.name = %s ORDER BY KI.`idx` ASC""",(self.target_setting),as_dict=True)
 		entries = []
 		for d in kra:
-			self.appraisee = d.appraisee
-			self.header = d.header
 			self.target_setting_period = d.planning_period
-			self.appraisee_name = d.appraisee_name
-			self.department = d.department
-			self.job_title = d.job_title
-			self.date_joined = d.date_joined
-			self.company = d.company
-			self.type = d.type
 			self.from_date = d.from_date
 			self.to_date = d.to_date
 			row = {
@@ -51,14 +39,12 @@ class Evaluation(Document):
 		for d in entries:
 			row = self.append('appraisal_goal', {})
 			row.update(d)
-			
-		return self.type
 
 	def validate_fields(self):
 		total_score = total_weight = 0 
 		for indicator in self.appraisal_goal:
-			total_score += indicator.score_earned
-			total_weight += indicator.weightage
+			total_score += flt(indicator.score_earned)
+			total_weight += flt(indicator.weightage)
 		self.total_score = total_score
 		self.total_weight = total_weight
 
@@ -70,3 +56,10 @@ class Evaluation(Document):
 		for d in rating:
 			if self.total_score <= float(d.rate_to) and self.total_score >= float(d.rate_from):
 				self.equivalent_rating = d.name
+
+	def validate_score(self):
+		if self.equivalent_rating == "Did Not Meed Expectations (DME)" or self.equivalent_rating == "Barely Meets Expections(BME)":
+			pip = frappe.db.sql_list("""SELECT COUNT(`name`) FROM `tabPerformance Improvement Plan` WHERE evaluation = '%s' AND employee = %s""",(self.name,self.appraisee))
+			frappe.throw(_(pip))
+			if pip <= 0:
+				frappe.throw(_("Create Performance Improvement Plan"))

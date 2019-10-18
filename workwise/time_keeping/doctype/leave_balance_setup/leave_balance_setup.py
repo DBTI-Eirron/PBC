@@ -7,9 +7,11 @@ import frappe
 from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
+from workwise.time_keeping.application_utils import validate_inactive_employee
 
 class LeaveBalanceSetup(Document):
 	def validate(self):
+		validate_inactive_employee(self)
 		self.remove_duplicates()
 
 	def remove_duplicates(self):

@@ -77,8 +77,10 @@ def get_data(filters):
 	return data
 
 def get_employees(filters, att_to, att_from):
-	register = frappe.db.sql(""" SELECT AR.`target_date`, TE.`full_name`, AR.`employee`, AR.`is_halfday` FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.`employee` = TE.`name`
-		WHERE (AR.is_absent > 0 OR AR.is_lwop > 0) AND AR.target_date >= %(date_to)s AND AR.target_date <= %(date_from)s 
+	register = frappe.db.sql(""" SELECT AR.`target_date`, TE.`full_name`, AR.`employee`, AR.`is_halfday` FROM `tabAttendance Register` AR 
+		INNER JOIN `tabEmployee` TE ON AR.`employee` = TE.`name`
+		INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+		WHERE TE.`is_attendance_base` = 1 AND (AR.is_absent > 0 OR AR.is_lwop > 0) AND AR.target_date >= %(date_to)s AND AR.target_date <= %(date_from)s 
 		{conditions} GROUP BY AR.`name` ORDER BY AR.`target_date` """.format(conditions=get_conditions(filters)),{
 		"date_to": getdate(att_to),
 		"date_from": getdate(att_from),
@@ -92,9 +94,13 @@ def get_conditions(filters):
 		conditions.append("AR.`employee`='{0}'".format(filters.employee))
 
 	if filters.get("department"):
-		conditions.append("TE.`department`='{0}'".format(filters.department))
+		lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
+		conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 
 	if filters.get("company"):
 		conditions.append("TE.`company`='{0}'".format(filters.company))
+
+	if filters.get("show_active"):
+		conditions.append("TE.is_active=1")
 
 	return "AND {}".format(" AND ".join(conditions)) if conditions else ""

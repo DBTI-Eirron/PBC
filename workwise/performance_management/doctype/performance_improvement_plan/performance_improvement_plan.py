@@ -9,7 +9,7 @@ from frappe.model.document import Document
 class PerformanceImprovementPlan(Document):
 	def get_appraisal(self):
 		entries = []
-		settings = frappe.db.sql("""SELECT key_indicator FROM `tabAppraisal Goal` WHERE score <= 2 AND parent = %s""",(self.appraisal),as_dict=True)
+		settings = frappe.db.sql("""SELECT key_indicator FROM `tabAppraisal Goal` WHERE score <= 2 AND parent = %s""",(self.evaluation),as_dict=True)
 		for d in settings:
 			row = {
 				"performance_gaps":d.key_indicator,

@@ -51,3 +51,16 @@ cur_frm.cscript['Update Status'] = function() {
 		frm: cur_frm
 	})
 }
+
+//frappe.ui.form.on("Learning Participants", "program", function(frm, cdt, cdn) {
+//	if(frm.doc.learning_program) {
+//		return frappe.call({
+//			method: "select_program_session",
+//			doc: frm.doc,
+//			callback: function(r) {
+//				frappe.meta.get_docfield('Learning Participants', 'program', cur_frm.doc.name).options = ['', 'Option 1', 'Option 2', 'Option 3'];
+//				cur_frm.refresh_field('participants');
+//			}
+//		});
+//	}
+//});

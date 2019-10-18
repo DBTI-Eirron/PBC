@@ -1,11 +1,11 @@
 // Copyright (c) 2018, HDI Systech and contributors
 // For license information, please see license.txt
-cur_frm.add_fetch('appraisal', 'company', 'subsidiary');
-cur_frm.add_fetch('appraisal', 'appraisee', 'employee');
-cur_frm.add_fetch('appraisal', 'total_score', 'pa_rating');
-cur_frm.add_fetch('appraisal', 'target_setting_period', 'pa_period');
-cur_frm.add_fetch('appraisal', 'appraisee_name', 'employee_name');
-cur_frm.add_fetch('appraisal', 'department', 'department');
+cur_frm.add_fetch('evaluation', 'company', 'subsidiary');
+cur_frm.add_fetch('evaluation', 'appraisee', 'employee');
+cur_frm.add_fetch('evaluation', 'total_score', 'pa_rating');
+cur_frm.add_fetch('evaluation', 'target_setting', 'pa_period');
+cur_frm.add_fetch('evaluation', 'appraisee_name', 'employee_name');
+cur_frm.add_fetch('evaluation', 'department', 'department');
 frappe.ui.form.on('Performance Improvement Plan', {
 	refresh: function(frm) {
 		if(frm.doc.docstatus == 1){
@@ -27,10 +27,6 @@ frappe.ui.form.on('Performance Improvement Plan', {
 	},
 
 	evaluation: function(frm) {
-		frm.trigger("get_appraisal");
-	},
-
-	get_appraisal: function(frm) {
 		frm.doc.items = null;
 		return frappe.call({
 			method: "get_appraisal",
@@ -44,10 +40,9 @@ frappe.ui.form.on('Performance Improvement Plan', {
 
 });
 
-cur_frm.fields_dict['appraisal'].get_query = function(doc) {
+cur_frm.fields_dict['evaluation'].get_query = function(doc) {
 	return {
-		filters: {
-			"docstatus": 1,		
+		filters: {	
 			"appraisee": doc.employee
 		}
 	}

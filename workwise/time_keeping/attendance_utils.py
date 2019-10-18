@@ -407,7 +407,7 @@ def get_overtime(entry, ot_apps):
 	return entry
 
 def get_ndiff(entry):
-	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
+	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_value("Employee", entry['employee'], "ignore_nd"):
 		#get ND start and end
 		nd_start, nd_end  = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) ), get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
 		if entry.get('nd_start') > entry.get('nd_end'):
@@ -930,7 +930,11 @@ def get_final_processing(entry):
 					entry['is_absent'] = 0
 			else:
 				# Strictly no work, late, undertime absent for non daily rate if holiday
-				entry['work'] = 0 
+				if entry.get('card_in') and entry.get('card_out'):
+					entry['work'] = (entry.get('work_hours') * 60 * 60) #set work hours equal to wholeday of work
+				else:
+					entry['work'] = 0
+
 				entry['nightdiff'] = 0 
 				entry['late'] = 0
 				entry['undertime'] = 0
@@ -1254,6 +1258,38 @@ def get_schedule(employee, pay_from, pay_to):
 
 	return schedule
 
+def get_actual_logs(employee, pay_from, pay_to):
+	result = []
+	schedule = get_schedule(employee, pay_from, pay_to)
+	for sched in schedule:
+		shifts = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched['work_shift']), as_dict=True)
+		if shifts:
+			post_shift_date = getdate(sched['target_date'])
+			if shifts[0].time_in > shifts[0].time_out:
+				post_shift_date = add_days(getdate(sched['target_date']), 1)
+			entry = { 
+				"work_shift": sched['work_shift'],
+				"target_date": sched['target_date'],
+				"pre_shift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shifts[0].time_in)), hours= (0 - shifts[0].setup_preshift) ),
+				"end_preshift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shifts[0].time_in)), hours= shifts[0].end_preshift ),
+				"post_shift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shifts[0].time_out)), hours= (0 - shifts[0].setup_postshift) ),
+				"end_postshift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shifts[0].time_out)), hours=shifts[0].end_postshift ),
+				"card_in": "",
+				"card_out": "",
+				"break_in": "",
+				"break_out": "",
+			}
+			dtrp_list = []
+			emp_bioid = frappe.db.get_value("Employee", employee, "biometrics_id")
+			timecards = get_timecard_list(emp_bioid, sched['target_date'], sched['target_date'] + datetime.timedelta(days=1))
+			if timecards:
+				dtrp_list = get_dtrp_list(employee, sched['target_date'], sched['target_date'] + datetime.timedelta(days=1), None, 0)
+				cards_in, cards_out = get_card_within(entry['pre_shift'], entry['end_preshift'], entry['post_shift'], entry['end_postshift'], timecards, dtrp_list)
+				get_sorted_card(entry, cards_in, cards_out)
+				result.append(entry)
+
+	return result
+
 def get_shift_map():
 	shift_map = {}
 	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
@@ -1379,6 +1415,18 @@ def get_csa_list(employee, from_date, to_date, approval_cutoff, adjustment):
 
 	return cs_apps
 
+def get_dtrp_list(employee, from_date, to_date, approval_cutoff, adjustment):
+	by_adjustment = "" #if adjustment == 1 else "AND DA.approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
+
+	dtrp_apps = frappe.db.sql("""SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+		DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`
+		FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` 
+		WHERE DA.`workflow_state` = 'Approved' AND DA.`employee` = %s
+		AND DA.`target_date` >= %s AND DA.`target_date` <= %s {by_adjustment}
+		ORDER BY card_datetime """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
+
+	return dtrp_apps
+
 def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp):
 	cards_in = []
 	cards_out = []
@@ -1471,7 +1519,7 @@ def get_sorted_card(entry, cards_in, cards_out):
  	return entry
 
 def get_timecard_list(bio, pay_from, pay_to):
-	timecard_list = frappe.db.sql("""SELECT TIMESTAMP(date, time) as card_datetime, card_type,name,`time` FROM `tabTime Card` 
+	timecard_list = frappe.db.sql("""SELECT TIMESTAMP(date, time) as card_datetime, card_type, `name`, `time` FROM `tabTime Card` 
 		WHERE biometrics_id = %(bio)s AND date >= %(from_date)s AND date <= %(to_date)s
 		ORDER BY date, time """,{
 			"bio": bio,
@@ -1639,6 +1687,8 @@ def get_defaults(emp, sched, shift_map, overrides):
 	return entry
 
 def init_employee_map(employees, employee, company, pay_from, pay_to, approval_cutoff, adjustment):
+	pay_from = getdate(pay_from)
+	pay_to = getdate(pay_to)
 	emp_map = frappe._dict()
 	for emp in employees:
 		emp_map.setdefault(emp.name, frappe._dict({
@@ -1756,9 +1806,7 @@ def get_all_leaves(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustm
 
 def get_all_obs(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
-	if adjustment == 1:
-		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
-	else:
+	if adjustment != 1:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
@@ -1797,9 +1845,7 @@ def get_all_ots(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 def get_all_uts(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
-	if adjustment == 1:
-		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
-	else:
+	if adjustment != 1:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
@@ -1817,11 +1863,9 @@ def get_all_uts(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 def get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
-	if adjustment == 1:
-		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
-	else:
+	if adjustment != 1:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
-
+		
 	if employee:
 		conditions_list.append("employee='"+ cstr(employee) +"'")
 
@@ -1837,9 +1881,7 @@ def get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 def get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
-	if adjustment == 1:
-		conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
-	else:
+	if adjustment != 1:
 		conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
 
 	if employee:
@@ -1925,8 +1967,10 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 			emp_map[d.employee].dtrp.append(d)
 
 def complete_sched(emp_dict, pay_from, pay_to, template_map):
+	pay_from = getdate(pay_from)
+	pay_to = getdate(pay_to)
 	complete_schedules = []
-	for target_date in daterange(pay_from,pay_to):
+	for target_date in daterange(pay_from, pay_to):
 		has_sched = False
 		for idx, sched in enumerate(emp_dict['schedules']):
 			if target_date == sched['target_date']:

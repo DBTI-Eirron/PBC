@@ -11,18 +11,19 @@ from frappe.model.document import Document
 from workwise.payroll.payroll_utils import get_adjustment_settings, get_rates, get_sss_table, get_sss_amount, get_hdmf_table, get_hdmf_amount
 from workwise.payroll.weekly_utils import get_weekly_prev_map, get_weekly_basis
 from workwise.payroll.loans_utils import get_loans_map, get_employee_loan, update_loans
+from workwise.time_keeping.application_utils import validate_inactive_employee
 
 class PayrollProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, 
-			min_take_home, mth_percentage, cost_center, no_hours, is_active,
-			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-			whtax_manual, whtax_freq, is_attendance_base, ignore_late, ignore_nd, ignore_ut, on_hold, sensitivity
-				FROM tabEmployee
-			WHERE company = %(company)s
-			AND payroll_schedule = %(pay_sched)s
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.location, TE.company, TE.total_yr_days, TE.rate_type, TE.rate, 
+			TE.payroll_schedule, TE.min_take_home, TE.mth_percentage, TE.cost_center, TE.no_hours, TE.is_active,
+			TE.sss_mode, TE.sss_manual, TE.sss_freq, TE.phic_mode, TE.phic_manual, TE.phic_freq, TE.hdmf_mode, TE.hdmf_manual, TE.hdmf_freq, TE.whtax_mode, 
+			TE.whtax_manual, TE.whtax_freq, TE.is_attendance_base, TE.ignore_late, TE.ignore_nd, TE.ignore_ut, TE.on_hold, TE.sensitivity
+			FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+			WHERE TE.company = %(company)s
+			AND TE.payroll_schedule = %(pay_sched)s
 			{conditions}
-			ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),
+			ORDER BY TE.last_name, TE.first_name""".format( conditions=self.get_conditions() ),
 			({ 
 				"company": self.company,
 				"pay_sched": self.schedule,
@@ -38,21 +39,22 @@ class PayrollProcessing(Document):
 		conditions = []
 		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
 		if self.employee:
-			conditions.append("`name`=%(employee)s")
+			conditions.append("TE.`name`=%(employee)s")
 
 		if self.department:
-			conditions.append("department=%(department)s")
+			lft, rgt = frappe.db.get_value("Department", self.department, ["lft", "rgt"])
+			conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 
 		if self.location:
-			conditions.append("location=%(location)s")
+			conditions.append("TE.location=%(location)s")
 
 		if strict_period_group:
-			conditions.append("period_group=%(period_group)s")
+			conditions.append("TE.period_group=%(period_group)s")
 		
 		if frappe.session.user != "Administrator":
-			conditions.append(_("sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
+			conditions.append(_("TE.sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
 
-		return "and {}".format(" and ".join(conditions)) if conditions else ""
+		return "AND {}".format(" AND ".join(conditions)) if conditions else ""
 
 	def validate_period(self, weekly_set):
 		period_stats = frappe.db.get_value("Payroll Period", self.period, "status")
@@ -71,6 +73,8 @@ class PayrollProcessing(Document):
 			frappe.throw(_("Period Group is required for Payroll Period {0}").format(self.period))
 
 	def process_payroll(self):
+		if self.employee:
+			validate_inactive_employee(self)
 		weekly_set = frappe.db.get_value("Payroll Period", self.period, "weekly_set")
 		self.validate_period(weekly_set)
 		
@@ -686,6 +690,24 @@ class PayrollProcessing(Document):
 							tax_amt = tax_amt - header.get('prev_whtax_amt') 
 							if tax_amt < 1:
 								tax_amt = 0
+
+					elif emp.get('whtax_freq') == "2nd":
+						if self.frequency == "2nd":
+							taxable = flt(header.get('previous_taxable_income'), 8) + flt(header.get('taxable_income'), 8) - \
+								( flt(header.get('prev_tax_ded'), 8) + flt(header.get('taxable_deduction'), 8) )
+							
+							table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
+									WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Monthly'), as_dict=True )
+								
+							for t in table:
+								tax_amt = (flt(taxable, 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
+								if t.prescribed > 0:
+									tax_amt += flt(t.prescribed, 8)
+
+							if header.get('prev_whtax_amt') and emp.get('whtax_freq') == "Both":
+								tax_amt = tax_amt - header.get('prev_whtax_amt') 
+								if tax_amt < 1:
+									tax_amt = 0
 					else:
 						table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
 							WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(taxable, taxable, 'Semi-Monthly'), as_dict=True )
@@ -1044,8 +1066,10 @@ class PayrollProcessing(Document):
 									if at.is_absent:
 										is_uho = 1
 					else:
-						if no_previous == 0:
-							is_uho = 1
+						#if date is the first check if no_previous
+						if getdate(at.target_date) == getdate(self.attendance_from):
+							if no_previous == 0:
+								is_uho = 1
 
 						if not at.is_restday:
 							WK_days += 1
@@ -1125,6 +1149,12 @@ class PayrollProcessing(Document):
 										dl_days += 0.5
 									else:
 										dl_days += 1
+
+							#check if lwop halfday
+							if dl_absent == 1 and at.is_lwop:
+								# if lwop halfday plus half day
+								if at.lv_status > 1:
+									dl_days += 0.5
 
 							if ho_paid == 1:
 								pho_days += 1

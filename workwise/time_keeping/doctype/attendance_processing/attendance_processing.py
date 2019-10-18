@@ -8,15 +8,20 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
+from workwise.time_keeping.application_utils import validate_inactive_employee
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, 
-get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,change_sched,get_template_map)
+get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,
+init_employee_map,complete_sched,change_sched,get_template_map)
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, company, location, is_attendance_base, no_hours, rate_type, default_schedule FROM tabEmployee WHERE company = %(company)s 
-			AND payroll_schedule = %(schedule)s {conditions}
-			AND is_active = 1 ORDER BY `full_name` """.format(conditions=self.get_employee_conditions()),{ 
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.biometrics_id, TE.company, TE.location, TE.is_attendance_base, 
+			TE.no_hours, TE.rate_type, TE.default_schedule, TE.department, DEPT.`lft`
+			FROM `tabEmployee` TE
+			INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+			WHERE TE.company = %(company)s 
+			AND TE.payroll_schedule = %(schedule)s {conditions}
+			AND TE.is_active = 1 ORDER BY TE.`full_name` """.format(conditions=self.get_employee_conditions()),{ 
 				"company": self.company,
 				"employee": self.employee,
 				"schedule": self.schedule,
@@ -31,20 +36,23 @@ class AttendanceProcessing(Document):
 		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
 		conditions = []
 		if self.employee:
-			conditions.append("`name`=%(employee)s")
+			conditions.append("TE.`name`=%(employee)s")
 		
 		if self.department:
-			conditions.append("department=%(department)s")
+			lft, rgt = frappe.db.get_value("Department", self.department, ["lft", "rgt"])
+			conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 		
 		if self.location:
-			conditions.append("location=%(location)s")
+			conditions.append("TE.location=%(location)s")
 
 		if strict_period_group:
-			conditions.append("period_group=%(period_group)s")
+			conditions.append("TE.period_group=%(period_group)s")
 
-		return "and {}".format(" and ".join(conditions)) if conditions else ""
+		return "AND {}".format(" AND ".join(conditions)) if conditions else ""
 
 	def process_attendance(self):
+		if self.employee:
+			validate_inactive_employee(self)
 		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
 		if not self.period:
 			frappe.throw(_("Please Select Payroll Period"))

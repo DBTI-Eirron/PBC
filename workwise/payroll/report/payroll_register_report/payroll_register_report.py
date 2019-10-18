@@ -35,17 +35,16 @@ def execute(filters=None):
 				header.append(col['fieldlabel'])
 			data.append(header)
 
-		total_row = ["<b> Total</b>",""]
-
 		for income in income_types:
 			income_total.append(0)
 
 		for deduction in deduction_types:
 			deduction_total.append(0)
 
+		total_present_days = 0
 		for emp in employee_list:
-			row = [emp.employee, emp.employee_name]
-
+			row = [emp.employee, emp.employee_name,emp.present_days]
+			total_present_days += emp.present_days
 			total_income = 0.00
 			i = 0
 			for income in income_types:
@@ -77,6 +76,7 @@ def execute(filters=None):
 			dtotal_payroll += total_payroll
 			data.append(row)
 
+		total_row = ["<b> Total</b>","",total_present_days]
 		if filters.hide_zero:
 			i = 0
 			for income in income_types:
@@ -164,6 +164,13 @@ def get_columns(filters,employee_list):
 			"width": 250,
 			"fieldlabel": "Employee Name"
 		},
+		{
+			"fieldname": "present_days",
+			"label": _("Present Days" if not filters.include_header else ""),
+			"fieldtype": "Data",
+			"width": 120,
+			"fieldlabel": "Present Days"
+		},
 	]
 	
 	income_types = frappe.db.sql_list(""" SELECT code
@@ -222,7 +229,7 @@ def get_columns(filters,employee_list):
 def get_employees(filters):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
 			AND PR.on_hold = 0
@@ -235,7 +242,7 @@ def get_employees(filters):
 				"location": filters.location
 			}, as_dict=1)
 	else:
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days
 		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PR.period = %(period)s
 			AND PR.on_hold = 0

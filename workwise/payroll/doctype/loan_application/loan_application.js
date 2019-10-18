@@ -3,14 +3,7 @@
 
 frappe.ui.form.on('Loan Application', {
 	onload: function(frm){
-		cur_frm.set_query("loan_type", function() {
-			return {
-				"filters": {
-					"entry_type": "Loan",
-					"is_active": 1,
-				}
-			};
-		});
+		
 	},
 
 	setup: function(frm) {
@@ -25,6 +18,23 @@ frappe.ui.form.on('Loan Application', {
 			cur_frm.add_custom_button(__('Make Restructure'), cur_frm.cscript['Make Restructure'], __("Make"));
 			cur_frm.page.set_inner_btn_group_as_primary(__("Make"));
 		}
+
+		cur_frm.set_query("loan_type", function() {
+			return {
+				"filters": {
+					"entry_type": "Loan",
+					"is_active": 1,
+				}
+			};
+		});
+
+		frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
 	},
 
 	loan_amount: function(frm) {
