@@ -21,6 +21,14 @@ frappe.ui.form.on('Certificate of Maternity', {
 				}
 			});
 		}
+
+		cur_frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
 	},
 
 	employee: function(frm) {

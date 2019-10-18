@@ -8,31 +8,6 @@ frappe.ui.form.on('Payroll Processing', {
 		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.height ="30px";
 		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.width ="100px";
 		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.color ="white";
-
-		frm.set_query("employee", function() {
-			return {
-				"filters": {
-					"company": frm.doc.company,
-				}
-			};
-		});
-
-		frm.set_query('period', function(doc) {
-			return {
-				filters: {
-					"status": "Open",
-					"company": doc.company
-				}
-			};
-		});
-
-		frm.set_query("location", function() {
-			return {
-				"filters": {
-					"company": frm.doc.company,
-				}
-			};
-		});
 	},
 
 	setup: function(frm) {
@@ -48,12 +23,38 @@ frappe.ui.form.on('Payroll Processing', {
 
 	refresh: function(frm) {
 		frm.disable_save();
+
+		frm.set_query('period', function(doc) {
+			return {
+				filters: {
+					"status": "Open",
+					"company": frm.doc.company,
+				}
+			};
+		});
+
+		frm.set_query("location", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
+
+		frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+					"is_active": 1,
+				}
+			};
+		});
 	},
 
 	company: function(frm){
 		frm.set_value("period", null);
 		frm.set_value("employee", null);
-	}
+	},
 });
 
 cur_frm.cscript.display_activity_log = function(msg) {

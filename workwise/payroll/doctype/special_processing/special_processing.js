@@ -8,23 +8,6 @@ frappe.ui.form.on('Special Processing', {
 		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.height ="30px";
 		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.width ="105px";
 		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.color ="white";
-
-		frm.set_query("employee", function() {
-			return {
-				"filters": {
-					"company": frm.doc.company,
-				}
-			};
-		});
-
-		frm.set_query('period', function(doc) {
-			return {
-				filters: {
-					"status": "Open",
-					"company": doc.company
-				}
-			};
-		});
 	},
 
 	setup: function(frm) {
@@ -40,6 +23,24 @@ frappe.ui.form.on('Special Processing', {
 
 	refresh: function(frm) {
 		frm.disable_save();
+
+		frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+					"is_active": 1,
+				}
+			};
+		});
+
+		frm.set_query('period', function(doc) {
+			return {
+				filters: {
+					"status": "Open",
+					"company": frm.doc.company
+				}
+			};
+		});
 	},
 	
 	onload_post_render: function() {

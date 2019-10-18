@@ -3,7 +3,13 @@
 
 frappe.ui.form.on('Leave Balance Setup', {
 	refresh: function(frm) {
-
+		cur_frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
 	},
 
 	setup: function(frm) {

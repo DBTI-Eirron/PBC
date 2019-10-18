@@ -25,6 +25,15 @@ frappe.ui.form.on('Batch Approval', {
 		if (!frm.doc.batch_table && frm.doc.docstatus < 1){
 			cur_frm.toggle_display('batch_table',false);
 		}
+		
+		frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+					"is_active": 1,
+				}
+			};
+		});
 	},
 
 	company: function(frm) {

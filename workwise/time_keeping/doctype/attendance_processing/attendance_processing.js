@@ -2,7 +2,8 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('Attendance Processing', {
-	onload: function(frm){
+	refresh: function(frm){
+		frm.disable_save();
 		//Button Style
 		document.querySelectorAll("[data-fieldname='process_attendance']")[1].style.backgroundColor ="#81da63";
 		document.querySelectorAll("[data-fieldname='process_attendance']")[1].style.height ="30px";
@@ -43,8 +44,8 @@ frappe.ui.form.on('Attendance Processing', {
 		frm.add_fetch("period", "period_group", "period_group");
 	},
 
-	refresh: function(frm) {
-		frm.disable_save();
+	onload: function(frm) {
+		
 	},
 	
 	onload_post_render: function() {
