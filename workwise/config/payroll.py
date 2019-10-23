@@ -181,6 +181,11 @@ def get_data():
 					"name": "Corporate Payroll Summary",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Adjustment Report",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
 				},
 			],
 		},
