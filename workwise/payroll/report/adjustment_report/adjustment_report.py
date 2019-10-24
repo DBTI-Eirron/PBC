@@ -161,8 +161,8 @@ def get_data(filters):
 				deduction_ut = flt(abs(reg.undertime))
 
 			if filters.hide_zero == 1:
-				emp_total = income_absent + deduction_absent + income_uh + deduction_uh + income_ot + deduction_ot + income_nd + deduction_nd + income_late + deduction_late + income_ut + deduction_ut
-				if emp_total != 0:
+				emp_total = flt(income_absent) + flt(deduction_absent) + flt(income_uh) + flt(deduction_uh) + flt(income_ot) + flt(deduction_ot) + flt(income_nd) + flt(deduction_nd) + flt(income_late) + flt(deduction_late) + flt(income_ut) + flt(deduction_ut)
+				if emp_total > 1:
 					row = {
 						"employee": reg.employee,
 						"employee_name": reg.employee_name,

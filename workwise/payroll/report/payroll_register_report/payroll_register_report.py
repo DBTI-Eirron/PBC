@@ -23,17 +23,7 @@ def execute(filters=None):
 		data = []
 		dtotal_income, dtotal_deduction, dtotal_payroll = 0.00, 0.00, 0.00
 		income_total, deduction_total = [], []
-
-		if filters.include_header:
-			data.append(["<b>"+filters.company+"</b>"])
-			data.append(["<b>"+filters.payroll_period+"</b>"])
-			if filters.location:
-				data.append(["<b>"+filters.location+"</b>"])
-			data.append({})
-			header = []
-			for col in columns:
-				header.append(col['fieldlabel'])
-			data.append(header)
+		total_present = 0
 
 		for income in income_types:
 			income_total.append(0)
@@ -41,17 +31,16 @@ def execute(filters=None):
 		for deduction in deduction_types:
 			deduction_total.append(0)
 
-		total_present_days = 0
 		for emp in employee_list:
-			row = [emp.employee, emp.employee_name,emp.present_days]
-			total_present_days += emp.present_days
+			row = [emp.employee, emp.employee_name, emp.present_days]
+			total_present += emp.present_days
 			total_income = 0.00
 			i = 0
 			for income in income_types:
 				income_amount = flt(income_map.get(emp.employee, {}).get(income), 8)
 				total_income += flt(income_amount, 8)
 				income_total[i] += flt(income_amount, 8)
-				row.append('<div align="right">'+ str( '{:,.2f}'.format(income_amount) ) +'</div>')
+				row.append('{:,.2f}'.format(income_amount))
 				i += 1
 
 			total_deduction = 0.00
@@ -60,79 +49,54 @@ def execute(filters=None):
 				deduction_amount = flt(deduction_map.get(emp.employee, {}).get(deduction), 8)
 				total_deduction += flt(deduction_amount, 8)
 				deduction_total[i] += flt(deduction_amount, 8)
-				row.append('<div align="right">'+ str( '{:,.2f}'.format(deduction_amount) ) +'</div>')
+				row.append('{:,.2f}'.format(deduction_amount))
 				i += 1
 
 			total_payroll = flt(total_income, 8) - flt(total_deduction, 8)
 			if total_payroll < 0:
 				total_payroll = 0.00
-			row += [
-				'<div align="right">'+ str( '{:,.2f}'.format(total_income) ) +'</div>', 
-				'<div align="right">'+ str( '{:,.2f}'.format(total_deduction) ) +'</div>', 
-				'<div align="right">'+ str( '{:,.2f}'.format(total_payroll) ) +'</div>'
-			]
+			row += ['{:,.2f}'.format(total_income), '{:,.2f}'.format(total_deduction), '{:,.2f}'.format(total_payroll)]
 			dtotal_income += total_income
 			dtotal_deduction += total_deduction
 			dtotal_payroll += total_payroll
 			data.append(row)
-
-		total_row = ["<b> Total</b>","",total_present_days]
+		total_row = ["<b> Total</b>","",total_present]
 		if filters.hide_zero:
 			i = 0
 			for income in income_types:
 				if income_total[i] > 0:
-					total_row.append('<div align="right">'+ str( '{:,.2f}'.format(income_total[i]) ) +'</div>')
+					total_row.append('{:,.2f}'.format(income_total[i]))
 					i += 1
 				else:
-					del columns[i+2]
+					del columns[i+3]
 					del income_total[i]
-					if filters.include_header:
-						for d in data[3:]:
-							del d[i+2]
-					else:
-						for d in data:
-							del d[i+2]
+					for d in data:
+						del d[i+3]
 						
 			inlen = i
 			i = 0
 			for deduction in deduction_types:
 				if deduction_total[i] > 0:
-					total_row.append('<div align="right">'+ str( '{:,.2f}'.format(deduction_total[i]) ) +'</div>')
+					total_row.append('{:,.2f}'.format(deduction_total[i]))
 					i += 1
 				else:
-					del columns[i+inlen+2]
+					del columns[i+inlen+3]
 					del deduction_total[i]
-					if filters.include_header:
-						for d in data[3:]:
-							del d[i+inlen+2]
-					else:
-						for d in data:
-							del d[i+inlen+2]
+					for d in data:
+						del d[i+inlen+3]
 		else:
 			i = 0
 			for income in income_types:
-				total_row.append('<div align="right">'+ str( '{:,.2f}'.format(income_total[i]) ) +'</div>')
+				total_row.append('{:,.2f}'.format(income_total[i]))
 				i += 1
 
 			i = 0
 			for deduction in deduction_types:
-				total_row.append('<div align="right">'+ str( '{:,.2f}'.format(deduction_total[i]) ) +'</div>')
+				total_row.append('{:,.2f}'.format(deduction_total[i]))
 				i += 1
 
-		total_row += [
-			'<div align="right">'+ str( '{:,.2f}'.format(dtotal_income) ) +'</div>', 
-			'<div align="right">'+ str( '{:,.2f}'.format(dtotal_deduction) ) +'</div>', 
-			'<div align="right">'+ str( '{:,.2f}'.format(dtotal_payroll) ) +'</div>'
-		]
+		total_row += ['{:,.2f}'.format(dtotal_income), '{:,.2f}'.format(dtotal_deduction), '{:,.2f}'.format(dtotal_payroll)]
 		data.append(total_row)
-
-		#For Print Formatting
-		columns_labels = []
-		columns_names = []
-		for cl in columns:
-			columns_names.append(cl['fieldname'])
-			columns_labels.append(cl['label'])
-		data.append({"columns_names": columns_names, "columns_labels": columns_labels})
 
 	return columns, data
 
@@ -151,25 +115,22 @@ def get_columns(filters,employee_list):
 	columns = [
 		{
 			"fieldname": "employee",
-			"label": _("Employee" if not filters.include_header else ""),
+			"label": _("Employee"),
 			"fieldtype": "Link",
 			"options": "Employee",
-			"width": 250 if filters.include_header else 120,
-			"fieldlabel": "Employee"
+			"width": 100
 		},
 		{
 			"fieldname": "employee_name",
-			"label": _("Employee Name" if not filters.include_header else ""),
+			"label": _("Employee Name"),
 			"fieldtype": "Data",
-			"width": 250,
-			"fieldlabel": "Employee Name"
+			"width": 200
 		},
 		{
 			"fieldname": "present_days",
-			"label": _("Present Days" if not filters.include_header else ""),
+			"label": _("Present Days"),
 			"fieldtype": "Data",
-			"width": 120,
-			"fieldlabel": "Present Days"
+			"width": 120
 		},
 	]
 	
@@ -184,43 +145,38 @@ def get_columns(filters,employee_list):
 			pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
 			columns.append({			
 				"fieldname": pay_code,
-				"label": pay_title if not filters.include_header else "",
-				"fieldtype": "Data",
-				"width": 100,
-				"fieldlabel": pay_title
+				"label": pay_title,
+				"fieldtype": "Float",
+				"width": 100
 			})
 
 		for pay_code in deduction_types:
 			pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
 			columns.append({			
 				"fieldname": pay_code,
-				"label": pay_title if not filters.include_header else "",
-				"fieldtype": "Data",
-				"width": 100,
-				"fieldlabel": pay_title
+				"label": pay_title,
+				"fieldtype": "Float",
+				"width": 100
 			})
 
 	columns += [
 		{
 			"fieldname": "total_income",
-			"label": _("Total Income" if not filters.include_header else ""),
-			"fieldtype": "Data",
-			"width": 100,
-			"fieldlabel": "Total Income"
+			"label": _("Total Income"),
+			"fieldtype": "Float",
+			"width": 100
 		},
 		{
 			"fieldname": "total_deduction",
-			"label": _("Total Deduction" if not filters.include_header else ""),
-			"fieldtype": "Data",
-			"width": 100,
-			"fieldlabel": "Total Deduction"
+			"label": _("Total Deduction"),
+			"fieldtype": "Float",
+			"width": 100
 		},
 		{
 			"fieldname": "total_payroll",
-			"label": _("Total Payroll" if not filters.include_header else ""),
-			"fieldtype": "Data",
-			"width": 100,
-			"fieldlabel": "Total Payroll"
+			"label": _("Total Payroll"),
+			"fieldtype": "Float",
+			"width": 100
 		},
 	]
 
@@ -239,7 +195,7 @@ def get_employees(filters):
 				"company": filters.company,
 				"user": cur_user,
 				"employee": filters.employee,
-				"location": filters.location
+				"location": filters.location,
 			}, as_dict=1)
 	else:
 		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days
@@ -263,7 +219,7 @@ def get_conditions(filters):
 	if filters.get("location"):
 		conditions.append("TE.`location`=%(location)s")
 
-	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
+	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 
 def get_income_map(filters, employee_list):
 	income_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount

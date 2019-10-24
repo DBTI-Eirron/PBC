@@ -109,7 +109,7 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 			entry['is_db_holiday'] = 1
 
 	#leaves	
-	lv_status_list = []
+	lv_whole = {"half_lv": 0, "half_lwop": 0}
 	for l in leaves:
 		if l['leave_date'] == entry['target_date']:
 			entry['lv_links'].append(l.name) 
@@ -125,17 +125,26 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 				
 				if l.is_half_day and not l.is_second_half:
 					entry["lv_status"] = 2
-					lv_status_list.append(2)
+					if l.is_lwop != 1:
+						lv_whole["half_lv"] += 1
+					else:
+						lv_whole["half_lwop"] += 1
 
 				if l.is_second_half:
 					entry["lv_status"] = 3
-					lv_status_list.append(3)
+					if l.is_lwop != 1:
+						lv_whole["half_lv"] += 1
+					else:
+						lv_whole["half_lwop"] += 1
+
 				elif l.is_half_day:
 					entry["lv_status"] = 2
-					lv_status_list.append(2)
 
-		if 2 in lv_status_list and 3 in lv_status_list:
-			entry["lv_status"] = 1
+		if lv_whole["half_lv"] > 0 or lv_whole["half_lwop"] > 0:
+			if lv_whole["half_lv"] > 1:
+				entry["lv_status"] = 1
+			if lv_whole["half_lwop"] > 1:
+				entry["lv_status"] = 1
 
 	for ws in wss:
 		if getdate(ws.suspension_date) == getdate(entry['target_date']):	
@@ -1520,7 +1529,7 @@ def get_sorted_card(entry, cards_in, cards_out):
 
 def get_timecard_list(bio, pay_from, pay_to):
 	timecard_list = frappe.db.sql("""SELECT TIMESTAMP(date, time) as card_datetime, card_type, `name`, `time` FROM `tabTime Card` 
-		WHERE biometrics_id = %(bio)s AND date >= %(from_date)s AND date <= %(to_date)s
+		WHERE is_disable = 0 AND biometrics_id = %(bio)s AND date >= %(from_date)s AND date <= %(to_date)s
 		ORDER BY date, time """,{
 			"bio": bio,
 			"from_date": pay_from,
@@ -1734,7 +1743,7 @@ def get_all_timecards(emp_map, employee, pay_from, pay_to):
 	timecards = frappe.db.sql("""SELECT EMP.name as employee, TC.biometrics_id, TIMESTAMP(TC.date, TC.time) as card_datetime, 
 		TC.card_type, TC.time FROM `tabTime Card` TC
 		INNER JOIN tabEmployee EMP ON EMP.biometrics_id = TC.biometrics_id
-		WHERE TC.date >= %(from_date)s AND TC.date <= %(to_date)s {condition}
+		WHERE TC.is_disabled = 0 AND TC.date >= %(from_date)s AND TC.date <= %(to_date)s {condition}
 		ORDER BY TC.date, TC.time """.format( condition=condition ),{
 			"from_date": pay_from,
 			"to_date": pay_to,
