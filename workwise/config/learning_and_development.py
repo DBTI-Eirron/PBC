@@ -41,6 +41,11 @@ def get_data():
 					"name": "Learning Program",
 					"description": _("Learning Program"),
 				},
+				{
+					"type": "doctype",
+					"name": "Learning Evaluation Template",
+					"description": _("Learning Evaluation Template"),
+				},
 			]
 		},
 		{
@@ -79,11 +84,6 @@ def get_data():
 					"type": "doctype",
 					"name": "Certificate of Training",
 					"description": _("Certificate of Training"),
-				},
-				{
-					"type": "doctype",
-					"name": "Service Agreement Contract",
-					"description": _("Service Agreement Contract"),
 				},
 				{
 					"type": "doctype",

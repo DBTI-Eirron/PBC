@@ -59,3 +59,42 @@ frappe.ui.form.on('Official Business Application', {
 	},
 
 });
+
+frappe.ui.form.on("Official Business Application Table", "is_previous", function(frm, cdt, cdn) {
+	if(frm.doc.employee) {
+		return frappe.call({
+			method: "get_target_date",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("official_business_application_table");
+				frm.refresh_fields();
+			}
+		});
+	}
+});
+
+frappe.ui.form.on("Official Business Application Table", "date", function(frm, cdt, cdn) {
+	if(frm.doc.employee) {
+		return frappe.call({
+			method: "get_target_date",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("official_business_application_table");
+				frm.refresh_fields();
+			}
+		});
+	}
+});
+
+frappe.ui.form.on("Official Business Application Table", "to_date", function(frm, cdt, cdn) {
+	if(frm.doc.employee) {
+		return frappe.call({
+			method: "get_target_date",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("official_business_application_table");
+				frm.refresh_fields();
+			}
+		});
+	}
+});

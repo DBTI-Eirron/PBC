@@ -142,7 +142,7 @@ class BatchApproval(Document):
 						"workflow_state": "Approved",
 						"approved_by": frappe.session.user,
 						"approved_on": nowdate(),
-						"approval_history": "Batch Approved: ",
+						"approval_history": application.approval_history+cstr("Batch Approved: "),
 					})
 					application.submit()
 			if b.action == "Rejected":

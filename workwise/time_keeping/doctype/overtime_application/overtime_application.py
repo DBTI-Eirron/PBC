@@ -1,13 +1,13 @@
-# -*- coding: utf-8 -*-
+ # -*- coding: utf-8 -*-
 # Copyright (c) 2017, HDI Systech and contributors
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe import _
-from frappe.utils import cint, flt, getdate, cstr, nowdate 
+from frappe.utils import cint, flt, getdate, cstr, nowdate, add_to_date, get_datetime
 from frappe.model.document import Document
-from workwise.time_keeping.attendance_utils import get_schedule
+from workwise.time_keeping.attendance_utils import get_schedule, get_actual_logs
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, chk_time_format, timediff_hrs, timediff_mins, str_datetime
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
 change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
@@ -66,6 +66,8 @@ class OvertimeApplication(Document):
 			self.target_date = target_date - datetime.timedelta(days=1)
 		else:
 			self.target_date = target_date
+
+		self.get_employeee_actual_logs()
 
 	def validate_date(self):
 		from_date = datetime.datetime.strptime(str(self.from_date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S').date()
@@ -156,6 +158,22 @@ class OvertimeApplication(Document):
 					total_max_ot_hrs += flt(self.total_hrs, 2)
 					if flt(total_max_ot_hrs, 2) > flt(shifts[0].max_ot_hrs_day, 2):
 						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum overtime hours per day is {1} hours. You currently filed a total of {2} hours. \nDid not save").format(self.name, shifts[0].max_ot_hrs_day, total_max_ot_hrs))
+
+	def get_employeee_actual_logs(self):
+		#get_timelogs_reference
+		actual_logs = get_actual_logs(self.employee, getdate(self.target_date), getdate(self.target_date))
+		if actual_logs:
+			if actual_logs[0]["card_in"]:
+				self.actual_in = actual_logs[0]["card_in"]
+			else:
+				self.actual_in = None
+			if actual_logs[0]["card_out"]:
+				self.actual_out = actual_logs[0]["card_out"]
+			else:
+				self.actual_out = None
+		else:
+			self.actual_in = None
+			self.actual_out = None
 
 	def validate_duplicate_ot_application(self):
 		application = frappe.db.sql(""" SELECT `name`, to_date, to_time, from_date, from_time FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)

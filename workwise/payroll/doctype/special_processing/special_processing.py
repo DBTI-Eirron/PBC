@@ -10,19 +10,20 @@ from frappe.model.document import Document
 from workwise.payroll.annualization import create_annualization
 from workwise.payroll.payroll_utils import get_rates
 from workwise.payroll.payroll_utils import get_transaction_map
+from workwise.time_keeping.application_utils import validate_inactive_employee
 
 class SpecialProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT `name`, full_name, location, company, total_yr_days, rate_type, rate, payroll_schedule, min_take_home, cost_center, no_hours, 
-			sss_mode, sss_manual, sss_freq, phic_mode, phic_manual, phic_freq, hdmf_mode, hdmf_manual, hdmf_freq, whtax_mode, 
-			whtax_manual, whtax_freq, is_attendance_base, ignore_late, on_hold
-				FROM tabEmployee
-			WHERE company = %(company)s
-			AND payroll_schedule = %(pay_sched)s 
-			AND is_active = 1 
-			AND sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.location, TE.company, TE.total_yr_days, 
+			TE.rate_type, TE.rate, TE.payroll_schedule, TE.min_take_home, TE.cost_center, TE.no_hours, TE.sss_mode, TE.sss_manual, 
+			TE.sss_freq, TE.phic_mode, TE.phic_manual, TE.phic_freq, TE.hdmf_mode, TE.hdmf_manual, TE.hdmf_freq, TE.whtax_mode, 
+			TE.whtax_manual, TE.whtax_freq, TE.is_attendance_base, TE.ignore_late, TE.on_hold
+			FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+			WHERE TE.company = %(company)s
+			AND TE.payroll_schedule = %(pay_sched)s 
+			AND TE.is_active = 1 
 			{conditions}
-			ORDER BY last_name, first_name""".format( conditions=self.get_conditions() ),
+			ORDER BY TE.last_name, TE.first_name""".format( conditions=self.get_conditions() ),
 			({ 
 				"company": self.company,
 				"pay_sched": self.schedule,
@@ -35,16 +36,20 @@ class SpecialProcessing(Document):
 
 	def get_conditions(self):
 		conditions = []
+		if frappe.session.user != "Administrator":
+			conditions.append(_("TE.sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
+
 		if self.employee:
-			conditions.append("`name`=%(employee)s")
+			conditions.append("TE.`name`=%(employee)s")
 
 		if self.department:
-			conditions.append("department=%(department)s")
+			lft, rgt = frappe.db.get_value("Department", self.department, ["lft", "rgt"])
+			conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 
 		if self.location:
-			conditions.append("location=%(location)s")
+			conditions.append("TE.location=%(location)s")
 
-		return "and {}".format(" and ".join(conditions)) if conditions else ""
+		return "AND {}".format(" AND ".join(conditions)) if conditions else ""
 
 	def validate_period(self):
 		period_stats = frappe.db.get_value("Payroll Period", self.period, "status")
@@ -55,6 +60,8 @@ class SpecialProcessing(Document):
 			frappe.throw(_("Fill up Mandatory Fields"))
  
 	def process_special(self):
+		if self.employee:
+			validate_inactive_employee(self)
 		self.validate_period()
 		ss_list = []
 		entries = []

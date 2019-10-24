@@ -8,11 +8,27 @@ frappe.ui.form.on('Adjustment Processing', {
 		document.querySelectorAll("[data-fieldname='process']")[1].style.height ="30px";
 		document.querySelectorAll("[data-fieldname='process']")[1].style.width ="130px";
 		document.querySelectorAll("[data-fieldname='process']")[1].style.color ="white";
+	},
 
+	setup: function(frm) {
+		frm.add_fetch("period", "frequency", "frequency");
+		frm.add_fetch("period", "from_date", "period_from");
+		frm.add_fetch("period", "to_date", "period_to");
+		frm.add_fetch("period", "attendance_from", "attendance_from");
+		frm.add_fetch("period", "attendance_to", "attendance_to");
+		frm.add_fetch("period", "payroll_date", "payroll_date");	
+		frm.add_fetch("period", "schedule", "schedule");
+		frm.add_fetch("period", "payroll_year", "payroll_year");
+	},
+
+	refresh: function(frm) {
+		frm.disable_save();
+		
 		frm.set_query("employee", function() {
 			return {
 				"filters": {
 					"company": frm.doc.company,
+					"is_active": 1,
 				}
 			};
 		});
@@ -34,21 +50,6 @@ frappe.ui.form.on('Adjustment Processing', {
 				}
 			};
 		});
-	},
-
-	setup: function(frm) {
-		frm.add_fetch("period", "frequency", "frequency");
-		frm.add_fetch("period", "from_date", "period_from");
-		frm.add_fetch("period", "to_date", "period_to");
-		frm.add_fetch("period", "attendance_from", "attendance_from");
-		frm.add_fetch("period", "attendance_to", "attendance_to");
-		frm.add_fetch("period", "payroll_date", "payroll_date");	
-		frm.add_fetch("period", "schedule", "schedule");
-		frm.add_fetch("period", "payroll_year", "payroll_year");
-	},
-
-	refresh: function(frm) {
-		frm.disable_save();
 	},
 	
 	onload_post_render: function() {

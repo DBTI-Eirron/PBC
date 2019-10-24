@@ -4,27 +4,7 @@
 frappe.ui.form.on('Employee', {
 
 	onload: function(frm){
-		cur_frm.set_query("department", function() {
-			return {
-				"filters": {
-					"is_group": 0,
-				}
-			};
-		});
-		cur_frm.set_query("default_schedule", function() {
-			return {
-				"filters": {
-					"company": frm.doc.company,
-				}
-			};
-		});
-		cur_frm.set_query("reports_to", function() {
-			return {
-				"filters": {
-					"is_active": 1,
-				}
-			};
-		});
+
 	},
 
 	refresh: function(frm) {
@@ -52,10 +32,35 @@ frappe.ui.form.on('Employee', {
 		});
 
 		frappe.call({
-			method: "get_age",
+			method: "get_age_and_service_years",
 			doc: frm.doc,
 			callback: function(r) {
 				frm.refresh_fields();
+			}
+		});
+
+		cur_frm.set_query("default_schedule", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
+
+		cur_frm.set_query("reports_to", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
+
+		cur_frm.set_query("approver", "approvers", function(doc, cdt, cdn) {
+			var d = locals[cdt][cdn];
+			return{
+				filters: [
+					['Employee', 'is_active', '=', 1]
+				]
 			}
 		});
 	}

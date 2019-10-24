@@ -10,8 +10,6 @@ def execute(filters=None):
 	columns = get_columns(filters)
 	return columns, data
 
-
-
 def get_data(filters):
 	data = []
 	from_date,to_date = frappe.get_value('Payroll Period',filters.payroll_period,['attendance_from','attendance_to'])
@@ -62,18 +60,19 @@ def get_columns(filters):
 	return columns
 
 def get_employee(filters):
-	query = "SELECT `name`, `full_name` FROM `tabEmployee` WHERE docstatus = 0"
+	query = "SELECT TE.`name`, TE.`full_name` FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name` WHERE TE.docstatus = 0"
 	if filters.employee:
-		query = query + " AND `name` = '"+filters.employee+"'"
+		query = query + " AND TE.`name` = '"+filters.employee+"'"
 	else:
 		if filters.company:
-			query = query + " AND company = '"+filters.company+"'"
+			query = query + " AND TE.company = '"+filters.company+"'"
 		if filters.location:
-			query = query + " AND location = '"+filters.location+"'"
+			query = query + " AND TE.location = '"+filters.location+"'"
 		if filters.department:
-			query = query + " AND department = '"+filters.department+"'"
+			lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
+			query = query + " AND ( DEPT.`lft` BETWEEN '{0}' AND '{1}' )".format(lft, rgt)
 		if filters.position_title:
-			query = query + " AND position_title = '"+filters.position_title+"'"
+			query = query + " AND TE.position_title = '"+filters.position_title+"'"
 	employees = frappe.db.sql(query,as_dict=True)
 
 	return employees

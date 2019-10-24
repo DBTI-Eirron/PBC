@@ -64,7 +64,7 @@ class LeaveApplication(Document):
 			self.managers_list = send_to
 
 	def validate_schedule(self):
-		leave_code = frappe.get_value("Leave Type", self.leave_type, "leave_code")
+		leave_code, allow_rest_day = frappe.get_value("Leave Type", self.leave_type, ["leave_code", "allow_rest_day"])
 		for d in self.get('leave_application_table'):
 			if not d.is_excluded:
 				schedule = get_schedule(self.employee, d.leave_date, d.leave_date)
@@ -72,7 +72,7 @@ class LeaveApplication(Document):
 					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 					if shifts:
 						if shifts[0].is_restday > 0:
-							if not leave_code == 'BL':
+							if (not leave_code == 'BL') and (allow_rest_day != 1):
 								frappe.throw("Can't file leave on Restday Schedule")
 
 	def update_leave_credits(self):

@@ -18,23 +18,44 @@ class CompensatoryTimeOff(Document):
 		if self.is_new():
 			self.use_cto_table = None
 
-		validate_inactive_employee(self)
-		clear_approval_history(self)
-		grant_head_subordinate_access(self)
-		if self.type == "File":
-			self.validate_fields_file_cto()
-			self.validate_duplicate_file_cto()
-			self.validate_file_cto()
-			self.get_cto_workshift_file_setup()
-			self.validate_credits_earned()
-		if self.type == "Use":
-			self.validate_fields_use_cto()
-			self.validate_use_cto()
-			self.validate_date_use_cto()
-			self.validate_use_credits()
-			self.get_cto_workshift_use_setup()
-			self.validate_required_credits()
-		change_owner(self)
+		emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
+		if emp_app > 0:
+			if self.workflow_state != 'Rejected':
+				validate_inactive_employee(self)
+				clear_approval_history(self)
+				grant_head_subordinate_access(self)
+				if self.type == "File":
+					self.validate_fields_file_cto()
+					self.validate_duplicate_file_cto()
+					self.validate_file_cto()
+					self.get_cto_workshift_file_setup()
+					self.validate_credits_earned()
+				if self.type == "Use":
+					self.validate_fields_use_cto()
+					self.validate_use_cto()
+					self.validate_date_use_cto()
+					self.validate_use_credits()
+					self.get_cto_workshift_use_setup()
+					self.validate_required_credits()
+				change_owner(self)
+		else:
+			validate_inactive_employee(self)
+			clear_approval_history(self)
+			grant_head_subordinate_access(self)
+			if self.type == "File":
+				self.validate_fields_file_cto()
+				self.validate_duplicate_file_cto()
+				self.validate_file_cto()
+				self.get_cto_workshift_file_setup()
+				self.validate_credits_earned()
+			if self.type == "Use":
+				self.validate_fields_use_cto()
+				self.validate_use_cto()
+				self.validate_date_use_cto()
+				self.validate_use_credits()
+				self.get_cto_workshift_use_setup()
+				self.validate_required_credits()
+			change_owner(self)
 
 	def on_submit(self):
 		validate_approve_own_application(self)

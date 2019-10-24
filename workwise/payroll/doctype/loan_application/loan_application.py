@@ -10,9 +10,11 @@ from frappe import _
 from frappe.utils import cint, flt, getdate, cstr, nowdate
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
+from workwise.time_keeping.application_utils import validate_inactive_employee
 
 class LoanApplication(Document):
 	def validate(self):
+		validate_inactive_employee(self)
 		self.update_missing_names()
 		self.update_paid_unpaid()
 		self.validate_date()

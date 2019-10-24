@@ -7,6 +7,7 @@ import frappe, datetime
 from frappe import _
 from frappe.utils import cint, flt, getdate, cstr, nowdate, get_datetime, add_days, get_datetime_str, get_time
 from frappe.model.document import Document
+from workwise.time_keeping.attendance_utils import get_actual_logs
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, timediff_hrs
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
 change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
@@ -38,11 +39,13 @@ class OfficialBusinessApplication(Document):
 		get_cancelled_by_and_date(self)
 
 	def get_target_date(self):
-		for d in self.get('official_business_application_table'):
+		for d in self.official_business_application_table:
 			if d.is_previous == 1:
 				d.target_date = getdate(d.date) - datetime.timedelta(days=1)
 			else:
-				d.target_date = d.date
+				d.target_date = getdate(d.date)
+
+		self.get_employeee_actual_logs()
 
 	def get_recipients(self):
 		recipients = []
@@ -63,7 +66,7 @@ class OfficialBusinessApplication(Document):
 
 	def get_ob_hrs(self):
 		total_ob_time = 0
-		for d in self.get('official_business_application_table'):
+		for d in self.official_business_application_table:
 			total_hrs = 0
 			#if get_time(d.from_time) > get_time(d.to_time):
 			from_date = get_datetime(str(d.date)+" "+str(d.from_time))
@@ -76,6 +79,7 @@ class OfficialBusinessApplication(Document):
 				total_hrs = abs(((from_date - to_date).total_seconds()) / 60 /60)
 				total_ob_time += total_hrs
 				d.hrs = total_hrs
+
 		self.total_hrs = total_ob_time
 
 	def validate_date(self):
@@ -130,6 +134,24 @@ class OfficialBusinessApplication(Document):
 				row = self.append('official_business_application_table', {})
 				row.update(d)
 
+			self.get_employeee_actual_logs()
+
+	def get_employeee_actual_logs(self):
+		for d in self.official_business_application_table:
+			actual_logs = get_actual_logs(self.employee, d.target_date, d.target_date)
+			if actual_logs:
+				if actual_logs[0]["card_in"]:
+					d.actual_in = actual_logs[0]["card_in"]
+				else:
+					d.actual_in = None
+				if actual_logs[0]["card_out"]:
+					d.actual_out = actual_logs[0]["card_out"]
+				else:
+					d.actual_out = None
+			else:
+				d.actual_in = None
+				d.actual_out = None
+				
 	def change_time(self):
 		for d in self.get('official_business_application_table'):
 			#if d.from_time == "0:00:00" or d.from_time ==  "00:00:00":

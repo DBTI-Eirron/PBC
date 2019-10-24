@@ -7,10 +7,12 @@ import frappe
 from frappe import _
 from frappe.utils import nowdate, getdate
 from frappe.model.document import Document
-from workwise.time_keeping.application_utils import grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection
+from workwise.time_keeping.application_utils import (grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, 
+validate_reject_cancel_own_application, change_owner, get_levelled_approval, get_levelled_approval_rejection, validate_inactive_employee)
 
 class ChangeRequestApplication(Document):
 	def validate(self):
+		validate_inactive_employee(self)
 		self.get_request()
 		self.validate_item_format()
 		grant_head_subordinate_access(self)
