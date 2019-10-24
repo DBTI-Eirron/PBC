@@ -30,13 +30,14 @@ class WorkSuspension(Document):
 		self.suspension_end = suspension_end
 
 	def get_employees(self):
-		query = "SELECT `name`, `full_name`, `is_active` FROM `tabEmployee` WHERE is_active = 1"
+		query = "SELECT TE.`name`, TE.`full_name`, TE.`is_active` FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name` WHERE TE.is_active = 1"
 		if self.company:
-			query = query + " AND company = '"+self.company+"'"
+			query = query + " AND TE.company = '"+self.company+"'"
 		if self.location:
-			query = query + " AND location = '"+self.location+"'"
+			query = query + " AND TE.location = '"+self.location+"'"
 		if self.department:
-			query = query + " AND department = '"+self.department+"'"
+			lft, rgt = frappe.db.get_value("Department", self.department, ["lft", "rgt"])
+			query = query + " AND ( DEPT.`lft` BETWEEN '{0}' AND '{1}' ) ".format(lft, rgt)
 
 		employees = frappe.db.sql(query,as_dict=True)
 		entries	= []

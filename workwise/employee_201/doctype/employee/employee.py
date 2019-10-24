@@ -44,7 +44,7 @@ class Employee(Document):
 	def validate(self):
 		self.update_fullname()
 		self.validate_date()
-		self.get_age()
+		self.get_age_and_service_years()
 		self.validate_spouse()
 		self.validate_biometric_id()
 		self.validate_period_group()
@@ -57,6 +57,7 @@ class Employee(Document):
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
 			self.employee_to_subordinate()
+		self.update_approver()
 
 	def after_insert(self):
 		self.employee_to_subordinate()
@@ -216,17 +217,34 @@ class Employee(Document):
 			if emp.is_qualified_dependent == 1:
 				emp.is_dependent = 1
 
-	def get_age(self):
+	def get_age_and_service_years(self):
+		#Get Age
 		today = date.today()
 		bday = getdate(self.birthday)
 		age = today.year - bday.year - ((today.month, today.day) < (bday.month, bday.day))
 		self.age = age
+
+		#Get Years in Service
+		dte_hired = getdate(self.date_hired)
+		serv_date = date.today()
+		if self.date_retired:
+			serv_date = getdate(self.date_retired)
+		if self.date_resigned:
+			serv_date = getdate(self.date_resigned)
+		if self.date_terminated:
+			serv_date = getdate(self.date_terminated)
+		yrs_in_serv = serv_date.year - dte_hired.year - ((serv_date.month, serv_date.day) < (dte_hired.month, dte_hired.day))
+		self.years_in_service = yrs_in_serv
 
 	def validate_employee_approvers(self):
 		unique_emp = []
 		unique_entries = []
 
 		for d in self.get("approvers"):
+			is_active = frappe.get_value("Employee", d.approver, "is_active")
+			if not is_active:
+				frappe.throw(_("Approver {0}: {1} is not active").format(d.approver, d.approver_name))
+
 			if str(d.approver+d.application+d.level) not in unique_emp:
 				unique_emp.append(str(d.approver+d.application+d.level));
 
@@ -299,3 +317,6 @@ class Employee(Document):
 				empsub_new_doc.insert()
 				empsub_new_doc.save()
 				frappe.db.commit()
+
+	def update_approver(self):
+		update = frappe.db.sql("UPDATE `tabEmployee Approvers` SET approver_name = %s WHERE approver = %s",(self.full_name,self.name))

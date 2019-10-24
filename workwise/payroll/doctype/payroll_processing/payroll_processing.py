@@ -11,6 +11,7 @@ from frappe.model.document import Document
 from workwise.payroll.payroll_utils import get_adjustment_settings, get_rates, get_sss_table, get_sss_amount, get_hdmf_table, get_hdmf_amount
 from workwise.payroll.weekly_utils import get_weekly_prev_map, get_weekly_basis
 from workwise.payroll.loans_utils import get_loans_map, get_employee_loan, update_loans
+from workwise.time_keeping.application_utils import validate_inactive_employee
 
 class PayrollProcessing(Document):
 	def get_employees(self):
@@ -72,6 +73,8 @@ class PayrollProcessing(Document):
 			frappe.throw(_("Period Group is required for Payroll Period {0}").format(self.period))
 
 	def process_payroll(self):
+		if self.employee:
+			validate_inactive_employee(self)
 		weekly_set = frappe.db.get_value("Payroll Period", self.period, "weekly_set")
 		self.validate_period(weekly_set)
 		

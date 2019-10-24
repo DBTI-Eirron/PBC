@@ -52,17 +52,24 @@ frappe.query_reports["Attendance Summary Processed"] = {
 			"options": "Employee",
 			"get_query": function() {
 				var company = frappe.query_report_filters_by_name.company.get_value();
-				return{
-					filters: {
-						'company': company,
-					}
-				};
+				var show_active = frappe.query_report_filters_by_name.show_active.get_value();
+				var filters_list = {'company': company};
+				if (show_active){
+					filters_list['is_active'] = '1';
+				}
+				return{filters: filters_list};
 			},
 		},
 		{
 			"fieldname": "show_break",
 			"label": __("Show Break Time"),
 			"fieldtype": "Check",
+		},
+		{
+			"fieldname": "show_active",
+			"label": __("Show Active"),
+			"fieldtype": "Check",
+			"default": "1",
 		},
 		{
 			"fieldname": "ignore_payroll_schedule",

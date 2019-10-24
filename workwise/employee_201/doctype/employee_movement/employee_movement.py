@@ -7,8 +7,9 @@ import frappe
 from frappe import _
 #from workwise.utils.employee_utils import set_employee_name
 from frappe import throw
-from frappe.utils import getdate, today, cstr
+from frappe.utils import getdate, today, cstr, flt
 from frappe.model.document import Document
+from workwise.payroll.payroll_utils import format_decimal_by_2
 
 class EmployeeMovement(Document):
 	def validate(self):
@@ -19,6 +20,13 @@ class EmployeeMovement(Document):
 
 	def on_cancel(self):
 		self.revert_movement()
+
+	def get_employee_details(self):
+		emp = frappe.get_doc("Employee", self.employee)
+		self.current_rate = format_decimal_by_2(emp.rate)
+		self.new_rate = format_decimal_by_2(emp.rate)
+		self.current_minimum_take_home = format_decimal_by_2(emp.min_take_home)
+		self.new_minimum_take_home = format_decimal_by_2(emp.min_take_home)
 	
 	def validate_movement(self):
 		movement_type = "cmd_"+cstr(self.movement_type.replace(" ", "_").lower())
@@ -118,9 +126,7 @@ class EmployeeMovement(Document):
 			self.revert_employee(emp)
 
 	def cmd_regularization(self, process):
-		if process == "validate":
-			fields = ["regularization_type"]
-			self.validate_fields(fields)
+		if process == "validate":			
 			self.cmd_salary_adjustment(process=process)
 
 		elif process == "update":
@@ -197,8 +203,8 @@ class EmployeeMovement(Document):
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
 					"rate_type": self.new_rate_type,
-					"rate": self.new_rate,
-					"min_take_home": self.new_minimum_take_home if self.new_minimum_take_home else self.current_minimum_take_home,
+					"rate": flt(self.new_rate, 2),
+					"min_take_home": flt(self.new_minimum_take_home, 2) if self.new_minimum_take_home else flt(self.current_minimum_take_home, 2),
 					"is_attendance_base": self.new_attendance_base if self.new_attendance_base else self.current_attendance_base,
 				})
 			self.save_employee(emp)
@@ -207,8 +213,8 @@ class EmployeeMovement(Document):
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
 					"rate_type": self.current_rate_type,
-					"rate": self.current_rate,
-					"min_take_home": self.current_minimum_take_home,
+					"rate": flt(self.current_rate, 2),
+					"min_take_home": flt(self.current_minimum_take_home, 2),
 					"is_attendance_base": self.current_attendance_base,
 				})
 			self.revert_employee(emp)
@@ -224,6 +230,8 @@ class EmployeeMovement(Document):
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
 					"end_of_contract": self.new_end_of_contract,
+					"date_hired": self.new_date_hired,
+					"employment_status": self.new_employment_status,
 				})
 			self.save_employee(emp)
 
@@ -231,6 +239,27 @@ class EmployeeMovement(Document):
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
 					"end_of_contract": self.current_end_of_contract,
+					"date_hired": self.current_date_hired,
+					"employment_status": self.employment_status,
+				})
+			self.revert_employee(emp)
+
+	def cmd_end_of_contract(self, process):
+		if process == "validate":
+			fields = ["end_of_contract_due_to"]
+			self.validate_fields(fields)
+
+		elif process == "update":
+			emp = frappe.get_doc("Employee", self.employee)
+			emp.update({
+					"is_active": 0,
+				})
+			self.save_employee(emp)
+
+		elif process == "revert":
+			emp = frappe.get_doc("Employee", self.employee)
+			emp.update({
+					"is_active": 1,
 				})
 			self.revert_employee(emp)
 

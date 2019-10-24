@@ -12,9 +12,12 @@ def empget_employees(filter_type, filter_value, company):
 		}, as_dict=True)
 	
 	elif filter_type == 'Department':
-		employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE is_active = 1 AND company = %(company)s  AND department = %(filter_value)s ORDER BY last_name, first_name""",{ 
+		lft, rgt = frappe.db.get_value("Department", filter_value, ["lft", "rgt"])
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.`full_name` FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name` WHERE TE.is_active = 1 AND TE.company = %(company)s AND ( DEPT.`lft` BETWEEN %(lft)s AND %(rgt)s ) ORDER BY TE.last_name, TE.first_name""",{ 
 			"company": company,
 			"filter_value": filter_value,
+			"lft": lft,
+			"rgt": rgt,
 		}, as_dict=True)
 	
 	elif filter_type == 'Location':

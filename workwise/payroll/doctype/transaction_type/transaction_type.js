@@ -13,6 +13,22 @@ frappe.ui.form.on('Transaction Type', {
 	},
 
 	refresh: function(frm) {
+		cur_frm.set_query("debit_account", "accounts", function(doc, cdt, cdn) {
+			var d = locals[cdt][cdn];
+			return{
+				"filters": {
+					"company": d.company,
+				}
+			}
+		});
 
+		cur_frm.set_query("credit_account", "accounts", function(doc, cdt, cdn) {
+			var d = locals[cdt][cdn];
+			return{
+				"filters": {
+					"company": d.company,
+				}
+			}
+		});
 	},
 });

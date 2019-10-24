@@ -1,0 +1,23 @@
+{
+ "add_total_row": 0, 
+ "apply_user_permissions": 1, 
+ "creation": "2019-10-18 11:02:56.800477", 
+ "disabled": 0, 
+ "docstatus": 0, 
+ "doctype": "Report", 
+ "idx": 0, 
+ "is_standard": "Yes", 
+ "modified": "2019-10-18 11:06:41.271237", 
+ "modified_by": "Administrator", 
+ "module": "Payroll", 
+ "name": "13th Month Pay Projection", 
+ "owner": "Administrator", 
+ "ref_doctype": "Payroll Register", 
+ "report_name": "13th Month Pay Projection", 
+ "report_type": "Script Report", 
+ "roles": [
+  {
+   "role": "Payroll Manager"
+  }
+ ]
+}

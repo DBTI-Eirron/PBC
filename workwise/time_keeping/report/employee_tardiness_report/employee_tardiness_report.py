@@ -138,20 +138,22 @@ def get_data(filters):
 	return data
 
 def get_employees(filters):
-	register = frappe.db.sql("""SELECT DISTINCT `name`, full_name FROM `tabEmployee` 
-		WHERE is_active = 1 AND employment_status != 'Retired' AND company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
+	register = frappe.db.sql("""SELECT DISTINCT TE.`name`, TE.full_name FROM `tabEmployee` TE
+		INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+		WHERE TE.is_active = 1 AND TE.employment_status != 'Retired' AND TE.company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	return register
 
 def get_conditions(filters):
 	conditions = []
 	if filters.get("employee"):
-		conditions.append("`name`=%(employee)s")
+		conditions.append("TE.`name`=%(employee)s")
 
 	if filters.get("department"):
-		conditions.append("department=%(department)s")
+		lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
+		conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 
-	return "and {}".format(" and ".join(conditions)) if conditions else "" 
+	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 def get_result_as_list(data, filters):
 	result = []

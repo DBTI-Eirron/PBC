@@ -4,7 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, flt, nowdate
+from frappe.utils import cint, flt, nowdate, cstr
 from frappe import _, msgprint
 from frappe.model.document import Document
 from frappe.model.mapper import get_mapped_doc
@@ -14,8 +14,21 @@ class LearningEvent(Document):
 		self.validate_duplicate_entry()
 
 	def before_submit(self):
-		self.create_evaluation_entries()
-		self.create_session_evaluation_entries()
+		pass
+		#self.sort_attendance_data()
+		#self.create_evaluation_entries()
+		#self.create_session_evaluation_entries()
+
+	def sort_attendance_data(self):		
+		att_data = {}
+		attn_data[self.learning_program] = None
+
+		for s in self.session:
+			att_data[s.session] = None
+
+		attn_data = str(att_data)
+		for par in self.participants:
+			par.attendance_data = attn_data
 
 	def create_evaluation_entries(self):
 		existing_employees = []
@@ -124,14 +137,15 @@ class LearningEvent(Document):
 		unique_entries = []
 
 		for d in self.get("participants"):
-			if str(d.employee+d.employee_name) not in unique_ent:
-				unique_ent.append(str(d.employee+d.employee_name));
+			if cstr(d.employee+d.employee_name) not in unique_ent:
+				unique_ent.append(cstr(d.employee+d.employee_name));
 				ent = { 
-					"employee": d.employee,
-					"employee_name": d.employee_name,
+					"employee": cstr(d.employee),
+					"employee_name": cstr(d.employee_name),
 					"company": d.company,
 					"department": d.department,
 					"status": d.status,
+					"attendance_data": cstr(d.attendance_data),
 				}
 				unique_entries.append(ent);
 
@@ -172,7 +186,9 @@ def update_status(source_name, target_doc=None):
 				"employee": d.employee,
 				"employee_name": d.employee_name,
 				"company": d.company,
-				"old_status": d.status,
+				"old_status": "",
+				"row_name": d.name,
+				"attendance_data": d.attendance_data,
 			}
 			entries.append(ent)
 

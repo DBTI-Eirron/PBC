@@ -6,6 +6,7 @@ import frappe, datetime, dateutil
 from datetime import date  
 from frappe.utils import cint, flt, getdate, cstr
 from frappe import _
+from workwise.payroll.payroll_utils import format_decimal_by_2
 
 def execute(filters=None):
 	
@@ -177,7 +178,7 @@ def get_result_as_list(data, filters):
 					"birth_place": d.get("birth_place"),
 					"gender": d.get("gender"),
 					"civil_status": d.get("civil_status"),
-					"rate": d.get("rate"),
+					"rate": format_decimal_by_2(d.get("rate")),
 					"sss_no": d.get("sss_no"),
 					"hdmf_no": d.get("hdmf_no"),
 					"tin": d.get("tin"),
@@ -212,7 +213,7 @@ def get_result_as_list(data, filters):
 				"birth_place": d.get("birth_place"),
 				"gender": d.get("gender"),
 				"civil_status": d.get("civil_status"),
-				"rate": d.get("rate"),
+				"rate": format_decimal_by_2(d.get("rate")),
 				"sss_no": d.get("sss_no"),
 				"hdmf_no": d.get("hdmf_no"),
 				"tin": d.get("tin"),

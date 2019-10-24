@@ -12,6 +12,14 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Special Processing",
+				},
+				{
+					"type": "doctype",
+					"name": "Adjustment Processing",
+				},
+				{
+					"type": "doctype",
 					"name": "Loan Application",
 				},
 				{
@@ -153,6 +161,31 @@ def get_data():
 					"name": "Hold Salaries Report",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Payroll Summary Report Per Company",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Payroll Summary Report Per Work Location",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Payroll Summary Report per Payment Mode",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Corporate Payroll Summary",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Adjustment Report",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
 				},
 			],
 		},
@@ -280,15 +313,7 @@ def get_data():
 		},		
 		{
 			"label": _("Tools"),
-			"items": [
-				{
-					"type": "doctype",
-					"name": "Special Processing",
-				},
-				{
-					"type": "doctype",
-					"name": "Adjustment Processing",
-				},							
+			"items": [							
 				{
 					"type": "doctype",
 					"name": "Statement of Account",
@@ -301,6 +326,11 @@ def get_data():
 					"type": "doctype",
 					"name": "Payroll Register",
 					"label": "Payroll Registers",
+				},
+				{
+					"type": "doctype",
+					"name": "Payroll Register Upload",
+					"label": "Payroll Register Uploader",
 				},
 			]
 		},

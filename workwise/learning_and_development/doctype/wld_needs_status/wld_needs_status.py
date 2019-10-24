@@ -8,7 +8,7 @@ from frappe import _
 from frappe.model.document import Document
 
 class WLDNeedsStatus(Document):
-	def validate(self):
+	def on_submit(self):
 		for d in self.get('status_table'):
 			if d.new_status:
 				frappe.db.sql("""UPDATE `tabWLD Needs Table` SET `status` = %s WHERE `parent` = %s AND `employee` = %s AND `training` = %s """,( d.new_status, self.wld_needs_id, d.employee, d.training ), as_dict=True )

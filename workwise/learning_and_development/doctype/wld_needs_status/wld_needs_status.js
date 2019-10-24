@@ -4,5 +4,9 @@
 frappe.ui.form.on('WLD Needs Status', {
 	refresh: function(frm) {
 
-	}
+	},
+
+	on_submit: function(frm) {
+		frappe.set_route('Form', 'WLD Needs', frm.doc.wld_needs_id);
+	},
 });
