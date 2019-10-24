@@ -1529,7 +1529,7 @@ def get_sorted_card(entry, cards_in, cards_out):
 
 def get_timecard_list(bio, pay_from, pay_to):
 	timecard_list = frappe.db.sql("""SELECT TIMESTAMP(date, time) as card_datetime, card_type, `name`, `time` FROM `tabTime Card` 
-		WHERE is_disable = 0 AND biometrics_id = %(bio)s AND date >= %(from_date)s AND date <= %(to_date)s
+		WHERE is_disabled = 0 AND biometrics_id = %(bio)s AND date >= %(from_date)s AND date <= %(to_date)s
 		ORDER BY date, time """,{
 			"bio": bio,
 			"from_date": pay_from,
