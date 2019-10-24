@@ -244,6 +244,25 @@ class EmployeeMovement(Document):
 				})
 			self.revert_employee(emp)
 
+	def cmd_end_of_contract(self, process):
+		if process == "validate":
+			fields = ["end_of_contract_due_to"]
+			self.validate_fields(fields)
+
+		elif process == "update":
+			emp = frappe.get_doc("Employee", self.employee)
+			emp.update({
+					"is_active": 0,
+				})
+			self.save_employee(emp)
+
+		elif process == "revert":
+			emp = frappe.get_doc("Employee", self.employee)
+			emp.update({
+					"is_active": 1,
+				})
+			self.revert_employee(emp)
+
 	def save_employee(self, emp):
 		if emp.save():
 			self.is_processed = 1
