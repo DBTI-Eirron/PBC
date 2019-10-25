@@ -18,7 +18,7 @@ class SpecialProcessing(Document):
 			TE.rate_type, TE.rate, TE.payroll_schedule, TE.min_take_home, TE.cost_center, TE.no_hours, TE.sss_mode, TE.sss_manual, 
 			TE.sss_freq, TE.phic_mode, TE.phic_manual, TE.phic_freq, TE.hdmf_mode, TE.hdmf_manual, TE.hdmf_freq, TE.whtax_mode, 
 			TE.whtax_manual, TE.whtax_freq, TE.is_attendance_base, TE.ignore_late, TE.on_hold
-			FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+			FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 			WHERE TE.company = %(company)s
 			AND TE.payroll_schedule = %(pay_sched)s 
 			AND TE.is_active = 1 
@@ -99,7 +99,10 @@ class SpecialProcessing(Document):
 		return self.create_log(ss_list)
 
 	def bonus_pay(self, header, entries):
-		header['transaction_type'] = frappe.db.get_single_value("Payroll Settings", "bonus_transaction") 
+		bonus_transaction = frappe.db.get_single_value("Payroll Settings", "bonus_transaction") 
+		if not bonus_transaction:
+			frappe.throw(_("No Default Bonus Transaction Type"))
+		header['transaction_type'] = bonus_transaction
 		header['remarks'] = ("13th month pay for year {0}").format(self.payroll_year)
 
 		bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method") 

@@ -255,7 +255,7 @@ def delta_to_time(delta_obj):
 
 def get_employees(filters):
 	register = frappe.db.sql("""SELECT TE.`name`, TE.`full_name`, TE.`default_schedule` FROM `tabEmployee` TE
-		INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+		LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 		WHERE TE.is_active = 1 AND TE.company = %(company)s {conditions} ORDER BY TE.full_name """.format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	return register

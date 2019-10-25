@@ -215,7 +215,7 @@ def get_data(filters):
 
 def init_employee_map(filters, pay_from, pay_to, schedule):
 	employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.company, TE.`department`, DEPT.`lft` FROM `tabEmployee` TE
-		INNER JOIN `tabDepartment` DEPT ON TE.`department` = DEPT.`name`
+		LEFT JOIN `tabDepartment` DEPT ON TE.`department` = DEPT.`name`
 		WHERE TE.company = %(company)s {conditions} ORDER BY TE.full_name""".format(conditions=get_conditions(filters, schedule)), filters, as_dict=1)
 
 	emp_map = frappe._dict()

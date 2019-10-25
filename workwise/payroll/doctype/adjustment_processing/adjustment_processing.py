@@ -20,7 +20,7 @@ class AdjustmentProcessing(Document):
 			TE.payroll_schedule, TE.min_take_home, TE.mth_percentage, TE.cost_center, TE.no_hours, TE.sss_mode, TE.sss_manual, TE.sss_freq, 
 			TE.phic_mode, TE.phic_manual, TE.phic_freq, TE.hdmf_mode, TE.hdmf_manual, TE.hdmf_freq, TE.whtax_mode, TE.whtax_manual, TE.whtax_freq, 
 			TE.is_attendance_base, TE.ignore_late, TE.ignore_ut, TE.on_hold, TE.sensitivity, TE.default_schedule, TE.biometrics_id
-			FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+			FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 			WHERE TE.company = %(company)s
 			AND TE.payroll_schedule = %(pay_sched)s 
 			AND TE.is_active = 1

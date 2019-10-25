@@ -139,7 +139,7 @@ def get_data(filters):
 
 def get_employees(filters):
 	register = frappe.db.sql("""SELECT DISTINCT TE.`name`, TE.full_name FROM `tabEmployee` TE
-		INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+		LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 		WHERE TE.is_active = 1 AND TE.employment_status != 'Retired' AND TE.company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	return register

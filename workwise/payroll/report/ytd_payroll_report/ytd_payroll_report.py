@@ -71,7 +71,7 @@ def get_columns(employee_list, months):
 
 def get_employees(filters):
 	employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.first_name, TE.middle_name, TE.last_name, TE.sensitivity
-	 	FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+	 	FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 		WHERE TE.company = %(company)s {conditions} ORDER BY TE.full_name """.format(conditions=get_conditions(filters)), { 
 			"company": filters.company,
 			"employee": filters.employee,

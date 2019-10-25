@@ -185,7 +185,7 @@ def get_columns(income_types, deduction_types):
 def get_employees(filters, department):
 	employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
 	FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-	INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+	LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 	WHERE PR.period = %(period)s
 	AND PR.on_hold = 0
 	AND TE.company = %(company)s

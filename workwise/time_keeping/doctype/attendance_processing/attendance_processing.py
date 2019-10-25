@@ -18,7 +18,7 @@ class AttendanceProcessing(Document):
 		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.biometrics_id, TE.company, TE.location, TE.is_attendance_base, 
 			TE.no_hours, TE.rate_type, TE.default_schedule, TE.department, DEPT.`lft`
 			FROM `tabEmployee` TE
-			INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+			LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 			WHERE TE.company = %(company)s 
 			AND TE.payroll_schedule = %(schedule)s {conditions}
 			AND TE.is_active = 1 ORDER BY TE.`full_name` """.format(conditions=self.get_employee_conditions()),{ 

@@ -79,7 +79,7 @@ def get_data(filters):
 def get_employees(filters, att_to, att_from):
 	register = frappe.db.sql(""" SELECT AR.`target_date`, TE.`full_name`, AR.`employee`, AR.`is_halfday` FROM `tabAttendance Register` AR 
 		INNER JOIN `tabEmployee` TE ON AR.`employee` = TE.`name`
-		INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+		LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 		WHERE TE.`is_attendance_base` = 1 AND (AR.is_absent > 0 OR AR.is_lwop > 0) AND AR.target_date >= %(date_to)s AND AR.target_date <= %(date_from)s 
 		{conditions} GROUP BY AR.`name` ORDER BY AR.`target_date` """.format(conditions=get_conditions(filters)),{
 		"date_to": getdate(att_to),
