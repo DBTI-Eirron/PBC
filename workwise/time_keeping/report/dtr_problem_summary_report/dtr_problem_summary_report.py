@@ -60,7 +60,7 @@ def get_columns(filters):
 	return columns
 
 def get_employee(filters):
-	query = "SELECT TE.`name`, TE.`full_name` FROM `tabEmployee` TE INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name` WHERE TE.docstatus = 0"
+	query = "SELECT TE.`name`, TE.`full_name` FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name` WHERE TE.docstatus = 0"
 	if filters.employee:
 		query = query + " AND TE.`name` = '"+filters.employee+"'"
 	else:

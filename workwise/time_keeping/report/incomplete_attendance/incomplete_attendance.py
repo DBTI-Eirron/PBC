@@ -67,7 +67,7 @@ def get_result(filters):
 def get_register(filters, pay_from, pay_to):
 	register = frappe.db.sql("""SELECT AR.target_date, AR.work_shift, AR.card_in, AR.card_out, AR.employee, TE.full_name, AR.is_absent, AR.late, AR.undertime
 		FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.`employee` = TE.`name`
-		INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+		LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 		WHERE AR.target_date >= %(from_date)s AND AR.target_date <= %(to_date)s {conditions}
 		ORDER BY TE.full_name, AR.target_date ASC""".format(conditions=get_conditions(filters)),{
 			"from_date": pay_from,
