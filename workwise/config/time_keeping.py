@@ -97,6 +97,10 @@ def get_data():
 					"type": "doctype",
 					"name": "Timelogs Override",
 				},
+				{
+					"type": "doctype",
+					"name": "Attendance Processing Logs",
+				},
 			]
 		},
 		{
