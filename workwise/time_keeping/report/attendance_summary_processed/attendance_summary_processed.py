@@ -126,6 +126,12 @@ def get_columns(filters):
 		},
 	]
 
+	if filters.flt_precision:
+		precision_fields = ["work","break","late","overtime","overtime_ex","overtime_nd","nightdiff","cto","undertime"]
+		for d in columns:
+			if d.get('fieldname') in precision_fields:
+				d['precision'] = cint(filters.flt_precision)
+
 	return columns
 
 def get_result(filters):
