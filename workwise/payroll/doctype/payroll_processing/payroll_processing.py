@@ -629,7 +629,7 @@ class PayrollProcessing(Document):
 
 					if d.get("pay_code") == "HDMF" or d.get("pay_code") == "HDMFM":
 						self.calculate_special_header(d, header, tr_map)
-			elif header.get('govt_use_old'):
+			elif header.get('govt_use_old') and emp['hdmf_mode'] != "None":
 				hdmf_register = []
 				hdmf_list = ["hdmf","hdmfe","hdmfm"]
 				hdmf, hdmfe, hdmfm = 0, 0, 0
