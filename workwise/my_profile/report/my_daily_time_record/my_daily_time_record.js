@@ -56,6 +56,12 @@ frappe.query_reports["My Daily Time Record"] = {
 			"fieldname": "show_adjusted",
 			"label": __("Show Adjusted"),
 			"fieldtype": "Check",
-		}
+		},
+		{
+			"fieldname": "flt_precision",
+			"label": __("Float Precision"),
+			"fieldtype": "Int",
+			"default": 4,
+		},
 	]
 }

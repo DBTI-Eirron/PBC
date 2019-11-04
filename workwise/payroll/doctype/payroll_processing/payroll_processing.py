@@ -101,6 +101,8 @@ class PayrollProcessing(Document):
 		hdmf_strm = frappe.db.get_single_value('Payroll Settings', 'hdmf_strm')
 		whtax_persemi = frappe.db.get_single_value('Payroll Settings', 'whtax_persemi')
 		ignore_nd = frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd')
+		govt_use_old = frappe.db.get_single_value('Payroll Settings', 'govt_use_old')
+
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
 		if self.schedule == "Weekly":
@@ -188,10 +190,11 @@ class PayrollProcessing(Document):
 						'phic_mo_basis': phic_mo_basis,
 						'hdmf_strm': hdmf_strm,
 						'ignore_nd': ignore_nd,
-						'whtax_persemi' : whtax_persemi,
+						'whtax_persemi': whtax_persemi,
+						'govt_use_old': govt_use_old,
 						'no_attendance': 0,
 					}
-
+					
 					#Calculate Rates and Previous Entries
 					rates = get_rates(emp)
 					self.get_previous(emp, header)
@@ -391,6 +394,23 @@ class PayrollProcessing(Document):
 							amt = flt(eval(l), 8)
 
 						sss_register.append({"pay_code": l.upper(), "amount": amt })
+
+				elif header.get("govt_use_old"):
+					if emp.get('sss_freq') == '2nd':
+						if emp.get('payroll_schedule') == "Semi-Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_sss_inc'), 8)) - flt(header.get('prev_sss_ded'), 8)
+						
+						elif emp.get('payroll_schedule') == "Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('sss_inc'), 8)) - flt(header.get('sss_ded'), 8)
+
+					elif emp.get('sss_freq') == 'Both' or emp.get('sss_freq') == '1st':
+						target_amt = (rates.get('monthly_rate') + flt(header.get('sss_inc'), 8)) - flt(header.get('sss_ded'), 8)
+
+					sss, ssse, sssc = get_sss_amount(flt(target_amt, 2), sss_table)
+					for l in sss_list:
+						amt = flt(eval(l), 8) / 2 if emp.get('sss_freq') == "Both" else flt(eval(l), 8)
+						sss_register.append({"pay_code": l.upper(), "amount": amt })		
+
 				else:
 					if self.schedule == "Weekly":
 						if emp.get('sss_mode') == "ME Table":
@@ -463,85 +483,113 @@ class PayrollProcessing(Document):
 				mode = emp.get('phic_mode')
 				target_amt = 0
 
-				if self.schedule == "Weekly":
-					if emp.get('phic_mode') == "ME Table":
-						if emp.get('phic_freq') == 'Both':
-							if cint(header.get("no_weeks")) == cint(5):
-								if self.frequency in ["2nd", "5th"]:
-									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-								else:
-									target_amt = 0
-									
-							elif cint(header.get("no_weeks")) == cint(4):
-								if self.frequency in ["2nd", "4th"]:
-									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-								else:
-									target_amt = 0
-					else:
-						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
+				if header.get('govt_use_old'):
+					if emp.get('phic_freq') == '2nd':
+						if emp.get('payroll_schedule') == "Semi-Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_phic_inc'), 8)) - flt(header.get('prev_phic_ded'), 8)
+						elif emp.get('payroll_schedule') == "Monthly":
+							target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8)
+
+					elif emp.get('phic_freq') == 'Both' or emp.get('phic_freq') == '1st':
+						target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8)
+
+					if mode != "None":
+						phic, phice = 0, 0
+						if target_amt < 10000:
+							phic = manual if mode == "Manual" and manual > 137.50 else 137.50
+							phice = 137.50
+						elif target_amt > 39999.99:
+							phic = manual if mode == "Manual" and manual > 550.00 else 550.00
+							phice = 550.00
+						else:
+							percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
+							phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
+							phice = percent_rate 
+						
+						for l in phic_list:
+							amt = flt(eval(l), 8) / 2 if emp.get('phic_freq') == "Both" else flt(eval(l), 8)
+							phic_register.append({"pay_code": l.upper(), "amount": amt })
 
 				else:
-					if header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('phic_freq') == 'Both':
-						target_amt = rates.get('monthly_rate')
+					if self.schedule == "Weekly":
+						if emp.get('phic_mode') == "ME Table":
+							if emp.get('phic_freq') == 'Both':
+								if cint(header.get("no_weeks")) == cint(5):
+									if self.frequency in ["2nd", "5th"]:
+										target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+									else:
+										target_amt = 0
+										
+								elif cint(header.get("no_weeks")) == cint(4):
+									if self.frequency in ["2nd", "4th"]:
+										target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+									else:
+										target_amt = 0
+						else:
+							target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(header.get('government_basis'), 8) )
 
-					elif emp.get('phic_mode') == "ME Table":
-						target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-						
 					else:
-						if emp.get('phic_freq') == '1st':
-							target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
+						if header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('phic_freq') == 'Both':
+							target_amt = rates.get('monthly_rate')
 
-						elif emp.get('phic_freq') == '2nd':
-							if emp.get('payroll_schedule') == "Semi-Monthly":
-								if header.get('prev_monthly_rate') != rates.get('monthly_rate') and header.get('prev_monthly_basis') > 0:
-									target_amt = rates.get('monthly_rate') / 2 + \
-										(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))							
-								else:
-									target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
-										(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
-								
-							elif emp.get('payroll_schedule') == "Monthly":
+						elif emp.get('phic_mode') == "ME Table":
+							target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+							
+						else:
+							if emp.get('phic_freq') == '1st':
 								target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
 
-						elif emp.get('phic_freq') == 'Both':
-							target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
-								(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
-				
-				if mode != "None" and target_amt:
-					phic, phice = 0, 0
-					if target_amt < 10000:
-						phic = manual if mode == "Manual" and manual > 137.50 else 137.50
-						phice = 137.50
-					elif target_amt > 39999.99:
-						phic = manual if mode == "Manual" and manual > 550.00 else 550.00
-						phice = 550.00
-					else:
-						percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
-						phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
-						phice = percent_rate 
+							elif emp.get('phic_freq') == '2nd':
+								if emp.get('payroll_schedule') == "Semi-Monthly":
+									if header.get('prev_monthly_rate') != rates.get('monthly_rate') and header.get('prev_monthly_basis') > 0:
+										target_amt = rates.get('monthly_rate') / 2 + \
+											(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))							
+									else:
+										target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
+											(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
+									
+								elif emp.get('payroll_schedule') == "Monthly":
+									target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
+
+							elif emp.get('phic_freq') == 'Both':
+								target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
+									(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
 					
-					for l in phic_list:
-						if emp.get('phic_mode') == "ME Table" and self.schedule != "Weekly":
-							if emp.get('phic_freq') == "Both":
-								amt = flt(eval(l), 8) / 2
-							else:
-								amt = flt(eval(l), 8)
+					if mode != "None" and target_amt:
+						phic, phice = 0, 0
+						if target_amt < 10000:
+							phic = manual if mode == "Manual" and manual > 137.50 else 137.50
+							phice = 137.50
+						elif target_amt > 39999.99:
+							phic = manual if mode == "Manual" and manual > 550.00 else 550.00
+							phice = 550.00
 						else:
-							if emp.get('phic_freq') == "Both" and self.schedule == "Weekly":
-								amt = flt(eval(l), 8) / 2
-							elif emp.get('phic_freq') == "All" and self.schedule == "Weekly":
-								amt = flt(eval(l), 8) / 4
-							elif emp.get('phic_freq') == "Both" and header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly":
-								amt = flt(eval(l), 8) / 2
+							percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
+							phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
+							phice = percent_rate 
+						
+						for l in phic_list:
+							if emp.get('phic_mode') == "ME Table" and self.schedule != "Weekly":
+								if emp.get('phic_freq') == "Both":
+									amt = flt(eval(l), 8) / 2
+								else:
+									amt = flt(eval(l), 8)
 							else:
-								amt = flt(eval(l), 8)
+								if emp.get('phic_freq') == "Both" and self.schedule == "Weekly":
+									amt = flt(eval(l), 8) / 2
+								elif emp.get('phic_freq') == "All" and self.schedule == "Weekly":
+									amt = flt(eval(l), 8) / 4
+								elif emp.get('phic_freq') == "Both" and header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly":
+									amt = flt(eval(l), 8) / 2
+								else:
+									amt = flt(eval(l), 8)
 
-							if header.get('prev_phic_amt') and emp.get('phic_freq') == "Both" and (not header.get('phic_mo_basis')):
-								amt = amt - header.get('prev_phic_amt') 
-								if amt < 1:
-									amt = 0
+								if header.get('prev_phic_amt') and emp.get('phic_freq') == "Both" and (not header.get('phic_mo_basis')):
+									amt = amt - header.get('prev_phic_amt') 
+									if amt < 1:
+										amt = 0
 
-						phic_register.append({"pay_code": l.upper(), "amount": amt })
+							phic_register.append({"pay_code": l.upper(), "amount": amt })
 
 			for d in phic_register:
 				register.append(d)
@@ -579,6 +627,37 @@ class PayrollProcessing(Document):
 					if d.get("pay_code") == "HDMF" and d.get('amount') > 0:
 						header['hdmf_amt'] = d.get('amount')
 
+					if d.get("pay_code") == "HDMF" or d.get("pay_code") == "HDMFM":
+						self.calculate_special_header(d, header, tr_map)
+			elif header.get('govt_use_old') and emp['hdmf_mode'] != "None":
+				hdmf_register = []
+				hdmf_list = ["hdmf","hdmfe","hdmfm"]
+				hdmf, hdmfe, hdmfm = 0, 0, 0
+				target_amt = 0
+
+				if emp.get('hdmf_freq') == '2nd':
+					if emp.get('payroll_schedule') == "Semi-Monthly":
+						target_amt = (rates.get('monthly_rate') + flt(header.get('prev_hdmf_inc'), 8)) - flt(header.get('prev_hdmf_ded'), 8)
+					
+					elif emp.get('payroll_schedule') == "Monthly":
+						target_amt = (rates.get('monthly_rate') + flt(header.get('hdmf_inc'), 8)) - flt(header.get('hdmf_ded'), 8)
+
+				elif emp.get('hdmf_freq') == 'Both' or emp.get('hdmf_freq') == '1st':
+					target_amt = (rates.get('monthly_rate') + flt(header.get('hdmf_inc'), 8)) - flt(header.get('hdmf_ded'), 8)
+
+				hdmf, hdmfe = get_hdmf_amount(target_amt, hdmf_table)
+				if emp.get('hdmf_mode') == "Manual":
+					hdmfm = flt(emp.get("hdmf_manual"), 8) - hdmf
+					#set to zero if HDMFM is negative
+					if hdmfm < 1:
+						hdmfm = 0				
+						
+				for l in hdmf_list:
+					amt = flt(eval(l), 8) / 2 if emp.get('hdmf_freq') == "Both" else flt(eval(l), 8)
+					hdmf_register.append({"pay_code": l.upper(), "amount": amt })
+	
+				for d in hdmf_register:
+					register.append(d)
 					if d.get("pay_code") == "HDMF" or d.get("pay_code") == "HDMFM":
 						self.calculate_special_header(d, header, tr_map)
 
