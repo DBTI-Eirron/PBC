@@ -151,7 +151,6 @@ def get_employees(filters):
 		AND PR.company = %(company)s 
 		AND PR.posting_date >= %(from_date)s 
 		AND PR.posting_date <= %(to_date)s
-		AND TE.is_active = 1
 		{conditions}
 		GROUP BY PRE.`name`
 		ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)),{ 
