@@ -10,10 +10,9 @@ from operator import itemgetter
 
 def execute(filters=None):
 	columns = get_columns(filters)
-
-	transaction_type = ['HDMF', 'HDMFE', 'HDMFC']
+	transaction_type = ['HDMF', 'HDMFE']
 	employee_list, gov_map = get_employees(filters,transaction_type)
-	final_employee, final_employer, final_ec, final_total = 0, 0, 0, 0
+	final_employee, final_employer, final_total = 0, 0, 0
 
 	data = []
 	entries = []
@@ -65,15 +64,23 @@ def execute(filters=None):
 		if hdmf_total > 0:
 			final_employee += flt(gov_map[emp]["HDMF"])
 			final_employer += flt(gov_map[emp]["HDMFE"])
-			final_ec += flt(gov_map[emp]["HDMFC"])
 			final_total += hdmf_total
 			row['total_HDMF'] = format_decimal_by_2(hdmf_total)
 		entries.append(row)
 
 	for ent in sorted(entries, key = lambda k:k['employee_name']):
 		data.append(ent)
-	final = ["<b>Total: </b>","", "", format_decimal_by_2(final_employee), format_decimal_by_2(final_employer), format_decimal_by_2(final_ec), format_decimal_by_2(final_total)]
-	data.append(final)
+	
+	#Total
+	data.append({
+		"employee": "<b>Total: </b>",
+		"employee_name": "",
+		"hdmf_no": "",
+		"HDMF": format_decimal_by_2(final_employee),
+		"HDMFE": format_decimal_by_2(final_employer),
+		"total_HDMF": format_decimal_by_2(final_total),
+	})
+
 	return columns, data
 
 def validate_filters(filters):

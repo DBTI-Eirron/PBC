@@ -76,5 +76,11 @@ frappe.query_reports["Attendance Summary Processed"] = {
 			"label": __("Ignore Payroll Schedule Policy"),
 			"fieldtype": "Check",
 		},
+		{
+			"fieldname": "flt_precision",
+			"label": __("Float Precision"),
+			"fieldtype": "Int",
+			"default": 4,
+		},
 	]
 };
