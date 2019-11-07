@@ -57,12 +57,14 @@ class CompensatoryTimeOff(Document):
 				self.validate_required_credits()
 			change_owner(self)
 
-	def on_submit(self):
+	def before_submit(self):
 		validate_approve_own_application(self)
 		if self.type == "Use":
 			emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-			if emp_app < 1:
+			if emp_app == 0:
 				self.deduct_use_cto()
+
+	def on_submit(self):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 
@@ -71,7 +73,6 @@ class CompensatoryTimeOff(Document):
 			emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 			if emp_app > 0:
 				self.validate_deduct_use_cto()
-
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
@@ -442,7 +443,7 @@ class CompensatoryTimeOff(Document):
 			for d in entries:
 				row = self.append('use_cto_table', {})
 				row.update(d)
-				#row.save(d)
+				row.save(d)
 		else:
 			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You dont have enough credits").format(self.name))
 

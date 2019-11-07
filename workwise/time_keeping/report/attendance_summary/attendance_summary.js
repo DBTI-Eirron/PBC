@@ -51,7 +51,13 @@ frappe.query_reports["Attendance Summary"] = {
 			"fieldname": "show_adjusted",
 			"label": __("Show Adjusted"),
 			"fieldtype": "Check",
-		}
+		},
+		{
+			"fieldname": "flt_precision",
+			"label": __("Float Precision"),
+			"fieldtype": "Int",
+			"default": 4,
+		},
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {
 		if (columnDef.df.fieldname=="account") {

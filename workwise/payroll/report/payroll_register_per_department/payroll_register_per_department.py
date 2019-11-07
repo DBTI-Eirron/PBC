@@ -30,7 +30,7 @@ def execute(filters=None):
 		f_deduction_total.append(0)
 
 	for department in department_list:
-		dept_name = "<b>"+ str(department.name) +"</b>"
+		dept_name = "<b>"+ cstr(department.name) +"</b>"
 		employee_list = get_employees(filters, department.name)
 		if employee_list:
 			data.append([dept_name])

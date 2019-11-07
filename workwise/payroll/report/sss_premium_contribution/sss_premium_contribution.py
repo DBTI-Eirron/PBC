@@ -97,7 +97,6 @@ def get_employees(filters,transaction_type):
 		WHERE PRE.pay_code IN ('"""+"','".join(str(e) for e in transaction_type)+"""') 
 		AND PR.company = %(company)s 
 		AND PR.posting_date BETWEEN %(from_date)s AND %(to_date)s
-		AND TE.is_active = 1
 		{conditions}
 		ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)),{ 
 		"company": filters.company,
