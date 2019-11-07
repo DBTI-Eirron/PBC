@@ -227,8 +227,7 @@ def get_employees(filters, pay_from, pay_to):
 		INNER JOIN `tabPayroll Register` PR ON PRE.`parent` = PR.`name`
 		INNER JOIN `tabEmployee` TE ON PR.`employee` = TE.`name`
 		INNER JOIN `tabLocation` TL ON TE.`location` = TL.`name`
-		WHERE TE.is_active = 1
-		AND PR.company = %(company)s 
+		WHERE PR.company = %(company)s 
 		AND (PR.posting_date BETWEEN %(from_date)s AND %(to_date)s)
 		{conditions}
 		GROUP BY PRE.`name` """.format(conditions=get_conditions(filters)),{ 
