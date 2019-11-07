@@ -133,6 +133,9 @@ class BatchApproval(Document):
 					application.submit()
 				else:
 					application = frappe.get_doc(self.application_type, b.application)
+					app_hist = ""
+					if application.approval_history:
+						app_hist = application.approval_history
 					#approval_history = ""
 					#if application.approval_history is not None:
 					#	approval_history = application.approval_history
@@ -142,7 +145,7 @@ class BatchApproval(Document):
 						"workflow_state": "Approved",
 						"approved_by": frappe.session.user,
 						"approved_on": nowdate(),
-						"approval_history": application.approval_history+cstr("Batch Approved: "),
+						"approval_history": app_hist+cstr("Batch Approved: "),
 					})
 					application.submit()
 			if b.action == "Rejected":
@@ -185,7 +188,7 @@ class BatchApproval(Document):
 			if self.based_on == "Target Date":	
 				filter_date = "AP.`date` or AP.use_date"
 
-		if not any(elem in ["Administrator","Admin Approver"] for elem in frappe.get_roles(cur_user)):
+		if not any(elem in ["Administrator", "Admin Approver"] for elem in frappe.get_roles(cur_user)):
 			enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 			if enable_employee_approvers > 0:
 				record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name` """+additional_fields+""" 
