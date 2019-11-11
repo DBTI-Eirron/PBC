@@ -17,16 +17,16 @@ def get_columns(filters):
 
 	columns = [
 		{
+			"fieldname": "account_code",
+			"label": _("Account Code"),
+			"fieldtype": "Data",
+			"width": 260
+		},
+		{
 			"fieldname": "account_name",
 			"label": _("Account"),
 			"fieldtype": "Data",
-			"width": 140
-		},
-		{
-			"fieldname": "account_code",
-			"label": _("Code"),
-			"fieldtype": "Data",
-			"width": 140
+			"width": 340
 		},
 		{
 			"fieldname": "debit",
@@ -107,6 +107,10 @@ def get_data(filters):
 	ta_map = get_transaction_accts_map(filters)
 
 	if accounts and register:
+		data.append({ "account_code": filters.company })
+		data.append({ "account_code": datetime.datetime.strptime(str(getdate(filters.from_date)), '%Y-%m-%d').strftime('%B %d, %Y') 
+			+" to "+ datetime.datetime.strptime(str(getdate(filters.to_date)), '%Y-%m-%d').strftime('%B %d, %Y') })
+
 		for acc in accounts: 
 			entry = {
 				"account_name": acc.account_name,
