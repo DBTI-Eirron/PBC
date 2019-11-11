@@ -67,49 +67,49 @@ def get_data(filters):
 		FROM `tabLeave Application Table` LA
 		INNER JOIN `tabLeave Application` L ON L.`name` = LA.parent
 		INNER JOIN `tabEmployee` TE ON L.employee = TE.`name`
-		WHERE LA.leave_date >= %s AND LA.leave_date <= %s AND L.docstatus = '1' AND L.workflow_state = 'Approved'
-		AND L.approved_on > %s ORDER BY TE.full_name, LA.leave_date ASC """,(pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
+		WHERE L.`company` = %s AND LA.leave_date >= %s AND LA.leave_date <= %s AND L.docstatus = '1' AND L.workflow_state = 'Approved'
+		AND L.approved_on > %s ORDER BY TE.full_name, LA.leave_date ASC """,(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
 	ob_apps = frappe.db.sql("""SELECT OBA.`name`, OBA.employee, OBAT.target_date, OBAT.date, OBAT.to_date, TE.full_name,
 		OBAT.from_time, OBAT.to_time, OBAT.hrs, OBAT.is_holiday, OBAT.is_excluded, OBA.approved_on, OBA.approved_by
 		FROM `tabOfficial Business Application Table` OBAT
 		INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
 		INNER JOIN `tabEmployee` TE ON OBA.employee = TE.`name`
-		WHERE OBA.workflow_state = 'Approved' AND OBAT.target_date >= %s 
-		AND OBAT.target_date <= %s AND OBAT.is_excluded = 0 AND OBA.approved_on > %s ORDER BY TE.full_name """,(pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
+		WHERE OBA.`company` = %s AND OBA.workflow_state = 'Approved' AND OBAT.target_date >= %s 
+		AND OBAT.target_date <= %s AND OBAT.is_excluded = 0 AND OBA.approved_on > %s ORDER BY TE.full_name """,(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
 	overtimes = frappe.db.sql("""SELECT OT.`name`, OT.employee, OT.total_hrs, OT.break_hrs, OT.target_date, OT.from_date, TE.full_name,
 		OT.to_date, OT.from_time, OT.to_time, OT.approved_on, OT.approved_by FROM `tabOvertime Application` OT
 		INNER JOIN `tabEmployee` TE ON OT.employee = TE.`name`
-		WHERE OT.workflow_state = 'Approved' AND OT.target_date >= %s 
-		AND OT.target_date <= %s AND OT.approved_on > %s ORDER BY TE.full_name """,(pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
+		WHERE OT.`company` = %s AND OT.workflow_state = 'Approved' AND OT.target_date >= %s 
+		AND OT.target_date <= %s AND OT.approved_on > %s ORDER BY TE.full_name """,(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
 	undertimes = frappe.db.sql("""SELECT UT.`name`, UT.employee, UT.from_time, UT.to_time, UT.from_date, TE.full_name, UT.approved_on, UT.approved_by
 		FROM `tabUndertime Application` UT
-		INNER JOIN `tabEmployee` TE ON UT.employee = TE.`name` WHERE UT.workflow_state = 'Approved' 
-		AND UT.from_date >= %s AND UT.from_date <= %s AND UT.approved_on > %s ORDER BY TE.full_name """,(pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
+		INNER JOIN `tabEmployee` TE ON UT.employee = TE.`name` WHERE UT.workflow_state = 'Approved' AND UT.`company` = %s
+		AND UT.from_date >= %s AND UT.from_date <= %s AND UT.approved_on > %s ORDER BY TE.full_name """,(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
 	compensatory = frappe.db.sql("""SELECT CTO.`name`, CTO.employee, CTO.use_total_hours, CTO.use_date, TE.full_name, CTO.approved_on, CTO.approved_by 
 		FROM `tabCompensatory Time Off` CTO INNER JOIN `tabEmployee` TE ON CTO.employee = TE.`name`
-		WHERE CTO.workflow_state = 'Approved' AND CTO.use_date >= %s AND CTO.use_date <= %s AND CTO.`type` = 'Use' 
-		AND CTO.approved_on > %s ORDER BY TE.full_name """,(pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
+		WHERE CTO.`company` = %s AND CTO.workflow_state = 'Approved' AND CTO.use_date >= %s AND CTO.use_date <= %s AND CTO.`type` = 'Use' 
+		AND CTO.approved_on > %s ORDER BY TE.full_name """,(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
 	ex_tardiness = frappe.db.sql("""SELECT ET.`name`, ET.employee, ET.`date`, ET.from_time, ET.to_time, ET.`type`, 
 		ET.approved_on, ET.approved_by, TE.full_name FROM `tabExcuse Tardiness Application` ET
-		INNER JOIN `tabEmployee` TE ON ET.employee = TE.`name` WHERE ET.workflow_state = 'Approved' 
-		AND ET.`date` >= %s AND ET.`date` <= %s AND ET.approved_on > %s ORDER BY TE.full_name """,(pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
+		INNER JOIN `tabEmployee` TE ON ET.employee = TE.`name` WHERE ET.workflow_state = 'Approved' AND ET.`company` = %s
+		AND ET.`date` >= %s AND ET.`date` <= %s AND ET.approved_on > %s ORDER BY TE.full_name """,(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
 	cs_apps = frappe.db.sql(""" SELECT CSA.`name`, CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift, TE.full_name, CSA.approved_on, CSA.approved_by
 		FROM `tabChange Schedule Application` CSA INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
-		INNER JOIN `tabEmployee` TE ON CSA.employee = TE.`name` WHERE CSA.docstatus = 1 AND CSA.workflow_state = 'Approved' AND CSAT.target_date >= %s 
-		AND CSAT.target_date <= %s AND CSA.approved_on > %s ORDER BY TE.full_name """,(pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
+		INNER JOIN `tabEmployee` TE ON CSA.employee = TE.`name` WHERE CSA.`company` = %s AND CSA.docstatus = 1 AND CSA.workflow_state = 'Approved' AND CSAT.target_date >= %s 
+		AND CSAT.target_date <= %s AND CSA.approved_on > %s ORDER BY TE.full_name """,(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
 	dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
 		DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`, TE.full_name, DA.approved_on, DA.approved_by
 		FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` 
 		INNER JOIN `tabEmployee` TE ON DA.employee = TE.`name`
-		WHERE DA.`workflow_state` = 'Approved' AND DA.`target_date` >= %s AND DA.`target_date` <= %s AND DA.approved_on > %s
-		ORDER BY TE.full_name, card_datetime """,(pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
+		WHERE DA.`company` = %s AND DA.`workflow_state` = 'Approved' AND DA.`target_date` >= %s AND DA.`target_date` <= %s AND DA.approved_on > %s
+		ORDER BY TE.full_name, card_datetime """,(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
 	data_entry = {
 		"leave_application": {},

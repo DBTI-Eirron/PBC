@@ -185,21 +185,29 @@ def get_columns(income_types, deduction_types):
 def get_employees(filters, department):
 	employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
 	FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-	LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 	WHERE PR.period = %(period)s
 	AND PR.on_hold = 0
 	AND TE.company = %(company)s
+	AND TE.`department`=%(department)s
 	{conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 		"period": filters.payroll_period,
 		"company": filters.company,
 		"employee": filters.employee,
-		"department": filters.department
+		"department": department
 	}, as_dict=1)
 
 	return employees
 
 def get_department(filters):
-	department = frappe.db.sql("""SELECT `name` FROM tabDepartment ORDER BY lft """, filters, as_dict=1)
+	conditions = ""
+	if filters.get("department"):
+		lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
+		conditions = " AND ( `lft` BETWEEN '{0}' AND '{1}' )".format(lft, rgt)
+
+	department = frappe.db.sql("""SELECT `name` FROM `tabDepartment` WHERE `company` = %(company)s {conditions} """.format(conditions=conditions), { 
+		"company": filters.company
+	}, as_dict=1)
+
 	return department
 
 def get_conditions(filters):
@@ -209,10 +217,6 @@ def get_conditions(filters):
 
 	if filters.get("employee"):
 		conditions.append("TE.`name`=%(employee)s")
-		
-	if filters.get("department"):
-		lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
-		conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
 
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
