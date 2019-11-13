@@ -55,6 +55,14 @@ frappe.ui.form.on('Employee', {
 			};
 		});
 
+		cur_frm.set_query("department", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
+
 		cur_frm.set_query("approver", "approvers", function(doc, cdt, cdn) {
 			var d = locals[cdt][cdn];
 			return{
