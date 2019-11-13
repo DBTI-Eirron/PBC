@@ -17,27 +17,27 @@ def get_columns(filters):
 
 	columns = [
 		{
-			"fieldname": "account_name",
-			"label": _("Account"),
+			"fieldname": "account_code",
+			"label": _("Account Number" if not filters.include_header else ""),
 			"fieldtype": "Data",
-			"width": 140
+			"width": 260
 		},
 		{
-			"fieldname": "account_code",
-			"label": _("Code"),
+			"fieldname": "account_name",
+			"label": _("Account Name" if not filters.include_header else ""),
 			"fieldtype": "Data",
-			"width": 140
+			"width": 340
 		},
 		{
 			"fieldname": "debit",
-			"label": _("Debit"),
-			"fieldtype": "Currency",
+			"label": _("Debit" if not filters.include_header else ""),
+			"fieldtype": "Data",
 			"width": 140
 		},
 		{
 			"fieldname": "credit",
-			"label": _("Credit"),
-			"fieldtype": "Currency",
+			"label": _("Credit" if not filters.include_header else ""),
+			"fieldtype": "Data",
 			"width": 140
 		},		
 	]
@@ -52,7 +52,7 @@ def get_result(filters):
 	return result
 
 def get_accounts(filters):
-	accounts = frappe.db.sql("""SELECT * FROM `tabAccount` 
+	accounts = frappe.db.sql("""SELECT TA.*, TC.`abbr` FROM `tabAccount` TA INNER JOIN `tabCompany` TC ON TA.`company`=TC.`name`
 		WHERE company = %(company)s """,{
 			"company": filters.company,
 		}, as_dict=True)
@@ -107,11 +107,17 @@ def get_data(filters):
 	ta_map = get_transaction_accts_map(filters)
 
 	if accounts and register:
+		if filters.include_header:
+			data.append({ "account_code": filters.company })
+			data.append({ "account_code": datetime.datetime.strptime(str(getdate(filters.from_date)), '%Y-%m-%d').strftime('%B %d, %Y') 
+				+" to "+ datetime.datetime.strptime(str(getdate(filters.to_date)), '%Y-%m-%d').strftime('%B %d, %Y') })
+			data.append({ "account_code": 'Account Code', "account_name": 'Account', "debit": 'Debit', "credit": 'Credit' })
+
 		for acc in accounts: 
 			entry = {
-				"account_name": acc.account_name,
+				"account_name": acc.account_name+" - "+acc.abbr,
 				"account": acc.name,
-				"account_code": acc.account_code,
+				"account_code": acc.account_number,
 				"balance": acc.default_balance,
 				"debit": 0.0,
 				"credit": 0.0,

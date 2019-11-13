@@ -18,7 +18,12 @@ frappe.query_reports["General Journal"] = {
 			"label": __("To Date"),
 			"fieldtype": "Date",
 			"reqd": 1
-		},	
+		},
+		{
+			"fieldname": "include_header",
+			"label": __("Include Header"),
+			"fieldtype": "Check",
+		},
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {
 		if (columnDef.df.fieldname=="account") {
