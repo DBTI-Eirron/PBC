@@ -102,6 +102,7 @@ class PayrollProcessing(Document):
 		whtax_persemi = frappe.db.get_single_value('Payroll Settings', 'whtax_persemi')
 		ignore_nd = frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd')
 		govt_use_old = frappe.db.get_single_value('Payroll Settings', 'govt_use_old')
+		ab_regho = frappe.db.get_single_value('Timekeeping Settings', 'ab_regho')
 
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
@@ -195,6 +196,7 @@ class PayrollProcessing(Document):
 						'whtax_persemi': whtax_persemi,
 						'govt_use_old': govt_use_old,
 						'no_attendance': 0,
+						'ab_regho': ab_regho,
 					}
 					
 					#Calculate Rates and Previous Entries
@@ -248,29 +250,30 @@ class PayrollProcessing(Document):
 					else:
 						minimum_wage = flt(emp.get('min_take_home'), 8)
 
-					if header.get('net_payroll') < minimum_wage and emp.get('min_take_home') > 0:
-						payslip_label = " " + emp.full_name +" <span class='label label-danger'> Below Min Take Home </span>"
+					#Check if employee has attendance/work
+					if emp.is_attendance_base == 1 and header['no_attendance'] == 1:
+						proc_emp += 1
+						error_emp += 1
+						payslip_label = " " + emp.full_name +"<span class='label label-danger'> No Work </span>"
 						ss_list.append(payslip_label)
+						
 					else:
-						#Check if employee has attendance/work
-						if emp.is_attendance_base == 1 and header['no_attendance'] == 1:
+						if pr.insert():
+							#update other entries like loans
 							proc_emp += 1
+							for d in register:
+								if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
+									update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
+						payslip_label = " " + emp.full_name +""
+						
+
+						if header.get('net_payroll') < minimum_wage and emp.get('min_take_home') > 0:
+							payslip_label = " " + emp.full_name +" <span class='label label-danger'> Below Min Take Home </span>"
+						elif emp.on_hold:
 							error_emp += 1
-							payslip_label = " " + emp.full_name +"<span class='label label-danger'> No Work </span>"
-							ss_list.append(payslip_label)
-							
-						else:
-							if pr.insert():
-								#update other entries like loans
-								proc_emp += 1
-								for d in register:
-									if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
-										update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
-							payslip_label = " " + emp.full_name +""
-							if emp.on_hold:
-								error_emp += 1
-								payslip_label += " <span class='label label-danger'> On-Hold </span>"
-							ss_list.append(payslip_label)
+							payslip_label += " <span class='label label-danger'> On-Hold </span>"
+						
+						ss_list.append(payslip_label)
 				else:
 					no_emp -= 1
 
@@ -943,9 +946,8 @@ class PayrollProcessing(Document):
 						if header.get('work_days') > 0 and emp.get('no_hours') > 0:
 							amt = amt - (( amt / ( header.get('work_days') * emp.get('no_hours') )) * ( header.get('absent_days') * emp.get('no_hours')))
 					
-					#Complete Work Hours for push later
-					#elif rec.method == 'Complete Work Hours':
-					#	amt = flt(amt * self.get_complete_work_hours,8)
+					elif rec.method == 'Complete Work Hours':
+						amt = flt(amt * flt(self.get_complete_work_hours),8)
 					
 					recurring_register.append({
 						"linked_document": rec.name,
@@ -1294,6 +1296,7 @@ class PayrollProcessing(Document):
 									if dl_absent == 1 and at.is_sp_holiday and header.get('uho_ab_spnw'):
 										ho_paid = 0 #no paid holiday on special HO
 									elif dl_absent == 1 and (not is_uho):
+										#if not header.get('ab_regho'): #if not absent on regular HO
 										ho_paid = 1 #paid holiday if absent and not UHO
 									elif dl_absent == 0:
 										ho_paid = 1 #paid holiday if not absent and not UHO
