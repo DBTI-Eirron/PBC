@@ -1296,8 +1296,8 @@ class PayrollProcessing(Document):
 									if dl_absent == 1 and at.is_sp_holiday and header.get('uho_ab_spnw'):
 										ho_paid = 0 #no paid holiday on special HO
 									elif dl_absent == 1 and (not is_uho):
-										#if not header.get('ab_regho'): #if not absent on regular HO
-										ho_paid = 1 #paid holiday if absent and not UHO
+										if not header.get('ab_regho'): #if not absent on regular HO
+											ho_paid = 1 #paid holiday if absent and not UHO
 									elif dl_absent == 0:
 										ho_paid = 1 #paid holiday if not absent and not UHO
 							else: 
