@@ -13,6 +13,7 @@ class Department(NestedSet):
 
 	def validate(self):
 		self.validate_group()
+		self.validate_department()
 
 	def update_nsm_model(self):
 		frappe.utils.nestedset.update_nsm(self)
@@ -28,10 +29,20 @@ class Department(NestedSet):
 			if not self.parent_department:
 				frappe.throw("Parent Department is Required if not group")
 
+	def autoname(self):
+		abbr = frappe.db.get_value("Company", self.company, "abbr")
+		self.name = self.department_name+" - "+abbr
+
+	def validate_department(self):
+		holidays = frappe.db.sql("""SELECT `name` FROM `tabDepartment`
+			WHERE `name` != %s AND company = %s AND department_name = %s """, (self.name, self.company, self.department_name), as_dict=True)
+		if holidays:
+			frappe.throw(_("Department Already Exist"))
+
 @frappe.whitelist()
 def create_root():
 	frappe.db.sql("""INSERT INTO `tabDepartment` (department_name, modified_by, owner, creation, modified, `name`, parent_department, lft, rgt) 
-		VALUES ('Organization Structure','Administrator','Administrator',NOW(),NOW(),'Organization Structure','', 1, 2) """)
+		VALUES ('Organization Structure', 'Administrator', 'Administrator', NOW(), NOW(), 'Organization Structure', '', 1, 2) """)
 
 @frappe.whitelist()
 def rebuild_department_tree():
@@ -50,7 +61,7 @@ def get_children(doctype, parent=None, is_root=False):
 		from
 			`tabDepartment` emp
 		where 
-		ifnull(`parent_department`,'') = %s order by name""", parent, as_dict=1)
+		ifnull(`parent_department`,'') = %s order by name """, parent, as_dict=1)
 
 	return departments
 

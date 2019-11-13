@@ -17,7 +17,20 @@ def execute(filters=None):
 	data = []
 
 	for emp in employee_list:
-		row = [emp.department, emp.employee_name, emp.training, emp.provider, "", "", emp.schedule, emp.budget, "", "", "", emp.status]
+		row = {
+			"department": emp.department,
+			"employee_name": emp.employee_name,
+			"training": emp.training,
+			"provider": emp.provider,
+			"contact": "",
+			"lrf_date": "",
+			"reg_date": emp.schedule,
+			"amount": emp.budget,
+			"paid": "",
+			"savings": "",
+			"date_attended": "",
+			"status": emp.status,
+		}
 
 		data.append(row)
 
@@ -49,18 +62,18 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 180
 		},
-		{
-			"fieldname": "contact",
-			"label": _("CONTACT NUMBER/EMAIL ADD"),
-			"fieldtype": "Data",
-			"width": 180
-		},
-		{
-			"fieldname": "lrf_date",
-			"label": _("DATE LRF RECEIVED"),
-			"fieldtype": "Data",
-			"width": 180
-		},
+		#{
+		#	"fieldname": "contact",
+		#	"label": _("CONTACT NUMBER/EMAIL ADD"),
+		#	"fieldtype": "Data",
+		#	"width": 180
+		#},
+		#{
+		#	"fieldname": "lrf_date",
+		#	"label": _("DATE LRF RECEIVED"),
+		#	"fieldtype": "Data",
+		#	"width": 180
+		#},
 		{
 			"fieldname": "reg_date",
 			"label": _("DATE REGISTERED"),
@@ -73,24 +86,24 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 180
 		},
-		{
-			"fieldname": "paid",
-			"label": _("AMOUNT PAID"),
-			"fieldtype": "Data",
-			"width": 180
-		},
-		{
-			"fieldname": "savings",
-			"label": _("SAVINGS"),
-			"fieldtype": "Data",
-			"width": 180
-		},
-		{
-			"fieldname": "date_attended",
-			"label": _("DATE ATTENDED"),
-			"fieldtype": "Data",
-			"width": 180
-		},
+		#{
+		#	"fieldname": "paid",
+		#	"label": _("AMOUNT PAID"),
+		#	"fieldtype": "Data",
+		#	"width": 180
+		#},
+		#{
+		#	"fieldname": "savings",
+		#	"label": _("SAVINGS"),
+		#	"fieldtype": "Data",
+		#	"width": 180
+		#},
+		#{
+		#	"fieldname": "date_attended",
+		#	"label": _("DATE ATTENDED"),
+		#	"fieldtype": "Data",
+		#	"width": 180
+		#},
 		{
 			"fieldname": "status",
 			"label": _("STATUS"),
