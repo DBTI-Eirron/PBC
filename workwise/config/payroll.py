@@ -186,6 +186,11 @@ def get_data():
 					"name": "Adjustment Report",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Minimum Take Home",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
 				},
 			],
 		},
