@@ -8,6 +8,7 @@ from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_t
 from frappe import _
 from frappe.model.document import Document
 from workwise.employee_201.emp_filters_utils import empget_employees, empget_subordinates, empget_company
+from workwise.time_keeping.application_utils import get_user_fullname
 
 class WorkScheduleAssignment(Document):
 	def assign_schedule(self):
@@ -26,6 +27,8 @@ class WorkScheduleAssignment(Document):
 				ss_list = self.assign_schedule_template()
 			else:
 				frappe.throw(_("Select Template"))
+
+		self.create_assignment_logs()
 
 		return self.create_log(ss_list)
 
@@ -279,3 +282,26 @@ class WorkScheduleAssignment(Document):
 			is_active = frappe.get_value("Employee", d.employee, "is_active")
 			if not is_active:
 				frappe.throw(_("Employee {0} is not active").format(d.employee))
+
+	def create_assignment_logs(self):
+		assignment_logs = frappe.new_doc("Work Schedule Assignment Logs")
+		assignment_logs.update({
+			"company": self.company,
+			"apply_type": self.apply_type,
+			"apply_template": self.apply_template,
+			"from_date": self.from_date,
+			"to_date": self.to_date,
+			"date_assigned": getdate(nowdate()),
+			"assigned_by": frappe.session.user if get_user_fullname(self) else "",
+			"assigned_by_name": get_user_fullname(self),
+		})
+
+		for d in self.employees:
+			assignment_logs.append('employees', {
+				"employee": d.employee,
+				"employee_name": d.employee_name,
+				"new_shift": d.new_shift,
+			})
+
+		assignment_logs.flags.ignore_permissions = True
+		assignment_logs.save()
