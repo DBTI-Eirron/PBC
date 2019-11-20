@@ -23,7 +23,6 @@ class LeaveApplication(Document):
 		self.validate_date()
 		self.validate_employee()
 		self.validate_balance()
-		self.validate_medical()
 		self.validate_leave()
 		change_owner(self)
 		self.get_recipients()
