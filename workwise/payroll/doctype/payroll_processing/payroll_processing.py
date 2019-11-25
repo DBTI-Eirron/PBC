@@ -5,12 +5,13 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
+from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
 from workwise.payroll.payroll_utils import get_adjustment_settings, get_rates, get_sss_table, get_sss_amount, get_hdmf_table, get_hdmf_amount
 from workwise.payroll.weekly_utils import get_weekly_prev_map, get_weekly_basis
 from workwise.payroll.loans_utils import get_loans_map, get_employee_loan, update_loans
+from workwise.payroll.payroll_attendance_utils import get_absent_days
 from workwise.time_keeping.application_utils import validate_inactive_employee
 
 class PayrollProcessing(Document):
@@ -57,8 +58,11 @@ class PayrollProcessing(Document):
 		return "AND {}".format(" AND ".join(conditions)) if conditions else ""
 
 	def validate_period(self, weekly_set):
-		period_stats = frappe.db.get_value("Payroll Period", self.period, "status")
+		period_stats, company = frappe.db.get_value("Payroll Period", self.period, ["status", "company"])
 		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+
+		if company != self.company:
+			frappe.throw(_("Selected Period does not belong to company"))
 
 		if period_stats == "Closed":
 			frappe.throw(_("Selected Period is Already Closed"))
@@ -103,6 +107,7 @@ class PayrollProcessing(Document):
 		ignore_nd = frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd')
 		govt_use_old = frappe.db.get_single_value('Payroll Settings', 'govt_use_old')
 		ab_regho = frappe.db.get_single_value('Timekeeping Settings', 'ab_regho')
+		mo_abho = frappe.db.get_single_value('Timekeeping Settings', 'mo_abho')
 
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
@@ -121,6 +126,7 @@ class PayrollProcessing(Document):
 						'employee': emp.name,
 						'employee_name': emp.full_name,
 						'company': emp.company,
+						'location': emp.location,
 						'on_hold': emp.on_hold,
 						'period_group': self.period_group,
 						'posting_date': self.payroll_date,
@@ -197,6 +203,7 @@ class PayrollProcessing(Document):
 						'govt_use_old': govt_use_old,
 						'no_attendance': 0,
 						'ab_regho': ab_regho,
+						'mo_abho': mo_abho,
 					}
 					
 					#Calculate Rates and Previous Entries
@@ -940,14 +947,15 @@ class PayrollProcessing(Document):
 						else:
 							absent_days = header.get('absent_days')
 
-						amt = (amt - (( absent_days * 8) * hourly_rate * 2))
+						amt = (amt - (( absent_days * emp.get('no_hours') ) * hourly_rate * 2))
+
 
 					elif rec.method == 'Deduct Absent Actual':
 						if header.get('work_days') > 0 and emp.get('no_hours') > 0:
 							amt = amt - (( amt / ( header.get('work_days') * emp.get('no_hours') )) * ( header.get('absent_days') * emp.get('no_hours')))
 					
 					elif rec.method == 'Complete Work Hours':
-						amt = flt(amt * flt(self.get_complete_work_hours),8)
+						amt = flt(amt * flt(self.get_complete_work_hours(emp)),8)
 					
 					recurring_register.append({
 						"linked_document": rec.name,
@@ -959,10 +967,13 @@ class PayrollProcessing(Document):
 		for d in recurring_register:
 			register.append(d)
 
-	def get_complete_work_hours(emp,period):
-		from_date, to_date = frappe.get_value('Payroll Period',period,['attendance_from','attendance_to'])
-		result = frappe.db.sql("""SELECT COUNT('name') as count FROM `tabAttendance Register` WHERE late <= 0 AND undertime <= 0 AND employee = %s AND is_resday = 0 AND target_date BETWEEN %s AND %s""",(emp.name,from_date,to_date),as_dict=True)
-		return flt(result[0].count)
+	def get_complete_work_hours(self,emp):
+		result = frappe.db.sql("""SELECT COUNT('name') as count FROM `tabAttendance Register` WHERE late <= 0 AND undertime <= 0 AND employee = %s AND is_restday = 0 AND is_leave = 0 AND is_halfday = 0 AND lv_status <= 0 AND is_absent = 0 AND target_date BETWEEN %s AND %s""",(emp.name,self.attendance_from,self.attendance_to),as_dict=True)
+		if result:
+			count = result[0].count
+		else:
+			count = 0	
+		return count
 
 	def get_batch(self, emp, rates, header, register):
 		batch_register = []
@@ -1211,7 +1222,6 @@ class PayrollProcessing(Document):
 				for at in attendance:
 					WK_days, AT_days = 0, 0
 					
-					
 					if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
 						no_previous = 1
 						if at.is_absent or at.is_lwop:
@@ -1240,15 +1250,13 @@ class PayrollProcessing(Document):
 						if at.nightdiff:
 							nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
 
-						if ( at.is_absent == 1 or at.is_lwop == 1 ) and not at.is_holiday:
-							if at.is_lwop == 1 and at.lv_status > 1:
-								absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8)
-								absent_days += 0.5
-								AT_days += 0.5
-							else:
-								absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else ( at.work_hours ) * flt(rates.get('hourly_rate'), 8)
-								absent_days += 0.5 if at.is_halfday == 1 else 1
-								AT_days += 0.5 if at.is_halfday == 1 else 1
+						#GET ABSENT
+						AT = get_absent_days(at, header)
+						if AT > 0:
+							absent += ( at.work_hours * flt(AT, 8) ) * flt(rates.get('hourly_rate'), 8) #get total absent amount
+							absent_days += AT #add to employee total absent days
+							AT_days += AT #add to current day total absent days
+							#test.append(_(""+cstr(at.target_date)+" "+cstr(absent_days)+" "+cstr(at.work_hours * flt(AT, 8))+" "+cstr(flt(rates.get('hourly_rate'), 8))+"")) #test script for absent
 
 						if at.cto:
 							max_cto = 0
@@ -1284,8 +1292,11 @@ class PayrollProcessing(Document):
 								dl_absent = 1
 
 							#leave triggers
-							if at.lv_status == 1 and (not at.is_lwop):
-								dl_absent = 0
+							if at.lv_status and (not at.is_lwop):
+								if at.lv_status == 1:
+									dl_absent = 0
+								elif at.lv_status > 1:
+									dl_absent = 0
 
 							#check if holiday
 							if at.is_holiday:
@@ -1311,7 +1322,10 @@ class PayrollProcessing(Document):
 							if dl_absent == 1 and at.is_lwop:
 								# if lwop halfday plus half day
 								if at.lv_status > 1:
-									dl_days += 0.5
+									if at.is_halfday: #if lwop halfday with absent halfday absent is wholeday absent
+										dl_days += 0
+									else:
+										dl_days += 0.5
 
 							if ho_paid == 1:
 								pho_days += 1
@@ -1321,12 +1335,17 @@ class PayrollProcessing(Document):
 							if emp.get("rate_type") != "Daily Rate":
 								if at.work and (not at.is_lwop) and (not at.absent) and (not at.is_restday) and (not at.is_halfday):
 									is_uho = 0
+								elif header.get('ex_uho_spnw') and at.is_sp_holiday:
+									is_uho = 0									
 								else:
-									unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
-									if header.get('uho_ab_days') == 1:
-										absent_days += 1
-										AT_days += 1
-
+									if at.is_absent and header.get('mo_abho'):
+										pass
+									else:
+										unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
+										if header.get('uho_ab_days') == 1:
+											absent_days += 1
+											AT_days += 1
+											
 						#check if this attendance is lwop or absent for next attendance
 						if is_uho == 1:
 							#if present
@@ -1412,7 +1431,7 @@ class PayrollProcessing(Document):
 
 				if emp.get('ignore_nd') or header.get('ignore_nd'):
 					nightdiff = 0
-
+				
 				attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 				attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
 				attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })

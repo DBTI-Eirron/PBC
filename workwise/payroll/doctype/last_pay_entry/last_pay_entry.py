@@ -270,6 +270,7 @@ class LastPayEntry(Document):
 						unpaid_loans[d.loan_type]['amount'] += d.unpaid_amount
 						total_unpaid += d.unpaid_amount
 
+			if d.paid_amount > 0:
 				if d.loan_type == "ES":
 					if d.loan_type not in paid_loans:
 						paid_loans[d.loan_type] = {
@@ -296,7 +297,7 @@ class LastPayEntry(Document):
 		for pd in paid_loans:
 			register.append({
 				"transaction_type": paid_loans[pd]['transaction_type'],
-				"description": paid_loans[pd]['description'],
+				"description": paid_loans[pd]['description'],	
 				"type": paid_loans[pd]['type'],
 				"remarks": paid_loans[pd]['remarks'],
 				"amount": paid_loans[pd]['amount'],
