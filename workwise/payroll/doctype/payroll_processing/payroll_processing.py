@@ -1334,7 +1334,9 @@ class PayrollProcessing(Document):
 							#if present not UHO
 							if emp.get("rate_type") != "Daily Rate":
 								if at.work and (not at.is_lwop) and (not at.absent) and (not at.is_restday) and (not at.is_halfday):
-									is_uho = 0						
+									is_uho = 0
+								elif header.get('ex_uho_spnw') and at.is_sp_holiday:
+									is_uho = 0									
 								else:
 									if at.is_absent and header.get('mo_abho'):
 										pass
