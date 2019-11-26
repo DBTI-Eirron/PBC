@@ -25,6 +25,22 @@ frappe.query_reports["SSS Premium Contribution"] = {
 			"fieldtype": "Link",
 			"options": "Period Group",
 		},
+		{
+			"fieldname": "value_precision",
+			"label": __("Value Precision"),
+			"fieldtype": "Select",
+			"options": [
+				{ "value": "2", "label": __("2") },
+				{ "value": "3", "label": __("3") },
+				{ "value": "4", "label": __("4") },
+				{ "value": "5", "label": __("5") },
+				{ "value": "6", "label": __("6") },
+				{ "value": "7", "label": __("7") },
+				{ "value": "8", "label": __("8") },
+			],
+			"default": "2",
+			"reqd": 1
+		},
 	],
 
 	onload: function(report) {
@@ -59,9 +75,38 @@ frappe.query_reports["SSS Premium Contribution"] = {
 						var company = frappe.query_report_filters_by_name.company.get_value();	
 						var group = frappe.query_report_filters_by_name.period_group.get_value();
 						window.open("http://"+host_link+"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2FReports&reportUnit=%2FReports%2Fr3_form&standAlone=true&j_username="+username+"&j_password="+password+"&output=pdf&company="+company+"&user="+session_user+"&group="+group+"&from_date="+from_date+"&to_date="+to_date);
-					});					
+					});
 				}
+			}
+		});
+
+		report.page.add_inner_button(__("Print Text File"), function() {
+			var company = frappe.query_report_filters_by_name.company.get_value();
+			var from_date = frappe.query_report_filters_by_name.from_date.get_value();
+			var to_date = frappe.query_report_filters_by_name.to_date.get_value();
+			var period_group = frappe.query_report_filters_by_name.period_group.get_value();
+			if (company && from_date && to_date){
+				frappe.call({
+				method: "workwise.payroll.report.sss_premium_contribution.sss_premium_contribution.print_txt_file",
+				args:{
+					company: company,
+					from_date: from_date,
+					to_date: to_date,
+					period_group: period_group,
+				},
+				callback: function(r) {
+					var anchor = document.createElement('a');
+					anchor.href = 'http://nw_develop:8000/files/sss.txt';
+					anchor.download = 'sss.txt';
+					document.body.appendChild(anchor);
+					anchor.click();
+					// window.open('http://nw_develop:8000/files/sss.txt', 'Download');
+				}
+			});
+			}else{
+				frappe.msgprint("Plese Complete Filters");
 			}
 		});
 	},
 };
+	

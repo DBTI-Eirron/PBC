@@ -50,6 +50,9 @@ class PayrollPeriod(Document):
 
 			self.validate_duplicate_set()
 
+		if self.is_special:
+			self.frequency = "Special"
+
 	def validate_duplicate_set(self):
 		duplicate = frappe.db.sql(""" SELECT `name` FROM `tabPayroll Period` 
 			WHERE name != %s AND company = %s AND frequency = %s AND weekly_set = %s AND schedule = "Weekly" """, (self.name, self.company, self.frequency, self.weekly_set),as_dict=1)
@@ -65,15 +68,16 @@ class PayrollPeriod(Document):
 	def validate_days(self):
 		difference = date_diff(self.to_date, self.from_date)
 		difference += 1
-		if self.schedule == "Monthly":
-			if not difference > 27:
-				frappe.throw(_("Monthly Schedule Should be Greater than {0} days ").format(difference))
-		if difference > 31:
-			frappe.throw("Days Should not be Greater than 31 days ")
+		if not self.is_special:
+			if self.schedule == "Monthly":
+				if not difference > 27:
+					frappe.throw(_("Monthly Schedule Should be Greater than {0} days ").format(difference))
+			if difference > 31:
+				frappe.throw("Days Should not be Greater than 31 days ")
 
-		if self.schedule == "Weekly":
-			if difference > 7:
-				frappe.throw("Days Should not be Greater than 7 days for Weekly Period")
+			if self.schedule == "Weekly":
+				if difference > 7:
+					frappe.throw("Days Should not be Greater than 7 days for Weekly Period")
 	
 	def remove_payslips(self):
 		log = frappe.new_doc("Payroll Process Logs")
