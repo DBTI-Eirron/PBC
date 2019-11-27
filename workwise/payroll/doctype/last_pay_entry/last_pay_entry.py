@@ -351,17 +351,18 @@ class LastPayEntry(Document):
 					"leave_type": d.leave_name,
 				}, as_dict=True)
 				for b in balances:
-					credits = (b.credits - b.used_credits)
-					total_amt += rates.get('daily_rate') * (credits)
-					if total_amt:
-						register.append({
-							"transaction_type": "LC",
-							"description": "Convertible "+ str(b.leave_type) +"", 
-							"type": "Add",
-							"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(credits)+" Credit/s",
-							"amount": total_amt,
-							"manually_encoded": 0,
-						})
+					if (getdate(self.from_year) <= getdate(b.from_date) <= getdate(self.to_year)) or (getdate(self.from_year) <= getdate(b.to_date) <= getdate(self.to_year)):
+						credits = (b.credits - b.used_credits)
+						total_amt += rates.get('daily_rate') * (credits)
+						if total_amt:
+							register.append({
+								"transaction_type": "LC",
+								"description": "Convertible "+ str(b.leave_type) +"", 
+								"type": "Add",
+								"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(credits)+" Credit/s",
+								"amount": total_amt,
+								"manually_encoded": 0,
+							})
 
 				entry["pres_total_tax"] += total_amt
 				entry["net_pay"] += total_amt
