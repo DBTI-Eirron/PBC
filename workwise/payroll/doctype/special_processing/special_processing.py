@@ -8,8 +8,7 @@ from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
 from workwise.payroll.annualization import create_annualization
-from workwise.payroll.payroll_utils import get_rates
-from workwise.payroll.payroll_utils import get_transaction_map
+from workwise.payroll.payroll_utils import get_transaction_map, get_overtime_map, get_adjustment_settings, get_rates
 from workwise.time_keeping.application_utils import validate_inactive_employee
 
 class SpecialProcessing(Document):
@@ -96,7 +95,7 @@ class SpecialProcessing(Document):
 		func = switcher.get(self.method, lambda: frapp.throw(_("Invalid Method")))
 		func(header, entries)
 
-		if self.method != "Annualization":
+		if self.method not in ["Annualization", "Special Period"]:
 			batch = frappe.new_doc("Batch Entry")
 			batch.update(header)			
 			for d in entries:
@@ -144,6 +143,7 @@ class SpecialProcessing(Document):
 					'employee_name': emp.full_name,
 					'company': emp.company,
 					'on_hold': emp.on_hold,
+					'location': emp.location,
 					'posting_date': self.payroll_date,
 					'process_date': nowdate(),
 					'period': self.period,
