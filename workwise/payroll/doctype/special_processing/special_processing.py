@@ -240,13 +240,14 @@ class SpecialProcessing(Document):
 		employees = self.get_employees()
 		if employees:
 			for emp in employees:
+				rates = get_rates(emp)
 				total_bonus = 0
 				if bonus_method == "Standard":
 					registerx = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`
 						FROM `tabPayroll Register Entries` PRE 
 						INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
 						WHERE PRE.`pay_code` = 'BS' AND PR.`employee` = %(employee)s 
-						AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s """,{ 
+						AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s AND is_special = 0  """,{ 
 						"employee": emp.name,
 						"from_year": from_year,
 						"to_year": to_year,
@@ -256,11 +257,14 @@ class SpecialProcessing(Document):
 						if d.pay_code == 'BS':
 							total_bonus += d.amount
 
+					if self.assume_last_month:
+						total_bonus += rates.get('monthly_rate')
+
 					total_bonus = total_bonus / 12
 
 				elif bonus_method == "Bonus Basis":
 					bonus_basis = frappe.db.sql(""" SELECT bonus FROM `tabPayroll Register` WHERE employee = %(employee)s 
-						AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+						AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s AND is_special = 0 """,{ 
 							"employee": emp.name,
 							"from_year": from_year,
 							"to_year": to_year,
@@ -268,6 +272,9 @@ class SpecialProcessing(Document):
 
 					for d in bonus_basis:
 						total_bonus += d.bonus
+
+					if self.assume_last_month:
+						total_bonus += rates.get('monthly_rate')						
 
 					total_bonus = total_bonus / 12
 
@@ -285,11 +292,13 @@ class SpecialProcessing(Document):
 
 					#total_bonus = ( present_days / emp.get('total_yr_days')) * flt(rates.get('monthly_rate'), 8)
 
+					
+
 					att = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`, TT.`entry_type`, TT.`type` 
 						FROM `tabPayroll Register Entries` PRE 
 						INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
 						INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code`=TT.`name` 
-						WHERE PR.`employee` = %(employee)s AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s """,{ 
+						WHERE PR.`employee` = %(employee)s AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s AND PR.is_special = 0  """,{ 
 						"employee": emp.name,
 						"from_year": from_year,
 						"to_year": to_year,
@@ -304,6 +313,9 @@ class SpecialProcessing(Document):
 								total_bonus += d.amount
 							if d.type == 'Deduction':
 								total_bonus -= d.amount
+
+					if self.assume_last_month:
+						total_bonus += rates.get('monthly_rate')
 
 					total_bonus = total_bonus / 12
 
