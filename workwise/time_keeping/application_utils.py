@@ -3,7 +3,7 @@ import frappe, datetime
 from datetime import time, datetime, timedelta
 from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money, now_datetime, add_to_date
 from frappe import _, msgprint
-from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card, get_all_dtrp)
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card, get_all_dtrp, get_schedule)
 
 def grant_head_subordinate_access(self):
 	if self.is_new():
@@ -42,6 +42,16 @@ def validate_inactive_employee(self):
 	is_active = frappe.get_value("Employee", self.employee, "is_active")
 	if not is_active:
 		frappe.throw(_("Employee {0} is not active").format(self.employee))
+
+def validate_active_employee(self):
+	is_active = frappe.get_value("Employee", self.employee, "is_active")
+	if is_active:
+		frappe.throw(_("Employee {0} is active").format(self.employee))
+
+def get_user_fullname(self):
+	user_fullname = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
+	if user_fullname:
+		return cstr(user_fullname[0].full_name)
 
 def change_owner(self):
 	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
@@ -170,19 +180,16 @@ def get_cancelled_by_and_date(self):
 
 def get_current_logs(employee, target_date):
 	cin, cout = "", ""
-	schedule = frappe.db.sql("""SELECT work_shift, datetime_in, datetime_out FROM `tabWork Schedule` 
-		WHERE employee = %(employee)s AND target_date = %(target_date)s ORDER BY target_date ASC""",{
-			"employee": employee, "target_date": target_date,
-		}, as_dict=True)
+	schedule = get_schedule(employee, target_date, target_date)
 
 	for d in schedule:
 		entry = {"card_in": "", "card_out": "", "override_in": "", "override_out": "", "break_out": "", "break_in": ""}
 
-		shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s """,(d.work_shift), as_dict=True)
-		pre_shift = add_to_date(d.datetime_in, hours= (0 -  shift[0].setup_preshift) )
-		end_preshift = add_to_date(d.datetime_in, hours=  shift[0].end_preshift )
-		post_shift = add_to_date(d.datetime_out, hours= (0 -  shift[0].setup_postshift) )
-		end_postshift = add_to_date(d.datetime_out, hours= shift[0].end_postshift )
+		shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s """,(d['work_shift']), as_dict=True)
+		pre_shift = add_to_date(d['datetime_in'], hours= (0 -  shift[0].setup_preshift) )
+		end_preshift = add_to_date(d['datetime_in'], hours=  shift[0].end_preshift )
+		post_shift = add_to_date(d['datetime_out'], hours= (0 -  shift[0].setup_postshift) )
+		end_postshift = add_to_date(d['datetime_out'], hours= shift[0].end_postshift )
 
 		bio = frappe.get_value("Employee", employee, "biometrics_id")
 		timecard_list = get_timecard_list(bio, add_days(getdate(target_date), -1), add_days(getdate(target_date), +1))
