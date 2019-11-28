@@ -78,6 +78,7 @@ class LastPayEntry(Document):
 				})
 		self.set('register', [])
 		
+		self.validate_dates()
 		self.get_on_hold(emp, register, entry)
 		#self.get_register_entries(emp, register, entry)
 		self.get_pro_rated(emp, register, entry)
@@ -94,6 +95,30 @@ class LastPayEntry(Document):
 		self.set_summary(entry)
 
 		return entry
+
+	def validate_dates(self):
+		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
+		self.from_year = from_year
+		self.to_year = to_year
+
+		last_date_list = []
+		date_hired, date_retired, date_resigned, date_terminated, end_of_contract, last_date = None, None, None, None, None, None
+		date_hired, date_retired, date_resigned, date_terminated, end_of_contract = frappe.db.get_value("Employee", self.employee, ["date_hired", "date_retired", "date_resigned", "date_terminated", "end_of_contract"])
+		date_hired = getdate(date_hired)
+		if date_retired:
+			last_date_list.append(getdate(date_retired))
+		if date_resigned:
+			last_date_list.append(getdate(date_resigned))
+		if date_terminated:
+			last_date_list.append(getdate(date_terminated))
+		if end_of_contract:
+			last_date_list.append(getdate(end_of_contract))
+		if last_date_list:
+			last_date = max(last_date_list)
+		if (date_hired) and (getdate(self.from_year) <= getdate(date_hired) <= getdate(self.to_year)) and (getdate(date_hired) > getdate(self.from_year)):
+			self.from_year = date_hired
+		if (last_date) and (getdate(self.from_year) <= getdate(last_date) <= getdate(self.to_year)) and (getdate(last_date) < getdate(self.to_year)):
+			self.to_year = last_date
 
 	def get_on_hold(self, employee ,register, entry):
 		included_transactions = {}
@@ -346,7 +371,7 @@ class LastPayEntry(Document):
 			convertible_leaves = frappe.db.sql(""" SELECT leave_name, leave_code FROM `tabLeave Type` WHERE convertible = 1 """, as_dict=True)
 			for d in convertible_leaves:
 				total_amt = 0
-				balances = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE employee = %(employee)s AND leave_type = %(leave_type)s """,{ 
+				balances = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE employee = %(employee)s AND leave_type = %(leave_type)s  """,{ 
 					"employee": self.employee,
 					"leave_type": d.leave_name,
 				}, as_dict=True)
@@ -481,6 +506,7 @@ class LastPayEntry(Document):
 			entry["not_yet_paid"] = entry["tax_due"] - entry["pres_tax_paid"] 
 
 	def set_summary(self, entry):
+		self.clear_entries()
 		total_add, total_less = 0, 0
 		for d in self.register_table:
 			if d.type == "Add":
@@ -495,4 +521,18 @@ class LastPayEntry(Document):
 		self.tax_due = flt(entry["tax_due"], 8)
 		self.prev_tax_paid = flt(entry["prev_tax_paid"], 8)
 		self.pres_tax_paid = flt(entry["pres_tax_paid"], 8)
-		self.not_yet_paid = flt(entry["not_yet_paid"], 8)
+		if flt(entry["not_yet_paid"], 8) > 0:
+			self.deficit_tax = abs(flt(entry["not_yet_paid"], 8))
+		else:
+			self.tax_refund = abs(flt(entry["not_yet_paid"], 8))
+
+	def clear_entries(self):
+		self.net_pay = 0
+		self.prev_total_tax = 0
+		self.pres_total_tax = 0
+		self.gross_taxable = 0
+		self.tax_due = 0
+		self.prev_tax_paid = 0
+		self.pres_tax_paid = 0
+		self.deficit_tax = 0
+		self.tax_refund = 0

@@ -24,10 +24,6 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Attendance Processing",
-				},
-				{
-					"type": "doctype",
 					"name": "Attendance Register",
 				},
 				{
@@ -83,6 +79,14 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
+					"name": "Attendance Processing",
+				},
+				{
+					"type": "doctype",
+					"name": "Attendance Processing Logs",
+				},
+				{
+					"type": "doctype",
 					"name": "Blanket",
 				},	
 				{
@@ -96,10 +100,6 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Timelogs Override",
-				},
-				{
-					"type": "doctype",
-					"name": "Attendance Processing Logs",
 				},
 			]
 		},

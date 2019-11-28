@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import flt
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _
 
 def execute(filters=None):
@@ -41,11 +42,11 @@ def get_data(filters):
 	company = get_company(filters)
 	for comp in company:
 		amount,head_count = get_values(comp.company_name,filters.from_date,filters.to_date)
-		data.append({'company':comp.company_name,'amount':'{:20,.2f}'.format(flt(amount)),'head_count':head_count})
+		data.append({'company':comp.company_name,'amount':format_precision(amount, filters.value_precision),'head_count':head_count})
 		total_amount += amount
 		total_head += head_count
 	data.append({})
-	data.append({'company':'Grand Total','amount':'{:20,.2f}'.format(flt(total_amount)),'head_count':total_head})
+	data.append({'company':'Grand Total','amount':format_precision(total_amount, filters.value_precision),'head_count':total_head})
 	data = add_by(data)
 	return data
 

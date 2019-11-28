@@ -2,12 +2,9 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('Work Schedule Assignment', {
-	setup: function(frm){
-		frm.add_fetch("employee", "full_name", "employee_name")
-	},
-
 	refresh: function(frm){
 		frm.disable_save();
+		frm.add_fetch("employee", "full_name", "employee_name")
 	},
 
 	onload_post_render: function() {
@@ -16,8 +13,11 @@ frappe.ui.form.on('Work Schedule Assignment', {
 
 	filter_subordinates: function(frm){
 		return frappe.call({
-			method: "filter_subordinates",
+			method: "filter_add",
 			doc: frm.doc,
+			args: {
+				entry: 'Subordinates'
+			},
 			callback: function(r) {
 				frm.refresh_fields();
 			}
@@ -26,8 +26,11 @@ frappe.ui.form.on('Work Schedule Assignment', {
 
 	filter_company: function(frm){
 		return frappe.call({
-			method: "filter_company",
+			method: "filter_add",
 			doc: frm.doc,
+			args: {
+				entry: 'Company'
+			},
 			callback: function(r) {
 				frm.refresh_fields();
 			}
@@ -39,9 +42,42 @@ frappe.ui.form.on('Work Schedule Assignment', {
 	},
 
 	filter_add: function(frm) {
-		if(frm.doc.company && frm.doc.filter_value && frm.doc.filter_type) {
+		if(frm.doc.company) {
 			return frappe.call({
 				method: "filter_add",
+				doc: frm.doc,
+				args: {
+					entry: 'Employee'
+				},
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		} 
+	},
+
+	is_single: function(frm) {
+		return frappe.call({
+			method: "clear_tables",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		});
+	},
+
+	from_date: function(frm) {
+		frm.trigger("validate_employees");
+	},
+
+	to_date: function(frm) {
+		frm.trigger("validate_employees");
+	},
+
+	validate_employees: function(frm) {
+		if(frm.doc.company && frm.doc.from_date && frm.doc.to_date) {
+			return frappe.call({
+				method: "validate_employees",
 				doc: frm.doc,
 				callback: function(r) {
 					frm.refresh_fields();
@@ -75,6 +111,7 @@ cur_frm.fields_dict['filter_value'].get_query = function(doc) {
 	if(doc.filter_type == "Employee"){
 		return {
 			filters: {
+				"company": cur_frm.doc.company,
 				"is_active": '1'
 			}
 		}

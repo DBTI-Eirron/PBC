@@ -70,8 +70,8 @@
    "report_hide": 0, 
    "reqd": 1, 
    "search_index": 0, 
-   "set_only_once": 0, 
-   "unique": 0
+   "set_only_once": 1, 
+   "unique": 1
   }, 
   {
    "allow_bulk_edit": 0, 
@@ -628,7 +628,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2019-10-09 18:17:48.049311", 
+ "modified": "2019-11-14 16:19:29.344122", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Leave Type", 

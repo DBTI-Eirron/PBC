@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import flt
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _
 import math
 
@@ -63,12 +64,12 @@ def get_data(filters):
 				per = c_total / count
 			else:
 				per = 0
-			data.append({'company':company.name,'amount':'{:,.2f}'.format(c_total),'head_count':count,'percent':' ','per_ermployee':'{:,.2f}'.format(per)})
+			data.append({'company':company.name,'amount':format_precision(c_total, filters.value_precision),'head_count':count,'percent':' ','per_ermployee':format_precision(per, filters.value_precision)})
 		if bank_heads:
 			tper = bank_total / bank_heads
 		else:
 			tper = 0
-		data.append({'company':'Total','amount':'{:,.2f}'.format(bank_total),'head_count':bank_heads,'percent':bank_perc,'per_ermployee':'{:,.2f}'.format(tper)})
+		data.append({'company':'Total','amount':format_precision(bank_total, filters.value_precision),'head_count':bank_heads,'percent':bank_perc,'per_ermployee':format_precision(tper, filters.value_precision)})
 		data.append({})
 
 	if not filters.mode_of_payment or filters.mode_of_payment == "CASH":
@@ -84,12 +85,12 @@ def get_data(filters):
 				per = c_total / count
 			else:
 				per = 0
-			data.append({'company':company.name,'amount':'{:,.2f}'.format(c_total),'head_count':count,'percent':' ','per_ermployee':'{:,.2f}'.format(per)})
+			data.append({'company':company.name,'amount':format_precision(c_total, filters.value_precision),'head_count':count,'percent':' ','per_ermployee':format_precision(per, filters.value_precision)})
 		if cash_heads:
 			tper = cash_total / cash_heads
 		else:
 			tper = 0
-		data.append({'company':'Total','amount':'{:,.2f}'.format(cash_total),'head_count':cash_heads,'percent':cash_perc,'per_ermployee':'{:,.2f}'.format(tper)})
+		data.append({'company':'Total','amount':format_precision(cash_total, filters.value_precision),'head_count':cash_heads,'percent':cash_perc,'per_ermployee':format_precision(tper, filters.value_precision)})
 		data.append({})
 
 	if not filters.mode_of_payment or filters.mode_of_payment == "ON HOLD":
@@ -105,12 +106,12 @@ def get_data(filters):
 				per = c_total / count
 			else:
 				per = 0
-			data.append({'company':company.name,'amount':'{:,.2f}'.format(c_total),'head_count':count,'percent':' ','per_ermployee':'{:,.2f}'.format(per)})
+			data.append({'company':company.name,'amount':format_precision(c_total, filters.value_precision),'head_count':count,'percent':' ','per_ermployee':format_precision(per, filters.value_precision)})
 		if on_hold_heads:
 			tper = on_hold_total / on_hold_heads
 		else:
 			tper = 0
-		data.append({'company':'Total','amount':'{:,.2f}'.format(on_hold_total),'head_count':on_hold_heads,'percent':on_hold_perc,'per_ermployee':'{:,.2f}'.format(tper)})
+		data.append({'company':'Total','amount':format_precision(on_hold_total, filters.value_precision),'head_count':on_hold_heads,'percent':on_hold_perc,'per_ermployee':format_precision(tper, filters.value_precision)})
 		data.append({})
 
 	if total_heads:
@@ -125,13 +126,13 @@ def get_data(filters):
 	else:
 		total_percent = "0.00%"
 	if filters.mode_of_payment == "BANK":
-		data.append({'company':'Grand Total','amount':'{:,.2f}'.format(bank_total),'head_count':bank_heads,'percent':total_percent,'per_ermployee':'{:,.2f}'.format(bank_total/bank_heads)})
+		data.append({'company':'Grand Total','amount':format_precision(bank_total, filters.value_precision),'head_count':bank_heads,'percent':total_percent,'per_ermployee':format_precision(bank_total/bank_heads, filters.value_precision)})
 	elif filters.mode_of_payment == "CASH":
-		data.append({'company':'Grand Total','amount':'{:,.2f}'.format(cash_total),'head_count':cash_heads,'percent':total_percent,'per_ermployee':'{:,.2f}'.format(cash_total/cash_heads)})
+		data.append({'company':'Grand Total','amount':format_precision(cash_total, filters.value_precision),'head_count':cash_heads,'percent':total_percent,'per_ermployee':format_precision(cash_total/cash_heads, filters.value_precision)})
 	elif filters.mode_of_payment == "ON HOLD":
-		data.append({'company':'Grand Total','amount':'{:,.2f}'.format(on_hold_total),'head_count':on_hold_heads,'percent':total_percent,'per_ermployee':'{:,.2f}'.format(on_hold_total/on_hold_heads)})
+		data.append({'company':'Grand Total','amount':format_precision(on_hold_total, filters.value_precision),'head_count':on_hold_heads,'percent':total_percent,'per_ermployee':format_precision(on_hold_total/on_hold_heads, filters.value_precision)})
 	else:
-		data.append({'company':'Grand Total','amount':'{:,.2f}'.format(grand_total),'head_count':total_heads,'percent':total_percent,'per_ermployee':'{:,.2f}'.format(bank_total/bank_heads)})
+		data.append({'company':'Grand Total','amount':format_precision(grand_total, filters.value_precision),'head_count':total_heads,'percent':total_percent,'per_ermployee':format_precision(bank_total/bank_heads, filters.value_precision)})
 	data = add_by(data)
 	return data
 

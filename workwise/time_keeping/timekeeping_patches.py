@@ -507,3 +507,51 @@ def add_total_amount_in_BE_and_RE(): #2019-09-02
 
 	frappe.db.sql("""UPDATE `tabBatch Entry` BE SET BE.total_amount=(SELECT SUM(BEE.`amount`) FROM `tabBatch Entry Employees` BEE WHERE BEE.`parent`=BE.`name`) """)
 	frappe.db.commit()
+
+def update_rate_format_in_movement(): #2019-10-15
+	frappe.db.sql("""UPDATE `tabEmployee Movement` SET current_rate=FORMAT(current_rate, 2), current_minimum_take_home=FORMAT(current_minimum_take_home, 2) """)
+	frappe.db.commit()
+
+def rename_department():
+	import frappe.model.rename_doc as rd
+
+	frappe.db.sql("""UPDATE `tabDepartment` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` SET TD.`department_name`=TRIM(CONCAT(" - ", TC.abbr) FROM TD.`name`) """)
+
+	dept_list = frappe.db.sql(""" SELECT TD.`name`, TD.`department_name`, TD.`company`, TC.`abbr` FROM `tabDepartment` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` WHERE TD.`company` IS NOT NULL AND is_root = 0 """, as_dict=1)
+	for dept in dept_list:
+		rd.rename_doc("Department", dept.name, cstr(dept.department_name)+" - "+cstr(dept.abbr), force=True)
+
+def add_administrator_role():
+	frappe.db.sql("""DELETE FROM `tabHas Role` WHERE `parent` = 'Administrator' AND parentfield = 'roles' AND parenttype = 'User' AND role = 'Administrator' """)
+	frappe.db.commit()
+
+	frappe.db.sql("""INSERT INTO `tabHas Role` (name, creation, modified, modified_by, owner, `docstatus`, parent, parentfield, parenttype, idx, role) 
+		VALUES (LEFT(MD5(RAND()), 10), NOW(), NOW(), 'Administrator', 'Administrator', 0, 'Administrator', 'roles', 'User', 1, 'Administrator' ) """)
+
+def add_fromdate_todate_cto(self):
+	frappe.db.sql("""UPDATE `tabCompensatory Time Off` CTO SET is_previous=0, file_target_date=`date`, file_from_date=`date`, file_to_date=`date`, file_from_time=from_time, file_to_time=to_time WHERE type = 'File'; """)
+	frappe.db.sql("""UPDATE `tabCompensatory Time Off` CTO SET is_previous=0, use_target_date=use_date, use_from_date=use_date, use_to_date=use_date, reason=use_reason, attachment=use_attachment WHERE type = 'Use'; """)
+	frappe.db.sql("""UPDATE `tabCompensatory Time Off Table` CTT INNER JOIN `tabCompensatory Time Off` CTO ON CTT.`filed_cto`=CTO.`name` SET CTT.date=CTO.file_target_date; """)
+
+def mark_processed_default_schedule():
+	entry = {}
+	csa_list = frappe.db.sql(""" SELECT CST.`target_date`, CST.`new_shift`, CSA.`employee` FROM `tabChange Schedule Application Table` CST INNER JOIN `tabChange Schedule Application` CSA ON CST.`parent`=CSA.`name` WHERE CSA.`workflow_state` = 'Approved' """, as_dict=1)
+	for c in csa_list:
+		if c.employee not in entry:
+			entry[c.employee] = { 'dates': [] }
+		if getdate(c.target_date) not in entry[c.employee]['dates']:
+			entry[c.employee]['dates'].append(getdate(c.target_date))
+
+	ws_list = frappe.db.sql(""" SELECT employee, target_date, work_shift FROM `tabWork Schedule` """, as_dict=1)
+	for w in ws_list:
+		if w.employee not in entry:
+			entry[w.employee] = { 'dates': [] }
+		if getdate(w.target_date) not in entry[w.employee]['dates']:
+			entry[w.employee]['dates'].append(getdate(w.target_date))
+
+	ar_list = frappe.db.sql(""" SELECT `name`, employee, target_date, work_shift, is_default_schedule FROM `tabAttendance Register` """, as_dict=1)
+	for a in ar_list:
+		if a.employee in entry:
+			if (not a.is_default_schedule) and (getdate(a.target_date) not in entry[a.employee]['dates']):
+				frappe.db.sql("""UPDATE `tabAttendance Register` SET is_default_schedule=1 WHERE `name` = %s """,(a.name))
+	frappe.db.commit()

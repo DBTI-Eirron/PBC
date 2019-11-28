@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 
 def execute(filters=None):
@@ -21,11 +22,11 @@ def execute(filters=None):
 	data = []
 	for emp in employee_list:
 		pay = get_data(filters, emp)
-		row = [emp.employee, emp.employee_name, '{:,.2f}'.format(pay[0].amount)]
+		row = [emp.employee, emp.employee_name, format_precision(pay[0].amount, filters.value_precision)]
 		total_amount += flt(pay[0].amount, 8)
 
 		data.append(row)	
-	data.append(["<b>Total</b>", "", '{:,.2f}'.format(total_amount)])
+	data.append(["<b>Total</b>", "", format_precision(total_amount, filters.value_precision)])
 
 	return columns, data
 
@@ -47,7 +48,7 @@ def get_columns(employee_list):
 		{
 			"fieldname": "amount",
 			"label": _("Amount"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 160
 		}
 	]
