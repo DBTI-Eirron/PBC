@@ -4,7 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money
+from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, cstr
 from frappe import _
 from frappe.model.document import Document
 
@@ -45,10 +45,10 @@ class RecurringEntry(Document):
 
 				i = {
 					"employee": d.employee,
-					"employee_name": d.employee_name,
-					"amount": amt
+					"employee_name": cstr(d.employee_name),
+					"amount": flt(amt)
 				}	
-				total_amount += amt		
+				total_amount += flt(amt)
 				unique_entries.append(i);
 
 		self.set('employees', [])
@@ -114,8 +114,8 @@ class RecurringEntry(Document):
 				for d in employees:
 					row = {
 						"employee": d.name,
-						"employee_name": d.full_name,
-						"amount": self.rate
+						"employee_name": cstr(d.full_name),
+						"amount": flt(self.rate)
 					}
 				
 					entries.append(row);
