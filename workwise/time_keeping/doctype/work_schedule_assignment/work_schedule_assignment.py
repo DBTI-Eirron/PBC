@@ -12,141 +12,93 @@ from workwise.time_keeping.application_utils import get_user_fullname
 
 class WorkScheduleAssignment(Document):
 	def assign_schedule(self):
+		self.validate_fields()
+		#self.validate_employees()
 		self.validate_inactive_employee()
 		self.validate_self_scheduling()
 		self.check_permission('write')
-		ss_list = []
-
-		if not self.from_date or not self.to_date:
-			frappe.throw(_("From Date and To Date Required"))
-
-		if self.apply_type == 'Range':
-			ss_list = self.assign_schedule_range()
-		elif self.apply_type == 'Template':
-			if self.apply_template:
-				ss_list = self.assign_schedule_template()
-			else:
-				frappe.throw(_("Select Template"))
-
+		ss_list = self.assign_employee_schedule()
 		self.create_assignment_logs()
 
 		return self.create_log(ss_list)
 
-	def assign_schedule_range(self):
-		dates = []
-		date_list = []
+	def assign_employee_schedule(self):
 		ss_list = []
-		label = ""
+		employee_entry = []
+		date_list = []
 		start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
 		end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
 		step = datetime.timedelta(days=1)
 		while start <= end:
-			date_list.append(start.date())
+			date_list.append(getdate(start.date()))
 			start += step
 
-		if self.get('employees'):
-			for d in self.get('employees'):
-				if d.new_shift:
-					shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(d.new_shift), as_dict=True)
-					company = frappe.db.get_value("Employee", d.employee, "company")
-					
-					for i in date_list:
-						exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (d.employee, i), as_dict=True)
-						if exist:
-							exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (d.employee, i), as_dict=True)
-							frappe.db.commit()
+		if self.apply_type == 'Template':
+			sched_map = self.get_sched_template()
 
-						work_sched = frappe.new_doc("Work Schedule")
-						work_sched.update({
-							"employee": d.employee,
-							"company": company,
-							"target_date": i,
-							"work_shift": shift[0]['name'],
-							"shift_type": shift[0]['work_shift_type'],
-							"work_hours": shift[0]['work_hours'],
-							"break_mins": shift[0]['break_mins'],
-							"datetime_in": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 0), 
-							"datetime_out": self.get_date(i, shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 1),			
-							"break_start": self.get_date(i, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 0),
-							"break_end": self.get_date(i, shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 1),
-							"nd_start": self.get_date(i, shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 0),
-							"nd_end": self.get_date(i, shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 1),
-						})	
-						work_sched.insert()
-						if exist:
-							label = "Changed Schedule " + cstr(d.employee_name) +""
-						else:
-							label = "Assigned Schedule " + cstr(d.employee_name) +""
-							
-						ss_list.append(label)
+		if self.is_single:
+			for se in self.single_employee:
+				new_shift = se.new_shift
+				if self.apply_type == 'Template':
+					day = datetime.datetime.strptime(str(getdate(se.target_date)), '%Y-%m-%d').strftime('%A').lower()
+					new_shift = sched_map[day]['work_shift']
+
+				employee_entry.append({
+					"employee": se.employee,
+					"employee_name": cstr(se.employee_name),
+					"new_shift": se.new_shift,
+					"target_date": getdate(se.target_date),
+				})
 		else:
-			frappe.throw(_("No Employee Found"))
-		return ss_list
+			for d in self.employees:
+				for dt in date_list:
+					new_shift = d.new_shift
+					if self.apply_type == 'Template':
+						day = datetime.datetime.strptime(str(dt), '%Y-%m-%d').strftime('%A').lower()
+						new_shift = sched_map[day]['work_shift']
 
-	def assign_schedule_template(self):
-		sched_map = self.get_sched_template()
-		dates = []
-		date_list = []
-		ss_list = []
-		label = ""
-		start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
-		end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
-		step = datetime.timedelta(days=1)
-		
-		while start <= end:
-			date_list.append(start.date())
-			start += step
+					employee_entry.append({
+						"employee": d.employee,
+						"employee_name": cstr(d.employee_name),
+						"new_shift": new_shift,
+						"target_date": getdate(dt),
+					})
 
-		#for i in range(1, 500):
-		for i in date_list:
-			day = datetime.datetime.strptime(str(i), '%Y-%m-%d').strftime('%A').lower()
-			info = {
-				"date": i,
-				"day": day,
-				"work_shift": sched_map[day]['work_shift'],
-				"shift_type": sched_map[day]['shift_type'],
-				"work_hours": sched_map[day]['work_hours'],
-				"break_mins": sched_map[day]['break_mins'],
-				"datetime_in": self.get_date(i, sched_map[day]['time_in'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 0),
-				"datetime_out": self.get_date(i, sched_map[day]['time_in'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),
-				"break_start": self.get_date(i, sched_map[day]['break_start'], sched_map[day]['break_end'], sched_map[day]['shift_type'], 0),
-				"break_end": self.get_date(i, sched_map[day]['break_start'], sched_map[day]['break_end'], sched_map[day]['shift_type'], 1),
-				"nd_start": self.get_date(i, sched_map[day]['nd_start'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 0),
-				"nd_end": self.get_date(i, sched_map[day]['nd_start'], sched_map[day]['time_out'], sched_map[day]['shift_type'], 1),	
-			}
-			dates.append(info)
-
-		if self.get('employees'):
-			for emp in self.get('employees'):
-				company = frappe.db.get_value("Employee", emp.employee, "company")
-				exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (emp.employee, self.from_date, self.to_date), as_dict=True)
+		if employee_entry:
+			for emp in employee_entry:
+				shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(emp['new_shift']), as_dict=True)
+				exist = frappe.db.sql("""SELECT `name` FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (emp['employee'], emp['target_date']), as_dict=True)
 				if exist:
-					exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date >= %s AND target_date <= %s """, (emp.employee, self.from_date, self.to_date), as_dict=True)
+					exist = frappe.db.sql("""DELETE FROM `tabWork Schedule` WHERE employee = %s AND target_date = %s """, (emp['employee'], emp['target_date']), as_dict=True)
 					frappe.db.commit()
-									
-				for d in dates:			
+				if shift:
+					company = frappe.db.get_value("Employee", emp['employee'], "company")
 					work_sched = frappe.new_doc("Work Schedule")
 					work_sched.update({
-						"employee": emp.employee,
+						"employee": emp['employee'],
 						"company": company,
-						"target_date": d["date"],
-						"work_shift": d["work_shift"],
-						"shift_type": d["shift_type"],
-						"work_hours": d['work_hours'],
-						"break_mins": d['break_mins'],
-						"datetime_in": d["datetime_in"],
-						"datetime_out": d["datetime_out"],						
-						"break_start": d["break_start"],
-						"break_end": d["break_end"],
-						"nd_start": d["nd_start"],
-						"nd_end": d["nd_end"],
+						"target_date": emp['target_date'],
+						"work_shift": shift[0]['name'],
+						"shift_type": shift[0]['work_shift_type'],
+						"work_hours": shift[0]['work_hours'],
+						"break_mins": shift[0]['break_mins'],
+						"datetime_in": self.get_date(emp['target_date'], shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 0), 
+						"datetime_out": self.get_date(emp['target_date'], shift[0]['time_in'], shift[0]['time_out'], shift[0]['work_shift_type'], 1),
+						"break_start": self.get_date(emp['target_date'], shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 0),
+						"break_end": self.get_date(emp['target_date'], shift[0]["break_start"], shift[0]["break_end"], shift[0]['work_shift_type'], 1),
+						"nd_start": self.get_date(emp['target_date'], shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 0),
+						"nd_end": self.get_date(emp['target_date'], shift[0]["nd_start"], shift[0]['time_out'], shift[0]["nd_end"], 1),
 					})	
 					work_sched.insert()
-					label = "Assigned Schedule " + cstr(emp.employee_name) +""
-				ss_list.append(label)
+					if exist:
+						label = "Changed Schedule " + cstr(emp['employee_name']) +""
+					else:
+						label = "Assigned Schedule " + cstr(emp['employee_name']) +""
+						
+					ss_list.append(label)
 		else:
 			frappe.throw(_("No Employee Found"))
-		
+
 		return ss_list
 
 	def create_log(self, ss_list):
@@ -170,103 +122,135 @@ class WorkScheduleAssignment(Document):
 		else:
 			dt = datetime.datetime.combine(date, self.delta_to_time(start) ).strftime('%Y-%m-%d %H:%M:%S') 
 	
-		return dt
+		return dt	
+
+	def validate_employees(self):
+		date_list = []
+		start = datetime.datetime.strptime(self.from_date, '%Y-%m-%d')
+		end = datetime.datetime.strptime(self.to_date, '%Y-%m-%d')
+		step = datetime.timedelta(days=1)
+		while start <= end:
+			date_list.append(getdate(start.date()))
+			start += step
+
+		unique_emp = {}
+		for e in self.employees:
+			if e.employee not in unique_emp:
+				unique_emp[e.employee] = {
+					"employee": e.employee,
+					"employee_name": e.employee_name,
+					"new_shift": e.new_shift,
+				}
+
+		employee_list = []
+		if self.apply_type == 'Template':
+			sched_map = self.get_sched_template()
+
+		if len(unique_emp) == 1:
+			self.is_single = 1
+			self.set('single_employee', [])
+			for em in unique_emp:
+				for dt in date_list:
+					if self.apply_type == 'Template':
+						day = datetime.datetime.strptime(str(dt), '%Y-%m-%d').strftime('%A').lower()
+
+					self.append('single_employee', {
+						"employee": unique_emp[em]['employee'],
+						"employee_name": unique_emp[em]['employee_name'],
+						"new_shift": sched_map[day]['work_shift'] if self.apply_type == 'Template' else unique_emp[em]['new_shift'],
+						"target_date": dt,
+					})
+
+				employee_list.append({
+					"employee": unique_emp[em]['employee'],
+					"employee_name": unique_emp[em]['employee_name'],
+					"new_shift": None,
+				})
+		else:
+			self.is_single = 0
+			for em in unique_emp:
+				employee_list.append({
+					"employee": unique_emp[em]['employee'],
+					"employee_name": unique_emp[em]['employee_name'],
+					"new_shift": None,
+				})
+
+		self.set('employees', [])
+		for ue in employee_list:
+			row = self.append('employees', {})
+			row.update(ue)
+
+	def filter_add(self, entry):
+		if not self.company:
+			frappe.throw(_("Company is Required"))
+
+		if entry == 'Company':
+			employees = empget_company(self.company)
+		if entry == 'Subordinates':
+			employees = empget_subordinates(frappe.session.user)
+		if entry == 'Employee':
+			if (not self.filter_value) and (not self.filter_type):
+				frappe.throw(_(" Input Filter Value and Filter Type "))
+			employees = empget_employees(self.filter_type, self.filter_value, self.company)
+
+		entries = []
+		curr_emp = []
+		
+		for emp in self.employees:
+			curr_emp.append(emp.employee)
+
+		if employees:
+			for d in employees:
+				if d.name not in curr_emp:
+					row = {
+						"employee": d.name,
+						"employee_name": d.full_name,
+					}
+					entries.append(row)
+
+			for ent in entries:
+				row = self.append('employees', ent)
+
+		self.validate_employees()
+
+	def clear_tables(self):
+		self.set('employees', [])
+		self.set('single_employee', [])
 
 	def get_sched_template(self):
+		if not self.apply_template:
+			frappe.throw(_("Select Template"))
+
 		sched_template = {}
 		sched = frappe.db.sql("""SELECT * FROM `tabWork Schedule Template` WHERE `name` = %s LIMIT 1""",(self.apply_template), as_dict=1)
 		days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-		for day in days:
-			shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched[0][day]), as_dict=1)
-			sched_template[day] = {
-				"work_shift": shift[0]['name'],
-				"work_hours": shift[0]['work_hours'],
-				"break_mins": shift[0]['break_mins'],
-				"time_in": shift[0]['time_in'],
-				"time_out": shift[0]['time_out'],				
-				"break_start": shift[0]['break_start'],
-				"break_end": shift[0]['break_end'],
-				"nd_start": shift[0]['nd_start'],
-				"nd_end": shift[0]['nd_end'],				
-				"shift_type": shift[0]['work_shift_type'],
-			}
+		if sched:
+			for day in days:
+				shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched[0][day]), as_dict=1)
+				sched_template[day] = {
+					"work_shift": shift[0]['name'],
+					"work_hours": shift[0]['work_hours'],
+					"break_mins": shift[0]['break_mins'],
+					"time_in": shift[0]['time_in'],
+					"time_out": shift[0]['time_out'],
+					"break_start": shift[0]['break_start'],
+					"break_end": shift[0]['break_end'],
+					"nd_start": shift[0]['nd_start'],
+					"nd_end": shift[0]['nd_end'],
+					"shift_type": shift[0]['work_shift_type'],
+				}
 
 		return sched_template
 
-	def filter_reset(self):
-		self.set('employees', [])
+	def validate_fields(self):
+		if not self.from_date or not self.to_date:
+			frappe.throw(_("From Date and To Date Required"))
 
-	def filter_subordinates(self):
-		entries = []
-		curr_emp = []
-		employees = empget_subordinates(frappe.session.user)
+		if self.from_date > self.to_date:
+			frappe.throw(_("From Date must be less than To Date"))
 
-		for emp in self.employees:
-			curr_emp.append(emp.employee)
-
-		if employees:
-			for d in employees:
-				if d.name not in curr_emp:
-					row = {
-						"employee": d.name,
-						"employee_name": d.full_name,
-					}
-					entries.append(row)
-
-			for d in entries:
-				row = self.append('employees', {})
-				row.update(d)
-
-	def filter_company(self):
-		if not self.company:
-			frappe.throw(_("Company is Required"))
-
-		entries = []
-		curr_emp = []
-		employees = empget_company(self.company)
-
-		for emp in self.employees:
-			curr_emp.append(emp.employee)
-
-		if employees:
-			for d in employees:
-				if d.name not in curr_emp:
-					row = {
-						"employee": d.name,
-						"employee_name": d.full_name,
-					}
-					entries.append(row)
-
-			for d in entries:
-				row = self.append('employees', {})
-				row.update(d)
-
-	def filter_add(self):
-		if not self.company:
-			frappe.throw(_("Company is Required"))
-
-		if self.filter_value and self.filter_type:
-			entries = []
-			curr_emp = []
-			employees = empget_employees(self.filter_type, self.filter_value, self.company)
-			
-			for emp in self.employees:
-				curr_emp.append(emp.employee)
-
-			if employees:
-				for d in employees:
-					if d.name not in curr_emp:
-						row = {
-							"employee": d.name,
-							"employee_name": d.full_name,
-						}
-						entries.append(row)
-
-				for d in entries:
-					row = self.append('employees', {})
-					row.update(d)
-		else:
-			frappe.throw(_(" Input Filter Value and Filter Type "))
+		if (self.apply_template == 'Template') and (not self.apply_template):
+			frappe.throw(_("Select Template"))
 
 	def validate_self_scheduling(self):
 		self_scheduling = frappe.db.get_single_value('Timekeeping Settings', 'self_scheduling')
