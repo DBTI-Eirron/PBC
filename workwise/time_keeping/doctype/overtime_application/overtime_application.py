@@ -124,10 +124,16 @@ class OvertimeApplication(Document):
 				if shifts[0].min_ot_hrs > 0:
 					if flt(self.total_hrs, 2) < flt(shifts[0].min_ot_hrs, 2):
 						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Minimum Overtime Hours Per Application is {1} Hours, Did not save").format(self.name, shifts[0].min_ot_hrs))
-				
-				if shifts[0].max_ot_hrs > 0:
-					if flt(self.total_hrs, 2) > flt(shifts[0].max_ot_hrs, 2):
-						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Hours Per Application is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_hrs))
+
+				max_holiday_ot = flt(frappe.db.get_single_value('Timekeeping Settings', 'max_holiday_ot')) / 60
+				is_holiday_ot = self.chk_holiday(self.target_date)
+				if is_holiday_ot:
+					if (max_holiday_ot > 0) and (flt(self.total_hrs, 2) > flt(max_holiday_ot, 2)):
+						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Holiday Overtime Hours is {1} Hours, Did not save").format(self.name, max_holiday_ot))
+				else:
+					if shifts[0].max_ot_hrs > 0:
+						if flt(self.total_hrs, 2) > flt(shifts[0].max_ot_hrs, 2):
+							frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Hours Per Application is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_hrs))
 				
 				if shifts[0].max_ot_break > 0:
 					if flt(self.break_hrs, 2) > flt(shifts[0].max_ot_break, 2):
@@ -191,3 +197,19 @@ class OvertimeApplication(Document):
 					frappe.throw(_("<b>Overtime Application: {0}</b><hr> Application already exists, {1}").format(self.name, d.name))
 				if cur_from < existing_ot_from < cur_to or cur_from < existing_ot_to < cur_to:
 					frappe.throw(_("<b>Overtime Application: {0}</b><hr> Application already exists, {1}").format(self.name, d.name))
+
+	def chk_holiday(self, target_date):
+		holiday_tag  = 0
+		location = frappe.get_value("Employee", self.employee, "location")
+
+		holiday = frappe.db.sql("""SELECT `name`, `location` FROM `tabHoliday` WHERE holiday_date = %s 
+			AND company = %s """, (target_date, self.company), as_dict=True)
+
+		if holiday:
+			if holiday[0].location:
+				if holiday[0].location == location:
+					holiday_tag = 1
+			else:
+				holiday_tag = 1
+
+		return holiday_tag 
