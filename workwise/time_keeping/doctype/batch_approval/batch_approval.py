@@ -101,45 +101,24 @@ class BatchApproval(Document):
 			row.update(d)
 
 	def approve_applications(self):
+		enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 		table = "`tab"+self.application_type+"`"
+
 		for b in self.get("batch_table"):
 			if b.action == "Approved":
-				enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 				if enable_employee_approvers == 0:
-					#approval_history = ""
-					#approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` WHERE EA.parenttype = "Employee" AND (EA.application = %s OR EA.application = "All") AND EA.parent = %s AND TE.user_id = %s """,(self.application_type, b.employee, frappe.session.user), as_dict=True)
-					#highest_level = frappe.db.sql(""" SELECT IFNULL(MAX(`level`), 0) as level FROM `tabEmployee Approvers` WHERE parenttype = "Employee" AND (`application` = %s OR `application` = "All") AND parent = %s """,(self.application_type, b.employee), as_dict=True)	
-					#if approver_level[0].level == highest_level[0].level:
-					#	if approval_history is not None:
-					#		approval_history = frappe.db.get_value(self.application_type, b.application, "approval_history")
-					#	else:
-					#		approval_history = ""
-					#	approval_history = str(approval_history)+"Level "+str(highest_level[0].level)+": "+str(frappe.session.user)+" approved on "+str(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
-					#	suc = frappe.db.sql("""UPDATE """+table+""" SET approval_history = %s, last_approval_level = %s, workflow_state = "Approved", approved_by = %s, approved_on = %s WHERE `name` = %s """, (approval_history, highest_level[0].level, frappe.session.user, nowdate(), b.application))
-					#	frappe.db.commit()
-					#	if suc:
-					#		frappe.msgprint(_("<b>{0}: {1}</b><hr> Approval Successful").format(self.application_type, b.application))
-					#else:
-					#	if approval_history is not None:
-					#		approval_history = frappe.db.get_value(self.application_type, b.application, "approval_history")
-					#	else:
-					#		approval_history = ""
-					#	approval_history = str(approval_history)+"Level "+str(approver_level[0].level)+": "+str(frappe.session.user)+" approved on "+str(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
-					#	suc = frappe.db.sql("""UPDATE """+table+""" SET approval_history = %s, last_approval_level = %s, workflow_state = "Approval in Progress" WHERE `name` = %s """, (approval_history, approver_level[0].level, b.application))
-					#	frappe.db.commit()
-					#	if suc:
-					#		frappe.msgprint(_("<b>{0}: {1}</b><hr> Approval Successful").format(self.application_type, b.application))
 					application = frappe.get_doc(self.application_type, b.application)
+					application.update({
+						"workflow_state": "Approved",
+						"approved_by": frappe.session.user,
+						"approved_on": nowdate(),
+					})
 					application.submit()
 				else:
 					application = frappe.get_doc(self.application_type, b.application)
 					app_hist = ""
 					if application.approval_history:
 						app_hist = application.approval_history
-					#approval_history = ""
-					#if application.approval_history is not None:
-					#	approval_history = application.approval_history
-					#approval_history = str(approval_history)+"Level "+str(application.last_approval_level)+": "+str(frappe.session.user)+" batch approved on "+str(now_datetime().strftime('%Y-%m-%d %H:%M:%S'))+"\n"
 
 					application.update({
 						"workflow_state": "Approved",

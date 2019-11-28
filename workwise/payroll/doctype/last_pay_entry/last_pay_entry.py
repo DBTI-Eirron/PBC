@@ -96,31 +96,51 @@ class LastPayEntry(Document):
 		return entry
 
 	def get_on_hold(self, employee ,register, entry):
+		included_transactions = {}
 		total_bonus = 0
 		net_payroll = 0.0
 		pres_total_tax = 0.0
-		bonus = frappe.db.sql(""" SELECT period, net_payroll, gross_payroll FROM `tabPayroll Register` WHERE employee = %(employee)s 
-			AND on_hold = 1 AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+		bonus = frappe.db.sql(""" SELECT PRE.pay_code, PRE.amount, TT.type, TT.title, PR.period, PR.net_payroll, PR.gross_payroll 
+			FROM `tabPayroll Register Entries` PRE INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name` 
+			INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code`=TT.`name`
+			WHERE PR.employee = %(employee)s AND PR.on_hold = 1 
+			AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s """,{ 
 			"employee": self.employee,
 			"from_year": self.from_year,
 			"to_year": self.to_year,
 		}, as_dict=True)
 
 		for d in bonus:
-			net_payroll += d.net_payroll
-			pres_total_tax += d.net_payroll
+			if d.type in ['Income', 'Deduction']:
+				if d.pay_code not in included_transactions:
+					included_transactions[d.pay_code] = {
+						"amount": 0,
+						"title": d.title,
+						"type": d.type,
+					}
+
+				included_transactions[d.pay_code]['amount'] += d.amount
+
+		for inc in included_transactions:
 			register.append({
-				"transaction_type": "OHP",
-				"description": "On Hold Payroll",
-				"type": "Add",
-				"remarks": ""+str(d.period)+"",
-				"amount": d.net_payroll,
+				"transaction_type": inc,
+				"description": included_transactions[inc]['title'],
+				"type": "Add" if included_transactions[inc]['type'] == 'Income' else "Less",
+				"remarks": "On Hold Payroll",
+				"amount": included_transactions[inc]['amount'],
 				"manually_encoded": 0,
 			})
 
-		entry["net_pay"] += net_payroll
-		entry["gross_taxable"] += pres_total_tax
-		entry["pres_total_tax"] += pres_total_tax
+			if included_transactions[inc]['type'] == 'Income':
+				entry["gross_taxable"] += included_transactions[inc]['amount']
+				entry["pres_total_tax"] += included_transactions[inc]['amount']
+			if included_transactions[inc]['type'] == 'Deduction':
+				entry["gross_taxable"] -= included_transactions[inc]['amount']
+				entry["pres_total_tax"] -= included_transactions[inc]['amount']
+
+		#entry["net_pay"] += net_payroll
+		#entry["gross_taxable"] += pres_total_tax
+		#entry["pres_total_tax"] += pres_total_tax
 
 		return register
 
@@ -270,7 +290,6 @@ class LastPayEntry(Document):
 						unpaid_loans[d.loan_type]['amount'] += d.unpaid_amount
 						total_unpaid += d.unpaid_amount
 
-			if d.paid_amount > 0:
 				if d.loan_type == "ES":
 					if d.loan_type not in paid_loans:
 						paid_loans[d.loan_type] = {
@@ -297,7 +316,7 @@ class LastPayEntry(Document):
 		for pd in paid_loans:
 			register.append({
 				"transaction_type": paid_loans[pd]['transaction_type'],
-				"description": paid_loans[pd]['description'],	
+				"description": paid_loans[pd]['description'],
 				"type": paid_loans[pd]['type'],
 				"remarks": paid_loans[pd]['remarks'],
 				"amount": paid_loans[pd]['amount'],
@@ -332,17 +351,18 @@ class LastPayEntry(Document):
 					"leave_type": d.leave_name,
 				}, as_dict=True)
 				for b in balances:
-					credits = (b.credits - b.used_credits)
-					total_amt += rates.get('daily_rate') * (credits)
-					if total_amt:
-						register.append({
-							"transaction_type": "LC",
-							"description": "Convertible "+ str(b.leave_type) +"", 
-							"type": "Add",
-							"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(credits)+" Credit/s",
-							"amount": total_amt,
-							"manually_encoded": 0,
-						})
+					if (getdate(self.from_year) <= getdate(b.from_date) <= getdate(self.to_year)) or (getdate(self.from_year) <= getdate(b.to_date) <= getdate(self.to_year)):
+						credits = (b.credits - b.used_credits)
+						total_amt += rates.get('daily_rate') * (credits)
+						if total_amt:
+							register.append({
+								"transaction_type": "LC",
+								"description": "Convertible "+ str(b.leave_type) +"", 
+								"type": "Add",
+								"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(credits)+" Credit/s",
+								"amount": total_amt,
+								"manually_encoded": 0,
+							})
 
 				entry["pres_total_tax"] += total_amt
 				entry["net_pay"] += total_amt
