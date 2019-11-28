@@ -244,8 +244,8 @@ def get_overtime(entry, ot_apps):
 				#get OT Start Deduct Late
 				if entry.get('ot_deduct_late') and not entry.get('is_flexible'):
 					if entry.get('is_restday') < 1:
-						if entry.get('ot_dedlt_ho'):
-							if entry.get('is_holiday') != 1:
+						if entry.get('is_holiday'):
+							if entry.get('ot_dedlt_ho'):
 								ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
 						else:
 							ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
@@ -1606,6 +1606,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"flex_from": shift_map[sched['work_shift']]['flex_from'],
 		"flex_to": shift_map[sched['work_shift']]['flex_to'],		
 		"is_restday": shift_map[sched['work_shift']]['is_restday'],
+		"is_default_schedule": sched['is_default_schedule'],
 		#general policy
 		"is_processed": 0,
 		#timecard data
@@ -1733,7 +1734,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
-	get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
+	get_all_csa(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
 	get_all_dtrp(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
 
 	return emp_map
@@ -1765,7 +1766,17 @@ def get_all_schedules(emp_map, employee, pay_from, pay_to):
 
 	for d in schedule:
 		if d.employee in emp_map:
-			emp_map[d.employee].schedules.append(d)
+			emp_map[d.employee].schedules.append({
+				"employee": d.employee,
+				"company": d.company,
+				"work_shift": d.work_shift,
+				"target_date": d.target_date,
+				"o_time_in": d.o_time_in,
+				"o_break_in": d.o_break_in,
+				"o_break_out": d.o_break_out,
+				"o_time_out": d.o_time_out,
+				"is_default_schedule": 0,
+			})
 
 def get_all_overrides(emp_map, employee, pay_from, pay_to):
 	condition = "AND employee = '"+ cstr(employee) +"'" if employee else ""		
@@ -1989,14 +2000,15 @@ def complete_sched(emp_dict, pay_from, pay_to, template_map):
 		if has_sched ==  False:
 			if emp_dict['employee_details']['default_schedule']:
 				complete_schedules.append({
-					"employee":emp_dict['employee_details']['name'],
-					"company":emp_dict['employee_details']['company'],
-					"work_shift":template_map[(emp_dict['employee_details']['default_schedule'])][str(target_date.weekday())],
-					"target_date":target_date,
-					"o_time_in":None,
-					"o_break_in":None,
-					"o_break_out":None,
-					"o_time_out":None
+					"employee": emp_dict['employee_details']['name'],
+					"company": emp_dict['employee_details']['company'],
+					"work_shift": template_map[(emp_dict['employee_details']['default_schedule'])][str(target_date.weekday())],
+					"target_date": target_date,
+					"o_time_in": None,
+					"o_break_in": None,
+					"o_break_out": None,
+					"o_time_out": None,
+					"is_default_schedule": 1,
 				})
 	emp_dict['schedules'] = complete_schedules
 
@@ -2005,6 +2017,17 @@ def change_sched(emp_dict, completed_schedules, csa):
 		for cs in csa:
 			if cs['target_date'] == d['target_date']:
 				d['work_shift'] = cs['new_shift']
+				d['is_default_schedule'] = 0
+
+def processed_def_sched(employee, pay_from, pay_to, completed_schedules):
+	att_reg = frappe.db.sql(""" SELECT AR.`employee`, AR.`target_date`, AR.`work_shift`, AR.`is_default_schedule` FROM `tabAttendance Register` AR 
+		WHERE AR.`target_date` >= %s AND AR.`target_date` <= %s """,(pay_from, pay_to), as_dict=1)
+
+	for d in completed_schedules:
+		for ar in att_reg:
+			if (ar.employee == employee) and (ar.is_default_schedule):
+				if ar['target_date'] == d['target_date']:
+					d['work_shift'] = ar['work_shift']
 		
 def daterange(start_date, end_date):
     for n in range( int((end_date - start_date).days) + 1):
