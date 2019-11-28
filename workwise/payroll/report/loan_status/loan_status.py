@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _
 
 def execute(filters=None):
@@ -44,31 +45,31 @@ def get_columns(filters):
 		{
 			"fieldname": "loan_amount",
 			"label": _("Loan Amount"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 140
 		},		
 		{
 			"fieldname": "interest",
 			"label": _("Interest"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 140
 		},
 		{
 			"fieldname": "total_loan",
 			"label": _("Total Loan"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 140
 		},
 		{
 			"fieldname": "total_paid",
 			"label": _("Total Paid Amount"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 140
 		},
 		{
 			"fieldname": "total_unpaid",
 			"label": _("Total Unpaid Amount"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 140
 		},
 		{
@@ -170,7 +171,7 @@ def get_result_as_list(data, filters):
 			status = "Entered"
 		if d.paid_amount > 0 and d.on_hold != 1:
 			status = "Active"
-		if d.paid_amount == d.unpaid_amount and d.on_hold != 1:
+		if d.paid_amount == d.loan_amount and d.on_hold != 1:
 			status = "Fully Paid"
 
 		row = {
@@ -178,11 +179,11 @@ def get_result_as_list(data, filters):
 			"employee_name": d.get("employee_name"),
 			"posting_date": d.get("posting_date"),
 			"loan_type": d.get("loan_type"),
-			"loan_amount": '{:,.2f}'.format(d.get("loan_amount")),
-			"interest": '{:,.2f}'.format(d.get("interest")),
-			"total_loan": '{:,.2f}'.format(d.get("total_loan")),			
-			"total_paid": '{:,.2f}'.format(d.get("total_paid")),
-			"total_unpaid": '{:,.2f}'.format(d.get("total_loan") - d.get("total_paid")),
+			"loan_amount": format_precision(d.get("loan_amount"), filters.value_precision),
+			"interest": format_precision(d.get("interest"), filters.value_precision),
+			"total_loan": format_precision(d.get("total_loan"), filters.value_precision),			
+			"total_paid": format_precision(d.get("total_paid"), filters.value_precision),
+			"total_unpaid": format_precision(d.get("total_loan") - d.get("total_paid"), filters.value_precision),
 			"status": status
 		}
 		

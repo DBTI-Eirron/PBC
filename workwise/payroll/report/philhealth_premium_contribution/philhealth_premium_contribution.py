@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right, format_decimal_by_2_align_right_negative
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 from operator import itemgetter
 
@@ -25,17 +25,17 @@ def execute(filters=None):
 		for trans in transaction_type:
 			sss_amount = gov_map[emp][trans]
 			total_sss += sss_amount
-			row.append(format_decimal_by_2(sss_amount))
+			row.append(format_precision(sss_amount, filters.value_precision))
 
 		if total_sss > 0:
 			final_employee += flt(gov_map[emp]["PHIC"])
 			final_employer += flt(gov_map[emp]["PHICE"])
 			final_total += total_sss
-			row += [format_decimal_by_2(total_sss)]
+			row += [format_precision(total_sss, filters.value_precision)]
 			
 		data.append(row)
 	data = sorted(data, key=itemgetter(1))
-	final = ["<b>Total: </b>","", "", format_decimal_by_2(final_employee), format_decimal_by_2(final_employer), format_decimal_by_2(final_total)]
+	final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_total, filters.value_precision)]
 	data.append(final)
 	return columns, data
 
@@ -63,19 +63,19 @@ def get_columns():
 		{
 			"fieldname": "PHIC",
 			"label": _("Employee"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "PHICE",
 			"label": _("Employer"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width":120
 		},
 		{
 			"fieldname": "total_PHIC",
 			"label": _("Total Contributions"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 100
 		},
 	]

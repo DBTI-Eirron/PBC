@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr, nowdate
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _
 
 def execute(filters=None):
@@ -274,9 +275,9 @@ def get_data(filters):
 				"sss_id": "Total Number of Employees",
 				"last_name": emp_count,
 				"first_name": "Total Penalty",
-				"middle_initial": '{:,.2f}'.format(0),
+				"middle_initial": format_precision(0),
 				"loan_type": "Total Amount Paid",
-				"loan_date": '{:,.2f}'.format(total_amount_paid),
+				"loan_date": format_precision(total_amount_paid, filters.value_precision),
 				"loan_amount": "",
 				"penalty": "",
 				"amount_paid": "",
@@ -310,9 +311,9 @@ def get_data(filters):
 			"middle_initial": emp.middle_initial,
 			"loan_type": emp.loan_type,
 			"loan_date": datetime.datetime.strftime(getdate(emp.loan_date),"%y%m%d"),
-			"loan_amount": '{:,.2f}'.format(emp.loan_amount),
+			"loan_amount": format_precision(emp.loan_amount, filters.value_precision),
 			"penalty": 0.00,
-			"amount_paid": '{:,.2f}'.format(loans),
+			"amount_paid": format_precision(loans, filters.value_precision),
 			"ampsdg": 0.00,
 			"remarks": emp.remarks,
 		}

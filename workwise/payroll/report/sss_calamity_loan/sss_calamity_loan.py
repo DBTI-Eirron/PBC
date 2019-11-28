@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr, nowdate
-from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right, format_decimal_by_2_align_right_negative
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _
 
 def execute(filters=None):
@@ -59,9 +59,9 @@ def get_data(filters):
 				"sss_id": "Total Number of Employees",
 				"last_name": emp_count,
 				"first_name": "Total Penalty",
-				"middle_initial": format_decimal_by_2(0),
+				"middle_initial": format_precision(0, filters.value_precision),
 				"loan_type": "Total Amount Paid",
-				"loan_date": format_decimal_by_2(total_amount_paid),
+				"loan_date": format_precision(total_amount_paid, filters.value_precision),
 				"loan_amount": "",
 				"penalty": "",
 				"amount_paid": "",
@@ -115,15 +115,15 @@ def get_data(filters):
 			"middle_initial": data_entry[dat]['middle_initial'],
 			"loan_type": data_entry[dat]['loan_type'],
 			"loan_date": data_entry[dat]['loan_date'],
-			"loan_amount": format_decimal_by_2_align_right(data_entry[dat]['loan_amount']),
-			"penalty": format_decimal_by_2_align_right(data_entry[dat]['penalty']),
-			"amount_paid": format_decimal_by_2_align_right(data_entry[dat]['amount_paid']),
-			"ampsdg": format_decimal_by_2_align_right(data_entry[dat]['ampsdg']),
+			"loan_amount": format_align_right(format_precision(data_entry[dat]['loan_amount'], filters.value_precision)),
+			"penalty": format_align_right(format_precision(data_entry[dat]['penalty'], filters.value_precision)),
+			"amount_paid": format_align_right(format_precision(data_entry[dat]['amount_paid'], filters.value_precision)),
+			"ampsdg": format_align_right(format_precision(data_entry[dat]['ampsdg'], filters.value_precision)),
 			"remarks": data_entry[dat]['remarks'],
 		}
 		data.append(row)
 	data = sorted(data, key = lambda k:k['last_name'])
-	data.append({"sss_id": "Total", "loan_amount": format_decimal_by_2_align_right(total_loan_amount)})
+	data.append({"sss_id": "Total", "loan_amount": format_align_right(format_precision(total_loan_amount, filters.value_precision))})
 
 	return data
 

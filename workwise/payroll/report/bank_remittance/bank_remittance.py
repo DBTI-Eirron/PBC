@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _
 
 def execute(filters=None):
@@ -333,7 +333,7 @@ def get_result_as_list(data_list, filters):
 				"amount": "Payroll Time",
 				"remarks": payroll_time,
 				"lbl_total_amount": "Total Amount",
-				"total_amount": format_decimal_by_2_align_right(total_amount),
+				"total_amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 				"lbl_total_count": "Total Count",
 				"total_count": total_count, 
 				"lbl_funding_account": "Funding Account", 
@@ -353,12 +353,12 @@ def get_result_as_list(data_list, filters):
 				"detail": "D",
 				"employee_name": d.get("employee_name"),
 				"employee_account": d.get("employee_account"),
-				"amount": format_decimal_by_2_align_right(d.get("amount")),
+				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
 				"remarks": d.get("remarks"),
 			}
 			result.append(row)
 		total = {
-			"amount": format_decimal_by_2_align_right(total_amount),
+			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 			"employee": "TOTAL",
 			"employee_name": total_count
 		}
@@ -369,14 +369,14 @@ def get_result_as_list(data_list, filters):
 			row = {
 				"hdr": "DTL",
 				"account_number": d.get("employee_account"),
-				"amount": format_decimal_by_2_align_right(d.get("amount")),
+				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
 				"remarks": str(d.get("last_name"))+", "+str(d.get("first_name"))+", "+str(d.get("middle_name")),
 			}
 			result.append(row)
 		total = {
 			"hdr": "TLR",
 			"account_number": total_count,
-			"amount": format_decimal_by_2_align_right(total_amount),
+			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 			"remarks": "",
 		}
 		result.append(total)
@@ -388,7 +388,7 @@ def get_result_as_list(data_list, filters):
 				"first_name" : d.get("first_name"),
 				"account_number" : d.get("employee_account"),
 				"account_type" : d.get("bank_type"),
-				"amount": format_decimal_by_2_align_right(d.get("amount")),
+				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
 			}
 			result.append(row)
 		total = {
@@ -396,7 +396,7 @@ def get_result_as_list(data_list, filters):
 			"first_name" : "",
 			"account_number" : "",
 			"account_type" : "Total",
-			"amount": format_decimal_by_2_align_right(total_amount),
+			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 		}
 		result.append(total)
 
@@ -408,7 +408,7 @@ def get_result_as_list(data_list, filters):
 			"employee_name": d.get("employee_name"),
 			"branch_code": d.get("branch_code"),
 			"payroll_acct_no": d.get("employee_account"),
-			"amount": format_decimal_by_2_align_right(d.get("amount")),
+			"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
 			}
 			result.append(row)
 			count += 1
@@ -417,7 +417,7 @@ def get_result_as_list(data_list, filters):
 			"employee_name": "",
 			"branch_code":"",
 			"payroll_acct_no": "",
-			"amount": format_decimal_by_2_align_right(total_amount),
+			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 		}
 		result.append(total)
 
@@ -425,14 +425,14 @@ def get_result_as_list(data_list, filters):
 		for d in data:
 			row = {
 				"account_number": d.get("employee_account"),
-				"amount": format_decimal_by_2_align_right(d.get("amount")),
+				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
 				"employee_name": d.get("employee_name"),
 				"remarks": d.get("remarks"),	
 			}
 			result.append(row)
 		total = {
 			"account_number": "Headcount: "+str(total_count),
-			"amount": "Total Amount: "+format_decimal_by_2(total_amount),
+			"amount": "Total Amount: "+format_align_right(format_precision(total_amount, filters.value_precision)),
 			"employee_name": "",
 			"remarks": "",
 		}
@@ -443,14 +443,14 @@ def get_result_as_list(data_list, filters):
 			row = {
 				"employee": d.get("employee"),
 				"employee_name": d.get("employee_name"),
-				"amount": format_decimal_by_2_align_right(d.get("amount")),
+				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
 				"remarks": d.get("remarks"),
 			}
 			result.append(row)
 		total = {
 			"employee": "TOTAL",
 			"employee_name": total_count,
-			"amount": format_decimal_by_2_align_right(total_amount),
+			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 			"remarks": "",
 		}
 		result.append(total)

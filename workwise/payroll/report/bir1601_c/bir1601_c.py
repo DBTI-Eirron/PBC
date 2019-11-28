@@ -6,7 +6,7 @@ import frappe, datetime, calendar, time
 from frappe.utils import cint, flt, getdate, cstr
 from time import strptime
 from frappe import _, msgprint
-from workwise.payroll.payroll_utils import get_transaction_map
+from workwise.payroll.payroll_utils import get_transaction_map, format_precision, format_align_right
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -169,15 +169,15 @@ def get_data(filters, columns):
 			row = {
 				"employee": e,
 				"employee_name": emp_entries[e]["employee_name"],
-				"amount_compensation": '{:,.2f}'.format( flt(emp_entries[e]["amount_compensation"], 2) ),
-				"holiday_pay": '{:,.2f}'.format( flt(emp_entries[e]["holiday_pay"], 2) ),
-				"overtime_pay": '{:,.2f}'.format( flt(emp_entries[e]["overtime_pay"], 2) ),
-				"13th_month_pay": '{:,.2f}'.format( flt(emp_entries[e]["13th_month_pay"], 2) ),
-				"de_minimis": '{:,.2f}'.format( flt(emp_entries[e]["de_minimis"], 2) ),
-				"statutory": '{:,.2f}'.format( flt(emp_entries[e]["statutory"], 2) ),
-				"taxable_salary": '{:,.2f}'.format( flt(emp_entries[e]["taxable_salary"], 2) ),
-				"sss_hdmf_phic": '{:,.2f}'.format( flt(emp_entries[e]["sss_hdmf_phic"], 2) ),
-				"wht": '{:,.2f}'.format( flt(emp_entries[e]["wht"], 2) ),
+				"amount_compensation": format_precision( emp_entries[e]["amount_compensation"], filters.value_precision ),
+				"holiday_pay": format_precision( emp_entries[e]["holiday_pay"], filters.value_precision ),
+				"overtime_pay": format_precision( emp_entries[e]["overtime_pay"], filters.value_precision ),
+				"13th_month_pay": format_precision( emp_entries[e]["13th_month_pay"], filters.value_precision ),
+				"de_minimis": format_precision( emp_entries[e]["de_minimis"], filters.value_precision ),
+				"statutory": format_precision( emp_entries[e]["statutory"], filters.value_precision ),
+				"taxable_salary": format_precision( emp_entries[e]["taxable_salary"], filters.value_precision ),
+				"sss_hdmf_phic": format_precision( emp_entries[e]["sss_hdmf_phic"], filters.value_precision ),
+				"wht": format_precision( emp_entries[e]["wht"], filters.value_precision ),
 			}
 			data.append(row)
 
@@ -196,15 +196,15 @@ def get_data(filters, columns):
 		total_row = {
 			"employee": "",
 			"employee_name": "",
-			"amount_compensation": '{:,.2f}'.format( flt(total_amount_compensation, 2) ),
-			"holiday_pay": '{:,.2f}'.format( flt(total_holiday_pay, 2) ),
-			"overtime_pay": '{:,.2f}'.format( flt(total_overtime_pay, 2) ),
-			"13th_month_pay": '{:,.2f}'.format( flt(total_month_pay, 2) ),
-			"de_minimis": '{:,.2f}'.format( flt(total_de_minimis, 2) ),
-			"statutory": '{:,.2f}'.format( flt(total_statutory, 2) ),
-			"taxable_salary": '{:,.2f}'.format( flt(total_taxable_salary, 2) ),
-			"sss_hdmf_phic": '{:,.2f}'.format( flt(total_sss_hdmf_phic, 2) ),
-			"wht": '{:,.2f}'.format( flt(total_wht, 2) ),
+			"amount_compensation": format_precision( total_amount_compensation, filters.value_precision ),
+			"holiday_pay": format_precision( total_holiday_pay, filters.value_precision ),
+			"overtime_pay": format_precision( total_overtime_pay, filters.value_precision ),
+			"13th_month_pay": format_precision( total_month_pay, filters.value_precision ),
+			"de_minimis": format_precision( total_de_minimis, filters.value_precision ),
+			"statutory": format_precision( total_statutory, filters.value_precision ),
+			"taxable_salary": format_precision( total_taxable_salary, filters.value_precision ),
+			"sss_hdmf_phic": format_precision( total_sss_hdmf_phic, filters.value_precision ),
+			"wht": format_precision( total_wht, filters.value_precision ),
 		}
 		data.append(total_row)
 
