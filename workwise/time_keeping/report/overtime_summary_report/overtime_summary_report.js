@@ -12,6 +12,12 @@ frappe.query_reports["Overtime Summary Report"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "employee",
+			"label": __("Employee"),
+			"fieldtype": "Link",
+			"options": "Employee",
+		},
+		{
 			"fieldname": "from_date",
 			"label": __("From Date"),
 			"fieldtype": "Date",
