@@ -8,14 +8,12 @@ from frappe.utils import flt
 from frappe import _
 
 def execute(filters=None):
-
 	columns = get_columns(filters)
 	results = get_result(filters)
 
 	return columns, results
 
 def get_columns(filters):
-
 	columns = [
 		{
 			"fieldname": "data",
@@ -57,89 +55,6 @@ def get_result_as_list(data, filters):
 		result.append(d)
 	return result
 
-def get_register(filters, emp, pay_from, pay_to):
-	register = frappe.db.sql("""SELECT DISTINCT * FROM `tabAttendance Register` 
-		WHERE employee = %(employee)s AND target_date >= %(from_date)s AND target_date <= %(to_date)s
-		ORDER BY target_date ASC""",{
-			"employee": emp,
-			"from_date": pay_from,
-			"to_date": pay_to,
-		}, as_dict=True)
-
-	return register
-
-def get_data(filters):
-	#Initialize
-	data = []
-	data.append({"data":"<b>Company: </b>"+filters.company+"",})
-	data.append({})
-
-	employees = get_employees(filters)
-	ot_map = get_overtime_map()
-	for emp in employees:
-		if emp.overtime > 0 or emp.overtime_nd > 0 or emp.overtime_ex > 0:
-			register = get_register(filters, emp.name, filters.from_date, filters.to_date)
-			data.append({"data":"<b>Employee: </b>"+emp.full_name+"",})
-			data.append({"data":"<b>Employee ID: </b>"+emp.name+"",})
-			total_ob_hrs = 0.0
-			is_sunday = 0
-			is_saturday = 0
-			for reg in register:
-				if reg.overtime > 0 or reg.overtime_nd > 0 or reg.overtime_ex > 0:
-					tags = ""
-					ot_list = ""
-					target_date = datetime.datetime.strptime(str(reg.target_date), '%Y-%m-%d').strftime("%A")
-					if target_date == "Sunday":
-						is_sunday = 1
-					if target_date == "Saturday":
-						is_saturday = 1
-
-					if reg.overtime > 0:
-						overtime_type = [reg.is_restday, reg.is_holiday, reg.is_sp_holiday, reg.is_db_holiday, is_sunday, is_saturday, 0, 0]
-						overtime_type = ''.join(str(x) for x in overtime_type)
-						if overtime_type in ot_map:
-							tags += " <span class='label label-success'> "+ot_map[overtime_type]['name']+" "+str(flt(reg.overtime, 2))+" Hrs </span> "
-						else:
-							tags += " <span class='label label-success'>Ordinary Overtime "+str(flt(reg.overtime, 2))+" Hrs </span> "
-					if reg.overtime_nd > 0:
-						overtime_type = [reg.is_restday, reg.is_holiday, reg.is_sp_holiday, reg.is_db_holiday, is_sunday, is_saturday, 0, 1]
-						overtime_type = ''.join(str(x) for x in overtime_type)
-						if overtime_type in ot_map:
-							tags += " <span class='label label-success'> "+ot_map[overtime_type]['name']+" "+str(flt(reg.overtime_nd, 2))+" Hrs </span> "
-						else:
-							tags += " <span class='label label-success'>Night Differential Overtime"+str(flt(reg.overtime_nd, 2))+" Hrs </span> "
-					if reg.overtime_ex > 0:
-						overtime_type = [reg.is_restday, reg.is_holiday, reg.is_sp_holiday, reg.is_db_holiday, is_sunday, is_saturday, 1, 0]
-						overtime_type = ''.join(str(x) for x in overtime_type)
-						if overtime_type in ot_map:
-							tags += " <span class='label label-success'> "+ot_map[overtime_type]['name']+" "+str(flt(reg.overtime_ex, 2))+" Hrs </span> "
-						else:
-							tags += " <span class='label label-success'>Overtime Excess"+str(flt(reg.overtime_ex, 2))+" Hrs </span> "
-
-					ot_apps = get_ot_list(emp.name, reg.target_date)
-					for app in ot_apps:
-						if ot_list:
-							ot_list += ", "+app.name
-						else:
-							ot_list = app.name
-
-					entry = {
-						"date": getdate(reg.target_date),
-						"data": ot_list,
-						"total_hours": '{:,.2f}'.format(flt(reg.overtime, 2)+flt(reg.overtime_nd, 2)+flt(reg.overtime_ex, 2)),
-						"tags": tags
-					}
-					total_ob_hrs += flt(reg.overtime, 2)+flt(reg.overtime_nd, 2)+flt(reg.overtime_ex, 2)
-					data.append(entry)
-
-			data.append({
-				"data":"<b>Total</b>",
-				"total_hours": flt(total_ob_hrs, 2)
-			})
-			data.append({})
-
-	return data
-
 def get_overtime_map():
 	ot_map = {}
 	ot = frappe.db.sql(""" SELECT ot_name, ot_code, ot_rate FROM `tabOvertime Rates` """, as_dict=1)
@@ -149,36 +64,103 @@ def get_overtime_map():
 		}
 	return ot_map
 
-def get_ot_list(employee, target_date):
-	ot_apps = frappe.db.sql("""SELECT `name` FROM `tabOvertime Application` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND target_date >= %s 
-		AND target_date <= %s """,(employee, target_date, target_date), as_dict=1)
+def init_map(filters):
+	init_data = frappe.db.sql("""SELECT `name`, full_name, employee_id FROM `tabEmployee` PR
+		WHERE company = %(company)s {conditions} """.format(conditions=get_conditions_emp(filters)), filters, as_dict=1)
 
-	return ot_apps
+	_map = frappe._dict()
+	for d in init_data:
+		_map.setdefault(d.name, frappe._dict({
+				"employee": d.name,
+				"employee_name": d.full_name,
+				"employee_id": d.employee_id,
+				"registers": [],
+				"overtimes": [],
+				"overtime_apps": [],
+			})
+		)
 
-def convert_secs(filters, secs):
-	con = 0
-	if filters.time_options == "Mins":
-		con = flt(secs, 8) * 60
-	else:
-		con = flt(secs, 8)
-	return flt(con, 8)
+	return _map
 
-def get_employees(filters):
-	register = frappe.db.sql("""SELECT DISTINCT TE.`name`, TE.full_name, AR.overtime, AR.overtime_nd, AR.overtime_ex FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.employee=TE.`name`
-		WHERE AR.`target_date` >= %(from_date)s AND AR.`target_date` <= %(to_date)s AND TE.`company` = %(company)s {conditions}
-		ORDER BY AR.`target_date` ASC""".format(conditions=get_conditions(filters)),{
-			"from_date": filters.from_date,
-			"to_date": filters.to_date,
-			"company": filters.company,
-		}, as_dict=1)
+def get_overtimes(_map, filters):
+	overtimes = frappe.db.sql("""SELECT * FROM `tabOvertime` WHERE target_date >= %(from_date)s 
+		AND target_date <= %(to_date)s {conditions} """.format(conditions=get_conditions(filters)), filters, as_dict=1)
 
-	return register
+	for d in overtimes:
+		if d.employee in _map:
+			_map[d.employee].overtimes.append(d)
+
+def get_overtime_apps(_map, filters):
+	overtime_apps = frappe.db.sql("""SELECT `name`, `employee`, target_date FROM `tabOvertime Application` 
+		WHERE workflow_state = 'Approved' AND target_date >= %(from_date)s AND target_date <= %(to_date)s {conditions} """.format(conditions=get_conditions(filters)), filters, as_dict=1)
+
+	for d in overtime_apps:
+		if d.employee in _map:
+			_map[d.employee].overtime_apps.append(d)
+
+def get_registers(_map, filters):
+	registers = frappe.db.sql("""SELECT employee, target_date, overtime, overtime_nd, overtime_ex FROM `tabAttendance Register` 
+		WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s ORDER BY target_date ASC """.format(conditions=get_conditions(filters)), filters, as_dict=1)
+
+	for d in registers:
+		if d.employee in _map:
+			_map[d.employee].registers.append(d)
+
+def get_conditions_emp(filters):
+	conditions = []
+	if filters.get("employee"):
+		conditions.append("`name`=%(employee)s")
+
+	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 
 def get_conditions(filters):
 	conditions = []
 	if filters.get("employee"):
-		conditions.append("TE.`name`=%(employee)s")
-
+		conditions.append("`employee`=%(employee)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
+
+def get_data(filters):
+	data = []	
+	_map = init_map(filters)
+	ot_map = get_overtime_map()
+	get_overtimes(_map, filters)
+	get_overtime_apps(_map, filters)
+	get_registers(_map, filters)
+
+	for e, edict in sorted(_map.items(), key=lambda x: x[1]['employee_name']):
+		if edict['overtimes']:
+			data.append({"data":"<b>Employee: </b>"+edict.employee_name+"",})
+			data.append({"data":"<b>Employee ID: </b>"+edict.employee_id+"",})
+			total_ot_hrs = 0.0
+			for reg in edict['registers']:
+				entry = {
+					"data": "",
+					"date": reg.target_date,
+					"total_hours": 0.0,
+					"tags": "",
+				}
+				for ota in edict['overtime_apps']:
+					if getdate(reg.target_date) == getdate(ota.target_date):
+						if entry['data']:
+							entry['data'] += ", "+ota.name+""
+						else:
+							entry['data'] += ota.name
+
+				for ot in edict['overtimes']:
+					if getdate(reg.target_date) == getdate(ot.target_date):
+						entry['total_hours'] += ot.hrs
+						entry['tags'] += "<span class='label label-success'>"+ot_map[ot.ot_code]['name']+""+str(flt(ot.hrs, 2))+" Hrs </span>"
+
+				if entry['total_hours'] > 0:
+					total_ot_hrs += entry['total_hours']
+					data.append(entry)
+
+			data.append({
+				"data":"<b>Total</b>",
+				"total_hours": flt(total_ot_hrs, 2)
+			})
+			data.append({})
+				
+	return data
+ 

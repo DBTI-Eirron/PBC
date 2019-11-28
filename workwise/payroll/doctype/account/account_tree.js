@@ -8,6 +8,7 @@ frappe.treeview_settings["Account"] = {
 		fieldname: "company",
 		fieldtype: "Link",
 		options: "Company",
+		reqd: "1",
 		label: __("Company"),
 	}],
 	root_label: "Accounts",

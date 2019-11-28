@@ -78,6 +78,7 @@ class LastPayEntry(Document):
 				})
 		self.set('register', [])
 		
+		self.validate_dates()
 		self.get_on_hold(emp, register, entry)
 		#self.get_register_entries(emp, register, entry)
 		self.get_pro_rated(emp, register, entry)
@@ -95,32 +96,76 @@ class LastPayEntry(Document):
 
 		return entry
 
+	def validate_dates(self):
+		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
+		self.from_year = from_year
+		self.to_year = to_year
+
+		last_date_list = []
+		date_hired, date_retired, date_resigned, date_terminated, end_of_contract, last_date = None, None, None, None, None, None
+		date_hired, date_retired, date_resigned, date_terminated, end_of_contract = frappe.db.get_value("Employee", self.employee, ["date_hired", "date_retired", "date_resigned", "date_terminated", "end_of_contract"])
+		date_hired = getdate(date_hired)
+		if date_retired:
+			last_date_list.append(getdate(date_retired))
+		if date_resigned:
+			last_date_list.append(getdate(date_resigned))
+		if date_terminated:
+			last_date_list.append(getdate(date_terminated))
+		if end_of_contract:
+			last_date_list.append(getdate(end_of_contract))
+		if last_date_list:
+			last_date = max(last_date_list)
+		if (date_hired) and (getdate(self.from_year) <= getdate(date_hired) <= getdate(self.to_year)) and (getdate(date_hired) > getdate(self.from_year)):
+			self.from_year = date_hired
+		if (last_date) and (getdate(self.from_year) <= getdate(last_date) <= getdate(self.to_year)) and (getdate(last_date) < getdate(self.to_year)):
+			self.to_year = last_date
+
 	def get_on_hold(self, employee ,register, entry):
+		included_transactions = {}
 		total_bonus = 0
 		net_payroll = 0.0
 		pres_total_tax = 0.0
-		bonus = frappe.db.sql(""" SELECT period, net_payroll, gross_payroll FROM `tabPayroll Register` WHERE employee = %(employee)s 
-			AND on_hold = 1 AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+		bonus = frappe.db.sql(""" SELECT PRE.pay_code, PRE.amount, TT.type, TT.title, PR.period, PR.net_payroll, PR.gross_payroll 
+			FROM `tabPayroll Register Entries` PRE INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name` 
+			INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code`=TT.`name`
+			WHERE PR.employee = %(employee)s AND PR.on_hold = 1 
+			AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s """,{ 
 			"employee": self.employee,
 			"from_year": self.from_year,
 			"to_year": self.to_year,
 		}, as_dict=True)
 
 		for d in bonus:
-			net_payroll += d.net_payroll
-			pres_total_tax += d.net_payroll
+			if d.type in ['Income', 'Deduction']:
+				if d.pay_code not in included_transactions:
+					included_transactions[d.pay_code] = {
+						"amount": 0,
+						"title": d.title,
+						"type": d.type,
+					}
+
+				included_transactions[d.pay_code]['amount'] += d.amount
+
+		for inc in included_transactions:
 			register.append({
-				"transaction_type": "OHP",
-				"description": "On Hold Payroll",
-				"type": "Add",
-				"remarks": ""+str(d.period)+"",
-				"amount": d.net_payroll,
+				"transaction_type": inc,
+				"description": included_transactions[inc]['title'],
+				"type": "Add" if included_transactions[inc]['type'] == 'Income' else "Less",
+				"remarks": "On Hold Payroll",
+				"amount": included_transactions[inc]['amount'],
 				"manually_encoded": 0,
 			})
 
-		entry["net_pay"] += net_payroll
-		entry["gross_taxable"] += pres_total_tax
-		entry["pres_total_tax"] += pres_total_tax
+			if included_transactions[inc]['type'] == 'Income':
+				entry["gross_taxable"] += included_transactions[inc]['amount']
+				entry["pres_total_tax"] += included_transactions[inc]['amount']
+			if included_transactions[inc]['type'] == 'Deduction':
+				entry["gross_taxable"] -= included_transactions[inc]['amount']
+				entry["pres_total_tax"] -= included_transactions[inc]['amount']
+
+		#entry["net_pay"] += net_payroll
+		#entry["gross_taxable"] += pres_total_tax
+		#entry["pres_total_tax"] += pres_total_tax
 
 		return register
 
@@ -270,7 +315,6 @@ class LastPayEntry(Document):
 						unpaid_loans[d.loan_type]['amount'] += d.unpaid_amount
 						total_unpaid += d.unpaid_amount
 
-			if d.paid_amount > 0:
 				if d.loan_type == "ES":
 					if d.loan_type not in paid_loans:
 						paid_loans[d.loan_type] = {
@@ -297,7 +341,7 @@ class LastPayEntry(Document):
 		for pd in paid_loans:
 			register.append({
 				"transaction_type": paid_loans[pd]['transaction_type'],
-				"description": paid_loans[pd]['description'],	
+				"description": paid_loans[pd]['description'],
 				"type": paid_loans[pd]['type'],
 				"remarks": paid_loans[pd]['remarks'],
 				"amount": paid_loans[pd]['amount'],
@@ -327,22 +371,23 @@ class LastPayEntry(Document):
 			convertible_leaves = frappe.db.sql(""" SELECT leave_name, leave_code FROM `tabLeave Type` WHERE convertible = 1 """, as_dict=True)
 			for d in convertible_leaves:
 				total_amt = 0
-				balances = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE employee = %(employee)s AND leave_type = %(leave_type)s """,{ 
+				balances = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE employee = %(employee)s AND leave_type = %(leave_type)s  """,{ 
 					"employee": self.employee,
 					"leave_type": d.leave_name,
 				}, as_dict=True)
 				for b in balances:
-					credits = (b.credits - b.used_credits)
-					total_amt += rates.get('daily_rate') * (credits)
-					if total_amt:
-						register.append({
-							"transaction_type": "LC",
-							"description": "Convertible "+ str(b.leave_type) +"", 
-							"type": "Add",
-							"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(credits)+" Credit/s",
-							"amount": total_amt,
-							"manually_encoded": 0,
-						})
+					if (getdate(self.from_year) <= getdate(b.from_date) <= getdate(self.to_year)) or (getdate(self.from_year) <= getdate(b.to_date) <= getdate(self.to_year)):
+						credits = (b.credits - b.used_credits)
+						total_amt += rates.get('daily_rate') * (credits)
+						if total_amt:
+							register.append({
+								"transaction_type": "LC",
+								"description": "Convertible "+ str(b.leave_type) +"", 
+								"type": "Add",
+								"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(credits)+" Credit/s",
+								"amount": total_amt,
+								"manually_encoded": 0,
+							})
 
 				entry["pres_total_tax"] += total_amt
 				entry["net_pay"] += total_amt
@@ -461,6 +506,7 @@ class LastPayEntry(Document):
 			entry["not_yet_paid"] = entry["tax_due"] - entry["pres_tax_paid"] 
 
 	def set_summary(self, entry):
+		self.clear_entries()
 		total_add, total_less = 0, 0
 		for d in self.register_table:
 			if d.type == "Add":
@@ -475,4 +521,18 @@ class LastPayEntry(Document):
 		self.tax_due = flt(entry["tax_due"], 8)
 		self.prev_tax_paid = flt(entry["prev_tax_paid"], 8)
 		self.pres_tax_paid = flt(entry["pres_tax_paid"], 8)
-		self.not_yet_paid = flt(entry["not_yet_paid"], 8)
+		if flt(entry["not_yet_paid"], 8) > 0:
+			self.deficit_tax = abs(flt(entry["not_yet_paid"], 8))
+		else:
+			self.tax_refund = abs(flt(entry["not_yet_paid"], 8))
+
+	def clear_entries(self):
+		self.net_pay = 0
+		self.prev_total_tax = 0
+		self.pres_total_tax = 0
+		self.gross_taxable = 0
+		self.tax_due = 0
+		self.prev_tax_paid = 0
+		self.pres_tax_paid = 0
+		self.deficit_tax = 0
+		self.tax_refund = 0

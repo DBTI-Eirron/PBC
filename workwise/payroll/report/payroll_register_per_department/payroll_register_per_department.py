@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 
 def execute(filters=None):
@@ -55,7 +56,7 @@ def execute(filters=None):
 					income_amount = flt(income_map.get(emp.employee, {}).get(income), 8)
 					total_income += flt(income_amount, 8)
 					income_total[i] += flt(income_amount, 8)
-					row.append('{:,.2f}'.format(income_amount))
+					row.append(format_precision(income_amount, filters.value_precision))
 					i += 1
 
 				i = 0
@@ -63,11 +64,11 @@ def execute(filters=None):
 					deduction_amount = flt(deduction_map.get(emp.employee, {}).get(deduction), 8)
 					total_deduction += flt(deduction_amount, 8)
 					deduction_total[i] += flt(deduction_amount, 8)
-					row.append('{:,.2f}'.format(deduction_amount))
+					row.append(format_precision(deduction_amount, filters.value_precision))
 					i += 1
 
 				total_payroll = flt(total_income, 8) - flt(total_deduction, 8)
-				row += ['{:,.2f}'.format(total_income), '{:,.2f}'.format(total_deduction), '{:,.2f}'.format(total_payroll)]
+				row += [format_precision(total_income, filters.value_precision), format_precision(total_deduction, filters.value_precision), format_precision(total_payroll, filters.value_precision)]
 				dtotal_income += flt(total_income, 2)
 				dtotal_deduction += flt(total_deduction, 2)
 				dtotal_payroll += flt(total_payroll, 2)
@@ -75,17 +76,17 @@ def execute(filters=None):
 
 			i = 0
 			for income in income_types:
-				total_row.append('{:,.2f}'.format(income_total[i]))
+				total_row.append(format_precision(income_total[i], filters.value_precision))
 				f_income_total[i] += flt(income_total[i], 8)
 				i += 1
 
 			i = 0
 			for deduction in deduction_types:
-				total_row.append('{:,.2f}'.format(deduction_total[i]))
+				total_row.append(format_precision(deduction_total[i], filters.value_precision))
 				f_deduction_total[i] += flt(deduction_total[i], 8)
 				i += 1
 
-			total_row += ['{:,.2f}'.format(dtotal_income), '{:,.2f}'.format(dtotal_deduction), '{:,.2f}'.format(dtotal_payroll)]
+			total_row += [format_precision(dtotal_income, filters.value_precision), format_precision(dtotal_deduction, filters.value_precision), format_precision(dtotal_payroll, filters.value_precision)]
 			f_total_income += flt(dtotal_income, 2)
 			f_total_deduction += flt(dtotal_deduction, 2)
 			f_total_payroll += flt(dtotal_payroll, 2)
@@ -95,20 +96,20 @@ def execute(filters=None):
 	if not filters.department:
 		i = 0
 		for income in income_types:
-			final_total_row.append('{:,.2f}'.format(f_income_total[i]))
+			final_total_row.append(format_precision(f_income_total[i], filters.value_precision))
 			i += 1
 		i = 0
 		for deduction in deduction_types:
-			final_total_row.append('{:,.2f}'.format(f_deduction_total[i]))
+			final_total_row.append(format_precision(f_deduction_total[i], filters.value_precision))
 			i += 1
-		final_total_row += ['{:,.2f}'.format(f_total_income), '{:,.2f}'.format(f_total_deduction), '{:,.2f}'.format(f_total_payroll)]
+		final_total_row += [format_precision(f_total_income, filters.value_precision), format_precision(f_total_deduction, filters.value_precision), format_precision(f_total_payroll, filters.value_precision)]
 		data.append("")
 
 		if filters.hide_zero:
 			max_range = len(final_total_row)
 			idx = 0
 			for x in xrange(0,max_range):
-				if final_total_row[idx] == '0.00':
+				if final_total_row[idx] == format_precision(0, filters.value_precision):
 					del final_total_row[idx]
 					del columns[idx]
 					for d in data:
@@ -146,7 +147,7 @@ def get_columns(income_types, deduction_types):
 		columns.append({			
 			"fieldname": pay_code,
 			"label": pay_title,
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 100
 		})
 
@@ -155,7 +156,7 @@ def get_columns(income_types, deduction_types):
 		columns.append({			
 			"fieldname": pay_code,
 			"label": pay_title,
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 100
 		})
 
@@ -163,19 +164,19 @@ def get_columns(income_types, deduction_types):
 		{
 			"fieldname": "total_income",
 			"label": _("Total Income"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 100
 		},
 		{
 			"fieldname": "total_deduction",
 			"label": _("Total Deduction"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 100
 		},
 		{
 			"fieldname": "total_payroll",
 			"label": _("Total Payroll"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 100
 		},
 	]

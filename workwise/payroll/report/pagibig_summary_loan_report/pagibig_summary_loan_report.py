@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 
 def execute(filters=None):
@@ -246,8 +247,8 @@ def get_data(filters):
 				"last_name": emp.last_name,
 				"first_name": emp.first_name,
 				"middle_name": emp.middle_name,
-				"HDMF": '{:,.2f}'.format(HDMF_amount),
-				"HDMFE": '{:,.2f}'.format(HDMFE_amount),
+				"HDMF": format_precision(HDMF_amount, filters.value_precision),
+				"HDMFE": format_precision(HDMFE_amount, filters.value_precision),
 				"tin": emp.tin,
 				"birthdate": datetime.datetime.strftime(getdate(emp.birthday), "%Y%m%d"),
 			}

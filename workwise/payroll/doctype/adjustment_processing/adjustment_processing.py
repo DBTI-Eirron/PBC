@@ -12,7 +12,7 @@ from workwise.payroll.payroll_utils import get_rates, get_overtime_map
 from workwise.time_keeping.application_utils import validate_inactive_employee
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime, 
-init_employee_map, complete_sched, get_template_map, change_sched)
+init_employee_map, complete_sched, get_template_map, change_sched, processed_def_sched)
 
 class AdjustmentProcessing(Document):
 	def get_employees(self):
@@ -62,6 +62,18 @@ class AdjustmentProcessing(Document):
 		p_stats, p_date, p_comp = frappe.db.get_value("Payroll Period", self.period,  ["status", "payroll_date", "company"])
 		tgt_stats, tgt_date, tgt_comp = frappe.db.get_value("Payroll Period", self.target_period, ["status", "payroll_date", "company"])
 
+		if p_comp != self.company:
+			frappe.throw(_("Selected Payroll Period does not belong to company"))
+
+		if p_stats == "Open":
+			frappe.throw(_("Selected Payroll Period is still Open"))
+
+		if tgt_comp != self.company:
+			frappe.throw(_("Selected Target Period does not belong to company"))
+
+		if tgt_stats == "Closed":
+			frappe.throw(_("Selected Target Period is already Closed"))
+
 		if not self.schedule and not self.payroll_date:
 			frappe.throw(_("Fill up Mandatory Fields"))
 
@@ -94,6 +106,7 @@ class AdjustmentProcessing(Document):
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			complete_sched(emp_dict, pay_from, pay_to, template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
+			processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
 				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
 				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
@@ -101,7 +114,7 @@ class AdjustmentProcessing(Document):
 				get_sorted_card(entry, cards_in, cards_out)
 				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
 					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'))
-				
+
 				entry['break'] = self.convert_secs(entry['break'])
 				entry['work'] = self.convert_secs(entry['work'])
 				entry['late'] = self.convert_secs(entry['late'])
@@ -199,6 +212,7 @@ class AdjustmentProcessing(Document):
 		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
+		uho_ab_spnw = frappe.db.get_single_value('Payroll Settings', 'uho_ab_spnw')
 		overtimes_register = []
 		if emp.get('is_attendance_base') > 0 and getdate(emp.get('date_hired')) < getdate(attendance_from):
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho, cto, cto_days = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0
@@ -404,7 +418,7 @@ class AdjustmentProcessing(Document):
 						#if daily rate, holiday is considered paid
 						if at.get('is_holiday') and not at.get('is_restday'):
 							work_days += 1
-							if at.get('is_absent') and at.get('is_sp_holiday') and header.get('uho_ab_spnw'):
+							if at.get('is_absent') and at.get('is_sp_holiday') and uho_ab_spnw:
 								work_days -= 1
 								unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
 

@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right, format_decimal_by_2_align_right_negative
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 
 def execute(filters=None):
@@ -80,8 +80,8 @@ def get_data(filters):
 				"employee_status": "Active" if gov_map[emp[0]]['status'] == 1 else "Inactive",
 				"date_hired": gov_map[emp[0]]['date_hired'],
 				"birth_day": datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%m/%d/%Y"),
-				"employee": format_decimal_by_2(gov_map[emp[0]]['PHIC']),
-				"employer": format_decimal_by_2(gov_map[emp[0]]['PHICE']),
+				"employee": format_precision(gov_map[emp[0]]['PHIC'], filters.value_precision),
+				"employer": format_precision(gov_map[emp[0]]['PHICE'], filters.value_precision),
 			}
 			data.append(row)
 

@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from workwise.payroll.payroll_utils import format_decimal_by_2
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 
 def execute(filters=None):
@@ -49,15 +49,15 @@ def get_data(filters):
 			'last_name':gov_map[emp[0]]['last_name'], 
 			'first_name':gov_map[emp[0]]['first_name'], 
 			'middle_name':gov_map[emp[0]]['middle_name'], 
-			'birth_day':datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%Y%m%d"),
-			'map':format_decimal_by_2(gov_map[emp[0]]['HDMFCL'])
+			'birth_day':datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%m/%d/%Y"),
+			'map':format_precision(gov_map[emp[0]]['HDMFCL'], filters.value_precision)
 		}
 		total_map += gov_map[emp[0]]['HDMFCL']
 		entries.append(row)
 		entries = sorted(entries, key = lambda k:k['last_name'])
 	for ent in entries:
 		data.append(ent)
-	data.append({'birth_day':'Total :'+str(format_decimal_by_2(total_map))})
+	data.append({'birth_day':'Total :'+str(format_precision(total_map, filters.value_precision))})
 	return data
 
 def get_employees(filters,transaction_type):

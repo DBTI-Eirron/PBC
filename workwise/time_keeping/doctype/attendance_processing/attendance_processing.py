@@ -6,12 +6,13 @@ from __future__ import unicode_literals
 import frappe, datetime
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import cint, flt, getdate, cstr, add_to_date
+from frappe.utils import cint, flt, getdate, cstr, add_to_date, nowtime, nowdate
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.application_utils import validate_inactive_employee
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,
 init_employee_map,complete_sched,change_sched,get_template_map)
+from workwise.time_keeping.application_utils import get_user_fullname
 
 class AttendanceProcessing(Document):
 	def get_employees(self):
@@ -50,15 +51,26 @@ class AttendanceProcessing(Document):
 
 		return "AND {}".format(" AND ".join(conditions)) if conditions else ""
 
-	def process_attendance(self):
-		if self.employee:
-			validate_inactive_employee(self)
+	def validate_period(self):
 		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+		company, period_stats = frappe.db.get_value("Payroll Period", self.period, ["company", "status"])
+
 		if not self.period:
 			frappe.throw(_("Please Select Payroll Period"))
+
+		if company != self.company:
+			frappe.throw(_("Selected Period does not belong to company"))
+
+		if period_stats == "Closed":
+			frappe.throw(_("Selected Period is Already Closed"))
 		
 		if strict_period_group and not self.period_group:
 			frappe.throw(_("Period Group is required for Payroll Period {0}").format(self.period))
+
+	def process_attendance(self):
+		if self.employee:
+			validate_inactive_employee(self)
+		self.validate_period()
 
 		employees = self.get_employees()
 		ss_list = 0
@@ -69,6 +81,9 @@ class AttendanceProcessing(Document):
 			data = []
 			ot_list = []
 			reg_list = []
+			employee_log_list = ""
+			headcount, no_sched_count, no_work_count = 0, 0, 0 
+			time_start = nowtime()
 
 			if self.employee:
 				employee = self.employee
@@ -82,6 +97,8 @@ class AttendanceProcessing(Document):
 			emp_map = init_employee_map(employees, employee, self.company, pay_from, pay_to, approval_cutoff, 0)
 			for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 				ss_list += 1
+				issue_tag = ""
+				no_work = 1
 				complete_sched(emp_dict, pay_from, pay_to, template_map)
 				change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 				for sched in emp_dict['schedules']:
@@ -104,7 +121,39 @@ class AttendanceProcessing(Document):
 					ot_list.extend(entry.get('ot_list'))
 					insert_overtime(entry)
 					reg_list.append(entry)
-				payslip_label = "Created for "+ cstr(emp_dict.get('employee_name')) +""
+
+					#Get Processing Logs
+					if no_work == 1:
+						if entry['work'] > 0:
+							no_work = 0
+
+				if not emp_dict['schedules']:
+					issue_tag += " <span class='label label-danger'> No Schedule </span>"
+					no_sched_count += 1
+				if no_work == 1:
+					issue_tag += " <span class='label label-danger'> No Work </span>"
+					no_work_count += 1
+				employee_log_list += cstr(emp_dict['employee'])+" : "+cstr(emp_dict['employee_name'])+" "+issue_tag+"<br>"
+				headcount += 1
+			processing_logs = frappe.new_doc("Attendance Processing Logs")
+			processing_logs.update({
+				"company": self.company,
+				"payroll_period": self.period,
+				"period_from": self.period_from,
+				"period_to": self.period_to,
+				"processed_date": getdate(nowdate()),
+				"processed_by": frappe.session.user,
+				"processed_by_name": get_user_fullname(self),
+				"processed_time_start": time_start,
+				"processed_time_end": nowtime(),
+				"headcount": headcount,
+				"no_work": no_work_count,
+				"no_schedule": no_sched_count,
+				"employee_list": employee_log_list,
+			})
+			processing_logs.flags.ignore_permissions = True
+			processing_logs.save()
+				#payslip_label = "Created for "+ cstr(emp_dict.get('employee_name')) +""
 
 			for ot in ot_list:
 				otdoc = frappe.new_doc("Overtime")
@@ -117,7 +166,7 @@ class AttendanceProcessing(Document):
 				})
 				otdoc.flags.ignore_mandatory = True
 				otdoc.flags.ignore_permissions = True
-				otdoc.insert()				
+				otdoc.insert()
 
 			for reg in reg_list:
 				register = frappe.new_doc("Attendance Register")
@@ -128,12 +177,18 @@ class AttendanceProcessing(Document):
 		else:
 			frappe.throw(_("No Employee Found"))
 		
-		return self.create_log(ss_list)
+		return self.create_log(ss_list, headcount, no_sched_count, no_work_count)
 
-	def create_log(self, ss_list):
+	def create_log(self, ss_list, headcount, no_sched_count, no_work_count):
 		log = "<p>" + _("No Employee for the above selected criteria Attendance or Already Created") + "</p>"
-		if ss_list > 0:
-			log = "<b>Attendance Registers Created for"+cstr(ss_list)+" Employees</b>"
+		#if ss_list:
+			#log = "<b>" + _("Attendance Registers Created") + "</b>\
+			#<br><br>%s" % '<br>'.join(ss_list)
+		if ss_list:
+			log = "<p>" + _("Attendance Processed Successfully 	<br>\
+				Headcount: "+cstr(headcount)+"/"+cstr(headcount)+" No Work: "+cstr(no_work_count)+" No Schedule: "+cstr(no_sched_count)+" <br>\
+				Attendance Processing Log Created") + "</p>"
+
 		return log
 
 	def format_as_links(self, ss_list):

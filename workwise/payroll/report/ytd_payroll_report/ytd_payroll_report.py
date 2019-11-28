@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 import frappe, datetime, calendar
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 
 def execute(filters=None):
@@ -30,8 +31,8 @@ def execute(filters=None):
 
 			period_amount = get_period_map(filters, emp.name, from_date, to_date)
 			total_grosspay += period_amount
-			row.append('{:,.2f}'.format(period_amount))
-		row += ['{:,.2f}'.format(total_grosspay)]
+			row.append(format_precision(period_amount, filters.value_precision))
+		row += [format_precision(total_grosspay, filters.value_precision)]
 		data.append(row)
 
 	return columns, data
@@ -56,14 +57,14 @@ def get_columns(employee_list, months):
 		columns += [{
 				"fieldname": row,
 				"label": row,
-				"fieldtype": "Float",
+				"fieldtype": "Data",
 				"width": 170
 		}]	
 
 	columns += [{
 			"fieldname": "net_pay",
 			"label": _("Total "),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 100
 		}]
 

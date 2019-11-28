@@ -206,3 +206,22 @@ def format_decimal_by_2_align_right(figure):
 
 def format_decimal_by_2_align_right_negative(figure):
 	return '<div align="right">('+str( '{:,.2f}'.format( flt(abs(figure), 2) ) )+')</div>'
+
+def format_precision(figure, precision):
+	if precision == '2':
+		return '{:,.2f}'.format( flt(figure, 2) )
+	elif precision == '3':
+		return '{:,.3f}'.format( flt(figure, 3) )
+	elif precision == '4':
+		return '{:,.4f}'.format( flt(figure, 4) )
+	elif precision == '5':
+		return '{:,.5f}'.format( flt(figure, 5) )
+	elif precision == '6':
+		return '{:,.6f}'.format( flt(figure, 6) )
+	elif precision == '7':
+		return '{:,.7f}'.format( flt(figure, 7) )
+	else:
+		return '{:,.8f}'.format( flt(figure, 8) )
+
+def format_align_right(figure):
+	return '<div align="right">'+str( figure )+'</div>'

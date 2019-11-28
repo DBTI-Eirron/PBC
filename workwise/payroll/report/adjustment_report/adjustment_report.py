@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _
 
 def execute(filters=None):
@@ -192,18 +193,18 @@ def get_data(filters, columns):
 				row = {
 					"employee": reg.employee,
 					"employee_name": reg.employee_name,
-					"income_absent": '{:,.2f}'.format(income_absent),
-					"deduction_absent": '{:,.2f}'.format(deduction_absent),
-					"income_uh": '{:,.2f}'.format(income_uh),
-					"deduction_uh": '{:,.2f}'.format(deduction_uh),
-					"income_ot": '{:,.2f}'.format(income_ot),
-					"deduction_ot": '{:,.2f}'.format(deduction_ot),
-					"income_nd": '{:,.2f}'.format(income_nd),
-					"deduction_nd": '{:,.2f}'.format(deduction_nd),
-					"income_late": '{:,.2f}'.format(income_late),
-					"deduction_late": '{:,.2f}'.format(deduction_late),
-					"income_ut": '{:,.2f}'.format(income_ut),
-					"deduction_ut": '{:,.2f}'.format(deduction_ut),
+					"income_absent": format_precision(income_absent, filters.value_precision),
+					"deduction_absent": format_precision(deduction_absent, filters.value_precision),
+					"income_uh": format_precision(income_uh, filters.value_precision),
+					"deduction_uh": format_precision(deduction_uh, filters.value_precision),
+					"income_ot": format_precision(income_ot, filters.value_precision),
+					"deduction_ot": format_precision(deduction_ot, filters.value_precision),
+					"income_nd": format_precision(income_nd, filters.value_precision),
+					"deduction_nd": format_precision(deduction_nd, filters.value_precision),
+					"income_late": format_precision(income_late, filters.value_precision),
+					"deduction_late": format_precision(deduction_late, filters.value_precision),
+					"income_ut": format_precision(income_ut, filters.value_precision),
+					"deduction_ut": format_precision(deduction_ut, filters.value_precision),
 				}
 				data.append(row)
 			

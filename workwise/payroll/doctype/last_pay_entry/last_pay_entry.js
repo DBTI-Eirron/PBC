@@ -23,4 +23,24 @@ frappe.ui.form.on('Last Pay Entry', {
 			});
 		} 
 	},
+
+	employee: function(frm) {
+		frm.trigger("validate_dates");
+	},
+
+	payroll_year: function(frm) {
+		frm.trigger("validate_dates");
+	},
+
+	validate_dates: function(frm) {
+		if(frm.doc.employee && frm.doc.payroll_year){
+			return frappe.call({
+				method: "validate_dates",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		} 
+	},
 });

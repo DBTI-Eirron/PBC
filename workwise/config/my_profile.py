@@ -31,14 +31,20 @@ def get_data():
 				},
 				{
 					"type": "report",
+					"name": "My Tardiness Report",
+					"doctype": "Work Schedule",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "My Daily Time Record",
 					"doctype": "Time Card",	
 					"is_query_report": True
 				},
 				{
 					"type": "report",
-					"name": "My Tardiness Report",
-					"doctype": "Work Schedule",	
+					"name": "My Attendance Summary Processed",
+					"doctype": "Attendance Register",	
 					"is_query_report": True
 				},
 			]
