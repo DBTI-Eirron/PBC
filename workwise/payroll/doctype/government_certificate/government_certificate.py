@@ -18,8 +18,7 @@ class GovernmentCertificate(Document):
 
 	def get_employees(self):
 		query = """SELECT EM.`name`, EM.`full_name`, PR.`name` as xname, PR.posting_date, """+self.add_amount()+""" FROM `tabEmployee` EM
-		INNER JOIN `tabPayroll Register` PR ON EM.`name` = PR.employee
-		WHERE EM.is_active = 1"""
+		INNER JOIN `tabPayroll Register` PR ON EM.`name` = PR.employee"""
 		query += self.add_filter()
 		employees = frappe.db.sql(query,as_dict=True)
 
@@ -47,7 +46,7 @@ class GovernmentCertificate(Document):
 			row.update(d)
 
 	def add_filter(self):
-		add_filter = " AND PR.posting_date >= '"+self.from_date+"' AND PR.posting_date <= '"+self.to_date+"'"
+		add_filter = " WHERE PR.posting_date >= '"+self.from_date+"' AND PR.posting_date <= '"+self.to_date+"'"
 		if self.employee:
 			add_filter += " AND EM.`name` = '"+self.employee+"'"
 		if self.company:

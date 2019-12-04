@@ -1,4 +1,4 @@
-	# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # Copyright (c) 2017, HDI Systech and contributors
 # For license information, please see license.txt
 
@@ -7,12 +7,17 @@ import frappe
 from frappe import _
 #from workwise.utils.employee_utils import set_employee_name
 from frappe import throw
-from frappe.utils import getdate, today, cstr, flt
+from frappe.utils import getdate, today, cstr, flt, nowdate
 from frappe.model.document import Document
 from workwise.payroll.payroll_utils import format_decimal_by_2
+from workwise.time_keeping.application_utils import validate_inactive_employee, validate_active_employee
 
 class EmployeeMovement(Document):
 	def validate(self):
+		if self.movement_type in ["Job Rotation", "Retirement", "Resignation", "Regularization", "Transfer", "Termination", "Salary Adjustment", "Extension of Services"]:
+			validate_inactive_employee(self)
+		if self.movement_type in ["Rehire"]:
+			validate_active_employee(self)
 		self.validate_movement()
 
 	def on_submit(self):
@@ -34,9 +39,10 @@ class EmployeeMovement(Document):
 		cmd_move(process="validate")
 
 	def update_movement(self):
-		movement_type = "cmd_"+cstr(self.movement_type.replace(" ", "_").lower())
-		cmd_move = getattr(self, movement_type)
-		cmd_move(process="update")
+		if getdate(self.effective_on) <= getdate(nowdate()):
+			movement_type = "cmd_"+cstr(self.movement_type.replace(" ", "_").lower())
+			cmd_move = getattr(self, movement_type)
+			cmd_move(process="update")
 
 	def revert_movement(self):
 		movement_type = "cmd_"+cstr(self.movement_type.replace(" ", "_").lower())
@@ -71,6 +77,7 @@ class EmployeeMovement(Document):
 					"job_level": self.current_job_level,
 				})
 			self.revert_employee(emp)
+			self.cmd_salary_adjustment(process=process)
 
 	def cmd_retirement(self, process):
 		if process == "validate":
@@ -83,15 +90,9 @@ class EmployeeMovement(Document):
 				"employment_status": "Retired",
 				"is_active": 0,
 				"date_retired": getdate(self.effective_on),
-			})			
-			self.save_employee(emp)
-			
-			#disable user id
-			us = frappe.get_doc("User", emp.user_id)
-			us.update({
-				"new_password": us.frappe_userid,
 			})
-			us.save()
+
+			self.save_employee_and_user(emp,us)
 
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)
@@ -99,8 +100,9 @@ class EmployeeMovement(Document):
 					"employment_status": self.current_employment_status,
 					"is_active": 1,
 					"date_retired": "",
-				})
-			self.revert_employee(emp)
+			})
+
+			self.revert_employee_and_user(emp,us)
 
 	def cmd_resignation(self, process):
 		if process == "validate":
@@ -132,8 +134,9 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"employment_status": "Regular",
+					"employment_status": self.change_employment_status,
 					"is_active": 1,
+					"position_title": self.change_position_title,
 				})
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
@@ -143,8 +146,10 @@ class EmployeeMovement(Document):
 			emp.update({
 					"employment_status": self.current_employment_status,
 					"is_active": 1,
+					"position_title": self.current_position_title,
 				})
 			self.revert_employee(emp)
+			self.cmd_salary_adjustment(process=process)
 
 	def cmd_transfer(self, process):
 		if process == "validate":
@@ -170,6 +175,7 @@ class EmployeeMovement(Document):
 					"location": self.current_location,
 				})
 			self.revert_employee(emp)
+			self.cmd_salary_adjustment(process=process)
 
 	def cmd_termination(self, process):
 		if process == "validate":
@@ -184,6 +190,7 @@ class EmployeeMovement(Document):
 					"date_terminated": getdate(self.effective_on),
 				})
 			self.save_employee(emp)
+
 
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)
@@ -205,7 +212,8 @@ class EmployeeMovement(Document):
 					"rate_type": self.new_rate_type,
 					"rate": flt(self.new_rate, 2),
 					"min_take_home": flt(self.new_minimum_take_home, 2) if self.new_minimum_take_home else flt(self.current_minimum_take_home, 2),
-					"is_attendance_base": self.new_attendance_base if self.new_attendance_base else self.current_attendance_base,
+					"is_attendance_base": self.new_attendance_base,
+					"cost_center": self.new_cost_center if self.new_cost_center else self.current_cost_center,
 				})
 			self.save_employee(emp)
 
@@ -216,6 +224,7 @@ class EmployeeMovement(Document):
 					"rate": flt(self.current_rate, 2),
 					"min_take_home": flt(self.current_minimum_take_home, 2),
 					"is_attendance_base": self.current_attendance_base,
+					"cost_center": self.current_cost_center,
 				})
 			self.revert_employee(emp)
 
@@ -223,8 +232,9 @@ class EmployeeMovement(Document):
 		if process == "validate":
 			fields = ["new_end_of_contract"]
 			self.validate_fields(fields)
-			if getdate(self.current_end_of_contract) > getdate(self.new_end_of_contract):
-				frappe.throw(_("New End of Contract should not be greater than Current End of Contract"))
+			if self.current_end_of_contract and self.new_end_of_contract:
+				if getdate(self.current_end_of_contract) > getdate(self.new_end_of_contract):
+					frappe.throw(_("New End of Contract should not be greater than Current End of Contract"))
 				
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
@@ -262,6 +272,64 @@ class EmployeeMovement(Document):
 					"is_active": 1,
 				})
 			self.revert_employee(emp)
+
+	def cmd_rehire(self, process):
+		if process == "validate":
+			self.effective_on = today()
+
+		elif process == "update":
+			emp_entry = {}
+			emp_flds = frappe.db.sql(""" SELECT `fieldname`, `label`, `fieldtype`, `parent`, `options` FROM `tabDocField` WHERE `parent` = 'Employee' ORDER BY `idx` """, as_dict=True)
+			emp_data = frappe.db.sql(""" SELECT * FROM `tabEmployee` WHERE `name` = %(employee)s LIMIT 1 """,{ "employee": self.employee}, as_dict=True)
+
+			for fld in emp_flds:
+				if fld['fieldname'] in emp_data[0]:
+					if emp_data[0][fld['fieldname']]:
+						emp_entry[fld['fieldname']] = emp_data[0][fld['fieldname']]
+
+				if fld['fieldtype'] == 'Table':
+					included_flds = []
+					emp_entry[fld['fieldname']] = []
+					
+					table_flds = frappe.db.sql(""" SELECT `fieldname`, `label`, `fieldtype` FROM `tabDocField` WHERE `parent` = %(parent)s AND `fieldtype` NOT IN ('Column Break', 'Section Break') ORDER BY `idx` """,{ "parent": fld['options']}, as_dict=True)
+					for tab_fld in table_flds:
+						included_flds.append("`"+cstr(tab_fld['fieldname'])+"`")
+					table_data = frappe.db.sql(""" SELECT {0} FROM `tab{1}` WHERE `parent` = %(parent)s ORDER BY `idx` """.format(", ".join(included_flds), fld['options']),{ "parent": self.employee }, as_dict=True)
+
+					for tab_dat in table_data:
+						emp_entry[fld['fieldname']].append(tab_dat)
+
+			emp_entry['employee_id'] = None
+			emp_entry['end_of_contract'] = None
+			emp_entry['date_retired'] = None
+			emp_entry['date_resigned'] = None
+			emp_entry['date_termindated'] = None
+			emp_entry['user_id'] = None
+			emp_entry['biometrics_id'] = self.new_biometrics_id
+			emp_entry['role'] = self.new_role
+			emp_entry['email'] = self.new_email
+			emp_entry['is_active'] = 1
+			emp_entry['date_hired'] = today()
+ 
+			if emp_entry:
+				emp = frappe.get_doc("Employee", self.employee)
+				emp.update({
+					"is_active": 0,
+				})
+				emp.save()
+				
+				new_emp = frappe.new_doc("Employee")
+				new_emp.update(emp_entry)
+				new_emp.save()
+
+				self.created_employee = new_emp.name
+				self.is_processed = 1
+				self.date_processed = today()
+			else:
+				frappe.throw(_("Failed to Rehire Employee. Please try again later"))
+
+		elif process == "revert":
+			pass
 
 	def save_employee(self, emp):
 		if emp.save():
