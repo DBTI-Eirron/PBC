@@ -611,6 +611,7 @@ class Blanket(Document):
 				leave_application.append('leave_application_table',{
 					"leave_date": d.leave_date,
 					"is_half_day": d.is_half_day,
+					"is_second_half": d.is_second_half,
 					"is_holiday": d.is_holiday,
 					"is_excluded": d.is_excluded,
 				})
