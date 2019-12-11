@@ -9,8 +9,13 @@ from datetime import date
 
 class CertificateofEmployment(Document):
 	def get_to_date(self):
-		resign_date = frappe.get_value('Employee', self.employee, 'date_resigned')
-		if resign_date:
-			self.to_date = resign_date
-		else:
-			self.to_date = date.today()
+		if self.employee:
+			resign_date,term_date,retired_date = frappe.get_value('Employee', self.employee, ['date_resigned','date_terminated','date_retired'])
+			if resign_date:
+				self.to_date = resign_date
+			elif term_date:
+				self.to_date = term_date
+			elif retired_date:
+				self.to_date = retired_date
+			else:
+				self.to_date = date.today()
