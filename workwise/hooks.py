@@ -10,7 +10,7 @@ app_icon = "octicon octicon-book"
 app_color = "#589494"
 app_email = "krefin.fagara@gmail.com"
 app_license = ""
-app_version = "1.0.64"
+app_version = "1.0.65"
 
 # Includes in <head>
 # ------------------
