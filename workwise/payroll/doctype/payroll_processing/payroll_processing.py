@@ -525,8 +525,8 @@ class PayrollProcessing(Document):
 							phic = manual if mode == "Manual" and manual > 137.50 else 137.50
 							phice = 137.50
 						elif target_amt > 49999.99:
-							phic = manual if mode == "Manual" and manual > 1375.00 else 1375.00
-							phice = 1375.00
+							phic = manual if mode == "Manual" and manual > 687.50 else 687.50
+							phice = 687.50
 						else:
 							percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
 							phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
@@ -599,8 +599,8 @@ class PayrollProcessing(Document):
 						phic = manual if mode == "Manual" and manual > 137.50 else 137.50
 						phice = 137.50
 					elif target_amt > 49999.99:
-						phic = manual if mode == "Manual" and manual > 1375.00 else 1375.00
-						phice = 1375.00
+						phic = manual if mode == "Manual" and manual > 687.50 else 687.50
+						phice = 687.50
 					else:
 						percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
 						phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
