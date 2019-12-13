@@ -93,32 +93,32 @@ def execute(filters=None):
 			data.append(total_row)
 
 	#Final Total
-	if not filters.department:
-		i = 0
-		for income in income_types:
-			final_total_row.append(format_precision(f_income_total[i], filters.value_precision))
-			i += 1
-		i = 0
-		for deduction in deduction_types:
-			final_total_row.append(format_precision(f_deduction_total[i], filters.value_precision))
-			i += 1
-		final_total_row += [format_precision(f_total_income, filters.value_precision), format_precision(f_total_deduction, filters.value_precision), format_precision(f_total_payroll, filters.value_precision)]
-		data.append("")
+	i = 0
+	for income in income_types:
+		final_total_row.append(format_precision(f_income_total[i], filters.value_precision))
+		i += 1
+	i = 0
+	for deduction in deduction_types:
+		final_total_row.append(format_precision(f_deduction_total[i], filters.value_precision))
+		i += 1
+	final_total_row += [format_precision(f_total_income, filters.value_precision), format_precision(f_total_deduction, filters.value_precision), format_precision(f_total_payroll, filters.value_precision)]
+	data.append("")
 
-		if filters.hide_zero:
-			max_range = len(final_total_row)
-			idx = 0
-			for x in xrange(0,max_range):
-				if final_total_row[idx] == format_precision(0, filters.value_precision):
-					del final_total_row[idx]
-					del columns[idx]
-					for d in data:
-						if len(d) > 1:
-							del d[idx]
-				else:
-					idx += 1
-					
-		data.append(final_total_row)
+	if filters.hide_zero:
+		max_range = len(final_total_row)
+		idx = 0
+		for x in xrange(0,max_range):
+			if final_total_row[idx] == format_precision(0, filters.value_precision):
+				del final_total_row[idx]
+				del columns[idx]
+				for d in data:
+					if len(d) > 1:
+						del d[idx]
+			else:
+				idx += 1
+				
+	data.append(final_total_row)
+
 	return columns, data
 
 def validate_filters(filters):
