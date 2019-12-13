@@ -228,12 +228,43 @@ class SpecialProcessing(Document):
 		else:
 			frappe.throw(_("No Employee Found"))
 
+	def get_assumed_cutoff_amt(self, monthly_rate, no_weeks):
+		assumed_bonus = 0
+		if self.schedule == "Semi-Monthly":
+			if cint(self.assume_cutoffs) == 1:
+				assumed_bonus = monthly_rate / 2
+
+		elif self.schedule == "Weekly":
+			assumed_weekly_amt = monthly_rate / cint(no_weeks)
+			assumed_bonus = assumed_weekly_amt * cint(self.assume_cutoffs)
+
+		return assumed_bonus
+
+
 	def bonus_pay(self, header, entries):
 		bonus_transaction = frappe.db.get_single_value("Payroll Settings", "bonus_transaction") 
 		if not bonus_transaction:
 			frappe.throw(_("No Default Bonus Transaction Type"))
 		header['transaction_type'] = bonus_transaction
 		header['remarks'] = ("13th month pay for year {0}").format(self.payroll_year)
+
+		#validate assume cutoffs:
+		no_weeks = 0
+		if cint(self.assume_cutoffs) in [1,2,3,4]:
+			if self.schedule == "Monthly":
+				frappe.throw(_("Assume Cutoffs not Allowed for Monthly"))
+
+			if self.schedule == "Semi-Monthly":
+				if cint(self.assume_cutoffs) in [2,3,4]:
+					frappe.throw(_("Assume Cutoffs 2,3,4 not Allowed for Semi-Monthly"))
+
+			if self.schedule == "Weekly":
+				weekly_set = frappe.db.get_value("Payroll Period", self.period, ["weekly_set"])
+				if weekly_set:
+					no_weeks = frappe.db.get_value("Weekly Set", weekly_set, ["no_weeks"])
+					if cint(no_weeks) == 4:
+						if cint(self.assume_cutoffs) in [4]:
+							frappe.throw(_("Assume Cutoffs 4 not Allowed for Weekly with {0} no. of weeks").format(no_weeks))
 
 		bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method") 
 		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
@@ -258,7 +289,10 @@ class SpecialProcessing(Document):
 							total_bonus += d.amount
 
 					if self.assume_last_month:
-						total_bonus += rates.get('monthly_rate')
+						if self.assume_cutoffs:
+							total_bonus += self.get_assumed_cutoff_amt(rates.get('monthly_rate'), no_weeks)
+						else:
+							total_bonus += rates.get('monthly_rate')
 
 					total_bonus = total_bonus / 12
 
@@ -274,7 +308,10 @@ class SpecialProcessing(Document):
 						total_bonus += d.bonus
 
 					if self.assume_last_month:
-						total_bonus += rates.get('monthly_rate')						
+						if self.assume_cutoffs:
+							total_bonus += self.get_assumed_cutoff_amt(rates.get('monthly_rate'), no_weeks)
+						else:
+							total_bonus += rates.get('monthly_rate')					
 
 					total_bonus = total_bonus / 12
 
@@ -315,7 +352,12 @@ class SpecialProcessing(Document):
 								total_bonus -= d.amount
 
 					if self.assume_last_month:
-						total_bonus += rates.get('monthly_rate')
+						if self.assume_cutoffs:
+							#frappe.throw(_(self.get_assumed_cutoff_amt(rates.get('monthly_rate'), no_weeks)))
+							total_bonus += self.get_assumed_cutoff_amt(rates.get('monthly_rate'), no_weeks)
+						else:
+							#frappe.throw(_("{0} {1}").format(rates.get('monthly_rate'), total_bonus))
+							total_bonus += rates.get('monthly_rate')
 
 					total_bonus = total_bonus / 12
 
