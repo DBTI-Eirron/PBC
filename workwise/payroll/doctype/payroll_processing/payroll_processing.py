@@ -609,7 +609,10 @@ class PayrollProcessing(Document):
 					for l in phic_list:
 						if emp.get('phic_mode') == "ME Table" and self.schedule != "Weekly":
 							if emp.get('phic_freq') == "Both":
-								amt = flt(eval(l), 8) / 2
+								if emp.get('payroll_schedule') == "Semi-Monthly":
+									amt = flt(eval(l), 8) / 2
+								else:
+									amt = flt(eval(l), 8)
 							else:
 								amt = flt(eval(l), 8)
 						else:
@@ -617,11 +620,16 @@ class PayrollProcessing(Document):
 								amt = flt(eval(l), 8) / 2
 							elif emp.get('phic_freq') == "All" and self.schedule == "Weekly":
 								amt = flt(eval(l), 8) / 4
-							elif emp.get('phic_freq') == "Both" and header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly":
-								if not header.get(_('prev_hdmf_amt')):
-									amt = flt(eval(l), 8)
-								else:	
-									amt = flt(eval(l), 8) / 2
+							elif header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly":
+								amt = flt(eval(l), 8)
+								if emp.get('phic_freq') == "Both":
+									if self.frequency == "1st":
+										amt = flt(eval(l), 8) / 2
+
+									if self.frequency == "2nd":
+										amt = flt(eval(l), 8) / 2
+										if not header.get(_('prev_phic_amt')):
+											amt = flt(eval(l), 8)
 							else:
 								amt = flt(eval(l), 8)
 
@@ -1488,7 +1496,7 @@ class PayrollProcessing(Document):
 	def get_previous_period(self):
 		previous_period = ""
 		if self.schedule != "Weekly" and self.frequency != '1st':
-			before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE company = %s 
+			before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE frequency != "Special" AND company = %s 
 				AND `schedule` = %s AND payroll_date < %s ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.schedule, self.payroll_date ))
 			
 			previous_period = before[0] if before else ""
