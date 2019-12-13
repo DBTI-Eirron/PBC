@@ -4,10 +4,16 @@
 
 from __future__ import unicode_literals
 import frappe
+from frappe import _
 from frappe.model.document import Document
 
 class TimekeepingSettings(Document):
 	def validate(self):
+		self.validate_employee_approvers()
+		self.validate_section_cto()
+
+	#Enable Employee Approvers
+	def validate_employee_approvers(self):
 		if self.enable_employee_approvers > 0:
 			application = [ "Leave Approval Level", "Overtime Approval Level", "Official Business Approval Level", "Change Schedule Approval Level", "Excuse Tardiness Approval Level", "Undertime Approval Level", "DTR Problem Approval Level", "Compensatory Time Off Approval Level"]
 			for a in application:
@@ -36,3 +42,23 @@ class TimekeepingSettings(Document):
 				table_name = "`tab"+str(b)+"`"
 				frappe.db.sql(""" UPDATE """+str(table_name)+""" SET docstatus=0 WHERE workflow_state="Pending" """)
 				frappe.db.commit()
+
+	#Section Compensatory Time Off
+	def validate_section_cto(self):
+		if self.cto_max_filing:
+			included_entry = []
+			table_entry = []
+			for cto in self.cto_max_filing:
+				if cto.frequency not in included_entry:
+					table_entry.append({
+						"frequency": cto.frequency,
+						"max_count": cto.max_count,
+					})
+					included_entry.append(cto.frequency)
+
+			self.cto_max_filing = []
+			for ent in table_entry:
+				row = self.append('cto_max_filing', {
+					"frequency": ent['frequency'],
+					"max_count": ent['max_count'],
+				})

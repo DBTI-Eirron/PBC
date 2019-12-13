@@ -46,22 +46,31 @@ frappe.ui.form.on('Compensatory Time Off', {
 		
 	},
 
-	from_time: function(frm) {
+	//FILE
+	file_from_time: function(frm) {
+		frm.trigger("get_target_date");
 		frm.trigger("validate_file_cto");
 	},
 
-	to_time: function(frm) {
+	file_to_time: function(frm) {
+		frm.trigger("get_target_date");
 		frm.trigger("validate_file_cto");
 	},
 
-	date: function(frm) {
+	file_from_date: function(frm) {
+		frm.trigger("get_target_date");
+		frm.trigger("validate_file_cto");
+	},
+
+	file_to_date: function(frm) {
+		frm.trigger("get_target_date");
 		frm.trigger("validate_file_cto");
 	},
 
 	validate_file_cto: function(frm) {
-		if(frm.doc.from_time && frm.doc.to_time && frm.doc.date) {
+		if(frm.doc.file_from_time && frm.doc.file_to_time && frm.doc.file_from_date && frm.doc.file_to_date && frm.doc.file_target_date) {
 			return frappe.call({
-				method: "validate_file_cto",
+				method: "file_process_cto",
 				doc: frm.doc,
 				callback: function(r) {
 					frm.refresh_fields();
@@ -71,29 +80,57 @@ frappe.ui.form.on('Compensatory Time Off', {
 	},
 
 	use_fromtime: function(frm) {
+		frm.trigger("get_target_date");
 		frm.trigger("validate_use_cto");
 	},
 
 	use_totime: function(frm) {
+		frm.trigger("get_target_date");
 		frm.trigger("validate_use_cto");
 	},
 
-	use_date: function(frm) {
+	use_from_date: function(frm) {
+		frm.trigger("get_target_date");
+		frm.trigger("validate_use_cto");
+	},
+
+	use_to_date: function(frm) {
+		frm.trigger("get_target_date");
 		frm.trigger("validate_use_cto");
 	},
 
 	employee: function(frm) {
+		frm.trigger("get_target_date");
 		frm.trigger("validate_use_cto");
+		frm.trigger("validate_file_cto");
 	},
 
 	filed_cto: function(frm) {
+		frm.trigger("get_target_date");
 		frm.trigger("validate_use_cto");
 	},
 
 	validate_use_cto: function(frm) {
-		if(frm.doc.use_fromtime && frm.doc.use_totime && frm.doc.use_date ) {
+		if(frm.doc.use_fromtime && frm.doc.use_totime && frm.doc.use_from_date && frm.doc.use_to_date && frm.doc.use_target_date ) {
 			return frappe.call({
-				method: "validate_use_cto",
+				method: "use_process_cto",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		} 
+	},
+
+	is_previous: function(frm) {
+		frm.trigger("get_target_date");
+		frm.trigger("validate_use_cto");
+	},
+
+	get_target_date: function(frm) {
+		if(frm.doc.type) {
+			return frappe.call({
+				method: "get_target_date",
 				doc: frm.doc,
 				callback: function(r) {
 					frm.refresh_fields();
