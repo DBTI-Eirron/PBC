@@ -108,6 +108,7 @@ class PayrollProcessing(Document):
 		govt_use_old = frappe.db.get_single_value('Payroll Settings', 'govt_use_old')
 		ab_regho = frappe.db.get_single_value('Timekeeping Settings', 'ab_regho')
 		mo_abho = frappe.db.get_single_value('Timekeeping Settings', 'mo_abho')
+		disable_pdhord = frappe.db.get_single_value('Payroll Settings', 'disable_pdhord')
 
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
@@ -204,6 +205,7 @@ class PayrollProcessing(Document):
 						'no_attendance': 0,
 						'ab_regho': ab_regho,
 						'mo_abho': mo_abho,
+						'disable_pdhord': disable_pdhord,
 					}
 					
 					#Calculate Rates and Previous Entries
@@ -1318,7 +1320,7 @@ class PayrollProcessing(Document):
 							#check if holiday
 							if at.is_holiday:
 								if at.is_restday:
-									if (not at.is_sp_holiday) and (not is_uho):
+									if (not at.is_sp_holiday) and (not is_uho) and (not header.get('disable_pdhord')):
 										ho_paid = 1 #paid on regular holiday if not UHO
 								else:
 									if dl_absent == 1 and at.is_sp_holiday and header.get('uho_ab_spnw'):
