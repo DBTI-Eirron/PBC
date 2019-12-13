@@ -13,6 +13,7 @@ cur_frm.add_fetch('employee', 'location', 'current_location');
 cur_frm.add_fetch('employee', 'end_of_contract', 'current_end_of_contract');
 cur_frm.add_fetch('employee', 'date_hired', 'current_date_hired');
 cur_frm.add_fetch('employee', 'rate_type', 'current_rate_type');
+cur_frm.add_fetch('employee', 'cost_center', 'current_cost_center');
 //cur_frm.add_fetch('employee', 'rate', 'current_rate');
 //cur_frm.add_fetch('employee', 'min_take_home', 'current_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'current_attendance_base');
@@ -20,6 +21,7 @@ cur_frm.add_fetch('employee', 'is_attendance_base', 'current_attendance_base');
 cur_frm.add_fetch('employee', 'position_title', 'new_position');
 cur_frm.add_fetch('employee', 'job_level', 'new_job_level');
 cur_frm.add_fetch('employee', 'employment_status', 'change_employment_status');
+cur_frm.add_fetch('employee', 'position_title', 'current_position_title');
 cur_frm.add_fetch('employee', 'department', 'new_department');
 cur_frm.add_fetch('employee', 'location', 'new_location');
 cur_frm.add_fetch('employee', 'end_of_contract', 'new_end_of_contract');
@@ -36,11 +38,34 @@ frappe.ui.form.on('Employee Movement', {
 		}
 	},
 	
+	on_submit: function(frm) {
+		if (frm.doc.movement_type == 'Rehire'){
+			frappe.set_route('Form', 'Employee', frm.doc.created_employee);
+		}
+	},
+
 	refresh: function(frm) {
-		
+		frm.trigger("filter_employees");
+		if(frm.doc.docstatus == 1){
+			frappe.call({
+				method: "workwise.setup.doctype.jasper_form.jasper_form.get_forms",
+				args:{
+					doctype_name: "Employee Movement"
+				},
+				callback: function(r) {
+					r.message.forEach(function(item) {
+						frm.add_custom_button(__(item.form_label),
+						function() {
+							window.open("http://"+ item.form_ip +":"+ item.form_port +"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2F"+ item.form_folder +"&reportUnit=%2FReports%2F"+ item.form_name +"&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+						});
+					});
+				}
+			});
+		}
 	},
 
 	employee: function(frm) {
+		frm.trigger("filter_employees");
 		if (frm.doc.employee){
 			frappe.call({
 				method: "get_employee_details",
@@ -63,6 +88,7 @@ frappe.ui.form.on('Employee Movement', {
 		if (frm.doc.movement_type == "Resignation"){
 			frm.trigger("get_resignation");
 		}
+		frm.trigger("filter_employees");
 	},
 
 	get_resignation: function(frm) {
@@ -92,6 +118,33 @@ frappe.ui.form.on('Employee Movement', {
 		}
 		if (frm.doc.regularization_type == ""){
 			frm.set_value("change_employment_status", "Regular");
+		}
+	},
+
+	filter_employees: function(frm) {
+		//Filter Employee
+		if (frm.doc.movement_type == "Job Rotation" || frm.doc.movement_type == "Retirement" || frm.doc.movement_type == "Resignation" || frm.doc.movement_type == "Regularization" || frm.doc.movement_type == "Transfer" || frm.doc.movement_type == "Termination" || frm.doc.movement_type == "Salary Adjustment" || frm.doc.movement_type == "Extension of Services" ){
+			cur_frm.set_query("employee", function() {
+				return {
+					"filters": {
+						"is_active": 1,
+					}
+				};
+			});
+		}else if (frm.doc.movement_type == "Rehire"){
+			cur_frm.set_query("employee", function() {
+				return {
+					"filters": {
+						"is_active": 0,
+					}
+				};
+			});
+		}else{
+			cur_frm.set_query("employee", function() {
+				return {
+					"filters": {}
+				};
+			});
 		}
 	},
 });

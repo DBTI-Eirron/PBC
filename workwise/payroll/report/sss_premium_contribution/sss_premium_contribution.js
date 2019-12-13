@@ -96,11 +96,10 @@ frappe.query_reports["SSS Premium Contribution"] = {
 				},
 				callback: function(r) {
 					var anchor = document.createElement('a');
-					anchor.href = 'http://nw_develop:8000/files/sss.txt';
+					anchor.href ='/files/sss.txt';
 					anchor.download = 'sss.txt';
 					document.body.appendChild(anchor);
 					anchor.click();
-					// window.open('http://nw_develop:8000/files/sss.txt', 'Download');
 				}
 			});
 			}else{

@@ -101,62 +101,47 @@ def get_data():
 					"name": "Payroll Register Report",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
-				},
-				{
+				},{
 					"type": "report",
 					"name": "Payroll Register Per Department",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
-				},
-				{
+				},{
 					"type": "report",
 					"name": "Preliminary Report",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
-				},
-				{
+				},{
 					"type": "report",
 					"name": "Loan Status",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
-				},
-				{
+				},{
 					"type": "report",
 					"name": "General Journal",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
-				},
-				{
+				},{
 					"type": "report",
 					"name": "13th Month",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
-				},
-				{
+				},{
 					"type": "report",
 					"name": "Pro Rated 13th Month",
 					"doctype": "Last Pay Entry",	
 					"is_query_report": True
-				},
-				{
+				},{
 					"type": "report",
 					"name": "YTD Payroll Report",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
-				},
-				{
-					"type": "report",
-					"name": "Bank Remittance",
-					"doctype": "Payroll Register",	
-					"is_query_report": True
-				},
-				{
+				},{
 					"type": "report",
 					"name": "Net Payroll by Cost Center",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
-				},
-				{
+				},{
 					"type": "report",
 					"name": "Hold Salaries Report",
 					"doctype": "Payroll Register",	
@@ -191,7 +176,27 @@ def get_data():
 					"name": "Minimum Take Home",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
-				},
+				},{
+					"type": "report",
+					"name": "Bank Remittance",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Cash Remittance",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Cheque Remittance",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "YTD - Payroll Register Report",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				}
 			],
 		},
 		{
@@ -288,6 +293,9 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Government Certificate",	
+				},{
+					"type": "doctype",
+					"name": "BIR1601 C Form",	
 				}
 			],
 		},
