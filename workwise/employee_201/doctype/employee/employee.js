@@ -71,6 +71,17 @@ frappe.ui.form.on('Employee', {
 				]
 			}
 		});
+
+		if (frm.doc.is_active == 0) {
+			frm.add_custom_button(__('Rehire Employee'), function(){
+				var route_doc = frappe.model.get_new_doc('Employee Movement');
+				route_doc.movement_type = 'Rehire';
+				route_doc.posting_date = frappe.datetime.nowdate()
+				route_doc.effective_on = frappe.datetime.nowdate()
+				route_doc.employee = frm.doc.name;
+				frappe.set_route('Form', 'Employee Movement', route_doc.name);
+			});
+		}
 	}
 	
 });
