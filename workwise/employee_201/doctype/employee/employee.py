@@ -14,6 +14,16 @@ from frappe.model.document import Document
 class Employee(Document):
 	def onload(self):
 		load_address_and_contact(self, "employee")
+		self.load_approvers()
+
+	def load_approvers(self):
+		for ap in self.approvers:
+			ap.old_approver = ap.approver
+			ap.old_application = ap.application
+			ap.old_level = ap.level
+		self.old_reports_to = self.reports_to
+		self.approvers_count = len(self.approvers)
+
 
 	def autoname(self):
 		employee_naming = frappe.db.get_single_value('Employee Record Settings', 'employee_naming')
@@ -52,14 +62,50 @@ class Employee(Document):
 		self.validate_bank()
 		self.create_user()
 		self.validate_is_qualified_dependent()
+		# if self.validate_change_approver():
 		self.validate_employee_approvers()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
-		self.update_subordinates()
-		#	self.update_approver()
+		if not self.is_new():
+			self.employee_to_subordinate()
+		self.update_approver()
+		self.validate_user_status()
 
-	#def after_insert(self):
-	#	self.employee_to_subordinate()
+	def validate_user_status(self):
+		if self.is_active:
+			enabled = 1
+		else:
+			enabled = 0
+
+		us = frappe.get_doc("User", self.user_id)
+		us.update({
+			"new_password": us.frappe_userid,
+			"enabled": enabled,
+		})
+		us.save()
+		
+
+	def validate_change_approver(self):
+		approvers_list = []
+		se_approvers = frappe.db.sql("""SELECT ES.employee FROM `tabEmployee Subordinates` ES INNER JOIN `tabSubordinates` ESE WHERE ESE.subordinate = %s """,(self.name),as_dict=True)
+		for se in se_approvers:
+			if se.employee not in approvers_list:
+				approvers_list.append(se.employee)
+
+		if self.approvers_count != len(self.approvers):
+			return 1
+		if self.old_reports_to != self.reports_to:
+			return 1
+		for ap in self.approvers:
+			if ap.old_approver != ap.approver or ap.old_application != ap.application or ap.old_level != ap.level:
+				return 1
+			if ap.approver not in approvers_list:
+				return 1
+		return 0
+
+
+	def after_insert(self):
+		self.employee_to_subordinate()
 			
 	def on_update(self):
 		if self.user_id:
@@ -260,71 +306,49 @@ class Employee(Document):
 			row = self.append('approvers', {})
 			row.update(ue)
 
-	def update_subordinates(self):
-		emp_sub_list = frappe.db.sql("""SELECT `name` FROM `tabEmployee Subordinates`""",as_dict=True)
-		old_doc = frappe.db.sql("""SELECT DISTINCT approver FROM `tabEmployee Approvers` WHERE parent =%s""",(self.name),as_dict=True)
-		reports_to = frappe.db.sql("""SELECT reports_to FROM `tabEmployee` WHERE `name`= %s""",(self.name),as_dict=True)
-		created_from_employee = frappe.db.sql("""SELECT parent FROM `tabSubordinates` WHERE `created_from_employee` = %s and `subordinate` = %s""",(self.name,self.name),as_dict=True)
-		update_sub = []
-		unique_list = []
-		ext_sub = []
-		old_list  = []
-		create_from = []
+	def employee_to_subordinate(self):
+		sub_list = []
+		cur_sub_list = []
 
-		# listing manual subordinate
-		for crt in created_from_employee:
-			create_from.append(crt.parent)
-		#listing old approver
-		for old in old_doc:
-			old_list.append(old.approver)
-		#adding reports to old approver
-		if reports_to:
-			old_list.append(str(reports_to[0].reports_to))
-		for o in old_list:
-			if o not in create_from:
-				old_list.remove(o)
-		#listing exixting employee subordinates
-		for em in emp_sub_list:
-			ext_sub.append(em.name)
-		#create suborrdinnates to be updated
-		for app in self.get("approvers"):
-			update_sub.append(str(app.approver))
-		#include reports to
+		if self.approvers:
+			for d in self.get("approvers"):
+				if d.approver not in sub_list:
+					sub_list.append(str(d.approver))
+
 		if self.reports_to:
-			update_sub.append(str(self.reports_to))
-		#remove duplicates
-		for ups in update_sub:
-			if ups not in unique_list:
-				unique_list.append(ups)
-		#remove new approver to old approver
-		for uni in unique_list:
-			if uni in old_list:
-				old_list.remove(uni)
+			if self.reports_to not in sub_list:
+				sub_list.append(str(self.reports_to))
 
-		if old_list:
-			if old_list[0] != 'None':
-				frappe.db.sql("""DELETE FROM `tabSubordinates` WHERE `created_from_employee` = %s AND `subordinate` = %s AND `parent` IN %s """,(self.name,self.name,old_list),as_dict=True)
-				user_list = self.get_user_id(old_list)
-				frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `for_value` = %s AND `user` IN %s AND is_automated = 1""",(self.name,user_list),as_dict=True)
-			
-				# frappe.db.sql("""DELETE UP FROM `tabUser Permission` UP 
-				# 	LEFT JOIN `tabEmployee` TE ON UP.user = TE.user_id
-				# 	LEFT JOIN `tabSubordinates` TS ON TS.subordinate = UP.for_value AND TS.parent = TE.name
-				# 	WHERE UP.`for_value` = %s AND TS.`created_from_employee` IS NOT NULL AND UP.`user` IN %s AND UP.is_automated = 1""",(self.name,user_list),as_dict=True)
+		cur_subordinates = frappe.db.sql(""" SELECT TS.`parent`, TS.`subordinate`, TE.`user_id` FROM `tabSubordinates` TS INNER JOIN `tabEmployee` TE ON TS.`parent`=TE.`name` 
+			WHERE TS.`created_from_employee` = %s """,( self.name ), as_dict=1)
+		for cur in cur_subordinates:
+			if not cur.subordinate in sub_list:
+				frappe.db.sql("""DELETE FROM `tabSubordinates` WHERE `created_from_employee` = %(employee)s AND `subordinate` = %(employee)s AND `parent` = %(head)s """,
+				({ 	"head": cur.parent, "employee": self.name,	}), as_dict=True)
 
+				frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `is_automated` = 1 AND `user` = %(user_id)s AND `allow` = 'Employee' AND `for_value` = %(employee)s """,
+				({ 	"user_id": cur.user_id, "employee": self.name,	}), as_dict=True)
+				frappe.cache().delete_value('user_permissions')
+		
+		for sub in sub_list:
+			self.add_to_subordinate(sub)
 
-		for d in unique_list:
-			if d in ext_sub:
-				empsub_doc = frappe.get_doc("Employee Subordinates", d)
+		
+
+	def add_to_subordinate(self, emp):
+		in_subordinate = frappe.db.sql(""" SELECT * FROM `tabSubordinates` WHERE `parent`= %s AND `subordinate` = %s """,( emp, self.name ), as_dict=1)
+		if not in_subordinate:
+			get_emp_sub = frappe.db.sql("""SELECT TS.`name` FROM `tabEmployee Subordinates` TS WHERE TS.`name` = %(employee)s """,{ "employee": cstr(emp)}, as_dict=1)
+			if get_emp_sub:
+				empsub_doc = frappe.get_doc("Employee Subordinates", emp)
 				empsub_doc.append('subordinates',{
 					"subordinate": self.name,
 					"subordinate_name": self.full_name,
 					"created_from_employee": self.name,
 				})
 				empsub_doc.save()
-
 			else:
-				employee, employee_name, company = frappe.db.get_value("Employee", d, ["name", "full_name", "company"])
+				employee, employee_name, company = frappe.db.get_value("Employee", emp, ["name", "full_name", "company"])
 				empsub_new_doc = frappe.new_doc("Employee Subordinates")
 				empsub_new_doc.update({
 					"employee": employee,
@@ -337,12 +361,7 @@ class Employee(Document):
 					"created_from_employee": self.name,
 				})
 				empsub_new_doc.insert()
+				empsub_new_doc.save()
 
-
-	def get_user_id(self,old_list):
-		user_list = []
-		for o in old_list:
-			user_id = frappe.db.get_value("Employee", o, "user_id")
-			if user_id:
-				user_list.append(cstr(user_id))
-		return user_list
+	def update_approver(self):
+		update = frappe.db.sql("UPDATE `tabEmployee Approvers` SET approver_name = %s WHERE approver = %s",(self.full_name,self.name))
