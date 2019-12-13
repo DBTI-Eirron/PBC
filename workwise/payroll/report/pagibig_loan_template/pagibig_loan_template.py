@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.utils import cint, flt, getdate, cstr
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 
 def execute(filters=None):
@@ -40,11 +41,11 @@ def get_data(filters):
 		result = []
 		for d in HDMF_types:
 			HDMF_amount = flt(register_map.get(emp.name, {}).get(d))
-			result.append('{:,.2f}'.format(HDMF_amount))
+			result.append(format_precision(HDMF_amount, filters.value_precision))
 		emp_map = flt(result[0])
 		if emp_map > 0:
 			row = {'pib':emp.hdmf_no, 'tin':emp.tin, 'last_name':emp.last_name, 'first_name':emp.first_name, 'middle_name':emp.middle_name, 'birth_day':(emp.birthday).strftime('%m/%d/%Y')}
-			row.update({'map':'{:,.2f}'.format(emp_map)})
+			row.update({'map':format_precision(emp_map, filters.value_precision)})
 			total_map += emp_map
 			data.append(row)
 	return data

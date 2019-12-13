@@ -78,7 +78,7 @@ def get_data(filters):
 				"monthly_rate": gov_map[emp[0]]['rate'],
 				"employee_name": gov_map[emp[0]]['full_name'],
 				"employee_status": "Active" if gov_map[emp[0]]['status'] == 1 else "Inactive",
-				"date_hired": gov_map[emp[0]]['date_hired'],
+				"date_hired": datetime.datetime.strftime(getdate(gov_map[emp[0]]['date_hired']), "%m/%d/%Y"),
 				"birth_day": datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%m/%d/%Y"),
 				"employee": format_precision(gov_map[emp[0]]['PHIC'], filters.value_precision),
 				"employer": format_precision(gov_map[emp[0]]['PHICE'], filters.value_precision),
@@ -96,7 +96,6 @@ def get_employees(filters,transaction_type):
 		WHERE PRE.pay_code IN ('"""+"','".join(str(e) for e in transaction_type)+"""') 
 		AND PR.company = %(company)s 
 		AND PR.posting_date BETWEEN %(from_date)s AND %(to_date)s
-		AND TE.is_active = 1
 		{conditions}
 		ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)),{ 
 		"company": filters.company,

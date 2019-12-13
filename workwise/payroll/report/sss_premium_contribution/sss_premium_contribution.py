@@ -148,7 +148,8 @@ def print_txt_file(company,from_date,to_date,period_group):
 
 	pr_entries = frappe.db.sql("""SELECT PRE.amount, PR.employee 
 		FROM `tabPayroll Register` PR
-		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.parent 
+		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.parent
+		INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PRE.pay_code IN ("SSS", "SSSE", "SSSC")
 		AND PR.company = %(company)s 
 		AND PR.posting_date BETWEEN %(from_date)s AND %(to_date)s

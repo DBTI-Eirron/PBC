@@ -14,6 +14,16 @@ from frappe.model.document import Document
 class Employee(Document):
 	def onload(self):
 		load_address_and_contact(self, "employee")
+		self.load_approvers()
+
+	def load_approvers(self):
+		for ap in self.approvers:
+			ap.old_approver = ap.approver
+			ap.old_application = ap.application
+			ap.old_level = ap.level
+		self.old_reports_to = self.reports_to
+		self.approvers_count = len(self.approvers)
+
 
 	def autoname(self):
 		employee_naming = frappe.db.get_single_value('Employee Record Settings', 'employee_naming')
@@ -52,12 +62,47 @@ class Employee(Document):
 		self.validate_bank()
 		self.create_user()
 		self.validate_is_qualified_dependent()
+		# if self.validate_change_approver():
 		self.validate_employee_approvers()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
 			self.employee_to_subordinate()
 		self.update_approver()
+		self.validate_user_status()
+
+	def validate_user_status(self):
+		if self.is_active:
+			enabled = 1
+		else:
+			enabled = 0
+
+		us = frappe.get_doc("User", self.user_id)
+		us.update({
+			"new_password": us.frappe_userid,
+			"enabled": enabled,
+		})
+		us.save()
+		
+
+	def validate_change_approver(self):
+		approvers_list = []
+		se_approvers = frappe.db.sql("""SELECT ES.employee FROM `tabEmployee Subordinates` ES INNER JOIN `tabSubordinates` ESE WHERE ESE.subordinate = %s """,(self.name),as_dict=True)
+		for se in se_approvers:
+			if se.employee not in approvers_list:
+				approvers_list.append(se.employee)
+
+		if self.approvers_count != len(self.approvers):
+			return 1
+		if self.old_reports_to != self.reports_to:
+			return 1
+		for ap in self.approvers:
+			if ap.old_approver != ap.approver or ap.old_application != ap.application or ap.old_level != ap.level:
+				return 1
+			if ap.approver not in approvers_list:
+				return 1
+		return 0
+
 
 	def after_insert(self):
 		self.employee_to_subordinate()
@@ -77,7 +122,7 @@ class Employee(Document):
 			self.full_name = self.last_name + ', ' + self.first_name
 
 	def validate_biometric_id(self):
-		if self.biometrics_id:
+		if self.biometrics_id and self.is_active:
 			bio_list = frappe.db.sql(""" SELECT DISTINCT `biometrics_id` FROM `tabEmployee` WHERE `is_active` = 1 AND `name` != %s """,(self.name) , as_dict=1)
 			for b in bio_list:
 				if self.biometrics_id == b.biometrics_id:
@@ -267,10 +312,12 @@ class Employee(Document):
 
 		if self.approvers:
 			for d in self.get("approvers"):
-				sub_list.append(str(d.approver))
+				if d.approver not in sub_list:
+					sub_list.append(str(d.approver))
 
 		if self.reports_to:
-			sub_list.append(str(self.reports_to))
+			if self.reports_to not in sub_list:
+				sub_list.append(str(self.reports_to))
 
 		cur_subordinates = frappe.db.sql(""" SELECT TS.`parent`, TS.`subordinate`, TE.`user_id` FROM `tabSubordinates` TS INNER JOIN `tabEmployee` TE ON TS.`parent`=TE.`name` 
 			WHERE TS.`created_from_employee` = %s """,( self.name ), as_dict=1)
@@ -278,15 +325,15 @@ class Employee(Document):
 			if not cur.subordinate in sub_list:
 				frappe.db.sql("""DELETE FROM `tabSubordinates` WHERE `created_from_employee` = %(employee)s AND `subordinate` = %(employee)s AND `parent` = %(head)s """,
 				({ 	"head": cur.parent, "employee": self.name,	}), as_dict=True)
-				frappe.db.commit()
 
 				frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `is_automated` = 1 AND `user` = %(user_id)s AND `allow` = 'Employee' AND `for_value` = %(employee)s """,
 				({ 	"user_id": cur.user_id, "employee": self.name,	}), as_dict=True)
-				frappe.db.commit()
 				frappe.cache().delete_value('user_permissions')
 		
 		for sub in sub_list:
 			self.add_to_subordinate(sub)
+
+		
 
 	def add_to_subordinate(self, emp):
 		in_subordinate = frappe.db.sql(""" SELECT * FROM `tabSubordinates` WHERE `parent`= %s AND `subordinate` = %s """,( emp, self.name ), as_dict=1)
@@ -300,7 +347,6 @@ class Employee(Document):
 					"created_from_employee": self.name,
 				})
 				empsub_doc.save()
-				frappe.db.commit()
 			else:
 				employee, employee_name, company = frappe.db.get_value("Employee", emp, ["name", "full_name", "company"])
 				empsub_new_doc = frappe.new_doc("Employee Subordinates")
@@ -316,7 +362,6 @@ class Employee(Document):
 				})
 				empsub_new_doc.insert()
 				empsub_new_doc.save()
-				frappe.db.commit()
 
 	def update_approver(self):
 		update = frappe.db.sql("UPDATE `tabEmployee Approvers` SET approver_name = %s WHERE approver = %s",(self.full_name,self.name))

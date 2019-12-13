@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr, nowdate
-from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _
 
 def execute(filters=None):
@@ -218,7 +218,7 @@ def get_result_as_list(data, filters):
 			"name_extension": d.get("name_extension"),
 			"middle_name": d.get("middle_name"),
 			"percov": d.get("percov"),
-			"amortization": format_decimal_by_2_align_right(d.get("amortization")) if d.get("amortization") else "",
+			"amortization": format_align_right(format_precision(d.get("amortization"), filters.value_precision)) if d.get("amortization") else "",
 			"remarks": d.get("remarks")
 		}
 		result.append(row)
