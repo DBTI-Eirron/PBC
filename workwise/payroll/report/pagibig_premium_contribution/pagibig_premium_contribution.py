@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right, format_decimal_by_2_align_right_negative
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 from operator import itemgetter
 
@@ -65,7 +65,7 @@ def execute(filters=None):
 			final_employee += flt(gov_map[emp]["HDMF"])
 			final_employer += flt(gov_map[emp]["HDMFE"])
 			final_total += hdmf_total
-			row['total_HDMF'] = format_decimal_by_2(hdmf_total)
+			row['total_HDMF'] = format_precision(hdmf_total, filters.value_precision)
 		entries.append(row)
 
 	for ent in sorted(entries, key = lambda k:k['employee_name']):
@@ -76,9 +76,9 @@ def execute(filters=None):
 		"employee": "<b>Total: </b>",
 		"employee_name": "",
 		"hdmf_no": "",
-		"HDMF": format_decimal_by_2(final_employee),
-		"HDMFE": format_decimal_by_2(final_employer),
-		"total_HDMF": format_decimal_by_2(final_total),
+		"HDMF": format_precision(final_employee, filters.value_precision),
+		"HDMFE": format_precision(final_employer, filters.value_precision),
+		"total_HDMF": format_precision(final_total, filters.value_precision),
 	})
 
 	return columns, data
@@ -111,19 +111,19 @@ def get_columns(filters):
 		{
 			"fieldname": "HDMF",
 			"label": _("Employee"),
-			"fieldtype": "Currency",
+			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "HDMFE",
 			"label": _("Employer"),
-			"fieldtype": "Currency",
+			"fieldtype": "Data",
 			"width":120
 		},
 		{
 			"fieldname": "total_HDMF",
 			"label": _("Total"),
-			"fieldtype": "Currency",
+			"fieldtype": "Data",
 			"width": 100
 		},
 	]
