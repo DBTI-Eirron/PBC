@@ -416,7 +416,7 @@ def get_overtime(entry, ot_apps):
 	return entry
 
 def get_ndiff(entry):
-	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_value("Employee", entry['employee'], "ignore_nd"):
+	if entry.get('nd_start') and entry.get('nd_end') and entry.get('work_shift_type') == 'Night' and not frappe.db.get_value("Employee", entry['employee'], "ignore_nd"):
 		#get ND start and end
 		nd_start, nd_end  = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) ), get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
 		if entry.get('nd_start') > entry.get('nd_end'):
@@ -623,9 +623,9 @@ def get_undertime(entry):
 def get_cto(entry, cto):
 	if cto:
 		for d in cto:
-			if d['use_date'] == entry['target_date']:
+			if d['use_target_date'] == entry['target_date']:
 				entry['cto_links'].append(d.name)
-				entry['cto'] = d.use_total_hours * 60 * 60
+				entry['cto'] += d.use_total_hours * 60 * 60
 
 	return entry
 
@@ -893,7 +893,7 @@ def get_final_processing(entry):
 		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
-	
+		
 	if entry.get('lv_status') != 1 and not entry.get('card_in') and strict_card:
 		entry['is_absent'] = 1
 		entry["is_halfday"] = 0
@@ -950,8 +950,8 @@ def get_final_processing(entry):
 				entry['is_absent'] = 0
 
 	#If not Restday, Holiday, Wholeday Leave and Wholeday OB
-	if entry.get('is_restday') != 1 and entry.get('is_holiday') != 1 and entry.get('lv_status') != 1 and entry.get('ob_status') != 1:
-		if (not entry.get('card_in') )and (not entry.get('card_out')):
+	if entry.get('is_attendance_base') and entry.get('is_restday') != 1 and entry.get('is_holiday') != 1 and entry.get('lv_status') != 1 and entry.get('ob_status') != 1:
+		if (not entry.get('card_in')) and (not entry.get('card_out')):
 			entry["work"] = 0
 			entry["undertime"] = 0
 			entry["is_absent"] = 1
@@ -997,11 +997,23 @@ def get_final_processing(entry):
 
 	#if whole day work suspension
 	if entry.get('suspension') == 1:
+		entry["is_absent"] = 0
 		entry["is_halfday"] = 0
-		entry["is_absent"] = 0	
 		entry["late"] = 0
 		entry["undertime"] = 0
 		entry["work"] = 0
+
+	if entry.get('suspension') == 2 and (entry.get('ob_status') == 3 or entry.get('ob_status') == 1):
+		entry["is_halfday"] = 0
+		entry["is_absent"] = 0
+		entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
+		entry["late"] = 0
+
+	if entry.get('suspension') == 3 and (entry.get('ob_status') == 2 or entry.get('ob_status') == 1):
+		entry["is_halfday"] = 0
+		entry["is_absent"] = 0
+		entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
+		entry["undertime"] = 0
 
 	return entry
 
@@ -1048,7 +1060,7 @@ def get_tags(entry):
 		entry["tags"] += " <span class='label label-success'> OB 2ndhalf </span> "
 
 	entry["tags"] += " <span class='label label-success'> Excused Tardiness </span> " if entry.get('ex_tardiness') else ""
-	entry["tags"] += " <span class='label label-danger'> Absent </span> " if entry['is_absent'] == 1 else ""
+	entry["tags"] += " <span class='label label-danger'> Absent </span> " if entry['is_absent'] == 1 and entry['is_attendance_base'] else ""
 	entry["tags"] += " <span class='label label-danger'> Late </span> " if entry['late'] > 0 else ""
 	entry["tags"] += " <span class='label label-info'>"+ entry['holiday_name'] +"</span>" if entry['is_holiday'] == 1 else ""
 	entry["tags"] += " <span class='label label-info'> Special Non-Working </span>" if entry['is_sp_holiday'] == 1 else ""
@@ -1388,8 +1400,8 @@ def get_ut_list(employee, from_date, to_date, approval_cutoff, adjustment):
 def get_cto_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	by_adjustment = ""
 
-	cto_apps = frappe.db.sql("""SELECT `name`, use_total_hours, use_date FROM `tabCompensatory Time Off` 
-		WHERE workflow_state = 'Approved' AND employee = %s AND use_date >= %s AND use_date <= %s
+	cto_apps = frappe.db.sql("""SELECT `name`, use_total_hours, use_target_date FROM `tabCompensatory Time Off` 
+		WHERE workflow_state = 'Approved' AND employee = %s AND use_target_date >= %s AND use_target_date <= %s
 		AND `type` = 'Use' {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 	
 	return cto_apps
@@ -1891,8 +1903,8 @@ def get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 
-	compensatory = frappe.db.sql("""SELECT `name`, employee, use_total_hours, use_date FROM `tabCompensatory Time Off` 
-		WHERE workflow_state = 'Approved' AND use_date >= %s AND use_date <= %s
+	compensatory = frappe.db.sql("""SELECT `name`, employee, use_total_hours, use_target_date FROM `tabCompensatory Time Off` 
+		WHERE workflow_state = 'Approved' AND use_target_date >= %s AND use_target_date <= %s
 		AND `type` = 'Use' {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 	
 	for d in compensatory:
@@ -1941,23 +1953,19 @@ def get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 def get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
-	#if adjustment == 1:
-	#	conditions_list.append("approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
-	#else:
-	#	conditions_list.append("approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")
-	#
+	if adjustment != 1:
+		conditions_list.append("CSA.approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")#
+
 	if employee:
-		conditions_list.append("employee='"+cstr(employee)+"'")
+		conditions_list.append("CSA.employee='"+cstr(employee)+"'")
 
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 
 	cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
 		FROM `tabChange Schedule Application` CSA 
 		INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
-		WHERE CSA.docstatus = 1
-		AND workflow_state = 'Approved'
-		AND CSAT.target_date >= %s 
-		AND CSAT.target_date <= %s  {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+		WHERE CSA.docstatus = 1 AND workflow_state = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s 
+		{conditions} ORDER BY CSA.approved_on """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in cs_apps:
 		if d.employee in emp_map:
