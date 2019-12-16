@@ -230,6 +230,12 @@ def get_data():
 				},
 				{
 					"type": "report",
+					"name": "BIR1601-C per Company",
+					"doctype": "Company",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "PagIbig Loan Report",	
 					"is_query_report": True
 				},

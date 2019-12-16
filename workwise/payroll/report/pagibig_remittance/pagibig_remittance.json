@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-06-27 16:52:51.907678", 
+ "modified": "2019-11-08 14:56:01.357959", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "PagIbig Remittance", 
@@ -23,7 +23,7 @@
    "role": "HR Manager"
   }, 
   {
-   "role": "CompBen"
+   "role": "HR Comp Ben"
   }
  ]
 }

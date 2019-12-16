@@ -9,29 +9,70 @@ from frappe.model.document import Document
 
 class EmployeeSubordinates(Document):
 	def validate(self):
-		self.remove_duplicates()	
-		if self.employee:
-			user_id = frappe.db.get_value("Employee", self.employee, "user_id")
-			if user_id:
-				self.remove_all_permissions()
-				for d in self.get("subordinates"):
-					exists = frappe.db.sql(""" SELECT `name`, for_value FROM `tabUser Permission` WHERE `allow` = 'Employee' AND `user` = %s AND `for_value` = %s  """, (user_id, d.subordinate), as_dict=1)
-					if not exists:
-						user_perm = frappe.new_doc("User Permission")
-						user_perm.update({
-							"allow": "Employee",
-							"for_value": d.subordinate,
-							"user": user_id,
-							"apply_for_all_roles": 0,
-							"is_automated": 1
-						})	
-						user_perm.insert()
-						frappe.db.commit()
-						#frappe.permissions.add_user_permission("Employee", d.subordinate, user_id, 0, 1)
-				frappe.cache().delete_value('user_permissions')
-			else:
-				frappe.throw(_("Employee {0} has no User ID.").format(self.employee))
+		#get current data
+		frappe.db.commit()
+		user_id = frappe.db.get_value("Employee", self.employee, "user_id")
+		permissions = frappe.db.sql("""SELECT `name`, for_value FROM `tabUser Permission` WHERE `allow` = 'Employee' AND `user` = %s AND is_automated = 1""", (user_id), as_dict=1)
+		perms_list = []
+		child_list = []
 
+		self.remove_duplicates()
+
+		if self.employee and user_id:
+			#self.remove_all_permissions()
+			for pl in permissions:
+				perms_list.append(pl.for_value)
+
+			for cl in self.subordinates:
+				child_list.append(cl.subordinate)
+
+			for d in child_list:
+				if d not in perms_list:
+					user_perm = frappe.new_doc("User Permission")
+					user_perm.update({
+						"allow": "Employee",
+						"for_value": d,
+						"user": user_id,
+						"apply_for_all_roles": 0,
+						"is_automated": 1
+					})	
+					user_perm.insert()
+				
+			for pr in permissions:
+				if pr.for_value not in child_list:
+					frappe.permissions.remove_user_permission("Employee", pr.for_value, user_id)
+
+			frappe.cache().delete_value('user_permissions')
+		else:
+			frappe.throw(_("Employee {0} has no User ID.").format(self.employee))
+
+	# def removed_permissions(self):
+	# 	user_id = frappe.db.get_value("Employee", self.employee, "user_id")
+	# 	if user_id:
+	# 		old_dict = frappe.db.sql("""SELECT subordinate FROM `tabSubordinates` WHERE parent = %s""",(self.employee),as_dict=True)
+	# 		old_list = ["",""]
+	# 		deleted_sub = []
+
+	# 		for old in old_dict:
+	# 			old_list.append(old.subordinate)
+
+	# 		for sub in self.subordinates:
+	# 			if sub.subordinate in old_list:
+	# 				old_list.remove(sub.subordinate)
+
+	# 		perms = frappe.db.sql("""SELECT `name` , `for_value`, `is_automated` FROM `tabUser Permission` WHERE allow = 'Employee' AND `user` = %s AND for_value IN %s """, (user_id, old_list), as_dict=1)
+	# 		if perms:
+	# 			for d in perms:
+	# 				if d.is_automated > 0:
+	# 					frappe.permissions.remove_user_permission("Employee", d.for_value, user_id)
+	# 		frappe.cache().delete_value('user_permissions')
+	# 	else:
+	# 		frappe.throw(_("Employee {0} has no User ID.").format(self.employee))
+
+	def on_trash(self):
+		self.remove_all_permissions()
+
+	
 	def remove_all_permissions(self):
 		user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 		if user_id:
@@ -43,9 +84,6 @@ class EmployeeSubordinates(Document):
 				frappe.cache().delete_value('user_permissions')
 		else:
 			frappe.throw(_("Employee {0} has no User ID.").format(self.employee))
-
-	def on_trash(self):
-		self.remove_all_permissions()
 
 	def remove_duplicates(self):
 		unique_emp = []

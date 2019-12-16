@@ -87,6 +87,10 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Work Schedule Assignment Logs",
+				},
+				{
+					"type": "doctype",
 					"name": "Blanket",
 				},	
 				{

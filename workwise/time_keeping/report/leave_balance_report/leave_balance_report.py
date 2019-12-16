@@ -96,7 +96,7 @@ def get_data(filters):
 		employees = get_employees(filters)
 		for emp in employees:
 			leave_balance = frappe.db.sql(""" SELECT `employee_name`,`from_date`,`name`,`leave_type`,`credits`,`used_credits`,`credits`-`used_credits` as balance 
-				FROM `tabLeave Balance` WHERE `employee`=%s AND (`from_date` BETWEEN %s AND %s) """, (emp.name, from_date, to_date),as_dict=True)
+				FROM `tabLeave Balance` WHERE `employee`=%s AND ((`to_date` BETWEEN %s AND %s) OR (`from_date` BETWEEN %s AND %s)) """, (emp.name, from_date, to_date, from_date, to_date),as_dict=True)
 			for leave in leave_balance:
 				#if getdate(leave.from_date) >= getdate(filters.from_date): 
 					#frappe.throw(_(leave.from_date))

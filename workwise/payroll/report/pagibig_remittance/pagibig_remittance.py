@@ -4,7 +4,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
-from workwise.payroll.payroll_utils import format_decimal_by_2, format_decimal_by_2_align_right, format_decimal_by_2_align_right_negative
+from workwise.payroll.payroll_utils import format_precision, format_align_right
 from frappe import _, msgprint
 
 def execute(filters=None):
@@ -40,9 +40,9 @@ def get_data(filters):
 			'last_name':gov_map[emp[0]]['last_name'], 
 			'first_name':gov_map[emp[0]]['first_name'], 
 			'middle_name':gov_map[emp[0]]['middle_name'], 
-			'birth_day': datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%Y%m%d"),
-			'ee':format_decimal_by_2(employee),
-			'er':format_decimal_by_2(employer)
+			'birth_day': datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%m/%d/%Y"),
+			'ee':format_precision(employee, filters.value_precision),
+			'er':format_precision(employer, filters.value_precision)
 		}
 		data.append(row)
 		total_ee += employee
@@ -62,7 +62,6 @@ def get_employees(filters,transaction_type):
 		WHERE PRE.pay_code IN ('"""+"','".join(str(e) for e in transaction_type)+"""') 
 		AND PR.company = %(company)s 
 		AND PR.posting_date BETWEEN %(from_date)s AND %(to_date)s
-		AND TE.is_active = 1
 		{conditions}
 		ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)),{ 
 		"company": filters.company,
