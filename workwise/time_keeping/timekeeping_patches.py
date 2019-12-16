@@ -528,7 +528,7 @@ def add_administrator_role():
 	frappe.db.sql("""INSERT INTO `tabHas Role` (name, creation, modified, modified_by, owner, `docstatus`, parent, parentfield, parenttype, idx, role) 
 		VALUES (LEFT(MD5(RAND()), 10), NOW(), NOW(), 'Administrator', 'Administrator', 0, 'Administrator', 'roles', 'User', 1, 'Administrator' ) """)
 
-def add_fromdate_todate_cto(self):
+def add_fromdate_todate_cto():
 	frappe.db.sql("""UPDATE `tabCompensatory Time Off` CTO SET is_previous=0, file_target_date=`date`, file_from_date=`date`, file_to_date=`date`, file_from_time=from_time, file_to_time=to_time WHERE type = 'File'; """)
 	frappe.db.sql("""UPDATE `tabCompensatory Time Off` CTO SET is_previous=0, use_target_date=use_date, use_from_date=use_date, use_to_date=use_date, reason=use_reason, attachment=use_attachment WHERE type = 'Use'; """)
 	frappe.db.sql("""UPDATE `tabCompensatory Time Off Table` CTT INNER JOIN `tabCompensatory Time Off` CTO ON CTT.`filed_cto`=CTO.`name` SET CTT.date=CTO.file_target_date; """)
