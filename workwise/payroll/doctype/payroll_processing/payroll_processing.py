@@ -1470,6 +1470,7 @@ class PayrollProcessing(Document):
 				header['absent_days'] = absent_days
 				header['present_days'] = present_days
 				header['paid_holidays'] = pho_days
+				header['hourly_basic'] = hourly_basic
 			else:
 				header['no_attendance'] = 1
 
