@@ -10,7 +10,6 @@ from frappe.model.document import Document
 class EmployeeSubordinates(Document):
 	def validate(self):
 		#get current data
-		frappe.db.commit()
 		user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 		permissions = frappe.db.sql("""SELECT `name`, for_value FROM `tabUser Permission` WHERE `allow` = 'Employee' AND `user` = %s AND is_automated = 1""", (user_id), as_dict=1)
 		perms_list = []
@@ -40,7 +39,7 @@ class EmployeeSubordinates(Document):
 				
 			for pr in permissions:
 				if pr.for_value not in child_list:
-					frappe.permissions.remove_user_permission("Employee", pr.for_value, user_id)
+					frappe.delete_doc('User Permission', pr.name)
 
 			frappe.cache().delete_value('user_permissions')
 		else:
