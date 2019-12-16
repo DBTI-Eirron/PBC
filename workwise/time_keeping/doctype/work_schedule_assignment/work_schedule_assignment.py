@@ -276,7 +276,7 @@ class WorkScheduleAssignment(Document):
 			"from_date": self.from_date,
 			"to_date": self.to_date,
 			"date_assigned": getdate(nowdate()),
-			"assigned_by": frappe.session.user if get_user_fullname(self) else "",
+			"assigned_by": frappe.session.user,
 			"assigned_by_name": get_user_fullname(self),
 		})
 
