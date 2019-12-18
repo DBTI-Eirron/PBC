@@ -7,7 +7,6 @@ import frappe
 from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
-from workwise.payroll.annualization import create_annualization
 from workwise.payroll.payroll_utils import get_transaction_map, get_overtime_map, get_adjustment_settings, get_rates
 from workwise.time_keeping.application_utils import validate_inactive_employee
 
@@ -88,14 +87,13 @@ class SpecialProcessing(Document):
 		switcher = {
 			"13th Month": self.bonus_pay,
 			"Leave Balance to Cash": self.leave_to_cash,
-			"Annualization": self.annualization,
 			"Special Period": self.special_period,
 		}
 
 		func = switcher.get(self.method, lambda: frapp.throw(_("Invalid Method")))
 		func(header, entries)
 
-		if self.method not in ["Annualization", "Special Period"]:
+		if self.method not in ["Special Period"]:
 			batch = frappe.new_doc("Batch Entry")
 			batch.update(header)			
 			for d in entries:
@@ -407,11 +405,6 @@ class SpecialProcessing(Document):
 				})
 
 		return header, entries
-
-	def annualization(self, header, entries):
-		log = "Created Annualization Entries"
-		create_annualization(self)
-		return log
 
 	def get_rates(self, emp):
 		monthly_rate = 0.0
