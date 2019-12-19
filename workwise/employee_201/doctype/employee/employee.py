@@ -303,7 +303,8 @@ class Employee(Document):
 			childs_list.append(ap.approver)
 
 		for ac in cached:
-			cached_list.append(ac.approver)
+			if ac.approver in sub_list:
+				cached_list.append(ac.approver)
 
 		for dx in cached:
 			if dx.approver not in childs_list:
