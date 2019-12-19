@@ -95,7 +95,7 @@ class SpecialProcessing(Document):
 
 		if self.method not in ["Special Period"]:
 			batch = frappe.new_doc("Batch Entry")
-			batch.update(header)			
+			batch.update(header)		
 			for d in entries:
 				if d.get('amount') > 0:
 					batch.append("employees", {
@@ -368,7 +368,7 @@ class SpecialProcessing(Document):
 		return header, entries
 
 	def leave_to_cash(self, header, entries):
-		header['transaction_type'] = frappe.db.get_single_value("Payroll Settings", "tr_leave_to_cash") 
+		header['transaction_type'] = self.convert_to
 		header['remarks'] = ("Leave to cash for year {0}").format(self.payroll_year)
 
 		bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method") 
@@ -376,32 +376,32 @@ class SpecialProcessing(Document):
 		employees = self.get_employees()
 		if employees:
 			for emp in employees:
-				total_bonus = 0
-	
-				registerx = frappe.db.sql(""" SELECT credits, used_credits `tabLeave Balance` WHERE employee = %(employee)s 
-					AND from_date >= %(from_year)s AND to_date <= %(to_year)s AND schedule = %(schedule)s """,{ 
+				rates = get_rates(emp)
+				total_amt = 0
+				registerx = frappe.db.sql(""" SELECT credits, used_credits FROM `tabLeave Balance` 
+					WHERE employee = %(employee)s
+					AND leave_type =  %(lv_convert)s
+					AND from_date >= %(from_year)s 
+					AND to_date <= %(to_year)s """,{ 
 						"employee": emp.name,
 						"from_year": from_year,
 						"to_year": to_year,
 						"schedule": emp.payroll_schedule,
+						"lv_convert": self.lv_convert,
 				}, as_dict=True)
 
-				total_rate = 0.0
-				months = 0.0
+				total_credits = 0.0
 				for d in registerx:
-					if d.schedule == "Semi-Monthly":
-						months += 0.5
-						total_rate = d.monthly_rate
-					if d.schedule == "Monthly":
-						months += 1
-						total_rate = d.monthly_rate
+					credits = 0
+					credits = d.credits - d.used_credits
+					if credits > 0:
+						total_credits += credits
 
-				total_bonus += total_rate * months / 12
-
+				total_amt = credits * rates.get('daily_rate')
 				entries.append({
 					"employee": emp.name,
 					"employee_name": emp.full_name, 
-					"amount": total_bonus,
+					"amount": total_amt,
 				})
 
 		return header, entries
