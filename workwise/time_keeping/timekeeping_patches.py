@@ -555,3 +555,7 @@ def mark_processed_default_schedule():
 			if (not a.is_default_schedule) and (getdate(a.target_date) not in entry[a.employee]['dates']):
 				frappe.db.sql("""UPDATE `tabAttendance Register` SET is_default_schedule=1 WHERE `name` = %s """,(a.name))
 	frappe.db.commit()
+
+def update_min_take_home():
+	frappe.db.sql("""UPDATE `tabEmployee` SET min_take_home=30, mth_percentage=1 WHERE is_active = 1; """)
+	frappe.db.commit()
