@@ -302,6 +302,9 @@ def get_data():
 				},{
 					"type": "doctype",
 					"name": "BIR1601 C Form",	
+				},{
+					"type": "doctype",
+					"name": "BIR2316 Generator",	
 				}
 			],
 		},
