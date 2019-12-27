@@ -43,7 +43,7 @@ def execute(filters=None):
 			elif period_type == 'Monthly':
 				rate = flt(rates['monthly_rate'])
 			final_rate = emp.min_take_home if emp.mth_percentage == 0 else (rate * (emp.min_take_home/100))
-			if final_rate >= emp.net_payroll:
+			if final_rate >= emp.net_payroll and emp.net_payroll > 0:
 				row = [emp.employee, emp.employee_name, emp.present_days]
 				total_present += emp.present_days
 				total_income = 0.00

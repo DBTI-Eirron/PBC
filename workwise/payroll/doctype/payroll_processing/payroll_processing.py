@@ -424,7 +424,23 @@ class PayrollProcessing(Document):
 
 					sss, ssse, sssc = get_sss_amount(flt(target_amt, 2), sss_table)
 					for l in sss_list:
-						amt = flt(eval(l), 8) / 2 if emp.get('sss_freq') == "Both" else flt(eval(l), 8)
+						not_freq = ["1st", "3rd"]
+						amt = 0
+						if cint(header.get("no_weeks")) == cint(5):
+							not_freq.append("4th")
+
+						if emp.get('phic_freq') == "Both":
+							if self.schedule == "Weekly":
+								if self.frequency not in not_freq:
+									amt = flt(eval(l), 8) / 2
+							else:
+								amt = flt(eval(l), 8) / 2
+						else:
+							if self.schedule == "Weekly":
+								if self.frequency not in not_freq:
+									amt = flt(eval(l), 8) 
+							else:
+								amt = flt(eval(l), 8)
 						sss_register.append({"pay_code": l.upper(), "amount": amt })		
 
 			else:
@@ -535,7 +551,23 @@ class PayrollProcessing(Document):
 							phice = percent_rate 
 						
 						for l in phic_list:
-							amt = flt(eval(l), 8) / 2 if emp.get('phic_freq') == "Both" else flt(eval(l), 8)
+							not_freq = ["1st", "3rd"]
+							amt = 0
+							if cint(header.get("no_weeks")) == cint(5):
+								not_freq.append("4th")
+
+							if emp.get('phic_freq') == "Both":
+								if self.schedule == "Weekly":
+									if self.frequency not in not_freq:
+										amt = flt(eval(l), 8) / 2
+								else:
+									amt = flt(eval(l), 8) / 2
+							else:
+								if self.schedule == "Weekly":
+									if self.frequency not in not_freq:
+										amt = flt(eval(l), 8) 
+								else:
+									amt = flt(eval(l), 8)
 							phic_register.append({"pay_code": l.upper(), "amount": amt })
 
 			else:
@@ -706,7 +738,23 @@ class PayrollProcessing(Document):
 						hdmfm = 0				
 						
 				for l in hdmf_list:
-					amt = flt(eval(l), 8) / 2 if emp.get('hdmf_freq') == "Both" else flt(eval(l), 8)
+					not_freq = ["1st", "3rd"]
+					amt = 0
+					if cint(header.get("no_weeks")) == cint(5):
+						not_freq.append("4th")
+						
+					if emp.get('phic_freq') == "Both":
+						if self.schedule == "Weekly":
+							if self.frequency not in not_freq:
+								amt = flt(eval(l), 8) / 2
+						else:
+							amt = flt(eval(l), 8) / 2
+					else:
+						if self.schedule == "Weekly":
+							if self.frequency not in not_freq:
+								amt = flt(eval(l), 8) 
+						else:
+							amt = flt(eval(l), 8)
 					hdmf_register.append({"pay_code": l.upper(), "amount": amt })
 	
 				for d in hdmf_register:
@@ -1470,6 +1518,7 @@ class PayrollProcessing(Document):
 				header['absent_days'] = absent_days
 				header['present_days'] = present_days
 				header['paid_holidays'] = pho_days
+				header['hourly_basic'] = hourly_basic
 			else:
 				header['no_attendance'] = 1
 

@@ -20,212 +20,247 @@ def get_columns(filters):
 			"label": _("Employee ID"),
 			"fieldtype": "Link",
 			"options": "Employee",
-			"width": 120
+			"width": 120,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "employee_name",
 			"label": _("Employee Name"),
 			"fieldtype": "Data",
-			"width": 180
+			"width": 180,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "location",
 			"label": _("Location"),
 			"fieldtype": "Link",
 			"options": "Location",
-			"width": 180
+			"width": 180,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "reg_hrs",
 			"label": _("Work"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "absent",
 			"label": _("Absent"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "tardy",
 			"label": _("Tardy"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "ut",
 			"label": _("UT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "sl",
 			"label": _("SL"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "vl",
 			"label": _("VL"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "bl",
 			"label": _("BL"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "cto",
 			"label": _("CTO"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "ot",
 			"label": _("OT REG"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "ot_ex",
 			"label": _("OT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "nd",
 			"label": _("ND"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "nd_ot",
 			"label": _("ND OT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_reg",
 			"label": _("RD REG"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_ot",
 			"label": _("RD OT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_nd",
 			"label": _("RD ND"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_nd_ot",
 			"label": _("RD NDOT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "sh_reg",
 			"label": _("SH REG"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "sh_ot",
 			"label": _("SH OT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "sh_nd",
 			"label": _("SH ND"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "sh_nd_ot",
 			"label": _("SH ND OT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "lh_reg",
 			"label": _("LH REG"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "lh_ot",
 			"label": _("LH OT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "lh_nd",
 			"label": _("LH ND"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "lh_nd_ot",
 			"label": _("LH NDOT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_sh_reg",
 			"label": _("RD SHREG"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_sh_ot",
 			"label": _("RD SHOT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_sh_nd",
 			"label": _("RD SHND"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_sh_nd_ot",
 			"label": _("RD SHNDOT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_lh_reg",
 			"label": _("RD LHREG"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_lh_ot",
 			"label": _("RD LHOT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_lh_nd",
 			"label": _("RD LHND"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 		{
 			"fieldname": "rd_lh_nd_ot",
 			"label": _("RD LHNDOT"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"hidden": 0,
 		},
 	]
 
@@ -405,7 +440,7 @@ def get_data(filters, columns):
 
 		for f in field_list:
 			data_register[reg.employee_id]["emp_total"] += flt(data_register[reg.employee_id][f], 8)
-	
+
 	head_count = 0
 	for dr in data_register:
 		row = {}
@@ -428,24 +463,27 @@ def get_data(filters, columns):
 					row[clm] = cstr(data_register[dr][clm])
 		if row:
 			head_count += 1
-			data.append(row)	
+			data.append(row)
 
 	data_list = sorted(data, key=lambda k: k['employee_name'])
 
+	total_row = {}
+	headcount_list = {}
+	for col in columns:
+		clm = col['fieldname']
+		total_row[clm] = ""
+		headcount_list[clm] = ""
+		if clm == 'location':
+			total_row[clm] = 'Total'
+			headcount_list[clm] = 'Head Count'
+		if clm == 'reg_hrs':
+			headcount_list[clm] = head_count
+
+		if filters.hide_zero and clm not in ["employee_id", "employee_name", "location"]:
+			if total_dict[clm] <= 0:
+				col["hidden"] = 1
+
 	if filters.show_total:
-		total_row = {}
-		headcount_list = {}
-
-		for col in columns:
-			clm = col['fieldname']
-			total_row[clm] = ""
-			headcount_list[clm] = ""
-			if clm == 'location':
-				total_row[clm] = 'Total'
-				headcount_list[clm] = 'Head Count'
-			if clm == 'reg_hrs':
-				headcount_list[clm] = head_count
-
 		for tl in total_dict:
 			total_row[tl] = '{:,.2f}'.format( convert_hrs(filters ,flt(total_dict[tl], 8)) )
 			

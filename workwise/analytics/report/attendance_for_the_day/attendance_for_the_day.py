@@ -13,7 +13,7 @@ def execute(filters=None):
 	columns = get_columns(filters)
 	data = get_data(present,absent,late,leave)
 	chart = get_chart(filters,present,absent,late,leave)
-	return columns,data, None, chart
+	return columns,data,None,chart
 
 def get_chart(filters,present,absent,late,leave):
 	datasets = []
@@ -107,7 +107,10 @@ def process_data(filters):
 	return present, absent, late, leave
 
 def dict_employees(filters):
-	employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, default_schedule FROM `tabEmployee` WHERE company = %s""",(filters.company),as_dict=True)
+	if frappe.session.user != "Administrator":
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.biometrics_id, TE.default_schedule FROM `tabEmployee` TE WHERE (SELECT COUNT(`name`) as count FROM `tabUser Permission` WHERE user = %s AND for_value = TE.`name`) > 0 AND TE.company = %s AND TE.is_active = 1""",(frappe.session.user,filters.company),as_dict=True)
+	else:
+		employees = frappe.db.sql("""SELECT `name`, full_name, biometrics_id, default_schedule FROM `tabEmployee` WHERE company = %s AND is_active = 1""",(filters.company),as_dict=True)
 	return employees
 
 def dict_time_cards(filters):

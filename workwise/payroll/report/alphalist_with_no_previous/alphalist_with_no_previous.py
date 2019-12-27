@@ -31,6 +31,11 @@ def get_data(filters, registers):
 	seq = 0
 	for d in registers:
 		seq += 1
+
+		#total taxable compensation exclude benefits and basic
+		taxable_compensation = (d.t_represent + d.t_transpo + d.t_cola + d.t_housing + d.t_comm + d.t_sharing + 
+				d.t_fees + d.t_hazard + d.t_overtime + d.t_other_a + d.t_other_b + d.t_other_sa + d.t_other_sb)
+
 		data.append({
 			"1": seq,
 			"2": d.tax_id,
@@ -43,7 +48,7 @@ def get_data(filters, registers):
 			"4f": '{:0,.2f}'.format( flt(d.non_taxable_total,8) ),  
 			"4g": '{:0,.2f}'.format( flt(d.t_basic,8) ),
 			"4h": '{:0,.2f}'.format( flt(d.t_benefits,8) ),
-			"4i": '{:0,.2f}'.format( flt(d.t_other,8) ),
+			"4i": '{:0,.2f}'.format( flt(taxable_compensation,8) ),
 			"4j": '{:0,.2f}'.format( flt(d.taxable_total,8) ),
 			"5a":  "",
 			"5b": '{:0,.2f}'.format( 0.0 ),
@@ -61,7 +66,7 @@ def get_data(filters, registers):
 
 def get_registers(filters):
 	registers = frappe.db.sql("""SELECT * FROM `tabAnnualization Register`
-		WHERE company=%(company)s AND payroll_year=%(year)s AND with_previous = 0 {conditions} """.format( conditions=get_conditions(filters) ), filters, as_dict=1)
+		WHERE company=%(company)s AND payroll_year=%(year)s AND with_previous = 0 AND is_terminated = 0 {conditions} """.format( conditions=get_conditions(filters) ), filters, as_dict=1)
 
 	return registers
 
@@ -69,7 +74,7 @@ def get_conditions(filters):
 	conditions = []
 
 	if filters.get("employee"):
-		conditions.append("PR.employee=%(employee)s")
+		conditions.append("employee=%(employee)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else ""
 
