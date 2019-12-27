@@ -69,10 +69,6 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "Alphalist Consideration",
-				},
-				{
-					"type": "doctype",
 					"name": "Payroll Settings",
 				},
 				{
@@ -200,8 +196,12 @@ def get_data():
 			],
 		},
 		{
-			"label": _("Government Reports"),
+			"label": _("Annualization"),
 			"items": [
+				{
+					"type": "doctype",
+					"name": "Annualization Processing",
+				},			
 				{
 					"type": "report",
 					"name": "Alphalist With Previous",	
@@ -222,6 +222,15 @@ def get_data():
 					"name": "Alphalist Minimum Wage",	
 					"is_query_report": True
 				},
+				{
+					"type": "doctype",
+					"name": "Annualization Register",
+				},					
+			]
+		},		
+		{
+			"label": _("Government Reports"),
+			"items": [
 				{
 					"type": "report",
 					"name": "BIR1601-C",
