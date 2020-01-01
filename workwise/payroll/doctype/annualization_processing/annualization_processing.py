@@ -4,6 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
+from calendar import monthrange
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from frappe import _
 from frappe.model.document import Document
@@ -103,6 +104,10 @@ class AnnualizationProcessing(Document):
 
 	def get_employee_wise_register(self, registers, previous_bir, lastpay, emp_map):
 		tr_map = get_transaction_map()
+		last_day_nov = monthrange(cint(self.payroll_year), 11)[1]
+		last_day_nov = getdate(cstr(""+cstr(self.payroll_year)+"-11-"+cstr(last_day_nov)+""))
+		first_day_jan = getdate(cstr(""+cstr(self.payroll_year)+"-1-1"))
+
 		for reg in registers:
 			if reg.employee in emp_map:
 				if reg.pay_code in tr_map:
@@ -184,7 +189,9 @@ class AnnualizationProcessing(Document):
 
 						#TAX WITHHELD
 						if btype == "TAX":
-							emp_map[reg.employee].tax_withheld += -(reg.amount) if _type == "Income" else reg.amount 
+							emp_map[reg.employee].tax_withheld += -(reg.amount) if _type == "Income" else reg.amount
+							if first_day_jan <= getdate(reg.posting_date) <= last_day_nov:
+								emp_map[reg.employee].withheld_nov += -(reg.amount) if _type == "Income" else reg.amount
 
 		for d in previous_bir:
 			if d.employee in emp_map:
@@ -223,6 +230,7 @@ class AnnualizationProcessing(Document):
 
 				emp_map[d.employee].prev_tax_due = d.sum_td
 				emp_map[d.employee].prev_tax_withheld = d.sum_tatwa
+				emp_map[d.employee].prev_withheld_nov = d.sum_tatwa
 
 		#LAST PAY
 		for lp in lastpay:
@@ -368,13 +376,18 @@ class AnnualizationProcessing(Document):
 
 			emp_dict.tax_due = tax_due
 
-			withheld = emp_dict.tax_due - (emp_dict.tax_withheld + emp_dict.prev_adj_withheld)
+			#check if tax is to be refunded or to be paid
+			withheld = emp_dict.tax_due - (emp_dict.tax_withheld + emp_dict.prev_tax_withheld)
+
+			#Set Amount Withheld & Paid for in December
+			emp_dict.adj_amount_withheld = (emp_dict.tax_withheld + emp_dict.prev_tax_withheld) - (emp_dict.withheld_nov + emp_dict.prev_withheld_nov)
+
 			if withheld > 1:
-				emp_dict.adj_amount_withheld = abs(withheld)
-				emp_dict.adj_withheld = emp_dict.tax_withheld + emp_dict.adj_amount_withheld
-			else:	
+				emp_dict.adj_withheld = abs(withheld)
+			elif withheld < 0:
 				emp_dict.adj_over_withheld = abs(withheld)
-				emp_dict.adj_withheld = emp_dict.tax_withheld - emp_dict.adj_over_withheld
+			else:
+				emp_dict.adj_withheld = 0
 
 			if taxable < 250000:
 				emp_dict.minimum_wage = 1
@@ -480,7 +493,9 @@ class AnnualizationProcessing(Document):
 					"adj_amount_withheld": 0,
 					"adj_over_withheld": 0,
 					"adj_withheld": 0,
+					"withheld_nov": 0,
 					#PREVIOUS TOTALS
+					"prev_withheld_nov": 0,
 					"prev_tax_due": 0,
 					"prev_tax_withheld": 0,
 					"prev_adj_withheld": 0,
