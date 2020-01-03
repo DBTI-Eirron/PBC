@@ -34,16 +34,20 @@ def execute(filters=None):
 			deduction_total.append(0)
 
 		for emp in employee_list:
-			rates = get_rates(emp)
-			period_type = frappe.get_value('Payroll Period', filters.payroll_period, 'schedule')
-			if period_type == 'Weekly':
-				rate = flt(rates['weekly_rate'])
-			elif period_type == 'Semi-Monthly':
-				rate = flt(rates['semi_rate'])
-			elif period_type == 'Monthly':
-				rate = flt(rates['monthly_rate'])
-			final_rate = emp.min_take_home if emp.mth_percentage == 0 else rate * (emp.min_take_home/100)
-			if final_rate <= emp.net_payroll:
+			# rates = get_rates(emp)
+			# period_type = frappe.get_value('Payroll Period', filters.payroll_period, 'schedule')
+			# if period_type == 'Weekly':
+			# 	rate = flt(rates['weekly_rate'])
+			# elif period_type == 'Semi-Monthly':
+			# 	rate = flt(rates['semi_rate'])
+			# elif period_type == 'Monthly':
+			# 	rate = flt(rates['monthly_rate'])
+			if emp.mth_percentage == 0:
+				final_rate = emp.min_take_home 
+			else:
+				final_rate = (emp.total_income * (emp.min_take_home/100))
+
+			if final_rate < emp.net_payroll and emp.net_payroll > 0:
 				row = [emp.employee, emp.employee_name, emp.present_days]
 				total_present += emp.present_days
 				total_income = 0.00
@@ -197,7 +201,7 @@ def get_columns(filters,employee_list):
 def get_employees(filters):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, TE.mth_percentage, TE.min_take_home, PR.net_payroll
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
 			AND PR.on_hold = 0
@@ -210,7 +214,7 @@ def get_employees(filters):
 				"location": filters.location,
 			}, as_dict=1)
 	else:
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, TE.mth_percentage, TE.min_take_home, PR.net_payroll
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income
 		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PR.period = %(period)s
 			AND PR.on_hold = 0
