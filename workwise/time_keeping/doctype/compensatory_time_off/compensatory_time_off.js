@@ -49,22 +49,22 @@ frappe.ui.form.on('Compensatory Time Off', {
 	//FILE
 	file_from_time: function(frm) {
 		frm.trigger("get_target_date");
-		frm.trigger("validate_file_cto");
+		//frm.trigger("validate_file_cto");
 	},
 
 	file_to_time: function(frm) {
 		frm.trigger("get_target_date");
-		frm.trigger("validate_file_cto");
+		//frm.trigger("validate_file_cto");
 	},
 
 	file_from_date: function(frm) {
 		frm.trigger("get_target_date");
-		frm.trigger("validate_file_cto");
+		//frm.trigger("validate_file_cto");
 	},
 
 	file_to_date: function(frm) {
 		frm.trigger("get_target_date");
-		frm.trigger("validate_file_cto");
+		//frm.trigger("validate_file_cto");
 	},
 
 	validate_file_cto: function(frm) {
@@ -102,7 +102,7 @@ frappe.ui.form.on('Compensatory Time Off', {
 	employee: function(frm) {
 		frm.trigger("get_target_date");
 		frm.trigger("validate_use_cto");
-		frm.trigger("validate_file_cto");
+		//frm.trigger("validate_file_cto");
 	},
 
 	filed_cto: function(frm) {
