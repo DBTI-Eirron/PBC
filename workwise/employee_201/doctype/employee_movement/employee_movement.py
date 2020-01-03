@@ -263,6 +263,7 @@ class EmployeeMovement(Document):
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
 					"is_active": 0,
+					"date_contract_ended": self.effective_on,
 				})
 			self.save_employee(emp)
 
@@ -270,6 +271,7 @@ class EmployeeMovement(Document):
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
 					"is_active": 1,
+					"date_contract_ended": None,
 				})
 			self.revert_employee(emp)
 
