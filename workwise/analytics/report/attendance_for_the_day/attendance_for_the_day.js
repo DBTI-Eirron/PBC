@@ -11,5 +11,5 @@ frappe.query_reports["Attendance for the Day"] = {
 			"options": "Company",
 			"reqd": 1
 		},
-	]
+	],
 }

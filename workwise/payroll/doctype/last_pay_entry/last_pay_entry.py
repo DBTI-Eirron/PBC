@@ -53,14 +53,15 @@ class LastPayEntry(Document):
 
 	def get_register(self):
 		entry = {
-			"net_pay": 0.0,
-			"prev_total_tax": 0.0,
-			"pres_total_tax": 0.0,
-			"gross_taxable": 0.0,
-			"tax_due": 0.0,
-			"prev_tax_paid": 0.0,
-			"pres_tax_paid": 0.0,
-			"not_yet_paid": 0.0,
+			"net_pay": 0,
+			"prev_total_tax": 0,
+			"pres_total_tax": 0,
+			"gross_taxable": 0,
+			"tax_due": 0,
+			"prev_tax_paid": 0,
+			"pres_tax_paid": 0,
+			"not_yet_paid": 0,
+			"total_bonus_basis": 0,
 		}
 
 		emp = frappe.db.sql("""SELECT * FROM tabEmployee WHERE `name` = %(employee)s LIMIT 1""",{ "employee": self.employee,}, as_dict=True)
@@ -82,6 +83,7 @@ class LastPayEntry(Document):
 		self.get_on_hold(emp, register, entry)
 		#self.get_register_entries(emp, register, entry)
 		self.get_pro_rated(emp, register, entry)
+		self.get_pro_rated_taxable(emp, register, entry)
 		self.get_leave_conversion(emp, register, entry)
 		self.get_loan(emp ,register, entry)
 		self.get_previous_bir(emp, register, entry)
@@ -235,6 +237,7 @@ class LastPayEntry(Document):
 						total_bonus += d.amount
 
 				remarks = "( "+ str(total_bonus) +" / 12 " + ")"
+				total_bonus_basis = total_bonus
 				total_bonus = total_bonus / 12
 
 			if bonus_method == "Bonus Basis":
@@ -249,6 +252,7 @@ class LastPayEntry(Document):
 					total_bonus += d.bonus
 
 				remarks = "( "+ str(total_bonus) +" / 12 " + ")"
+				total_bonus_basis = total_bonus
 				total_bonus = total_bonus / 12
 
 			if bonus_method == "Attendance Base":
@@ -273,7 +277,15 @@ class LastPayEntry(Document):
 							total_bonus -= d.amount
 
 				remarks = "( "+ str(total_bonus) +" / 12 " + ")"
+				total_bonus_basis = total_bonus
 				total_bonus = total_bonus / 12
+
+			ceiling_bonus = frappe.db.get_single_value("Payroll Settings", "ceiling_month_pay")
+			if ceiling_bonus:
+				if flt(total_bonus) > flt(ceiling_bonus):
+					total_bonus = flt(ceiling_bonus)
+				else:
+					total_bonus = flt(total_bonus)
 
 			register.append({
 				"transaction_type": "PR13th_Month",
@@ -284,9 +296,30 @@ class LastPayEntry(Document):
 				"manually_encoded": 0,
 			})
 
+			entry["total_bonus_basis"] += total_bonus_basis
 			entry["pres_total_tax"] += total_bonus
 			entry["gross_taxable"] += total_bonus
 			entry["net_pay"] += total_bonus
+
+		return register
+
+	def get_pro_rated_taxable(self, employee ,register, entry):
+		ceiling_bonus = frappe.db.get_single_value("Payroll Settings", "ceiling_month_pay")
+		if ceiling_bonus:
+			total_bonus = 0
+			if flt(entry["total_bonus_basis"]) > flt(ceiling_bonus):
+				total_bonus = (flt(entry["total_bonus_basis"]) / 12) - flt(ceiling_bonus)
+				remarks = "( "+ str(entry["total_bonus_basis"]) + " / 12 ) "+" - "+str(ceiling_bonus)+")"
+
+			if total_bonus > 0:
+				register.append({
+					"transaction_type": "PRT13th_Month",
+					"description": "Pro Rated Taxable 13th Month",
+					"type": "Add",
+					"remarks": remarks,
+					"amount": total_bonus,
+					"manually_encoded": 0,
+				})
 
 		return register
 
@@ -458,7 +491,8 @@ class LastPayEntry(Document):
 
 	def get_present_tax_paid(self, employee, register, entry):
 		pres_tax_paid = 0.0
-		pres_tax = frappe.db.sql(""" SELECT PE.`amount` FROM `tabPayroll Register Entries` PE JOIN `tabPayroll Register` PR ON PE.`parent` = PR.`name` WHERE PE.`pay_code` = "WHTAX" AND PR.on_hold = 0 AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s AND PR.employee = %(employee)s  """,{ 
+		pres_tax = frappe.db.sql(""" SELECT PE.`amount` FROM `tabPayroll Register Entries` PE JOIN `tabPayroll Register` PR ON PE.`parent` = PR.`name` WHERE PE.`pay_code` = "WHTAX" 
+		AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s AND PR.employee = %(employee)s  """,{ 
 			"employee": self.employee,
 			"from_year": self.from_year,
 			"to_year": self.to_year,

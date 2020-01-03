@@ -424,7 +424,23 @@ class PayrollProcessing(Document):
 
 					sss, ssse, sssc = get_sss_amount(flt(target_amt, 2), sss_table)
 					for l in sss_list:
-						amt = flt(eval(l), 8) / 2 if emp.get('sss_freq') == "Both" else flt(eval(l), 8)
+						not_freq = ["1st", "3rd"]
+						amt = 0
+						if cint(header.get("no_weeks")) == cint(5):
+							not_freq.append("4th")
+
+						if emp.get('phic_freq') == "Both":
+							if self.schedule == "Weekly":
+								if self.frequency not in not_freq:
+									amt = flt(eval(l), 8) / 2
+							else:
+								amt = flt(eval(l), 8) / 2
+						else:
+							if self.schedule == "Weekly":
+								if self.frequency not in not_freq:
+									amt = flt(eval(l), 8) 
+							else:
+								amt = flt(eval(l), 8)
 						sss_register.append({"pay_code": l.upper(), "amount": amt })		
 
 			else:
@@ -524,18 +540,34 @@ class PayrollProcessing(Document):
 					if mode != "None":
 						phic, phice = 0, 0
 						if target_amt < 10000:
-							phic = manual if mode == "Manual" and manual > 137.50 else 137.50
-							phice = 137.50
-						elif target_amt > 49999.99:
-							phic = manual if mode == "Manual" and manual > 687.50 else 687.50
-							phice = 687.50
+							phic = manual if mode == "Manual" and manual > 150 else 150
+							phice = 150
+						elif target_amt > 59999.99:
+							phic = manual if mode == "Manual" and manual > 900 else 900
+							phice = 900
 						else:
-							percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
+							percent_rate = ( target_amt * (flt(3, 8) / 100) / 2)
 							phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
 							phice = percent_rate 
 						
 						for l in phic_list:
-							amt = flt(eval(l), 8) / 2 if emp.get('phic_freq') == "Both" else flt(eval(l), 8)
+							not_freq = ["1st", "3rd"]
+							amt = 0
+							if cint(header.get("no_weeks")) == cint(5):
+								not_freq.append("4th")
+
+							if emp.get('phic_freq') == "Both":
+								if self.schedule == "Weekly":
+									if self.frequency not in not_freq:
+										amt = flt(eval(l), 8) / 2
+								else:
+									amt = flt(eval(l), 8) / 2
+							else:
+								if self.schedule == "Weekly":
+									if self.frequency not in not_freq:
+										amt = flt(eval(l), 8) 
+								else:
+									amt = flt(eval(l), 8)
 							phic_register.append({"pay_code": l.upper(), "amount": amt })
 
 			else:
@@ -598,13 +630,13 @@ class PayrollProcessing(Document):
 				if mode != "None" and target_amt:
 					phic, phice = 0, 0
 					if target_amt < 10000:
-						phic = manual if mode == "Manual" and manual > 137.50 else 137.50
-						phice = 137.50
-					elif target_amt > 49999.99:
-						phic = manual if mode == "Manual" and manual > 687.50 else 687.50
-						phice = 687.50
+						phic = manual if mode == "Manual" and manual > 150 else 150
+						phice = 150
+					elif target_amt > 59999.99:
+						phic = manual if mode == "Manual" and manual > 900 else 900
+						phice = 900
 					else:
-						percent_rate = ( target_amt * (flt(2.75, 8) / 100) / 2)
+						percent_rate = ( target_amt * (flt(3, 8) / 100) / 2)
 						phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
 						phice = percent_rate 
 					
@@ -706,7 +738,23 @@ class PayrollProcessing(Document):
 						hdmfm = 0				
 						
 				for l in hdmf_list:
-					amt = flt(eval(l), 8) / 2 if emp.get('hdmf_freq') == "Both" else flt(eval(l), 8)
+					not_freq = ["1st", "3rd"]
+					amt = 0
+					if cint(header.get("no_weeks")) == cint(5):
+						not_freq.append("4th")
+						
+					if emp.get('phic_freq') == "Both":
+						if self.schedule == "Weekly":
+							if self.frequency not in not_freq:
+								amt = flt(eval(l), 8) / 2
+						else:
+							amt = flt(eval(l), 8) / 2
+					else:
+						if self.schedule == "Weekly":
+							if self.frequency not in not_freq:
+								amt = flt(eval(l), 8) 
+						else:
+							amt = flt(eval(l), 8)
 					hdmf_register.append({"pay_code": l.upper(), "amount": amt })
 	
 				for d in hdmf_register:
@@ -1391,14 +1439,14 @@ class PayrollProcessing(Document):
 							if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
 								is_uho = 0
 								if header.get('lwop_uho') == 1 and at.is_lwop:
-									is_uho = 1
+									is_uho = 0
 						
 							#strictly No UHO if CTO can cover absent work hours
 							if at.is_absent and at.work_hours <= at.cto:
 								is_uho = 0						
 						else:
 							is_uho = 0
-							if (at.is_absent or at.is_lwop) and not at.is_ob:
+							if (at.is_absent or at.is_lwop) and not at.is_ob and at.is_holiday:
 								is_uho = 1
 
 								if header.get('lwop_uho') == 1:
@@ -1470,6 +1518,7 @@ class PayrollProcessing(Document):
 				header['absent_days'] = absent_days
 				header['present_days'] = present_days
 				header['paid_holidays'] = pho_days
+				header['hourly_basic'] = hourly_basic
 			else:
 				header['no_attendance'] = 1
 

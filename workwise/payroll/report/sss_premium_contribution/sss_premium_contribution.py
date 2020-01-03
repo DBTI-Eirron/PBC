@@ -146,11 +146,9 @@ def print_txt_file(company,from_date,to_date,period_group):
 		if emp.name not in pr_dict:
 			pr_dict.setdefault(emp.name,frappe._dict({"comp":0.0}))
 
-	pr_entries = frappe.db.sql("""SELECT PRE.amount, PR.employee 
+	pr_entries = frappe.db.sql("""SELECT PR.govt_basic, PR.sss_inc, PR.sss_ded, PR.employee 
 		FROM `tabPayroll Register` PR
-		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.parent
 		INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-		WHERE PRE.pay_code IN ("SSS", "SSSE", "SSSC")
 		AND PR.company = %(company)s 
 		AND PR.posting_date BETWEEN %(from_date)s AND %(to_date)s
 		{conditions}
@@ -161,7 +159,7 @@ def print_txt_file(company,from_date,to_date,period_group):
 	}, as_dict=True)
 
 	for pr in pr_entries:
-		pr_dict[pr.employee]["comp"] += flt(pr.amount)
+		pr_dict[pr.employee]["comp"] += flt(pr.govt_basic) + (flt(pr.sss_inc) - flt(pr.sss_ded))
 
 	f = open('site1.local/public/files/sss.txt','w+')
 	for emp in employees:

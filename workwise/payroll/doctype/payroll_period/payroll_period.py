@@ -124,7 +124,7 @@ class PayrollPeriod(Document):
 				register = frappe.db.sql(""" SELECT PRE.*, PR.on_hold, PR.posting_date, PR.net_payroll, PR.total_deduction, PR.total_income FROM `tabPayroll Register`  PR
 					INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
 					INNER JOIN `tabTransaction Type` TT ON PRE.pay_code = TT.`name`
-	 				WHERE period = %(period)s and employee = %(employee)s 
+	 				WHERE PRE.period = %(period)s and PRE.employee = %(employee)s 
 	 				ORDER BY TT.sort ASC""",{ 
 						"period": self.name,
 						"employee": emp.name,
