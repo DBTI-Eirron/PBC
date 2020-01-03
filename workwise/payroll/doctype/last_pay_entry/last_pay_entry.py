@@ -104,8 +104,8 @@ class LastPayEntry(Document):
 		self.to_year = to_year
 
 		last_date_list = []
-		date_hired, date_retired, date_resigned, date_terminated, end_of_contract, last_date = None, None, None, None, None, None
-		date_hired, date_retired, date_resigned, date_terminated, end_of_contract = frappe.db.get_value("Employee", self.employee, ["date_hired", "date_retired", "date_resigned", "date_terminated", "end_of_contract"])
+		date_hired, date_retired, date_resigned, date_terminated, date_contract_ended, last_date = None, None, None, None, None, None
+		date_hired, date_retired, date_resigned, date_terminated, date_contract_ended = frappe.db.get_value("Employee", self.employee, ["date_hired", "date_retired", "date_resigned", "date_terminated", "date_contract_ended"])
 		date_hired = getdate(date_hired)
 		if date_retired:
 			last_date_list.append(getdate(date_retired))
@@ -113,13 +113,13 @@ class LastPayEntry(Document):
 			last_date_list.append(getdate(date_resigned))
 		if date_terminated:
 			last_date_list.append(getdate(date_terminated))
-		if end_of_contract:
-			last_date_list.append(getdate(end_of_contract))
+		if date_contract_ended:
+			last_date_list.append(getdate(date_contract_ended))
 		if last_date_list:
 			last_date = max(last_date_list)
-		if (date_hired) and (getdate(self.from_year) <= getdate(date_hired) <= getdate(self.to_year)) and (getdate(date_hired) > getdate(self.from_year)):
+		if (date_hired) and (getdate(from_year) <= getdate(date_hired) <= getdate(to_year)) and (getdate(date_hired) > getdate(from_year)):
 			self.from_year = date_hired
-		if (last_date) and (getdate(self.from_year) <= getdate(last_date) <= getdate(self.to_year)) and (getdate(last_date) < getdate(self.to_year)):
+		if (last_date) and (getdate(from_year) <= getdate(last_date) <= getdate(to_year)) and (getdate(last_date) < getdate(to_year)):
 			self.to_year = last_date
 
 	def get_on_hold(self, employee ,register, entry):
@@ -130,8 +130,12 @@ class LastPayEntry(Document):
 		bonus = frappe.db.sql(""" SELECT PRE.pay_code, PRE.amount, TT.type, TT.title, PR.period, PR.net_payroll, PR.gross_payroll 
 			FROM `tabPayroll Register Entries` PRE INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name` 
 			INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code`=TT.`name`
+			INNER JOIN `tabPayroll Period` PP ON PR.`period`=PP.`name`
 			WHERE PR.employee = %(employee)s AND PR.on_hold = 1 
-			AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s """,{ 
+			AND (%(from_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+				OR %(to_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+				OR PP.attendance_from BETWEEN %(from_year)s AND %(to_year)s
+				OR PP.attendance_to BETWEEN %(from_year)s AND %(to_year)s)""",{
 			"employee": self.employee,
 			"from_year": self.from_year,
 			"to_year": self.to_year,
@@ -175,7 +179,12 @@ class LastPayEntry(Document):
 		other_deductions = 0
 		payreg = frappe.db.sql(""" SELECT PR.period, PR.net_payroll, PR.gross_payroll, PRE.amount, PRE.pay_type, PRE.entry_type FROM `tabPayroll Register` PR 
 			INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
-			WHERE PR.employee = %(employee)s AND PR.on_hold = 1 AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s """,{ 
+			INNER JOIN `tabPayroll Period` PP ON PR.`period`=PP.`name`
+			WHERE PR.employee = %(employee)s AND PR.on_hold = 1 
+				AND (%(from_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+					OR %(to_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+					OR PP.attendance_from BETWEEN %(from_year)s AND %(to_year)s
+					OR PP.attendance_to BETWEEN %(from_year)s AND %(to_year)s)""",{
 				"employee": self.employee,
 				"from_year": self.from_year,
 				"to_year": self.to_year,
@@ -200,8 +209,14 @@ class LastPayEntry(Document):
 
 	def get_paid_payroll(self, employee ,register, entry):
 		pres_total_tax = 0.0
-		paid_payroll = frappe.db.sql(""" SELECT period, net_payroll, gross_payroll FROM `tabPayroll Register` WHERE employee = %(employee)s 
-			AND on_hold = 0 AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+		paid_payroll = frappe.db.sql(""" SELECT PR.period, PR.net_payroll, PR.gross_payroll FROM `tabPayroll Register` PR
+		INNER JOIN `tabPayroll Period` PP ON PR.`period`=PP.`name`
+		WHERE employee = %(employee)s 
+			AND on_hold = 0 
+			AND (%(from_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+				OR %(to_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+				OR PP.attendance_from BETWEEN %(from_year)s AND %(to_year)s
+				OR PP.attendance_to BETWEEN %(from_year)s AND %(to_year)s)""",{
 			"employee": self.employee,
 			"from_year": self.from_year,
 			"to_year": self.to_year,
@@ -225,8 +240,12 @@ class LastPayEntry(Document):
 				registerx = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`
 					FROM `tabPayroll Register Entries` PRE 
 					INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
+					INNER JOIN `tabPayroll Period` PP ON PR.`period`=PP.`name`
 					WHERE PRE.`pay_code` = 'BS' AND PR.`employee` = %(employee)s 
-					AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s """,{ 
+					AND (%(from_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+						OR %(to_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+						OR PP.attendance_from BETWEEN %(from_year)s AND %(to_year)s
+						OR PP.attendance_to BETWEEN %(from_year)s AND %(to_year)s)""",{ 
 					"employee": self.employee,
 					"from_year": self.from_year,
 					"to_year": self.to_year,
@@ -241,8 +260,13 @@ class LastPayEntry(Document):
 				total_bonus = total_bonus / 12
 
 			if bonus_method == "Bonus Basis":
-				bonus_basis = frappe.db.sql(""" SELECT bonus FROM `tabPayroll Register` WHERE employee = %(employee)s 
-					AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s """,{ 
+				bonus_basis = frappe.db.sql(""" SELECT PR.bonus FROM `tabPayroll Register` PR
+					INNER JOIN `tabPayroll Period` PP ON PR.`period`=PP.`name` 
+					WHERE PR.employee = %(employee)s 
+					AND (%(from_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+						OR %(to_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+						OR PP.attendance_from BETWEEN %(from_year)s AND %(to_year)s
+						OR PP.attendance_to BETWEEN %(from_year)s AND %(to_year)s)""",{ 
 					"employee": self.employee,
 					"from_year": self.from_year,
 					"to_year": self.to_year,
@@ -260,7 +284,12 @@ class LastPayEntry(Document):
 					FROM `tabPayroll Register Entries` PRE 
 					INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
 					INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code`=TT.`name` 
-					WHERE PR.`employee` = %(employee)s AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s """,{ 
+					INNER JOIN `tabPayroll Period` PP ON PR.`period`=PP.`name`
+					WHERE PR.`employee` = %(employee)s 
+					AND (%(from_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+						OR %(to_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+						OR PP.attendance_from BETWEEN %(from_year)s AND %(to_year)s
+						OR PP.attendance_to BETWEEN %(from_year)s AND %(to_year)s)""",{ 
 					"employee": self.employee,
 					"from_year": self.from_year,
 					"to_year": self.to_year,
@@ -329,7 +358,7 @@ class LastPayEntry(Document):
 		total_unpaid = 0
 		total_paid = 0
 		loans = frappe.db.sql(""" SELECT LA.* FROM `tabLoan Application` LA INNER JOIN `tabTransaction Type` TT ON LA.`loan_type`=TT.`name`
-		WHERE LA.`employee` = %(employee)s AND LA.`docstatus` = 1 AND TT.`is_gov_loan` = 0 """,{ 
+		WHERE LA.`employee` = %(employee)s AND LA.`docstatus` = 1 AND (TT.`is_gov_loan` = 0 OR TT.`name` = 'ES') """,{ 
 			"employee": self.employee,
 		}, as_dict=True)
 
@@ -347,7 +376,7 @@ class LastPayEntry(Document):
 						}
 						unpaid_loans[d.loan_type]['amount'] += d.unpaid_amount
 						total_unpaid += d.unpaid_amount
-
+			else:
 				if d.loan_type == "ES":
 					if d.loan_type not in paid_loans:
 						paid_loans[d.loan_type] = {
@@ -462,7 +491,8 @@ class LastPayEntry(Document):
 	def get_previous_bir(self, employee, register, entry):
 		prev_tax_paid = 0.0
 		prev_total_tax = 0.0
-		prev_bir = frappe.db.sql(""" SELECT DISTINCT `name`, tax_bs+tax_bonus as total_taxable, sum_atw_prev as tax_paid FROM `tabBIR2316` WHERE `docstatus` = 1 AND `document_type` = "Previous" AND `employee` = %(employee)s  AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s  """,{ 
+		prev_bir = frappe.db.sql(""" SELECT DISTINCT `name`, tax_bs+tax_bonus as total_taxable, sum_atw_prev as tax_paid FROM `tabBIR2316` WHERE `docstatus` = 1 AND `document_type` = "Previous" AND `employee` = %(employee)s
+			AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s  """,{ 
 			"employee": self.employee,
 			"from_year": self.from_year,
 			"to_year": self.to_year,
@@ -491,8 +521,15 @@ class LastPayEntry(Document):
 
 	def get_present_tax_paid(self, employee, register, entry):
 		pres_tax_paid = 0.0
-		pres_tax = frappe.db.sql(""" SELECT PE.`amount` FROM `tabPayroll Register Entries` PE JOIN `tabPayroll Register` PR ON PE.`parent` = PR.`name` WHERE PE.`pay_code` = "WHTAX" 
-		AND PR.posting_date >= %(from_year)s AND PR.posting_date <= %(to_year)s AND PR.employee = %(employee)s  """,{ 
+		pres_tax = frappe.db.sql(""" SELECT PE.`amount` FROM `tabPayroll Register Entries` PE 
+		INNER JOIN `tabPayroll Register` PR ON PE.`parent` = PR.`name`
+		INNER JOIN `tabPayroll Period` PP ON PR.`period`=PP.`name`
+		WHERE PE.`pay_code` = "WHTAX" 
+		AND PR.employee = %(employee)s
+		AND (%(from_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+			OR %(to_year)s BETWEEN PP.attendance_from AND PP.attendance_to
+			OR PP.attendance_from BETWEEN %(from_year)s AND %(to_year)s
+			OR PP.attendance_to BETWEEN %(from_year)s AND %(to_year)s)""",{
 			"employee": self.employee,
 			"from_year": self.from_year,
 			"to_year": self.to_year,

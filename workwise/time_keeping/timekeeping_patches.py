@@ -559,3 +559,21 @@ def mark_processed_default_schedule():
 def update_min_take_home():
 	frappe.db.sql("""UPDATE `tabEmployee` SET min_take_home=30, mth_percentage=1 WHERE is_active = 1; """)
 	frappe.db.commit()
+
+def update_date_contract_ended():
+	update_list = {}
+	movement_list = frappe.db.sql("""SELECT * FROM `tabEmployee Movement` WHERE movement_type = 'End of Contract' AND docstatus = 1 """, as_dict=1)
+	for em in movement_list:
+		if getdate(em.effective_on) <= getdate(nowdate()):
+			if em.employee not in update_list:
+				update_list[em.employee] = {
+					"date_contract_ended": getdate(em.effective_on),
+				}
+			else:
+				if getdate(em.effective_on) > update_list[em.employee]["date_contract_ended"]:
+					update_list[em.employee]["date_contract_ended"] = getdate(em.effective_on)
+
+			frappe.db.sql("""UPDATE `tabEmployee Movement` SET is_processed=1 WHERE `name` = %s """,(em.name))
+
+	for up in update_list:
+		frappe.db.sql("""UPDATE `tabEmployee` SET date_contract_ended=%s WHERE `name` = %s """,(getdate(update_list[up]["date_contract_ended"]), up))
