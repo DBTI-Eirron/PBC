@@ -15,10 +15,17 @@ def get_data(filters):
 	from_date,to_date = frappe.get_value('Payroll Period',filters.payroll_period,['attendance_from','attendance_to'])
 	employees = get_employee(filters)
 	for emp in employees:
-		result = frappe.db.sql("""SELECT DPA.`employee_name`,DPA.`name`,DPA.`target_date`,DPT.`type`,DPT.`current`,DPT.`request`
+		result = frappe.db.sql("""SELECT DPA.`employee_name`, DPA.`name`, DPA.`target_date`, DPT.`type`, DPT.`request`
 		FROM `tabDTR Problem Application` DPA INNER JOIN `tabDTR Problem Table` DPT ON DPA.`name` = DPT.`parent` WHERE DPA.docstatus = 1 AND DPA.employee = %s AND DPA.target_Date BETWEEN %s AND %s""",(emp.name,from_date,to_date),as_dict=True)
 		for res in result:
-			data.append({'employee_name':res.employee_name,'application':res.name,'date':res.target_date,'type':res.type,'current':res.current,'requested':res.request})
+			data.append({
+				'employee_name':res.employee_name,
+				'application':res.name,
+				'date':res.target_date,
+				'type':res.type,
+				'requested':res.request
+			})
+			
 	return data
 
 def get_columns(filters):
@@ -42,11 +49,6 @@ def get_columns(filters):
 		},{
 			"fieldname": "type",
 			"label": _("Type"),
-			"fieldtype": "Data",
-			"width": 150
-		},{
-			"fieldname": "current",
-			"label": _("Current"),
 			"fieldtype": "Data",
 			"width": 150
 		},{

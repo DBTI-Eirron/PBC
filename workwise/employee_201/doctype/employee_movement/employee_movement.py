@@ -92,7 +92,7 @@ class EmployeeMovement(Document):
 				"date_retired": getdate(self.effective_on),
 			})
 
-			self.save_employee_and_user(emp,us)
+			self.save_employee(emp)
 
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)
@@ -102,7 +102,7 @@ class EmployeeMovement(Document):
 					"date_retired": "",
 			})
 
-			self.revert_employee_and_user(emp,us)
+			self.revert_employee(emp)
 
 	def cmd_resignation(self, process):
 		if process == "validate":

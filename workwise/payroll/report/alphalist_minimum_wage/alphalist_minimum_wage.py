@@ -64,8 +64,8 @@ def get_data(filters, registers):
 			"4t": '{:0,.2f}'.format( flt((d.taxable_total + d.prev_taxable_total),8) ), #grand_tax_total
 			"7": '{:0,.2f}'.format( flt(0.0,8) ), #grand_tax_total
 			"5": '{:0,.2f}'.format( flt(d.tax_due,8) ),
-			"6a": '{:0,.2f}'.format( flt(d.prev_tax_withheld)), #prev_tax_withheld
-			"6b": '{:0,.2f}'.format( flt(d.tax_withheld,8) ),
+			"6a": '{:0,.2f}'.format( flt(d.prev_withheld_nov, 8)),
+			"6b": '{:0,.2f}'.format( flt(d.withheld_nov,8) ),
 			"7a": '{:0,.2f}'.format( flt(d.adj_amount_withheld,8) ),
 			"7b": '{:0,.2f}'.format( flt(d.adj_over_withheld,8) ),
 			"8": '{:0,.2f}'.format( flt(d.adj_withheld,8) ),

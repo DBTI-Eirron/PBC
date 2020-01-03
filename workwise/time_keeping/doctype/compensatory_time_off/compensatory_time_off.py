@@ -98,6 +98,7 @@ class CompensatoryTimeOff(Document):
 		if self.type == "File":
 			self.file_pre_validate_fields()
 			self.file_get_target_date()
+			self.file_validate_actual_logs()
 			self.file_validate_duplicate()
 			self.file_validate_max_filing()
 			self.file_process_cto()
@@ -116,6 +117,60 @@ class CompensatoryTimeOff(Document):
 			self.file_target_date = self.file_from_date
 			if self.is_previous:
 				self.file_target_date = getdate(self.file_from_date) - timedelta(days=1)
+
+	def file_validate_actual_logs(self):
+		from_date, to_date, tc_from_date, tc_to_date, ob_from_date, ob_to_date = None, None, None, None, None, None
+		#Get Employee Time In and Time Out
+		time_in, time_out = get_current_logs(self.employee, getdate(self.file_target_date))
+		if time_in:
+			tc_from_date = datetime.strptime(str(time_in), '%Y-%m-%d %H:%M:%S')
+		if time_out:
+			tc_to_date = datetime.strptime(str(time_out), '%Y-%m-%d %H:%M:%S')
+
+		#Get Employee OB In and OB Out
+		obs = get_ob_list(self.employee, getdate(self.file_target_date), getdate(self.file_target_date), getdate(self.file_target_date), 0)
+		for ob in obs:
+			if ob_from_date:
+				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S') < ob_from_date:
+					ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
+			else:
+				ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
+
+			if ob_to_date:
+				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S') > ob_to_date:
+					ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
+			else:
+				ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
+
+		#Process Final Logs
+		if tc_from_date:
+			from_date = tc_from_date
+		if ob_from_date:
+			from_date = ob_from_date
+		if tc_to_date:
+			to_date = tc_to_date
+		if ob_to_date:
+			to_date = ob_to_date
+		if (tc_from_date) and (ob_from_date):
+			if tc_from_date < ob_from_date:
+				from_date = tc_from_date
+			else:
+				from_date = ob_from_date
+		if (tc_to_date) and (ob_to_date):
+			if tc_to_date > ob_to_date:
+				to_date = tc_to_date
+			else:
+				to_date = ob_to_date
+
+		if (not from_date) and (not to_date):
+			frappe.throw(_("You have no actual logs for today"))
+		if (not from_date) or (not to_date):
+			frappe.throw(_("You have incomplete actual logs for today"))
+
+		self.file_actual_in = from_date
+		self.file_actual_out = to_date
+
+		return from_date, to_date
 
 	def file_validate_duplicate(self):
 		existing_application = frappe.db.sql("""SELECT `name`, `file_from_date`, `file_to_date`, `file_from_time`, `file_to_time` FROM `tabCompensatory Time Off` 
@@ -172,7 +227,18 @@ class CompensatoryTimeOff(Document):
 		self.get_target_date()
 		from_date = datetime.strptime(str(self.file_from_date) + ' ' + str(self.file_from_time), '%Y-%m-%d %H:%M:%S')
 		to_date = datetime.strptime(str(self.file_to_date) + ' ' + str(self.file_to_time), '%Y-%m-%d %H:%M:%S')
-		from_date, to_date = self.file_actual_logs_based_credits(from_date, to_date)
+		actual_from_date, actual_to_date = self.file_validate_actual_logs()
+		schedule = get_schedule(self.employee, self.file_target_date, self.file_target_date)
+
+		if not actual_from_date <= from_date <= actual_to_date:
+			frappe.throw(_("File From is not within your actual logs"))
+
+		if not actual_from_date <= to_date <= actual_to_date: 
+			frappe.throw(_("File To is not within your actual logs"))
+
+		shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=1)
+		if not shift[0]['cto_allow_file_within_shift'] and (schedule[0]['datetime_out'] > from_date):
+			from_date = schedule[0]['datetime_out']
 
 		if from_date <= to_date:
 			total_hrs = to_date - from_date
@@ -185,13 +251,11 @@ class CompensatoryTimeOff(Document):
 		self.total_hours = flt(total_hours, 2)
 
 		work_hours = 8
-		schedule = get_schedule(self.employee, self.file_target_date, self.file_target_date)
-		if schedule:
-			for d in schedule:
-				if d['work_hours'] > 0:
-					work_hours = flt(d['work_hours'])
-				else:
-					work_hours = 8
+		for d in schedule:
+			if d['work_hours'] > 0:
+				work_hours = flt(d['work_hours'])
+			else:
+				work_hours = 8
 
 		if work_hours > 0:
 			if frappe.db.get_single_value('Timekeeping Settings', 'cto_file_type') == "Day":
@@ -252,11 +316,10 @@ class CompensatoryTimeOff(Document):
 			self.file_to_date = to_date.date()
 			self.file_from_time = str(from_date.time())
 			self.file_to_time = str(to_date.time())
-			#frappe.msgprint(_("You can only file based on your actual logs"))
 
 			return from_date, to_date
 		else:
-			return from_date, to_date
+			return frappe.throw(_("You have no actual logs for today"))
 
 	def file_get_workshift_setup(self):
 		schedule = get_schedule(self.employee, self.file_target_date, self.file_target_date)

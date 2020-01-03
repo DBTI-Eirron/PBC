@@ -59,6 +59,9 @@ class Employee(Document):
 			self.update_subordinates()
 		#	self.update_approver()
 
+	def after_insert(self):
+		self.update_subordinates()
+
 	def validate_user_status(self):
 		if self.is_active:
 			enabled = 1
@@ -71,8 +74,6 @@ class Employee(Document):
 				"enabled": enabled,
 			})
 			us.save()
-		
-
 			
 	def on_update(self):
 		if self.user_id:
@@ -323,6 +324,10 @@ class Employee(Document):
 				insert_list.append(self.reports_to)
 			if old_reports_to:
 				deletion_list.append(old_reports_to)
+		else:
+			if self.reports_to:
+				if self.reports_to not in sub_list:
+					insert_list.append(self.reports_to)
 
 		for il in insert_list:
 			if il not in sub_list:
