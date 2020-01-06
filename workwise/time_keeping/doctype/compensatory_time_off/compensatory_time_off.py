@@ -65,7 +65,7 @@ class CompensatoryTimeOff(Document):
 		if self.is_new():
 			self.use_cto_table = None
 
-	def get_autobreak_hrs(self):
+	def get_autobreak_hrs(self, total_hours):
 		if self.is_new():
 			if not self.amended_from:
 				if not self.break_hours:
@@ -85,13 +85,25 @@ class CompensatoryTimeOff(Document):
 					self.use_break_hours = 0.00
 					for a in autobreak_setup:
 						if self.type == "Use":
-							if a.from_hrs <= self.use_total_hours <= a.to_hrs:
+							if a.from_hrs <= total_hours <= a.to_hrs:
 								self.use_break_hours = flt(a.break_mins, 2)/60
 								break
 						else:
-							if a.from_hrs <= self.total_hours <= a.to_hrs:
+							if a.from_hrs <= total_hours <= a.to_hrs:
 								self.break_hours = flt(a.break_mins, 2)/60
 								break
+
+	def chk_holiday(self, target_date):
+		holiday_tag  = 0
+		location = frappe.get_value("Employee", self.employee, "location")
+
+		holiday = frappe.db.sql("""SELECT `name` FROM `tabHoliday` WHERE holiday_date = %s 
+			AND company = %s AND location = %s """, (target_date, self.company, location), as_dict=True)
+
+		if holiday:
+			holiday_tag = 1
+
+		return holiday_tag
 
 	#FILE CTO
 	def file_validate_cto(self):
@@ -237,16 +249,23 @@ class CompensatoryTimeOff(Document):
 			frappe.throw(_("File To is not within your actual logs"))
 
 		shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=1)
-		if not shift[0]['cto_allow_file_within_shift'] and (schedule[0]['datetime_out'] > from_date):
-			from_date = schedule[0]['datetime_out']
+		#if not shift[0]['cto_allow_file_within_shift'] and (schedule[0]['datetime_out'] > from_date):
+		#	from_date = schedule[0]['datetime_out']
+		if not shift[0]['cto_allow_file_within_shift'] and not self.chk_holiday(self.file_target_date):
+			if datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_in), '%Y-%m-%d %H:%M:%S') < from_date < datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_out), '%Y-%m-%d %H:%M:%S'):
+				frappe.throw(_("You cannot file within your shift"))
+			if datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_in), '%Y-%m-%d %H:%M:%S') < to_date < datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_out), '%Y-%m-%d %H:%M:%S'):
+				frappe.throw(_("You cannot file within your shift"))
+			if (schedule[0]['datetime_out'] > from_date):
+				from_date = schedule[0]['datetime_out']
 
 		if from_date <= to_date:
 			total_hrs = to_date - from_date
 		else:
 			total_hrs = to_date - from_date + timedelta(days=1)
 
-		self.get_autobreak_hrs()
 		total_hours = abs(flt(total_hrs.total_seconds() /60 /60, 2))
+		self.get_autobreak_hrs(total_hours)
 		total_hours = flt(total_hours, 2) - flt(self.break_hours, 2)
 		self.total_hours = flt(total_hours, 2)
 
@@ -268,58 +287,58 @@ class CompensatoryTimeOff(Document):
 		self.balance = self.credits_earned - self.credits_used
 
 	def file_actual_logs_based_credits(self, from_date, to_date):
-		if frappe.db.get_single_value('Timekeeping Settings', 'cto_filed_credits_on_logs'):
-			tc_from_date, tc_to_date, ob_from_date, ob_to_date = None, None, None, None
+		tc_from_date, tc_to_date, ob_from_date, ob_to_date = None, None, None, None
 
-			#Get Employee Time In and Time Out
-			time_in, time_out = get_current_logs(self.employee, getdate(self.file_target_date))
-			if (time_in) or (time_out):
-				tc_from_date = datetime.strptime(str(time_in), '%Y-%m-%d %H:%M:%S')
-				tc_to_date = datetime.strptime(str(time_out), '%Y-%m-%d %H:%M:%S')
+		#Get Employee Time In and Time Out
+		time_in, time_out = get_current_logs(self.employee, getdate(self.file_target_date))
+		if (time_in) or (time_out):
+			tc_from_date = datetime.strptime(str(time_in), '%Y-%m-%d %H:%M:%S')
+			tc_to_date = datetime.strptime(str(time_out), '%Y-%m-%d %H:%M:%S')
 
-			#Get Employee OB In and OB Out
-			obs = get_ob_list(self.employee, getdate(self.file_target_date), getdate(self.file_target_date), getdate(self.file_target_date), 0)
-			for ob in obs:
-				if ob_from_date:
-					if datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S') < ob_from_date:
-						ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
-				else:
-					ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
-
-				if ob_to_date:
-					if datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S') > ob_to_date:
-						ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
-				else:
-					ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
-
-			#Process Final Logs
-			if tc_from_date:
-				from_date = tc_from_date
+		#Get Employee OB In and OB Out
+		obs = get_ob_list(self.employee, getdate(self.file_target_date), getdate(self.file_target_date), getdate(self.file_target_date), 0)
+		for ob in obs:
 			if ob_from_date:
-				from_date = ob_from_date
-			if tc_to_date:
-				to_date = tc_to_date
+				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S') < ob_from_date:
+					ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
+			else:
+				ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
+
 			if ob_to_date:
+				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S') > ob_to_date:
+					ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
+			else:
+				ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
+
+		#Process Final Logs
+		if tc_from_date:
+			from_date = tc_from_date
+		if ob_from_date:
+			from_date = ob_from_date
+		if tc_to_date:
+			to_date = tc_to_date
+		if ob_to_date:
+			to_date = ob_to_date
+		if (tc_from_date) and (ob_from_date):
+			if tc_from_date < ob_from_date:
+				from_date = tc_from_date
+			else:
+				from_date = ob_from_date
+		if (tc_to_date) and (ob_to_date):
+			if tc_to_date > ob_to_date:
+				to_date = tc_to_date
+			else:
 				to_date = ob_to_date
-			if (tc_from_date) and (ob_from_date):
-				if tc_from_date < ob_from_date:
-					from_date = tc_from_date
-				else:
-					from_date = ob_from_date
-			if (tc_to_date) and (ob_to_date):
-				if tc_to_date > ob_to_date:
-					to_date = tc_to_date
-				else:
-					to_date = ob_to_date
 
-			self.file_from_date = from_date.date()
-			self.file_to_date = to_date.date()
-			self.file_from_time = str(from_date.time())
-			self.file_to_time = str(to_date.time())
+		if not from_date and not to_date:
+			return frappe.throw(_("You don't have actual logs on your filed CTO."))
 
-			return from_date, to_date
-		else:
-			return frappe.throw(_("You have no actual logs for today"))
+		self.file_from_date = from_date.date()
+		self.file_to_date = to_date.date()
+		self.file_from_time = str(from_date.time())
+		self.file_to_time = str(to_date.time())
+
+		return from_date, to_date			
 
 	def file_get_workshift_setup(self):
 		schedule = get_schedule(self.employee, self.file_target_date, self.file_target_date)
@@ -382,8 +401,8 @@ class CompensatoryTimeOff(Document):
 		else:
 			total_hrs = to_date - from_date + timedelta(days=1)
 
-		self.get_autobreak_hrs()	
 		total_hours = abs(flt(total_hrs.total_seconds() /60 /60, 2))
+		self.get_autobreak_hrs(total_hours)
 		total_hours = flt(total_hours, 2) - flt(self.use_break_hours, 2)
 		self.use_total_hours = total_hours
 
