@@ -40,7 +40,7 @@ def get_data(filters, registers):
 
 		data.append({
 			"1": seq,
-			"2": d.tin,
+			"2": d.tax_id,
 			"3": d.employee_name,
 			"4a": '{:0,.2f}'.format( flt(d.gross_compensation,8) ),
 			"4b": '{:0,.2f}'.format( flt(d.pnt_benefits,8) ), #prev_ntax_benefits
@@ -76,7 +76,7 @@ def get_data(filters, registers):
 
 def get_registers(filters):
 	registers = frappe.db.sql("""SELECT * FROM `tabAnnualization Register`
-		WHERE company=%(company)s AND payroll_year=%(year)s AND minimum_wage = 1 {conditions} """.format( conditions=get_conditions(filters) ), filters, as_dict=1)
+		WHERE company=%(company)s AND payroll_year=%(year)s AND minimum_wage = 1 AND is_terminated = 0 {conditions} """.format( conditions=get_conditions(filters) ), filters, as_dict=1)
 
 	return registers
 

@@ -40,7 +40,7 @@ def get_data(filters, registers):
 
 		data.append({
 			"1": seq,
-			"2": d.tin,
+			"2": d.tax_id,
 			"3": d.employee_name,
 			"4a": '{:0,.2f}'.format( flt(d.gross_compensation,8) ),
 			"4b": '{:0,.2f}'.format( flt(d.pnt_benefits,8) ), #prev_ntax_benefits
