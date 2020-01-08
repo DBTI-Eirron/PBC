@@ -58,7 +58,7 @@ class AnnualizationProcessing(Document):
 
 	def get_previous_bir(self, from_year, to_year):
 		previous_bir = frappe.db.sql("""SELECT * FROM `tabBIR2316` 
-			WHERE payroll_year = %(payroll_year)s AND document_type = "Previous" {conditions} """.format( conditions=self.get_reg_conditions() ),
+			WHERE payroll_year = %(payroll_year)s AND document_type = "Previous" {conditions} AND docstatus = 1 """.format( conditions=self.get_reg_conditions() ),
 				({ 
 					"company": self.company,
 					"schedule": self.payroll_schedule,
@@ -331,15 +331,18 @@ class AnnualizationProcessing(Document):
 				emp_dict.from_date = getdate(emp_dict.date_hired)
 
 			if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired:
-				if getdate(emp_dict.date_terminated) < getdate(to_year):
+				if getdate(emp_dict.date_terminated) <= getdate(to_year):
 					emp_dict.is_terminated = 1
 					emp_dict.to_date = getdate(emp_dict.date_terminated)
-				if getdate(emp_dict.date_resigned) < getdate(to_year):
+				if getdate(emp_dict.date_resigned) <= getdate(to_year):
 					emp_dict.is_terminated = 1
 					emp_dict.to_date = getdate(emp_dict.date_resigned)
-				if getdate(emp_dict.date_retired) < getdate(to_year):
+				if getdate(emp_dict.date_retired) <= getdate(to_year):
 					emp_dict.is_terminated = 1
 					emp_dict.to_date = getdate(emp_dict.date_retired)
+				if getdate(emp_dict.date_contract_ended) <= getdate(to_year):
+					emp_dict.is_terminated = 1
+					emp_dict.to_date = getdate(emp_dict.date_retired)					
 			
 			if emp_dict.total_benefits > 90000:
 				emp_dict.nt_benefits  = 90000
