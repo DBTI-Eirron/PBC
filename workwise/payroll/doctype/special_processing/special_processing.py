@@ -69,10 +69,19 @@ class SpecialProcessing(Document):
 			em_period_group = frappe.db.get_value("Employee", self.employee, "period_group")
 			if self.period_group != em_period_group:
 				frappe.throw(_("Employee does not belong to Period Group"))
+
+	def validate_fields(self):
+		if self.method == 'Leave Balance to Cash':
+			if not self.lv_convert:
+				frappe.throw(_("Convert Leave Type is required"))
+
+			if not self.convert_to:
+				frappe.throw(_("Converted Transaction Type is required"))
  
 	def process_special(self):
 		self.validate_employee()
 		self.validate_period()
+		self.validate_fields()
 		ss_list = []
 		entries = []
 		header = {
