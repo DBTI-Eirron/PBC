@@ -391,6 +391,7 @@ class SpecialProcessing(Document):
 				}, as_dict=True)
 
 				total_credits = 0.0
+				credits = 0
 				for d in registerx:
 					credits = 0
 					credits = d.credits - d.used_credits
