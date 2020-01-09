@@ -138,6 +138,7 @@ class TimelogsOverride(Document):
 				"schedule_name": d['name'],
 				"work_shift": d['work_shift'],
 				"target_date": d['target_date'],
+				"is_default": d['is_default_schedule'],
 			}
 			if str(d['target_date']) in override_list:
 				row.update({
@@ -161,34 +162,25 @@ class TimelogsOverride(Document):
 		return final_list
 
 	def print_entries(self,pay_from,pay_to):
+		emp = frappe.get_doc('Employee',self.employee)
+		shift_map = get_shift_map()
+		overrides = []
+		bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
+		timecard_list = get_timecard_list(bio_id, pay_from, pay_to + datetime.timedelta(days=1))
+		dtrp = self.get_dtrp(self.employee, pay_from, pay_to)
 		for d in self.get("timelogs_override"):
-			employee = frappe.db.sql("""SELECT * FROM `tabEmployee` WHERE `name`= %s LIMIT 1""",(self.employee),as_dict=True)
-			for emp in employee:
-				bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
-				timecard_list = get_timecard_list(bio_id, pay_from, pay_to + datetime.timedelta(days=1))
-				shift_map = get_shift_map()
-				schedule = frappe.db.sql("""SELECT * FROM `tabWork Schedule` WHERE employee = %s AND target_date =%s""",(self.employee,d.target_date),as_dict=True)
-				overrides = []
-				dtrp = self.get_dtrp(self.employee, pay_from, pay_to)
-				for sched in schedule:
-					entry = get_defaults(emp, sched, shift_map, overrides)
-					datetime_in = sched['datetime_in']
-					datetime_out = sched['datetime_out']
-					setup_preshift, end_preshift, setup_postshift, end_postshift = frappe.get_value('Work Shift',d.work_shift,['setup_preshift','end_preshift','setup_postshift','end_postshift'])
-					pre_shift = datetime_in - datetime.timedelta(hours=setup_preshift)
-					end_pre_shift = datetime_in + datetime.timedelta(hours=end_preshift)
-					post_shift = datetime_out - datetime.timedelta(hours=setup_postshift)
-					end_post_shift = datetime_out + datetime.timedelta(hours=end_postshift)
-					cards_in, cards_out = get_card_within(pre_shift, end_pre_shift, post_shift, end_post_shift, timecard_list, dtrp)
-					sorted_card_list = get_sorted_card(entry, cards_in, cards_out)
-					d.time_in = sorted_card_list['card_in']
-					d.break_in = sorted_card_list['break_in']
-					d.break_out = sorted_card_list['break_out']
-					d.time_out = sorted_card_list['card_out']
-					# d.o_time_in = sched['o_time_in']
-					# d.o_break_in = sched['o_break_in']
-					# d.o_break_out = sched['o_break_out']
-					# d.o_time_out = sched['o_time_out']
+			sched = {'target_date':d.target_date,'work_shift':d.work_shift,'is_default_schedule':d.is_default}
+			entry = get_defaults(emp, sched, shift_map, overrides)
+			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list, dtrp)
+			sorted_card_list = get_sorted_card(entry, cards_in, cards_out)
+			d.time_in = sorted_card_list['card_in']
+			d.break_in = sorted_card_list['break_in']
+			d.break_out = sorted_card_list['break_out']
+			d.time_out = sorted_card_list['card_out']
+			# d.o_time_in = sched['o_time_in']
+			# d.o_break_in = sched['o_break_in']
+			# d.o_break_out = sched['o_break_out']
+			# d.o_time_out = sched['o_time_out']
 
 	def get_dtrp(self, employee, pay_from, pay_to):
 		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
