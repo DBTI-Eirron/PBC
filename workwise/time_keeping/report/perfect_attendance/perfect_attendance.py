@@ -15,19 +15,19 @@ def get_columns(filters):
 
 	columns = [
 		{
-			"fieldname": "Employee ID",
+			"fieldname": "employee",
 			"label": "Employee ID",
 			"fieldtype": "Data",
 			"width": 90
 		},
 		{
-			"fieldname": "Biometrics ID",
+			"fieldname": "biometrics_id",
 			"label": "Biometrics ID",
 			"fieldtype": "Data",
 			"width": 90
 		},
 		{
-			"fieldname": "Employee Name",
+			"fieldname": "full_name",
 			"label": "Employee Name",
 			"fieldtype": "Data",
 			"width": 240
@@ -36,32 +36,33 @@ def get_columns(filters):
 	return columns
 
 def get_data(filters):
-	cur_user = frappe.session.user
-	employees = frappe.db.sql(""" SELECT DISTINCT AR.employee as `xname`, TE.full_name, TE.biometrics_id, (SELECT COUNT(`name`) FROM `tabAttendance Register` WHERE work_hours <> work AND `employee`= xname AND is_restday <> 1 AND is_holiday <> 1 AND target_date >= %(from_date)s AND target_date <= %(to_date)s) AS abs
-			FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.employee = TE.`name` 
-			WHERE TE.company = %(company)s 
-			AND (AR.target_date BETWEEN %(from_date)s AND %(to_date)s)
-			ORDER BY AR.employee
-			""",{ 
-			"company": filters.company,
-			"from_date": filters.from_date,
-			"to_date": filters.to_date,
-		}, as_dict=True)
-
-	data = format_entries(filters,employees)
-	return data
-
-def format_entries(filters,entries):
 	data = []
-	for ent in entries:
-		if ent.abs is None or ent.abs == 0:
-			da = {
-			"Employee ID":ent.xname,
-			"Biometrics ID":ent.biometrics_id,
-			"Employee Name":ent.full_name
-			}
-			data.append(da)
+	included_list = []
+	remove_list = []	
+	employees = frappe.db.sql(""" SELECT AR.employee, TE.`biometrics_id`, TE.`full_name`, AR.is_holiday, AR.is_restday, AR.is_absent, AR.is_lwop, AR.late, AR.undertime
+		FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.employee = TE.`name` 
+		WHERE TE.company = %(company)s
+		AND (AR.target_date BETWEEN %(from_date)s AND %(to_date)s)
+		ORDER BY TE.full_name """,{ 
+		"company": filters.company,
+		"from_date": filters.from_date,
+		"to_date": filters.to_date,
+	}, as_dict=True)
+
+	for emp in employees:
+		row = {
+			"employee": emp.employee,
+			"biometrics_id": emp.biometrics_id,
+			"full_name": emp.full_name,
+		}
+		if emp.is_holiday != 1 and emp.is_restday != 1:
+			if emp.is_absent == 1 or emp.is_lwop == 1 or emp.late != 0 or emp.undertime!= 0:
+				if row in data:
+					data.remove(row)
+				if row not in remove_list:
+					remove_list.append(row)
+		if row not in data:
+			if row not in remove_list and row not in data:
+				data.append(row)
+
 	return data
-	
-
-
