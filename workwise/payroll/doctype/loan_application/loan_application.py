@@ -55,7 +55,7 @@ class LoanApplication(Document):
 					});
 
 				while total_payables > 0:
-					pay_amount = self.amortization / multiplier
+					pay_amount = flt(self.amortization) / multiplier
 					if not total_payables >= pay_amount:
 						pay_amount = total_payables
 
@@ -95,7 +95,7 @@ class LoanApplication(Document):
 					});
 
 				while total_payables > 0:
-					pay_amount = self.amortization / multiplier
+					pay_amount = flt(self.amortization) / multiplier
 					if not total_payables >= pay_amount:
 						pay_amount = total_payables
 						
@@ -138,7 +138,7 @@ class LoanApplication(Document):
 					});
 
 				while total_payables > 0:
-					pay_amount = self.amortization / multiplier
+					pay_amount = flt(self.amortization) / multiplier
 					if not total_payables >= pay_amount:
 						pay_amount = total_payables
 						
@@ -151,8 +151,6 @@ class LoanApplication(Document):
 		for d in entries:
 			row = self.append('payments', {})
 			row.update(d)
-
-
 
 	def update_paid_unpaid(self):
 		total_paid, total_unpaid = 0, 0
