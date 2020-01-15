@@ -140,7 +140,7 @@ class CompensatoryTimeOff(Document):
 			tc_to_date = datetime.strptime(str(time_out), '%Y-%m-%d %H:%M:%S')
 
 		#Get Employee OB In and OB Out
-		obs = get_ob_list(self.employee, getdate(self.file_target_date), getdate(self.file_target_date), getdate(self.file_target_date), 0)
+		obs = get_ob_list(self.employee, getdate(self.file_target_date), getdate(self.file_target_date), getdate(self.file_target_date), 1)
 		for ob in obs:
 			if ob_from_date:
 				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S') < ob_from_date:
