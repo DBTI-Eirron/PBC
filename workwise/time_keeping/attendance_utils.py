@@ -169,8 +169,8 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	get_links(entry)
 
 def get_work(entry):
-	entry['work'] = (entry.get('work_hours') * 60) * 60
 	if (not entry.get('is_restday') or not entry.get('is_holiday')) and entry['card_in'] and entry['card_out']:
+		entry['work'] = (entry.get('work_hours') * 60) * 60
 		if entry["lv_status"] == 3:
 			entry['work'] = entry['work'] / 2
 		
@@ -187,6 +187,9 @@ def get_work(entry):
 		entry['work'] = (entry.get('work_hours') * 60) * 60
 		if entry["is_halfday"] == 1:
 			entry['work'] = entry['work'] / 2
+
+	if (not entry.get('is_restday') or not entry.get('is_holiday')) and entry["lv_status"] == 1 and not entry['is_lwop'] and not entry['card_in'] and not entry['card_out']:
+		entry['work'] = (entry.get('work_hours') * 60) * 60
 
 	if (entry.get('is_restday') or entry.get('is_holiday')) and entry.get('card_in') and entry.get('card_out') and entry.get('at_work_rdho'):
 		entry['work'] = abs((entry.get('card_out') - entry.get('card_in')).total_seconds())
