@@ -8,6 +8,7 @@ frappe.ui.form.on('Last Pay Entry', {
 
 	setup: function(frm) {
 		frm.add_fetch("employee", "full_name", "employee_name");
+		frm.add_fetch("employee", "company", "company");
 		frm.add_fetch("payroll_year", "from_date", "from_year");
 		frm.add_fetch("payroll_year", "to_date", "to_year");
 	},
