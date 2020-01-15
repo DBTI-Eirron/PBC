@@ -40,9 +40,38 @@ class Department(NestedSet):
 			frappe.throw(_("Department Already Exist"))
 
 @frappe.whitelist()
+def add_node():
+	from frappe.desk.treeview import make_tree_args
+	args = make_tree_args(**frappe.form_dict)
+
+	if cint(args.is_root):
+		args.parent_department = None
+
+	frappe.get_doc(args).insert()
+
+@frappe.whitelist()
 def create_root():
-	frappe.db.sql("""INSERT INTO `tabDepartment` (department_name, modified_by, owner, creation, modified, `name`, parent_department, lft, rgt) 
-		VALUES ('Organization Structure', 'Administrator', 'Administrator', NOW(), NOW(), 'Organization Structure', '', 1, 2) """)
+	department_root = frappe.db.sql("""SELECT `name` FROM `tabDepartment` WHERE `name`='Organizational Structure' """, as_list=True)
+	if department_root:
+		frappe.db.sql("""DELETE FROM `tabDepartment` WHERE `name` = 'Organizational Structure' """)
+
+	frappe.db.sql("""INSERT INTO `tabDepartment` (department_name, modified_by, owner, creation, modified, `name`, parent_department, lft, rgt, is_root) 
+		VALUES ('Organizational Structure','Administrator','Administrator',NOW(),NOW(),'Organizational Structure','', 1, 2, 1) """)
+
+@frappe.whitelist()
+def create_root_entries():
+	company = frappe.db.sql("""SELECT `name` FROM `tabCompany` """, as_dict=True)
+	department = frappe.db.sql("""SELECT `name` FROM `tabDepartment` """, as_list=True)
+	for com in company:
+		frappe.db.sql("""DELETE FROM `tabDepartment` WHERE `name` = '{0}' """.format(com.name))
+
+		if com not in department:
+			frappe.db.sql("""INSERT INTO `tabDepartment` (department_name, modified_by, owner, creation, modified, `name`, parent_department, is_root, is_group) 
+				VALUES ('{0}', 'Administrator', 'Administrator', NOW(), NOW(), '{0}','Organizational Structure', 1, 1) """.format(com.name))
+
+@frappe.whitelist()
+def update_parent_department_as_company():
+	frappe.db.sql("""UPDATE `tabDepartment` SET parent_department=company WHERE parent_department IS NULL AND is_root = 0 """)
 
 @frappe.whitelist()
 def rebuild_department_tree():
@@ -61,16 +90,6 @@ def get_children(doctype, parent=None, is_root=False):
 		from
 			`tabDepartment` emp
 		where 
-		ifnull(`parent_department`,'') = %s order by name """, parent, as_dict=1)
+		ifnull(`parent_department`,'') = %s order by name""", parent, as_dict=1)
 
 	return departments
-
-@frappe.whitelist()
-def add_node():
-	from frappe.desk.treeview import make_tree_args
-	args = make_tree_args(**frappe.form_dict)
-
-	if cint(args.is_root):
-		args.parent_department = None
-
-	frappe.get_doc(args).insert()
