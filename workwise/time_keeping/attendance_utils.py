@@ -169,9 +169,8 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	get_links(entry)
 
 def get_work(entry):
+	entry['work'] = (entry.get('work_hours') * 60) * 60
 	if (not entry.get('is_restday') or not entry.get('is_holiday')) and entry['card_in'] and entry['card_out']:
-		entry['work'] = (entry.get('work_hours') * 60) * 60
-
 		if entry["lv_status"] == 3:
 			entry['work'] = entry['work'] / 2
 		
@@ -1222,7 +1221,7 @@ def get_schedule(employee, pay_from, pay_to):
 					"o_break_in": "",
 					"o_break_out": "",
 					"o_time_out": "",
-					"is_default_schedule": 0,
+					"is_default_schedule": 1,
 				}
 
 	#Get Change Schedule Application
@@ -1249,7 +1248,7 @@ def get_schedule(employee, pay_from, pay_to):
 			"o_break_in": "",
 			"o_break_out": "",
 			"o_time_out": "",
-			"is_default_schedule": 0,
+			"is_default_schedule": 1,
 		}
 
 	for sched in sorted(schedule_entry):
