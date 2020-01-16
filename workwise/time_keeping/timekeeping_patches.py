@@ -4,6 +4,21 @@ from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_t
 from frappe import _
 
 #APPLICATION PATCHES
+def update_cost_center_company():
+	cc_dict = frappe.db.sql("""SELECT `name`, lft, rgt, parent FROM `tabCost Center`""",as_dict=True)
+	direct = []
+	child = []
+	for cc in cc_dict:
+		if cc.parent == "Cost Center Structure":
+			direct.append({"name":cc.name,"lft":cc.lft,"rgt":cc.rgt})
+		if cc.parent is not None:
+			child.append({"name":cc.name,"lft":cc.lft,"rgt":cc.rgt})
+
+	for cost in child:
+		for center in direct:
+			if center['lft'] <= cost['lft'] and center['rgt'] >= cost['rgt']:
+				frappe.db.sql("""UPDATE `tabCost Center` SET company = %s WHERE name = %s""",(center['name'],cost['name']))
+
 def update_approved_on_and_by():
 	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application"]
 	for app in application_type_list:
@@ -577,3 +592,4 @@ def update_date_contract_ended():
 
 	for up in update_list:
 		frappe.db.sql("""UPDATE `tabEmployee` SET date_contract_ended=%s WHERE `name` = %s """,(getdate(update_list[up]["date_contract_ended"]), up))
+
