@@ -10,6 +10,7 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date, add_days
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.payroll.payroll_utils import get_rates, get_overtime_map
 from workwise.time_keeping.application_utils import validate_inactive_employee
+from workwise.payroll.payroll_attendance_utils import get_absent_days
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime, 
 init_employee_map, complete_sched, get_template_map, change_sched, processed_def_sched)
@@ -170,10 +171,23 @@ class AdjustmentProcessing(Document):
 		self.get_processed(emp_map)
 		self.get_processed_ot(emp_map)
 
+		sys_settings = {
+			"lwop_uho": frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho'),
+			"ex_uho_spnw": frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw'),
+			"uho_ab_days": frappe.db.get_single_value('Payroll Settings', 'uho_ab_days'),
+			"hd_no_uho": frappe.db.get_single_value('Payroll Settings', 'hd_no_uho'),
+			"uho_ab_spnw": frappe.db.get_single_value('Payroll Settings', 'uho_ab_spnw'),
+			"ab_regho": frappe.db.get_single_value('Timekeeping Settings', 'ab_regho'),
+			"mo_abho": frappe.db.get_single_value('Timekeeping Settings', 'mo_abho'),
+			"disable_pdhord": frappe.db.get_single_value('Payroll Settings', 'disable_pdhord'),
+			"ignore_uho": frappe.db.get_single_value('Payroll Settings', 'ignore_uho'),
+			"ignore_nd": frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'),
+		}
+
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s AND payroll_period = %s  """,(emp_dict['employee'], self.period), as_dict=1)
-			adjustment = self.get_attendance_result(emp_dict['employee_details'], emp_dict['adjustment'], self.attendance_from, self.attendance_to, emp_dict['adjustment_ot'], ot_map, "adjustment")
-			processed = self.get_attendance_result(emp_dict['employee_details'], emp_dict['processed'], self.attendance_from, self.attendance_to, emp_dict['processed_ot'], ot_map, "processed")
+			adjustment = self.get_attendance_result(emp_dict['employee_details'], emp_dict['adjustment'], self.attendance_from, self.attendance_to, emp_dict['adjustment_ot'], ot_map, sys_settings, "adjustment")
+			processed = self.get_attendance_result(emp_dict['employee_details'], emp_dict['processed'], self.attendance_from, self.attendance_to, emp_dict['processed_ot'], ot_map, sys_settings, "processed")
 			rates = get_rates(emp_dict['employee_details'])
 			
 			reg = {
@@ -206,16 +220,16 @@ class AdjustmentProcessing(Document):
 		self.validate_period()
 		frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE payroll_period = %s  """, (self.period), as_dict=1)
 
-	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map, _type):
+	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map, header, _type):
+		if getdate(emp.get('date_hired')) < getdate(attendance_from):
+			frappe.throw(_("You cannot process Employee {0}: {1}, due to Date Hired").format(emp['name'], emp['full_name']))
+
 		rates = get_rates(emp)
 		attendance_result = { "ab": 0.0, "uho": 0.0, "ot": 0.0, "nd": 0.0, "lt": 0.0, "ut": 0.0, "cto": 0.0 }
-		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
-		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
-		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
-		uho_ab_spnw = frappe.db.get_single_value('Payroll Settings', 'uho_ab_spnw')
 		overtimes_register = []
-		if emp.get('is_attendance_base') > 0 and getdate(emp.get('date_hired')) < getdate(attendance_from):
+		if emp.get('is_attendance_base') > 0 and getdate(emp.get('date_hired')) > getdate(attendance_from):
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho, cto, cto_days = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0
+			no_previous, dl_days, total_work, pho_days = 0, 0, 0, 0
 			
 			#Get OT registers
 			unique_ot = ["00000000"]
@@ -292,18 +306,25 @@ class AdjustmentProcessing(Document):
 					})	
 				
 			for at in attendance:
+				WK_days, AT_days = 0, 0
+
 				if getdate(at.get('target_date')) == getdate(add_days(attendance_from, -1)):
+					no_previous = 1
 					if at.get('is_absent') or at.get('is_lwop'):
-						is_uho = 0
-						if lwop_uho == 1:
+						is_uho = 1
+						if header.get('lwop_uho') == 1:
 							if (at.get('lv_status') == 2 or at.get('lv_status') == 3) or at.get('is_halfday'):
 								is_uho = 0
 								if at.get('is_absent'):
 									is_uho = 1
 				else: 
-					if (emp.get("rate_type") == "Daily Rate" and at.get('is_holiday') == 1 and at.get('is_absent') != 1):
-						work_days += 0
-					elif not at.get('is_restday'):
+					#if date is the first check if no_previous
+					if getdate(at.get('target_date')) == getdate(attendance_from):
+						if no_previous == 0:
+							is_uho = 1
+
+					if not at.get('is_restday'):
+						WK_days += 1
 						work_days += 1
 
 					if at.get('late')> 0:
@@ -315,18 +336,13 @@ class AdjustmentProcessing(Document):
 					if at.get('nightdiff'):
 						nightdiff += at.get('nightdiff') * 0.10 * rates.get('hourly_rate')
 
-					if ( at.get('is_absent') == 1 or at.get('is_lwop') == 1 ) and not at.get('is_holiday'):
-						if at.get('is_lwop') == 1 and at.get('lv_status') > 1:
-							absent += ( at.get('work_hours') / 2 ) * flt(rates.get('hourly_rate'), 8)
-							absent_days += 0.5
-						else:
-							absent += ( at.get('work_hours') / 2 ) * flt(rates.get('hourly_rate'), 8) if at.get('is_halfday') == 1 else ( at.get('work_hours') ) * flt(rates.get('hourly_rate'), 8)
-							absent_days += 0.5 if at.get('is_halfday') == 1 else 1
-
-					if at.get('is_holiday') == 1 and is_uho == 1 and not at.get('is_ob')  and not at.get('is_restday'):
-						unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
-						if uho_ab_days == 1:
-							absent_days += 1
+					#GET ABSENT
+					AT = get_absent_days(at, header)
+					if AT > 0:
+						absent += ( at.get('work_hours') * flt(AT, 8) ) * flt(rates.get('hourly_rate'), 8) #get total absent amount
+						absent_days += AT #add to employee total absent days
+						AT_days += AT #add to current day total absent days
+						#test.append(_(""+cstr(at.target_date)+" "+cstr(absent_days)+" "+cstr(at.work_hours * flt(AT, 8))+" "+cstr(flt(rates.get('hourly_rate'), 8))+"")) #test script for absent
 
 					if at.get('cto'):
 						max_cto = 0
@@ -349,14 +365,81 @@ class AdjustmentProcessing(Document):
 							elif max_cto >= at.get('work_hours'):
 								cto_days += 1
 
+					if emp.get("rate_type") == "Daily Rate":
+						dl_absent = 1 #set default alaways absent
+						ho_paid = 0 # set default not paid on holiday
+
+						#check if employee is not absent
+						if(at.get('work') or (not at.get('is_absent'))) and (not at.get('is_lwop')):
+							dl_absent = 0
+
+						#if did not worked on a holiday tagged as uho uho
+						if at.get('is_holiday') and at.get('work') < 1 and not (at.get('is_restday')):
+							dl_absent = 1
+
+						#leave triggers
+						if at.get('lv_status') and (not at.get('is_lwop')):
+							if at.get('lv_status') == 1:
+								dl_absent = 0
+							elif at.get('lv_status') > 1:
+								dl_absent = 0
+
+						#check if holiday
+						if at.get('is_holiday'):
+							if at.get('is_restday'):
+								if (not at.get('is_sp_holiday')) and (not is_uho) and (not header.get('disable_pdhord')):
+									ho_paid = 1 #paid on regular holiday if not UHO
+							else:
+								if dl_absent == 1 and at.get('is_sp_holiday') and header.get('uho_ab_spnw'):
+									ho_paid = 0 #no paid holiday on special HO
+								elif dl_absent == 1 and (not is_uho):
+									if not header.get('ab_regho'): #if not absent on regular HO
+										ho_paid = 1 #paid holiday if absent and not UHO
+								elif dl_absent == 0:
+									ho_paid = 1 #paid holiday if not absent and not UHO
+						else: 
+							if dl_absent == 0 and (not at.get('is_restday')):
+								if at.get('is_halfday'):
+									dl_days += 0.5
+								else:
+									dl_days += 1
+
+						#check if lwop halfday
+						if dl_absent == 1 and at.get('is_lwop'):
+							# if lwop halfday plus half day
+							if at.get('lv_status') > 1:
+								if at.get('is_halfday'): #if lwop halfday with absent halfday absent is wholeday absent
+									dl_days += 0
+								else:
+									dl_days += 0.5
+
+						if ho_paid == 1:
+							pho_days += 1
+
 					if at.get('is_holiday') == 1 and is_uho == 1 and (not at.get('is_ob')) and not at.get('is_restday'):
 						if emp.get("rate_type") == "Daily Rate" and at.get('is_absent'):
 							#if Daily Rate is Absent on Holiday should not have Unpaid Holiday
 							unpaid_holiday += 0
 						else:
 							unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
-							if uho_ab_days == 1:
+							if header.get('uho_ab_days') == 1:
 								absent_days += 1
+
+					if at.get('is_holiday') == 1 and is_uho == 1 and (not at.get('is_ob')) and not at.get('is_restday'):
+						#if present not UHO
+						if emp.get("rate_type") != "Daily Rate":
+							if at.get('work') and (not at.get('is_lwop')) and (not at.get('absent')) and (not at.get('is_restday')) and (not at.get('is_halfday')):
+								is_uho = 0
+							elif header.get('ex_uho_spnw') and at.get('is_sp_holiday'):
+								is_uho = 0									
+							else:
+								if at.get('is_absent') and header.get('mo_abho'):
+									pass
+								else:
+									unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
+									if header.get('uho_ab_days') == 1:
+										absent_days += 1
+										AT_days += 1
 
 					#check if this attendance is lwop or absent for next attendance
 					if is_uho == 1:
@@ -365,7 +448,7 @@ class AdjustmentProcessing(Document):
 							is_uho = 0
 
 						#if Halfday next day will not be UHO
-						if hd_no_uho and at.get('is_halfday'):
+						if header.get('hd_no_uho') and at.get('is_halfday'):
 							is_uho = 0
 
 						#if Proper Leave next day is not UHO
@@ -383,7 +466,7 @@ class AdjustmentProcessing(Document):
 						#Not UHO if halfday and halfday leave
 						if (at.get('lv_status') == 2 or at.get('lv_status') == 3) and at.get('is_halfday'):
 							is_uho = 0
-							if lwop_uho == 1 and at.get('is_lwop'):
+							if header.get('lwop_uho') == 1 and at.get('is_lwop'):
 								is_uho = 1
 						
 						#strictly No UHO if CTO can cover absent work hours
@@ -395,14 +478,14 @@ class AdjustmentProcessing(Document):
 						if (at.get('is_absent') or at.get('is_lwop')) and not at.get('is_ob'):
 							is_uho = 1
 
-							if lwop_uho == 1:
+							if header.get('lwop_uho') == 1:
 								if (at.get('lv_status') == 2 or at.get('lv_status') == 3) and at.get('is_halfday'):
 									is_uho = 0
 									if at.get('is_absent'):
 										is_uho = 1
 						
 						#If Halfday is LWOP but not absent
-						if lwop_uho == 1:
+						if header.get('lwop_uho') == 1:
 							if (at.get('lv_status') == 2 or at.get('lv_status') == 3) and at.get('is_lwop') and (not at.get('is_absent')):
 								is_uho = 0
 						
@@ -411,20 +494,30 @@ class AdjustmentProcessing(Document):
 							is_uho = 0	
 
 						#if Halfday next day will not be UHO
-						if hd_no_uho and at.get('is_halfday'):
+						if header.get('hd_no_uho') and at.get('is_halfday'):
 							is_uho = 0
 
-					if emp.get("rate_type") == "Daily Rate":
-						#if daily rate, holiday is considered paid
-						if at.get('is_holiday') and not at.get('is_restday'):
-							work_days += 1
-							if at.get('is_absent') and at.get('is_sp_holiday') and uho_ab_spnw:
-								work_days -= 1
-								unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
+					if emp.get("rate_type") == "Hourly Rate":
+						hour_bs = ((WK_days - AT_days) * at.get('work_hours')) * flt(rates.get('hourly_rate'), 8)
+						hourly_basic += hour_bs
 
-			#Daily rate should have no absent
+					#Check if employee has attendance
+					if at.get('work'):
+						total_work += at.get('work')
+			
+			header['no_attendance'] = 1
+			if total_work > 0:
+				header['no_attendance'] = 0
+
+			#Get Presentdays and Daily Rate should have no absent
 			if emp.get("rate_type") == "Daily Rate":
 				absent = 0
+				present_days = dl_days
+			else:
+				present_days =  work_days - absent_days
+
+			if header.get('ignore_uho'):
+				unpaid_holiday = 0
 			
 			if emp.get('ignore_late'):
 				late = 0
@@ -432,7 +525,7 @@ class AdjustmentProcessing(Document):
 			if emp.get('ignore_ut'):
 				undertime = 0
 
-			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'):
+			if emp.get('ignore_nd') or header.get('ignore_nd'):
 				nightdiff = 0
 
 			for otr in overtimes_register:

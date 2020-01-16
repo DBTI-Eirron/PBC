@@ -1790,6 +1790,7 @@ def get_all_schedules(emp_map, employee, pay_from, pay_to):
 				"o_break_out": d.o_break_out,
 				"o_time_out": d.o_time_out,
 				"is_default_schedule": 0,
+				"is_change_schedule": 0,
 			})
 
 def get_all_overrides(emp_map, employee, pay_from, pay_to):
@@ -2019,6 +2020,7 @@ def complete_sched(emp_dict, pay_from, pay_to, template_map):
 					"o_break_out": None,
 					"o_time_out": None,
 					"is_default_schedule": 1,
+					"is_change_schedule": 0,
 				})
 	emp_dict['schedules'] = complete_schedules
 
@@ -2028,6 +2030,7 @@ def change_sched(emp_dict, completed_schedules, csa):
 			if cs['target_date'] == d['target_date']:
 				d['work_shift'] = cs['new_shift']
 				d['is_default_schedule'] = 0
+				d['is_change_schedule'] = 1
 
 def processed_def_sched(employee, pay_from, pay_to, completed_schedules):
 	att_reg = frappe.db.sql(""" SELECT AR.`employee`, AR.`target_date`, AR.`work_shift`, AR.`is_default_schedule` FROM `tabAttendance Register` AR 
@@ -2035,10 +2038,10 @@ def processed_def_sched(employee, pay_from, pay_to, completed_schedules):
 
 	for d in completed_schedules:
 		for ar in att_reg:
-			if (ar.employee == employee) and (ar.is_default_schedule):
+			if (ar.employee == employee) and (ar.is_default_schedule) and (not d['is_change_schedule']):
 				if ar['target_date'] == d['target_date']:
 					d['work_shift'] = ar['work_shift']
-		
+
 def daterange(start_date, end_date):
     for n in range( int((end_date - start_date).days) + 1):
         yield start_date + timedelta(n)
