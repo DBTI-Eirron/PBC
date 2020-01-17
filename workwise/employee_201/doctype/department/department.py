@@ -4,7 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, validate_email_add
+from frappe.utils import cint, validate_email_add, cstr
 from frappe import throw, _
 from frappe.utils.nestedset import NestedSet, rebuild_tree
 
@@ -50,6 +50,44 @@ def add_node():
 	frappe.get_doc(args).insert()
 
 @frappe.whitelist()
+def employee_dept_for_company():
+	frappe.db.sql("""UPDATE `tabEmployee` TE 
+		INNER JOIN `tabCompany` C  ON TE.`company`=C.`name`
+		INNER JOIN `tabDepartment` D ON D.`company`=C.`name`
+		SET TE.`department`=CONCAT(D.`department_name`, " - ", C.abbr) WHERE TE.department IS NOT NULL """)
+
+@frappe.whitelist()
+def clone_dept_for_company():
+	company = frappe.db.sql("""SELECT `name`, abbr FROM `tabCompany` """, as_dict=True)
+	excluded_list = ['Organizational Structure', 'Department Tree']
+	for com in company:
+		excluded_list.append(cstr(com.name))
+	excluded_str = "', '".join(excluded_list)
+	excluded_str = "'"+excluded_str+"'"
+	departments = frappe.db.sql("""SELECT D.`name`, D.`department_name`, C.`abbr`, C.`name` as company FROM `tabDepartment` D INNER JOIN `tabCompany` C ON D.`company`=C.`name` WHERE D.`name` NOT IN ({0}) """.format(excluded_str), as_dict=True)
+	dept_list = []
+	existing_list = []
+	for dep in departments:
+		dept_list.append(dep.department_name)
+		existing_list.append(dep.name)
+
+	for cm in company:
+		for dp in dept_list:
+			if cstr(dp)+" - "+cstr(cm.abbr) not in existing_list:
+				new_dept = frappe.new_doc("Department")
+				new_dept.update({
+					"company": cm.name,
+					"department_name": dp,
+					"parent_department": cm.name,
+				})
+				new_dept.flags.ignore_permissions = True
+				new_dept.save()
+
+@frappe.whitelist()
+def reset_tree():
+	frappe.db.sql("""UPDATE `tabDepartment` SET lft=NULL, rgt=NULL """)
+
+@frappe.whitelist()
 def create_root():
 	department_root = frappe.db.sql("""SELECT `name` FROM `tabDepartment` WHERE `name`='Organizational Structure' """, as_list=True)
 	if department_root:
@@ -70,8 +108,32 @@ def create_root_entries():
 				VALUES ('{0}', 'Administrator', 'Administrator', NOW(), NOW(), '{0}','Organizational Structure', 1, 1) """.format(com.name))
 
 @frappe.whitelist()
-def update_parent_department_as_company():
-	frappe.db.sql("""UPDATE `tabDepartment` SET parent_department=company WHERE parent_department IS NULL AND is_root = 0 """)
+def set_default_parent():
+	frappe.db.sql("""UPDATE `tabDepartment` SET parent_department='Organizational Structure' WHERE parent_department IS NULL """)
+
+@frappe.whitelist()
+def company_as_parent_department():
+	frappe.db.sql("""UPDATE `tabDepartment` SET parent_department=company WHERE company IN (SELECT `name` FROM `tabCompany`) """)
+
+@frappe.whitelist()
+def parent_department_as_company():
+	frappe.db.sql("""UPDATE `tabDepartment` SET company=parent_department WHERE parent_department IN (SELECT `name` FROM `tabCompany`) """)
+
+@frappe.whitelist()
+def rename_department():
+	import frappe.model.rename_doc as rd
+
+	company = frappe.db.sql("""SELECT `name` FROM `tabCompany` """, as_dict=True)
+	excluded_list = ['Organizational Structure', 'Department Tree']
+	for com in company:
+		excluded_list.append(cstr(com.name))
+	excluded_str = "', '".join(excluded_list)
+	excluded_str = "'"+excluded_str+"'"
+
+	frappe.db.sql("""UPDATE `tabDepartment` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` SET TD.`department_name`=TRIM(CONCAT(" - ", TC.abbr) FROM TD.`name`) """)
+	dept_list = frappe.db.sql(""" SELECT TD.`name`, TD.`department_name`, TD.`company`, TC.`abbr` FROM `tabDepartment` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` WHERE TD.`company` IN ({0}) """.format(excluded_str), as_dict=1)
+	for dept in dept_list:
+		rd.rename_doc("Department", dept.name, cstr(dept.department_name)+" - "+cstr(dept.abbr), force=True)
 
 @frappe.whitelist()
 def rebuild_department_tree():
