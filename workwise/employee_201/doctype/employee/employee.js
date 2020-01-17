@@ -6,7 +6,13 @@ frappe.ui.form.on('Employee', {
 	onload: function(frm){
 
 	},
-
+	company: function(frm) {
+		frm.trigger("clear_cost_center");
+	},
+	clear_cost_center: function(frm) {
+		if(typeof frm.doc.last_name !== "undefined"){cost_center = frm.doc.last_name}
+		frm.set_value("cost_center", "" );
+	},
 	refresh: function(frm) {
 		frappe.dynamic_link = {doc: frm.doc, fieldname: 'name', doctype: 'Employee'}
 		frm.toggle_display(['address_html','contact_html'], !frm.doc.__islocal);
@@ -62,6 +68,13 @@ frappe.ui.form.on('Employee', {
 				}
 			};
 		});
+		cur_frm.set_query("cost_center", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
 
 		cur_frm.set_query("approver", "approvers", function(doc, cdt, cdn) {
 			var d = locals[cdt][cdn];
@@ -82,6 +95,8 @@ frappe.ui.form.on('Employee', {
 				frappe.set_route('Form', 'Employee Movement', route_doc.name);
 			});
 		}
+
 	}
+
 	
 });
