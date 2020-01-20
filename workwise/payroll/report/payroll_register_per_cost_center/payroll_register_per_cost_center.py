@@ -218,7 +218,7 @@ def get_cost_center(filters):
 		lft, rgt = frappe.db.get_value("Cost Center", filters.cost_center, ["lft", "rgt"])
 		conditions = " AND ( `lft` BETWEEN '{0}' AND '{1}' )".format(lft, rgt)
 
-	cost_center = frappe.db.sql("""SELECT `name` FROM `tabCost Center` WHERE `parent` = %(company)s {conditions} """.format(conditions=conditions), { 
+	cost_center = frappe.db.sql("""SELECT `name` FROM `tabCost Center` WHERE `parent_cost_center` = %(company)s {conditions} """.format(conditions=conditions), { 
 		"company": filters.company
 		}, as_dict=1)
 
