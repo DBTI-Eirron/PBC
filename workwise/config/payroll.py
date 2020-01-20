@@ -104,6 +104,11 @@ def get_data():
 					"is_query_report": True
 				},{
 					"type": "report",
+					"name": "Payroll Register Per Cost Center",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
 					"name": "Preliminary Report",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
