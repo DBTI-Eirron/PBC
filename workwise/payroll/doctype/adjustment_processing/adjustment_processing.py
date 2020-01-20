@@ -221,7 +221,7 @@ class AdjustmentProcessing(Document):
 		frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE payroll_period = %s  """, (self.period), as_dict=1)
 
 	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map, header, _type):
-		if getdate(emp.get('date_hired')) < getdate(attendance_from):
+		if getdate(emp.get('date_hired')) > getdate(attendance_from):
 			frappe.throw(_("You cannot process Employee {0}: {1}, due to Date Hired").format(emp['name'], emp['full_name']))
 
 		rates = get_rates(emp)
