@@ -53,8 +53,7 @@ def add_node():
 def employee_dept_for_company():
 	frappe.db.sql("""UPDATE `tabEmployee` TE 
 		INNER JOIN `tabCompany` C  ON TE.`company`=C.`name`
-		INNER JOIN `tabDepartment` D ON D.`company`=C.`name`
-		SET TE.`department`=CONCAT(D.`department_name`, " - ", C.abbr) WHERE TE.department IS NOT NULL """)
+		SET TE.`department`=CONCAT(TE.`department`, " - ", C.abbr) WHERE TE.department IS NOT NULL """)
 
 @frappe.whitelist()
 def clone_dept_for_company():
