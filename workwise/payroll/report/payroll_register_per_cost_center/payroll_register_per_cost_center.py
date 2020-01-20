@@ -23,7 +23,18 @@ def execute(filters=None):
 	final_total_row = ["<b> Total</b>",""]
 	f_total_income, f_total_deduction, f_total_payroll = 0, 0, 0
 	f_income_total, f_deduction_total = [], []
-
+	if filters.include_header:
+		data.append(["<b>"+filters.company+"</b>"])
+		data.append(["<b>"+filters.payroll_period+"</b>"])
+		if filters.location:
+			data.append(["<b>"+filters.location+"</b>"])
+		if filters.cost_center:
+			data.append(["<b>"+"Cost Center: "+filters.cost_center+"</b>"])
+		data.append({})
+		header = []
+		for col in columns:
+			header.append(col['label'])
+		data.append(header)
 	for f_income in income_types:
 		f_income_total.append(0)
 
