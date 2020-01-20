@@ -30,7 +30,7 @@ class CostCenter(NestedSet):
 				frappe.throw("Parent Cost Center is Required if not group")
 
 	def update_company(self):
-		cc_dict = frappe.db.sql("""SELECT `name`, lft, rgt, parent FROM `tabCost Center` WHERE parent = 'Cost Center Structure'""",as_dict=True)
+		cc_dict = frappe.db.sql("""SELECT `name`, lft, rgt, parent FROM `tabCost Center` WHERE parent_cost_center = 'Cost Center Structure'""",as_dict=True)
 		for cc in cc_dict:
 			if cc.lft <= self.lft and cc.rgt >= self.rgt:
 				self.company = cc.name
