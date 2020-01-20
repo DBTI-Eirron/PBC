@@ -5,13 +5,13 @@ from frappe import _
 
 #APPLICATION PATCHES
 def update_cost_center_company():
-	cc_dict = frappe.db.sql("""SELECT `name`, lft, rgt, parent FROM `tabCost Center`""",as_dict=True)
+	cc_dict = frappe.db.sql("""SELECT `name`, lft, rgt, parent_cost_center FROM `tabCost Center`""",as_dict=True)
 	direct = []
 	child = []
 	for cc in cc_dict:
-		if cc.parent == "Cost Center Structure":
+		if cc.parent_cost_center == "Cost Center Structure":
 			direct.append({"name":cc.name,"lft":cc.lft,"rgt":cc.rgt})
-		if cc.parent is not None:
+		if cc.parent_cost_center is not None:
 			child.append({"name":cc.name,"lft":cc.lft,"rgt":cc.rgt})
 
 	for cost in child:
