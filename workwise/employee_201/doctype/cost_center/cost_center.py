@@ -19,6 +19,7 @@ class CostCenter(NestedSet):
 
 	def on_update(self):
 		self.update_nsm_model()
+		self.update_company()
 
 	def on_trash(self):
 		self.update_nsm_model()
@@ -27,6 +28,24 @@ class CostCenter(NestedSet):
 		if not self.is_group:
 			if not self.parent_cost_center:
 				frappe.throw("Parent Cost Center is Required if not group")
+
+	def update_company(self):
+		cc_dict = frappe.db.sql("""SELECT `name`, lft, rgt, parent FROM `tabCost Center` WHERE parent = 'Cost Center Structure'""",as_dict=True)
+		for cc in cc_dict:
+			if cc.lft <= self.lft and cc.rgt >= self.rgt:
+				self.company = cc.name
+		# direct = []
+		# child = []
+		# for cc in cc_dict:
+		# 	if cc.parent == "Cost Center Structure":
+		# 		direct.append({"name":cc.name,"lft":cc.lft,"rgt":cc.rgt})
+		# 	elif cc.parent is not None:
+		# 		child.append({"name":cc.name,"lft":cc.lft,"rgt":cc.rgt})
+
+		# for cost in child:
+		# 	for center in direct:
+		# 		if center.lft <= cost.lft and center.rgt >= cost.rgt:
+		# 			frappe.db.sql("""""")
 
 @frappe.whitelist()
 def create_root():

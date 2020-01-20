@@ -53,14 +53,22 @@ class Employee(Document):
 		self.create_user()
 		self.validate_is_qualified_dependent()
 		self.validate_employee_approvers()
+		self.validate_user_status()
+		self.validate_cost_center()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
 			self.update_subordinates()
 		#	self.update_approver()
-
 	def after_insert(self):
 		self.update_subordinates()
+	def validate_cost_center(self):
+		validated_CC = 0
+		if self.cost_center is not None:
+			cost_center = frappe.db.sql(""" SELECT `company` FROM `tabCost Center` WHERE `name` = %s """,(self.cost_center) , as_dict=1)
+			for c in cost_center:
+				if c.company != self.company:
+					frappe.throw(_("Cost Center "+self.cost_center+" is Belong "+self.company))
 
 	def validate_user_status(self):
 		if self.is_active:
