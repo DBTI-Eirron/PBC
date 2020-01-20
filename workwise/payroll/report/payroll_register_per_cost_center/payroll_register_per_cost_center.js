@@ -68,9 +68,15 @@ frappe.query_reports["Payroll Register Per Cost Center"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "include_header",
+			"label": __("Include Header"),
+			"fieldtype": "Check",
+		},	
+		{
 			"fieldname": "hide_zero",
 			"label": __("Hide zero value"),
 			"fieldtype": "Check",
 		},
+
 	]
 };

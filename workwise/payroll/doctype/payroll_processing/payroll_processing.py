@@ -538,15 +538,26 @@ class PayrollProcessing(Document):
 						target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8)
 
 					if mode != "None":
+						phic_rate = 59999.99
+						phice_grate = 150
+						phice_lrate = 900
+						phic_perc = 3
+						payroll_year = frappe.get_value("Payroll Period", self.period, "payroll_year")
+						if payroll_year == '2019':
+							phic_rate = 49999.99
+							phice_grate = 137.50
+							phice_lrate = 687.50
+							phic_perc = 2.75
+
 						phic, phice = 0, 0
 						if target_amt < 10000:
-							phic = manual if mode == "Manual" and manual > 150 else 150
-							phice = 150
-						elif target_amt > 59999.99:
-							phic = manual if mode == "Manual" and manual > 900 else 900
-							phice = 900
+							phic = manual if mode == "Manual" and manual > phice_grate else phice_grate
+							phice = phice_grate
+						elif target_amt > phic_rate:
+							phic = manual if mode == "Manual" and manual > phice_lrate else phice_lrate
+							phice = phice_lrate
 						else:
-							percent_rate = ( target_amt * (flt(3, 8) / 100) / 2)
+							percent_rate = ( target_amt * (flt(phic_perc, 8) / 100) / 2)
 							phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
 							phice = percent_rate 
 						
@@ -628,15 +639,26 @@ class PayrollProcessing(Document):
 									(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
 				
 				if mode != "None" and target_amt:
+					phic_rate = 59999.99
+					phice_grate = 150
+					phice_lrate = 900
+					phic_perc = 3
+					payroll_year = frappe.get_value("Payroll Period", self.period, "payroll_year")
+					if payroll_year == '2019':
+						phic_rate = 49999.99
+						phice_grate = 137.50
+						phice_lrate = 687.50
+						phic_perc = 2.75
+
 					phic, phice = 0, 0
 					if target_amt < 10000:
-						phic = manual if mode == "Manual" and manual > 150 else 150
-						phice = 150
-					elif target_amt > 59999.99:
-						phic = manual if mode == "Manual" and manual > 900 else 900
-						phice = 900
+						phic = manual if mode == "Manual" and manual > phice_grate else phice_grate
+						phice = phice_grate
+					elif target_amt > phic_rate:
+						phic = manual if mode == "Manual" and manual > phice_lrate else phice_lrate
+						phice = phice_lrate
 					else:
-						percent_rate = ( target_amt * (flt(3, 8) / 100) / 2)
+						percent_rate = ( target_amt * (flt(phic_perc, 8) / 100) / 2)
 						phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
 						phice = percent_rate 
 					
@@ -1020,6 +1042,8 @@ class PayrollProcessing(Document):
 					elif rec.method == 'Deduct Absent Actual':
 						if header.get('work_days') > 0 and emp.get('no_hours') > 0:
 							amt = amt - (( amt / ( header.get('work_days') * emp.get('no_hours') )) * ( header.get('absent_days') * emp.get('no_hours')))
+
+							#@frappe.throw(_("WORKDAYS:{0} NO_HOURS:{1} ABSENT DAYS:{2}").format(header.get('work_days'), emp.get('no_hours'), header.get('absent_days')))
 					
 					elif rec.method == 'Complete Work Hours':
 						amt = flt(amt * flt(self.get_complete_work_hours(emp)),8)
@@ -1226,7 +1250,7 @@ class PayrollProcessing(Document):
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, cto, cto_days, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
 			unpaid_holiday, prev_lwop, prev_absent, is_uho, leave_days, nwho_days, total_work  =  0, 0 ,0, 0, 0, 0, 0
-			pho_days, uho_days, dl_days = 0, 0, 0.0
+			pho_days, uho_days, dl_days, = 0, 0, 0.0
 			hourly_basic, no_previous = 0, 0
 			test = []
 
@@ -1297,7 +1321,7 @@ class PayrollProcessing(Document):
 								if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
 									is_uho = 0
 									if at.is_absent:
-										is_uho = 1
+										is_uho = 1			
 					else:
 						#if date is the first check if no_previous
 						if getdate(at.target_date) == getdate(self.attendance_from):
@@ -1354,7 +1378,7 @@ class PayrollProcessing(Document):
 							if(at.work or (not at.is_absent)) and (not at.is_lwop):
 								dl_absent = 0
 
-							#if did not worked on a holiday tagged as uho uho
+							#if did not worked on a holiday tagged as uho
 							if at.is_holiday and at.work < 1 and not (at.is_restday):
 								dl_absent = 1
 
@@ -1372,12 +1396,13 @@ class PayrollProcessing(Document):
 										ho_paid = 1 #paid on regular holiday if not UHO
 								else:
 									if dl_absent == 1 and at.is_sp_holiday and header.get('uho_ab_spnw'):
-										ho_paid = 0 #no paid holiday on special HO
+										ho_paid = 0 #not paid holiday on special HO
 									elif dl_absent == 1 and (not is_uho):
 										if not header.get('ab_regho'): #if not absent on regular HO
 											ho_paid = 1 #paid holiday if absent and not UHO
 									elif dl_absent == 0:
 										ho_paid = 1 #paid holiday if not absent and not UHO
+
 							else: 
 								if dl_absent == 0 and (not at.is_restday):
 									if at.is_halfday:
@@ -1439,14 +1464,15 @@ class PayrollProcessing(Document):
 							if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
 								is_uho = 0
 								if header.get('lwop_uho') == 1 and at.is_lwop:
-									is_uho = 0
+									is_uho = 1
 						
 							#strictly No UHO if CTO can cover absent work hours
 							if at.is_absent and at.work_hours <= at.cto:
-								is_uho = 0						
+								is_uho = 0
+
 						else:
 							is_uho = 0
-							if (at.is_absent or at.is_lwop) and not at.is_ob and at.is_holiday:
+							if (at.is_absent or at.is_lwop) and not at.is_ob:
 								is_uho = 1
 
 								if header.get('lwop_uho') == 1:
@@ -1502,7 +1528,7 @@ class PayrollProcessing(Document):
 				attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
 				attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
 				attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
-				attendance_register.append({"pay_code": "OT", "amount": flt(overtime, 8) })
+				#attendance_register.append({"pay_code": "OT", "amount": flt(overtime, 8) })
 				attendance_register.append({"pay_code": "ND", "amount": flt(nightdiff, 8) })
 				attendance_register.append({"pay_code": "LT", "amount": flt(late, 8) })
 				attendance_register.append({"pay_code": "UT", "amount": flt(undertime, 8) })
