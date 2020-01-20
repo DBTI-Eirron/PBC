@@ -13,13 +13,14 @@ class CostCenter(NestedSet):
 
 	def validate(self):
 		self.validate_group()
+		self.update_company()
 
 	def update_nsm_model(self):
 		frappe.utils.nestedset.update_nsm(self)
 
 	def on_update(self):
 		self.update_nsm_model()
-		self.update_company()
+		
 
 	def on_trash(self):
 		self.update_nsm_model()
