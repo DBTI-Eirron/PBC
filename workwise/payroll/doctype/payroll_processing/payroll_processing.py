@@ -96,7 +96,7 @@ class PayrollProcessing(Document):
 		previous_period = self.get_previous_period()
 		uho_ab_days = frappe.db.get_single_value('Payroll Settings', 'uho_ab_days')
 		uho_ab_spnw = frappe.db.get_single_value('Payroll Settings', 'uho_ab_spnw')
-		lwop_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
+		hd_lwop_as_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		ex_uho_spnw = frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw')
 		mo_amt_smdl = frappe.db.get_single_value('Payroll Settings', 'mo_amt_smdl')
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
@@ -192,7 +192,7 @@ class PayrollProcessing(Document):
 						#Payroll Settings
 						'uho_ab_days': uho_ab_days,
 						'uho_ab_spnw': uho_ab_spnw,
-						'lwop_uho': lwop_uho,
+						'hd_lwop_as_uho': hd_lwop_as_uho,
 						'ex_uho_spnw': ex_uho_spnw,
 						'mo_amt_smdl': mo_amt_smdl,
 						'hd_no_uho': hd_no_uho,
@@ -1317,7 +1317,7 @@ class PayrollProcessing(Document):
 						no_previous = 1
 						if at.is_absent or at.is_lwop:
 							is_uho = 1
-							if header.get('lwop_uho') == 1:
+							if header.get('hd_lwop_as_uho') == 1:
 								if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
 									is_uho = 0
 									if at.is_absent:
@@ -1461,10 +1461,12 @@ class PayrollProcessing(Document):
 								is_uho = 1
 
 							#Not UHO if halfday and halfday leave
-							if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
+							if at.lv_status > 1 and at.is_halfday:
 								is_uho = 0
-								if header.get('lwop_uho') == 1 and at.is_lwop:
-									is_uho = 1
+
+							#if setting Half Day LWOP plus Half Day Work is Considered as Paid Holiday
+							if at.lv_status > 1 and at.work and header.get('hd_lwop_as_uho') == 1 and at.is_lwop and (not at.is_absent):
+								is_uho = 0
 						
 							#strictly No UHO if CTO can cover absent work hours
 							if at.is_absent and at.work_hours <= at.cto:
@@ -1475,15 +1477,15 @@ class PayrollProcessing(Document):
 							if (at.is_absent or at.is_lwop) and not at.is_ob:
 								is_uho = 1
 
-								if header.get('lwop_uho') == 1:
+								if header.get('hd_lwop_as_uho') == 1:
 									if (at.lv_status == 2 or at.lv_status == 3) and at.is_halfday:
 										is_uho = 0
 										if at.is_absent:
 											is_uho = 1
 
-							#If Halfday is LWOP but not absent
-							if header.get('lwop_uho') == 1:
-								if (at.lv_status == 2 or at.lv_status == 3) and at.is_lwop and (not at.is_absent):
+							#If Halfday is LWOP but not absent with setting
+							if header.get('hd_lwop_as_uho') == 1 and at.is_lwop:
+								if (at.lv_status == 2 or at.lv_status == 3) and (not at.is_absent):
 									is_uho = 0
 							
 							#strictly No UHO if CTO can cover absent work hours
