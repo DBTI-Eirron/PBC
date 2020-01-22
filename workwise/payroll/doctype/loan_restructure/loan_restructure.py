@@ -32,5 +32,5 @@ class LoanRestructure(Document):
 		for d in self.get('payments'):
 			amount += d.new_amount
 
-		if amount != self.unpaid_amount:
+		if flt(amount, 2) != flt(self.unpaid_amount, 2):
 			frappe.throw(_(" Amount in Payments is not equal to Unpaid Amount"))
