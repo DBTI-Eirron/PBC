@@ -1501,8 +1501,9 @@ class PayrollProcessing(Document):
 							hourly_basic += hour_bs
 
 						#Check if employee has attendance
-						if at.work:
+						if at.work or at.overtime:
 							total_work += at.work
+							total_work += at.overtime
 
 				header['no_attendance'] = 1
 				if total_work > 0:
