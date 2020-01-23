@@ -8,7 +8,7 @@ from workwise.time_keeping.timekeeping_utils import datediff_days_raw
 from workwise.payroll.policy_utils import get_policy
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, message_for_cut_off_date )
 from frappe.model.document import Document
 
 class LeaveApplication(Document):
@@ -35,10 +35,13 @@ class LeaveApplication(Document):
 		self.update_leave_credits()
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
+		if self.workflow_state == "Approved":
+			message_for_cut_off_date(self, "LeaveApplication")
 
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
+		message_for_cut_off_date(self, "LeaveApplication")
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
@@ -146,7 +149,7 @@ class LeaveApplication(Document):
 		location = frappe.get_value("Employee", self.employee, "location")
 
 		holiday = frappe.db.sql("""SELECT `name` FROM `tabHoliday` WHERE holiday_date = %s 
-			AND company = %s AND location = %s """, (target_date, self.company, location), as_dict=True)
+			AND company = %s AND location = %s """, (getdate(target_date), self.company, location), as_dict=True)
 
 		if holiday:
 			holiday_tag = 1
