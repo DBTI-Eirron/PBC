@@ -38,7 +38,7 @@ frappe.ui.form.on('Work Schedule Assignment', {
 	},
 
 	filter_type: function(frm) {
-		frm.set_value("filter_value",null)
+		frm.set_value("filter_value",null);
 	},
 
 	filter_add: function(frm) {
@@ -56,14 +56,9 @@ frappe.ui.form.on('Work Schedule Assignment', {
 		} 
 	},
 
-	is_single: function(frm) {
-		return frappe.call({
-			method: "clear_tables",
-			doc: frm.doc,
-			callback: function(r) {
-				frm.refresh_fields();
-			}
-		});
+	assignment: function(frm) {
+		frm.trigger("clear_tables");
+		frm.set_value("filter_type", "Employee");
 	},
 
 	from_date: function(frm) {
@@ -85,6 +80,17 @@ frappe.ui.form.on('Work Schedule Assignment', {
 			});
 		} 
 	},
+
+	clear_tables: function(frm) {
+		return frappe.call({
+			method: "clear_tables",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		});	
+	},
+
 });
 
 cur_frm.cscript.display_activity_log = function(msg) {

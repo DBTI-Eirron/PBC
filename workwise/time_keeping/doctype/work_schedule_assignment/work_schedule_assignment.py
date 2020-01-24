@@ -13,7 +13,6 @@ from workwise.time_keeping.application_utils import get_user_fullname
 class WorkScheduleAssignment(Document):
 	def assign_schedule(self):
 		self.validate_fields()
-		#self.validate_employees()
 		self.validate_inactive_employee()
 		self.validate_self_scheduling()
 		self.check_permission('write')
@@ -36,7 +35,7 @@ class WorkScheduleAssignment(Document):
 		if self.apply_type == 'Template':
 			sched_map = self.get_sched_template()
 
-		if self.is_single:
+		if self.assignment == "Single":
 			for se in self.single_employee:
 				new_shift = se.new_shift
 				if self.apply_type == 'Template':
@@ -147,7 +146,7 @@ class WorkScheduleAssignment(Document):
 			sched_map = self.get_sched_template()
 
 		if len(unique_emp) == 1:
-			self.is_single = 1
+			self.assignment = "Single"
 			self.set('single_employee', [])
 			for em in unique_emp:
 				for dt in date_list:
@@ -167,7 +166,7 @@ class WorkScheduleAssignment(Document):
 					"new_shift": None,
 				})
 		else:
-			self.is_single = 0
+			self.assignment = "Multiple"
 			for em in unique_emp:
 				employee_list.append({
 					"employee": unique_emp[em]['employee'],
