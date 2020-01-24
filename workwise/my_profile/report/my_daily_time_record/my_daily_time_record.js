@@ -31,7 +31,7 @@ frappe.query_reports["My Daily Time Record"] = {
 				{ "value": "10", "label": __("November") },
 				{ "value": "11", "label": __("December") }
 			],
-			"default": today.getMonth(),
+			"default": String(today.getMonth()),
 			"reqd": 1
 		},
 		{
