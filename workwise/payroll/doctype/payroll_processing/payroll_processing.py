@@ -1250,7 +1250,7 @@ class PayrollProcessing(Document):
 		if emp.get('is_attendance_base') > 0:
 			late, overtime, undertime, absent, nightdiff, cto, cto_days, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
 			unpaid_holiday, prev_lwop, prev_absent, is_uho, leave_days, nwho_days, total_work  =  0, 0 ,0, 0, 0, 0, 0
-			pho_days, uho_days, dl_days, = 0, 0, 0.0
+			pho_days, uho_days, dl_days = 0, 0, 0.0
 			hourly_basic, no_previous = 0, 0
 			test = []
 
