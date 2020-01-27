@@ -25,6 +25,7 @@ class AdjustmentProcessing(Document):
 			WHERE TE.company = %(company)s
 			AND TE.payroll_schedule = %(pay_sched)s 
 			AND TE.is_active = 1
+			AND TE.date_hired <= %(attendance_to)s
 			{conditions}
 			ORDER BY TE.last_name, TE.first_name""".format( conditions=self.get_conditions() ),
 			({ 
@@ -34,6 +35,7 @@ class AdjustmentProcessing(Document):
 				"department": self.department,
 				"location": self.location,
 				"period_group": self.period_group,
+				"attendance_to": getdate(self.attendance_to),
 			}), as_dict=True)
 
 		return employees
@@ -221,7 +223,7 @@ class AdjustmentProcessing(Document):
 		frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE payroll_period = %s  """, (self.period), as_dict=1)
 
 	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map, header, _type):
-		if getdate(emp.get('date_hired')) > getdate(attendance_from):
+		if getdate(emp.get('date_hired')) > getdate(attendance_to):
 			frappe.throw(_("You cannot process Employee {0}: {1}, due to Date Hired").format(emp['name'], emp['full_name']))
 
 		rates = get_rates(emp)
@@ -229,7 +231,7 @@ class AdjustmentProcessing(Document):
 		overtimes_register = []
 		if emp.get('is_attendance_base') > 0 and getdate(emp.get('date_hired')) < getdate(attendance_to):
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho, cto, cto_days = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0
-			no_previous, dl_days, total_work, pho_days = 0, 0, 0, 0
+			no_previous, dl_days, total_work, pho_days, hourly_basic = 0, 0, 0, 0, 0
 			
 			#Get OT registers
 			unique_ot = ["00000000"]
