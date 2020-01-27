@@ -6,12 +6,12 @@ from __future__ import unicode_literals
 import frappe, datetime, calendar
 from datetime import datetime, timedelta
 from frappe import _
-from frappe.utils import nowdate, get_time, flt, getdate
+from frappe.utils import nowdate, get_time, flt, getdate, get_datetime
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule, get_ob_list
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
-from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs )
+from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, get_overrides,
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs)
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
@@ -24,9 +24,11 @@ class CompensatoryTimeOff(Document):
 		if not frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
 			self.use_deduct_cto()
 
+
 	def on_submit(self):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
+
 
 	def before_update_after_submit(self):
 		if frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
@@ -34,6 +36,7 @@ class CompensatoryTimeOff(Document):
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
+		
 	def on_update_after_submit(self):
 		if self.workflow_state == "Approved":
 			if frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
@@ -132,12 +135,17 @@ class CompensatoryTimeOff(Document):
 
 	def file_validate_actual_logs(self):
 		from_date, to_date, tc_from_date, tc_to_date, ob_from_date, ob_to_date = None, None, None, None, None, None
+		time_in_list = []
+		time_out_list = []
+
 		#Get Employee Time In and Time Out
 		time_in, time_out = get_current_logs(self.employee, getdate(self.file_target_date))
 		if time_in:
 			tc_from_date = datetime.strptime(str(time_in), '%Y-%m-%d %H:%M:%S')
+			time_in_list.append( tc_from_date )
 		if time_out:
 			tc_to_date = datetime.strptime(str(time_out), '%Y-%m-%d %H:%M:%S')
+			time_out_list.append( tc_to_date )
 
 		#Get Employee OB In and OB Out
 		obs = get_ob_list(self.employee, getdate(self.file_target_date), getdate(self.file_target_date), getdate(self.file_target_date), 1)
@@ -147,42 +155,38 @@ class CompensatoryTimeOff(Document):
 					ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
 			else:
 				ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
+			time_in_list.append( ob_from_date )
 
 			if ob_to_date:
 				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S') > ob_to_date:
 					ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
 			else:
 				ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
+			time_out_list.append( ob_to_date )
+
+		#Get Overrides
+		timelogs_list = get_overrides(self.employee, getdate(self.file_target_date), getdate(self.file_target_date))
+		for tl in timelogs_list:
+			if tl.time_in:
+				time_in_list.append( tl.time_in )
+			if tl.time_out:
+				time_out_list.append( tl.time_out )
 
 		#Process Final Logs
-		if tc_from_date:
-			from_date = tc_from_date
-		if ob_from_date:
-			from_date = ob_from_date
-		if tc_to_date:
-			to_date = tc_to_date
-		if ob_to_date:
-			to_date = ob_to_date
-		if (tc_from_date) and (ob_from_date):
-			if tc_from_date < ob_from_date:
-				from_date = tc_from_date
-			else:
-				from_date = ob_from_date
-		if (tc_to_date) and (ob_to_date):
-			if tc_to_date > ob_to_date:
-				to_date = tc_to_date
-			else:
-				to_date = ob_to_date
+		if time_in_list:
+			from_date = max(time_in_list)
+		if time_out_list:
+			to_date = max(time_out_list)
 
 		if (not from_date) and (not to_date):
 			frappe.throw(_("You have no actual logs for today"))
 		if (not from_date) or (not to_date):
 			frappe.throw(_("You have incomplete actual logs for today"))
 
-		self.file_actual_in = from_date
-		self.file_actual_out = to_date
+		self.file_actual_in = get_datetime(from_date)
+		self.file_actual_out = get_datetime(to_date)
 
-		return from_date, to_date
+		return get_datetime(from_date), get_datetime(to_date)
 
 	def file_validate_duplicate(self):
 		existing_application = frappe.db.sql("""SELECT `name`, `file_from_date`, `file_to_date`, `file_from_time`, `file_to_time` FROM `tabCompensatory Time Off` 
@@ -284,61 +288,7 @@ class CompensatoryTimeOff(Document):
 			else:
 				self.credits_earned = flt(self.total_hours,2)/flt(work_hours, 2)
 
-		self.balance = self.credits_earned - self.credits_used
-
-	def file_actual_logs_based_credits(self, from_date, to_date):
-		tc_from_date, tc_to_date, ob_from_date, ob_to_date = None, None, None, None
-
-		#Get Employee Time In and Time Out
-		time_in, time_out = get_current_logs(self.employee, getdate(self.file_target_date))
-		if (time_in) or (time_out):
-			tc_from_date = datetime.strptime(str(time_in), '%Y-%m-%d %H:%M:%S')
-			tc_to_date = datetime.strptime(str(time_out), '%Y-%m-%d %H:%M:%S')
-
-		#Get Employee OB In and OB Out
-		obs = get_ob_list(self.employee, getdate(self.file_target_date), getdate(self.file_target_date), getdate(self.file_target_date), 0)
-		for ob in obs:
-			if ob_from_date:
-				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S') < ob_from_date:
-					ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
-			else:
-				ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
-
-			if ob_to_date:
-				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S') > ob_to_date:
-					ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
-			else:
-				ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
-
-		#Process Final Logs
-		if tc_from_date:
-			from_date = tc_from_date
-		if ob_from_date:
-			from_date = ob_from_date
-		if tc_to_date:
-			to_date = tc_to_date
-		if ob_to_date:
-			to_date = ob_to_date
-		if (tc_from_date) and (ob_from_date):
-			if tc_from_date < ob_from_date:
-				from_date = tc_from_date
-			else:
-				from_date = ob_from_date
-		if (tc_to_date) and (ob_to_date):
-			if tc_to_date > ob_to_date:
-				to_date = tc_to_date
-			else:
-				to_date = ob_to_date
-
-		if not from_date and not to_date:
-			return frappe.throw(_("You don't have actual logs on your filed CTO."))
-
-		self.file_from_date = from_date.date()
-		self.file_to_date = to_date.date()
-		self.file_from_time = str(from_date.time())
-		self.file_to_time = str(to_date.time())
-
-		return from_date, to_date			
+		self.balance = self.credits_earned - self.credits_used		
 
 	def file_get_workshift_setup(self):
 		schedule = get_schedule(self.employee, self.file_target_date, self.file_target_date)
