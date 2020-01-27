@@ -921,8 +921,8 @@ def get_final_processing(entry):
 			exemption = 1
 
 		if entry.get('rate_type') == "Daily Rate":
-			#daily rate has no card in and card out and holday is not restday, set to absent
-			if (not entry.get('card_out')) and (not entry.get('card_in')) and (not entry.get('is_restday')) and exemption:
+			#daily rate has no card in and card out and holday is not restday and is not OB, set to absent
+			if (not entry.get('card_out')) and (not entry.get('card_in')) and (not entry.get('is_restday')) and (not entry.get('ob_status')) and exemption:
 				entry['is_absent'] = 1
 			else:
 				entry['late'] = 0
