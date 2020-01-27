@@ -24,18 +24,15 @@ class CompensatoryTimeOff(Document):
 		if not frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
 			self.use_deduct_cto()
 
-
 	def on_submit(self):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
-
 
 	def before_update_after_submit(self):
 		if frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
 			self.use_validate_deduct()
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
-
 		
 	def on_update_after_submit(self):
 		if self.workflow_state == "Approved":
@@ -174,7 +171,7 @@ class CompensatoryTimeOff(Document):
 
 		#Process Final Logs
 		if time_in_list:
-			from_date = max(time_in_list)
+			from_date = min(time_in_list)
 		if time_out_list:
 			to_date = max(time_out_list)
 
