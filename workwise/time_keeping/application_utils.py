@@ -111,6 +111,26 @@ def level_of_approval_next_level(self, approver_level, highest_level, req_level)
 		set_levelled_approval_to_progress(self, approver_level)
 	else:
 		frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
+def message_for_cut_off_date(self, pass_value):
+	if self.workflow_state == "Approved":
+		cutoff_list = []
+		date = getdate(self.approved_on)
+		if pass_value == "Use":
+			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND `attendance_from` <= %s And `attendance_to` >= %s """,(self.company, self.use_from_date, self.use_to_date), as_dict=True)
+		elif pass_value == "File":
+			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND `attendance_from` <= %s And `attendance_to` >= %s """,(self.company, self.file_from_date, self.file_to_date), as_dict=True)
+		elif pass_value == "excuse":
+			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND %s BETWEEN `attendance_from` AND `attendance_to` """,(self.company, self.date), as_dict=True)	
+		elif pass_value == "undertime":
+			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND %s BETWEEN `attendance_from` AND `attendance_to` """,(self.company, self.from_date), as_dict=True)
+		elif pass_value == "dtr":
+			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND %s BETWEEN `attendance_from` AND `attendance_to` """,(self.company, self.target_date), as_dict=True)
+		else:
+			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND `attendance_from` <= %s And `attendance_to` >= %s """,(self.company, self.from_date, self.to_date), as_dict=True)
+		for ap in approvals_cutoff:
+			if ap.approval_cutoff:
+				if date >= getdate(ap.approval_cutoff):
+					frappe.msgprint("Approved Application is Beyond Approval Cut off")
 
 def set_levelled_approval_to_progress(self, approver_level):
 	approval_history = ""
@@ -198,7 +218,18 @@ def get_current_logs(employee, target_date):
 		get_sorted_card(entry, cards_in, cards_out)
 		cin, cout = entry.get('card_in'), entry.get('card_out')
 
-	return cin, cout 
+	return cin, cout
+
+def get_overrides(employee, from_date, to_date):
+	overrides = frappe.db.sql("""SELECT employee, target_date, time_in, break_in, break_out, time_out,
+		TIMESTAMP(target_date, time_in) as card_datetime_in, TIMESTAMP(target_date, time_out) as card_datetime_out
+		FROM `tabOverride List` 
+		WHERE target_date >= %(from_date)s AND target_date <= %(to_date)s """,{
+			"from_date": getdate(from_date),
+			"to_date": getdate(to_date),
+		}, as_dict=True)
+
+	return overrides if overrides else []
 
 def get_dtrp(employee, pay_from, pay_to):
 		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 

@@ -227,7 +227,7 @@ class AdjustmentProcessing(Document):
 		rates = get_rates(emp)
 		attendance_result = { "ab": 0.0, "uho": 0.0, "ot": 0.0, "nd": 0.0, "lt": 0.0, "ut": 0.0, "cto": 0.0 }
 		overtimes_register = []
-		if emp.get('is_attendance_base') > 0 and getdate(emp.get('date_hired')) > getdate(attendance_from):
+		if emp.get('is_attendance_base') > 0 and getdate(emp.get('date_hired')) < getdate(attendance_to):
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho, cto, cto_days = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0
 			no_previous, dl_days, total_work, pho_days = 0, 0, 0, 0
 			
