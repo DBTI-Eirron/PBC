@@ -324,6 +324,7 @@ class AnnualizationProcessing(Document):
 			frappe.db.sql("""DELETE FROM `tabAnnualization Register` WHERE employee = %s AND payroll_year = %s """,(emp, self.payroll_year), as_dict=1)
 			ntax_benefits, tax_benefits, tax_due, adj_tax = 0, 0, 0, 0
 			ntax_total, amt_withheld, over_withheld = 0, 0, 0
+			exclude = 0
 
 			emp_dict.from_date = getdate(from_year)
 			emp_dict.to_date = getdate(to_year)
@@ -344,6 +345,16 @@ class AnnualizationProcessing(Document):
 					emp_dict.is_terminated = 1
 					emp_dict.to_date = getdate(emp_dict.date_retired)					
 			
+			if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired:
+				if getdate(emp_dict.date_terminated) <= getdate(from_year):
+					exclude = 1
+				if getdate(emp_dict.date_resigned) <= getdate(from_year):
+					exclude = 1
+				if getdate(emp_dict.date_retired) <= getdate(from_year):
+					exclude = 1
+				if getdate(emp_dict.date_contract_ended) <= getdate(from_year):
+					exclude = 1
+
 			if emp_dict.total_benefits > 90000:
 				emp_dict.nt_benefits  = 90000
 				emp_dict.t_benefits  = abs(emp_dict.total_benefits - 90000)
@@ -358,6 +369,9 @@ class AnnualizationProcessing(Document):
 				emp_dict.t_fees + emp_dict.t_benefits + emp_dict.t_hazard + emp_dict.t_overtime + emp_dict.t_other_a + emp_dict.t_other_b + emp_dict.t_other_sa + emp_dict.t_other_sb)
 
 			emp_dict.gross_compensation = emp_dict.non_taxable_total + emp_dict.taxable_total
+			emp_dict['item_19'] = emp_dict.gross_compensation
+
+
 
 			#PREVIOUS TOTALS
 			emp_dict.prev_non_taxable_total = (emp_dict.pnt_basic + emp_dict.pnt_holiday + emp_dict.pnt_overtime + emp_dict.pnt_nightdiff + emp_dict.pnt_hazard + 
@@ -402,16 +416,24 @@ class AnnualizationProcessing(Document):
 				emp_dict.nt_basic  = emp_dict.t_basic 
 				emp_dict.nt_hazard = emp_dict.t_hazard 
 				emp_dict.nt_overtime = emp_dict.t_overtime
+				emp_dict['item_20'] = emp_dict.non_taxable_total + emp_dict.t_basic + emp_dict.t_hazard + emp_dict.t_overtime
 				#emp_dict.non_taxable_total += emp_dict.taxable_total
 				#zero out transfered fields
 				emp_dict.t_basic = 0
 				emp_dict.t_hazard = 0
 				emp_dict.t_overtime = 0
 				#emp_dict.taxable_total = 0
+			else:
+				emp_dict['item_20'] = emp_dict.non_taxable_total
+			
+			emp_dict['item_21'] = emp_dict.item_19 - emp_dict.item_20
+			emp_dict['item_22'] = emp_dict.prev_taxable_total
+			emp_dict['item_23'] = emp_dict.item_21 + emp_dict.item_22
 
-			register = frappe.new_doc("Annualization Register")
-			register.update(emp_dict)
-			register.insert()
+			if exclude != 1:
+				register = frappe.new_doc("Annualization Register")
+				register.update(emp_dict)
+				register.insert()
 
 	def get_employee_map(self, employees):
 		emp_map = frappe._dict()
