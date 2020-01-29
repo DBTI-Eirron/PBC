@@ -843,7 +843,8 @@ class PayrollProcessing(Document):
 							target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
 								(header.get('prev_hdmf_inc') + header.get('hdmf_inc')) - (header.get('prev_hdmf_ded') + header.get('hdmf_ded'))
 
-			hdmf, hdmfe = get_hdmf_amount(target_amt, hdmf_table)
+			if self.frequency == emp.get('hdmf_freq') or emp.get('hdmf_freq') == 'Both':
+				hdmf, hdmfe = get_hdmf_amount(target_amt, hdmf_table)
 
 			#HDMF Manual Triggers
 			if self.schedule == "Weekly" and emp.get('hdmf_mode') == "ME Table Manual":
