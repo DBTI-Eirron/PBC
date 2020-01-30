@@ -77,10 +77,16 @@ class Employee(Document):
 			enabled = 0
 		if self.user_id:
 			us = frappe.get_doc("User", self.user_id)
-			us.update({
-				"new_password": us.frappe_userid,
-				"enabled": enabled,
-			})
+			change_password = frappe.db.get_single_value("System Settings", "change_inactive_password")
+			if change_password == 1:
+				us.update({
+					"new_password": us.frappe_userid,
+					"enabled": enabled,
+				})
+			else:
+				us.update({
+					"enabled": enabled,
+				})
 			us.save()
 			
 	def on_update(self):
@@ -287,7 +293,7 @@ class Employee(Document):
 		deletion_list = []
 		old_reports_to = frappe.db.get_value("Employee", self.name, "reports_to")
 		cached = frappe.db.sql("""SELECT * FROM `tabEmployee Approvers` WHERE parent =%s """,(self.name),as_dict=True)
-		subordinates = frappe.db.sql("""SELECT parent, subordinate FROM `tabSubordinates`""",(),as_dict=True)
+		subordinates = frappe.db.sql("""SELECT ES.`name` as parent, S.subordinate FROM `tabSubordinates` S RIGHT JOIN `tabEmployee Subordinates` ES ON S.parent = ES.`name`""",(),as_dict=True)
 		role_permision = frappe.db.sql("""SELECT user FROM `tabUser Permission` WHERE for_value = %s AND is_automated = 1""",(self.name),as_dict=True)
 		childs = self.approvers
 
