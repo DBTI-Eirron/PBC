@@ -59,9 +59,10 @@ class Employee(Document):
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
 			self.update_subordinates()
-		#	self.update_approver()
+
 	def after_insert(self):
 		self.update_subordinates()
+
 	def validate_cost_center(self):
 		validated_CC = 0
 		if self.cost_center is not None:
@@ -71,16 +72,9 @@ class Employee(Document):
 					frappe.throw(_("Cost Center "+self.cost_center+" is Belong "+self.company))
 
 	def validate_user_status(self):
-		if self.is_active:
-			enabled = 1
-		else:
-			enabled = 0
-		if self.user_id:
+		if self.user_id and not self.is_active:
 			us = frappe.get_doc("User", self.user_id)
-			us.update({
-				"new_password": us.frappe_userid,
-				"enabled": enabled,
-			})
+			us.update({ "enabled": 0, })
 			us.save()
 			
 	def on_update(self):
@@ -287,7 +281,7 @@ class Employee(Document):
 		deletion_list = []
 		old_reports_to = frappe.db.get_value("Employee", self.name, "reports_to")
 		cached = frappe.db.sql("""SELECT * FROM `tabEmployee Approvers` WHERE parent =%s """,(self.name),as_dict=True)
-		subordinates = frappe.db.sql("""SELECT parent, subordinate FROM `tabSubordinates`""",(),as_dict=True)
+		subordinates = frappe.db.sql("""SELECT ES.`name` as parent, S.subordinate FROM `tabSubordinates` S RIGHT JOIN `tabEmployee Subordinates` ES ON S.parent = ES.`name`""",(),as_dict=True)
 		role_permision = frappe.db.sql("""SELECT user FROM `tabUser Permission` WHERE for_value = %s AND is_automated = 1""",(self.name),as_dict=True)
 		childs = self.approvers
 
