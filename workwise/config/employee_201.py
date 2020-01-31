@@ -104,6 +104,11 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Notice to Explain",
+					"description": _("Notice to Explain"),
+				},
+				{
+					"type": "doctype",
 					"name": "Memo",
 					"description": _("Memo"),
 				},
