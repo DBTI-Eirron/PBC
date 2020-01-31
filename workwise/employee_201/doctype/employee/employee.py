@@ -59,9 +59,10 @@ class Employee(Document):
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
 			self.update_subordinates()
-		#	self.update_approver()
+
 	def after_insert(self):
 		self.update_subordinates()
+
 	def validate_cost_center(self):
 		validated_CC = 0
 		if self.cost_center is not None:
@@ -71,22 +72,9 @@ class Employee(Document):
 					frappe.throw(_("Cost Center "+self.cost_center+" is Belong "+self.company))
 
 	def validate_user_status(self):
-		if self.is_active:
-			enabled = 1
-		else:
-			enabled = 0
-		if self.user_id:
+		if self.user_id and not self.is_active:
 			us = frappe.get_doc("User", self.user_id)
-			change_password = frappe.db.get_single_value("System Settings", "change_inactive_password")
-			if change_password == 1:
-				us.update({
-					"new_password": us.frappe_userid,
-					"enabled": enabled,
-				})
-			else:
-				us.update({
-					"enabled": enabled,
-				})
+			us.update({ "enabled": 0, })
 			us.save()
 			
 	def on_update(self):
