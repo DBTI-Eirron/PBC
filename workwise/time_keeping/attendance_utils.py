@@ -188,6 +188,10 @@ def get_work(entry):
 		if entry["is_halfday"] == 1:
 			entry['work'] = entry['work'] / 2
 
+	if entry.get('ob_stat') > 1:
+		entry['work'] = (entry.get('work_hours') * 60) * 60
+		entry['work'] = entry['work'] / 2
+
 	if (not entry.get('is_restday') or not entry.get('is_holiday')) and entry["lv_status"] == 1 and not entry['is_lwop'] and not entry['card_in'] and not entry['card_out']:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
 
