@@ -64,7 +64,20 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 					else: #if OB is in first half
 						if entry.get('ob_out') <= entry.get('break_end'):
 							entry['ob_stat'] = 2
+				else:
+					if (ob_in < entry.get('time_in') and ob_out < entry.get('time_in')):
+						early_ob_in = entry['ob_in']
+						early_ob_out = entry['ob_out']
 
+						if early_ob_in > entry.get('time_in'):
+							early_ob_in = entry.get('time_in')
+
+						if early_ob_out > entry.get('time_in'):
+							early_ob_out = entry.get('time_in')
+
+						entry['early_ob'] = 1
+						entry['early_ob_in'] = early_ob_in
+						entry['early_ob_out'] = early_ob_out
 	if uts:
 		for ut in uts:
 			if ut['from_date'] == entry['target_date']:
@@ -719,13 +732,13 @@ def get_absent(entry):
 		entry["undertime"] = 0
 		entry["is_absent"] = 0
 
-	if not entry.get('card_out') and not entry.get('ob_status'):
+	if not entry.get('card_out') and not entry.get('ob_status') and not entry.get('early_ob'):
 		entry['overtime'] = 0
 		entry['overtime_nd'] = 0
 		entry['overtime_ex'] = 0
 		entry['ot_list'] = ""
 
-	if not entry.get('card_in') and not entry.get('ob_status'):
+	if not entry.get('card_in') and not entry.get('ob_status') and not entry.get('early_ob'):
 		entry['overtime'] = 0
 		entry['overtime_nd'] = 0
 		entry['overtime_ex'] = 0
@@ -1666,6 +1679,9 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"ob_out": "",
 		"ob": 0.0,
 		"ob_stat": 0,
+		"early_ob": 1,
+		"early_ob_in": None,
+		"early_ob_out": None,
 		#UT
 		"linked_ut": "",
 		"ut_from": "",
