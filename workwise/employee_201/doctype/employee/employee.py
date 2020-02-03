@@ -64,12 +64,10 @@ class Employee(Document):
 		self.update_subordinates()
 
 	def validate_cost_center(self):
-		validated_CC = 0
-		if self.cost_center is not None:
-			cost_center = frappe.db.sql(""" SELECT `company` FROM `tabCost Center` WHERE `name` = %s """,(self.cost_center) , as_dict=1)
-			for c in cost_center:
-				if c.company != self.company:
-					frappe.throw(_("Cost Center "+self.cost_center+" is Belong "+self.company))
+		if self.cost_center:
+			cost_center = frappe.db.sql(""" SELECT `company` FROM `tabCost Center` WHERE `name` = %s AND `company` = %s """,(self.cost_center, self.company) , as_dict=1)
+			if not cost_center:
+				frappe.throw(_("Cost Center "+self.cost_center+" does not belong to "+self.company))
 
 	def validate_user_status(self):
 		if self.user_id and not self.is_active:
@@ -305,33 +303,18 @@ class Employee(Document):
 		for ap in childs:
 			childs_list.append(ap.approver)
 
-		for ac in cached:
-			if ac.approver in sub_list:
-				cached_list.append(ac.approver)
-
 		for dx in cached:
 			if dx.approver not in childs_list:
 				deletion_list.append(dx.approver)
-		
-		for dy in childs:
-			if dy.approver not in cached_list:
-				if dy.approver not in insert_list:
-					insert_list.append(dy.approver)
 
-
-
+		if self.reports_to:
+			childs_list.append(self.reports_to)
 
 		if old_reports_to != self.reports_to:
-			if self.reports_to:
-				insert_list.append(self.reports_to)
 			if old_reports_to:
 				deletion_list.append(old_reports_to)
-		else:
-			if self.reports_to:
-				if self.reports_to not in sub_list:
-					insert_list.append(self.reports_to)
 
-		for il in insert_list:
+		for il in childs_list:
 			if il not in sub_list:
 				if il in ext_sub_list:
 					insdoc = frappe.get_doc("Employee Subordinates", il)
@@ -357,19 +340,21 @@ class Employee(Document):
 					})
 					insdoc.flags.ignore_validate = True
 					insdoc.insert()
+				sub_list.append(il)
 
-		for il in insert_list:
-			if user_list[il] not in ext_role_list:
+		for ch in childs_list:
+			if user_list[ch] not in ext_role_list:
 
 				user_perm = frappe.new_doc("User Permission")
 				user_perm.update({
 					"allow": "Employee",
 					"for_value": self.name,
-					"user": user_list[il],
+					"user": user_list[ch],
 					"apply_for_all_roles": 0,
 					"is_automated": 1
 				})	
 				user_perm.insert()
+				ext_role_list.append(user_list[ch])
 
 		for dl in deletion_list:
 			deldoc = frappe.get_doc("Employee Subordinates", dl)
