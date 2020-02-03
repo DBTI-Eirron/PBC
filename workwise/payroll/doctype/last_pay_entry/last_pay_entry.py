@@ -357,7 +357,8 @@ class LastPayEntry(Document):
 		paid_loans = {}
 		total_unpaid = 0
 		total_paid = 0
-		loans = frappe.db.sql(""" SELECT LA.* FROM `tabLoan Application` LA INNER JOIN `tabTransaction Type` TT ON LA.`loan_type`=TT.`name`
+		loans = frappe.db.sql(""" SELECT LA.`name`, LA.`unpaid_amount`, LA.`loan_type`, LA.`loan_name`, LA.`paid_amount`
+		 FROM `tabLoan Application` LA INNER JOIN `tabTransaction Type` TT ON LA.`loan_type`=TT.`name`
 		WHERE LA.`employee` = %(employee)s AND LA.`docstatus` = 1 AND (TT.`is_gov_loan` = 0 OR TT.`name` = 'ES') """,{ 
 			"employee": self.employee,
 		}, as_dict=True)
@@ -376,7 +377,8 @@ class LastPayEntry(Document):
 						}
 						unpaid_loans[d.loan_type]['amount'] += d.unpaid_amount
 						total_unpaid += d.unpaid_amount
-			else:
+						
+			if d.paid_amount > 0:
 				if d.loan_type == "ES":
 					if d.loan_type not in paid_loans:
 						paid_loans[d.loan_type] = {
