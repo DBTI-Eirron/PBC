@@ -64,10 +64,10 @@ class Employee(Document):
 		self.update_subordinates()
 
 	def validate_cost_center(self):
-		if self.cost_center:
+		if self.cost_center and self.company:
 			cost_center = frappe.db.sql(""" SELECT `company` FROM `tabCost Center` WHERE `name` = %s AND `company` = %s """,(self.cost_center, self.company) , as_dict=1)
 			if not cost_center:
-				frappe.throw(_("Cost Center "+self.cost_center+" does not belong to "+self.company))
+				frappe.throw(_("Cost Center {0} does not belong to {1}").format(self.cost_center, self.company))
 
 	def validate_user_status(self):
 		if self.user_id and not self.is_active:
