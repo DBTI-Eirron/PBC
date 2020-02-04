@@ -139,10 +139,10 @@ class CompensatoryTimeOff(Document):
 		time_in, time_out = get_current_logs(self.employee, getdate(self.file_target_date))
 		if time_in:
 			tc_from_date = datetime.strptime(str(time_in), '%Y-%m-%d %H:%M:%S')
-			time_in_list.append( tc_from_date )
+			time_in_list.append( get_datetime(tc_from_date) )
 		if time_out:
 			tc_to_date = datetime.strptime(str(time_out), '%Y-%m-%d %H:%M:%S')
-			time_out_list.append( tc_to_date )
+			time_out_list.append( get_datetime(tc_to_date) )
 
 		#Get Employee OB In and OB Out
 		obs = get_ob_list(self.employee, getdate(self.file_target_date), getdate(self.file_target_date), getdate(self.file_target_date), 1)
@@ -152,22 +152,22 @@ class CompensatoryTimeOff(Document):
 					ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
 			else:
 				ob_from_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.from_time), '%Y-%m-%d %H:%M:%S')
-			time_in_list.append( ob_from_date )
+			time_in_list.append( get_datetime(ob_from_date) )
 
 			if ob_to_date:
 				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S') > ob_to_date:
 					ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
 			else:
 				ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
-			time_out_list.append( ob_to_date )
+			time_out_list.append( get_datetime(ob_to_date) )
 
 		#Get Overrides
 		timelogs_list = get_overrides(self.employee, getdate(self.file_target_date), getdate(self.file_target_date))
 		for tl in timelogs_list:
 			if tl.time_in:
-				time_in_list.append( tl.time_in )
+				time_in_list.append(get_datetime(tl.time_in))
 			if tl.time_out:
-				time_out_list.append( tl.time_out )
+				time_out_list.append(get_datetime(tl.time_out))
 
 		#Process Final Logs
 		if time_in_list:
