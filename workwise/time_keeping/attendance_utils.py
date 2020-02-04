@@ -66,8 +66,8 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 							entry['ob_stat'] = 2
 				else:
 					if (ob_in < entry.get('time_in') and ob_out < entry.get('time_in')):
-						early_ob_in = entry['ob_in']
-						early_ob_out = entry['ob_out']
+						early_ob_in = ob_in
+						early_ob_out = ob_out
 
 						if early_ob_in > entry.get('time_in'):
 							early_ob_in = entry.get('time_in')
