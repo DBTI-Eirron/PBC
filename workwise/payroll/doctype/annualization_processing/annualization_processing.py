@@ -355,6 +355,10 @@ class AnnualizationProcessing(Document):
 				if getdate(emp_dict.date_contract_ended) <= getdate(from_year):
 					exclude = 1
 
+			#Always reduce Basic to contrib
+			emp_dict['t_basic'] -= abs(emp_dict['nt_contrib'])
+
+			#calculate if other benefits is beyond the ceiling
 			if emp_dict.total_benefits > 90000:
 				emp_dict.nt_benefits  = 90000
 				emp_dict.t_benefits  = abs(emp_dict.total_benefits - 90000)
