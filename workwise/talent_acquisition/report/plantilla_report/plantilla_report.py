@@ -10,7 +10,7 @@ from frappe.utils import (flt, getdate, get_first_day, get_last_day, date_diff,
 
 def execute(filters=None):
 	position_list = get_position_list(filters)
-	roots = frappe.db.sql("""select name, lft, rgt from tabDepartment where is_group = 1 and ifnull(parent_department, '') = '' ORDER BY lft """, as_dict=1)
+	roots = frappe.db.sql("""select name, lft, rgt from tabDepartment where is_group = 1 ORDER BY lft """, as_dict=1)
 	
 	data = []
 	net_total_row = {
@@ -128,7 +128,7 @@ def get_data(company, root_name, position_list, filters=None, accumulated_values
 
 	emp_entries_by_department = {}
 	
-	for root in frappe.db.sql("""select lft, rgt from tabDepartment where `name` = %s and is_group = 1 and ifnull(parent_department, '') = '' """, root_name,as_dict=1):
+	for root in frappe.db.sql("""select lft, rgt from tabDepartment where `name` = %s and is_group = 1 """, root_name,as_dict=1):
 		set_emp_entries_by_department(filters.company, filters.as_of_date, root.lft, root.rgt, filters, emp_entries_by_department, ignore_closing_entries=ignore_closing_entries)
 
 	calculate_values(departments_by_name, emp_entries_by_department, position_list, accumulated_values, ignore_accumulated_values_for_fy)
@@ -140,7 +140,6 @@ def get_data(company, root_name, position_list, filters=None, accumulated_values
 		add_total_row(out, root_name, position_list)
 
 	return out
-
 
 def calculate_values(departments_by_name, emp_entries_by_department, position_list, accumulated_values, ignore_accumulated_values_for_fy):
 	for entries in emp_entries_by_department.values():
