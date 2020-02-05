@@ -57,6 +57,14 @@ def create_root():
 		VALUES ('Cost Center Structure','Administrator','Administrator',NOW(),NOW(),'Cost Center Structure','', 1, 2) """)
 
 @frappe.whitelist()
+def company_as_parent_cost_center():
+	frappe.db.sql("""UPDATE `tabCost Center` SET parent_cost_center=company WHERE company IN (SELECT `name` FROM `tabCompany`) """)
+
+@frappe.whitelist()
+def parent_cost_center_as_company():
+	frappe.db.sql("""UPDATE `tabCost Center` SET company=parent_cost_center WHERE parent_cost_center IN (SELECT `name` FROM `tabCompany`) """)
+
+@frappe.whitelist()
 def rebuild_costcenter_tree():
 	rebuild_tree("Cost Center", "parent_cost_center")
 
