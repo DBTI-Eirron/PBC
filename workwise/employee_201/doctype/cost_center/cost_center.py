@@ -20,7 +20,10 @@ class CostCenter(NestedSet):
 
 	def on_update(self):
 		self.update_nsm_model()
-		
+
+	def autoname(self):
+		abbr = frappe.db.get_value("Company", self.company, "abbr")
+		self.name = self.cost_center_name+" - "+abbr
 
 	def on_trash(self):
 		self.update_nsm_model()
