@@ -26,7 +26,7 @@ class AnnualizationProcessing(Document):
 		return self.create_log(ss_list)
 
 	def get_employee(self, from_year, to_year):
-		employees = frappe.db.sql("""select `name`, tin, full_name, company, tin, date_hired, date_retired, date_resigned, date_terminated from tabEmployee WHERE company = %(company)s AND payroll_schedule = %(schedule)s {conditions} 
+		employees = frappe.db.sql("""select `name`, tin, full_name, company, tin, date_hired, date_retired, date_resigned, date_terminated, sensitivity from tabEmployee WHERE company = %(company)s AND payroll_schedule = %(schedule)s {conditions} 
 			ORDER BY full_name ASC """.format( conditions=self.get_employee_conditions() ),
 				({ 
 					"company": self.company,
@@ -99,6 +99,9 @@ class AnnualizationProcessing(Document):
 		conditions = []
 		if self.employee:
 			conditions.append("`name`=%(employee)s")
+
+		if frappe.session.user != "Administrator":
+			conditions.append(_("sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
 
 		return "and {}".format(" and ".join(conditions)) if conditions else ""
 
@@ -446,6 +449,7 @@ class AnnualizationProcessing(Document):
 					"employee": emp.name,
 					"employee_name": emp.full_name,
 					"company": emp.company,
+					"sensitivity_level": emp.sensitivity,
 					"payroll_year": self.payroll_year,
 					"tax_id": emp.tin,
 					"date_hired": emp.date_hired,
@@ -601,5 +605,7 @@ class AnnualizationProcessing(Document):
 				included_employee.append(reg.employee)
 
 	def create_log(self, ss_list):
-		log = "<p>" + _("Annualization Registers Created") + "</p>"
+		log = "<p>" + _("No Annualization Registers Created") + "</p>"
+		if ss_list:
+			log = "<p>" + _("Annualization Registers Created") + "</p>"
 		return log
