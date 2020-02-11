@@ -14,6 +14,11 @@ class Department(NestedSet):
 	def validate(self):
 		self.validate_group()
 		self.validate_department()
+		self.validate_company()
+
+	def validate_company(self):
+		if not self.company:
+			frappe.throw("Please Create Cost Center in Cost Center Tree.")
 
 	def update_nsm_model(self):
 		frappe.utils.nestedset.update_nsm(self)
@@ -30,8 +35,9 @@ class Department(NestedSet):
 				frappe.throw("Parent Department is Required if not group")
 
 	def autoname(self):
-		abbr = frappe.db.get_value("Company", self.company, "abbr")
-		self.name = self.department_name+" - "+abbr
+		if self.company and self.parent_department != "Organizational Structure":
+			abbr = frappe.db.get_value("Company", self.company, "abbr")
+			self.name = self.department_name+" - "+abbr
 
 	def validate_department(self):
 		holidays = frappe.db.sql("""SELECT `name` FROM `tabDepartment`
@@ -129,7 +135,6 @@ def rename_department():
 	excluded_str = "', '".join(excluded_list)
 	excluded_str = "'"+excluded_str+"'"
 
-	frappe.db.sql("""UPDATE `tabDepartment` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` SET TD.`department_name`=TRIM(CONCAT(" - ", TC.abbr) FROM TD.`name`) """)
 	dept_list = frappe.db.sql(""" SELECT TD.`name`, TD.`department_name`, TD.`company`, TC.`abbr` FROM `tabDepartment` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` WHERE TD.`company` IN ({0}) """.format(excluded_str), as_dict=1)
 	for dept in dept_list:
 		rd.rename_doc("Department", dept.name, cstr(dept.department_name)+" - "+cstr(dept.abbr), force=True)
