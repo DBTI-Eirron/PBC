@@ -46,6 +46,12 @@ class CostCenter(NestedSet):
 				self.company = cc.name
 
 @frappe.whitelist()
+def employee_dept_for_company():
+	frappe.db.sql("""UPDATE `tabEmployee` TE 
+		INNER JOIN `tabCompany` C  ON TE.`company`=C.`name`
+		SET TE.`cost_center`=CONCAT(TE.`cost_center`, " - ", C.abbr) WHERE TE.cost_center IS NOT NULL """)
+
+@frappe.whitelist()
 def reset_tree():
 	frappe.db.sql("""UPDATE `tabCost Center` SET lft=NULL, rgt=NULL """)
 
