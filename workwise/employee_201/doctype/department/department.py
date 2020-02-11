@@ -135,7 +135,6 @@ def rename_department():
 	excluded_str = "', '".join(excluded_list)
 	excluded_str = "'"+excluded_str+"'"
 
-	frappe.db.sql("""UPDATE `tabDepartment` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` SET TD.`department_name`=TRIM(CONCAT(" - ", TC.abbr) FROM TD.`name`) """)
 	dept_list = frappe.db.sql(""" SELECT TD.`name`, TD.`department_name`, TD.`company`, TC.`abbr` FROM `tabDepartment` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` WHERE TD.`company` IN ({0}) """.format(excluded_str), as_dict=1)
 	for dept in dept_list:
 		rd.rename_doc("Department", dept.name, cstr(dept.department_name)+" - "+cstr(dept.abbr), force=True)

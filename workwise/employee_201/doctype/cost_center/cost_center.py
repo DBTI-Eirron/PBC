@@ -92,7 +92,6 @@ def rename_cost_center():
 	excluded_str = "', '".join(excluded_list)
 	excluded_str = "'"+excluded_str+"'"
 
-	frappe.db.sql("""UPDATE `tabCost Center` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` SET TD.`cost_center_name`=TRIM(CONCAT(" - ", TC.abbr) FROM TD.`name`) """)
 	dept_list = frappe.db.sql(""" SELECT TD.`name`, TD.`cost_center_name`, TD.`company`, TC.`abbr` FROM `tabCost Center` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` WHERE TD.`company` IN ({0}) """.format(excluded_str), as_dict=1)
 	for dept in dept_list:
 		rd.rename_doc("Cost Center", dept.name, cstr(dept.cost_center_name)+" - "+cstr(dept.abbr), force=True)
@@ -127,3 +126,4 @@ def add_node():
 		args.parent_cost_center = None
 
 	frappe.get_doc(args).insert()
+
