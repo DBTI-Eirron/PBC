@@ -309,7 +309,7 @@
    "read_only": 1, 
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
-   "reqd": 1, 
+   "reqd": 0, 
    "search_index": 0, 
    "set_only_once": 0, 
    "unique": 0
@@ -325,7 +325,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2020-02-03 17:55:35.517764", 
+ "modified": "2020-02-05 15:04:20.908106", 
  "modified_by": "Administrator", 
  "module": "Employee 201", 
  "name": "Cost Center", 

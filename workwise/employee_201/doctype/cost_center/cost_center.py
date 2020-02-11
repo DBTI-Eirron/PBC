@@ -12,8 +12,13 @@ class CostCenter(NestedSet):
 	nsm_parent_field = 'parent_cost_center'
 
 	def validate(self):
+		self.validate_company()
 		self.validate_group()
 		self.update_company()
+
+	def validate_company(self):
+		if not self.company:
+			frappe.throw("Please Create Cost Center in Cost Center Tree.")
 
 	def update_nsm_model(self):
 		frappe.utils.nestedset.update_nsm(self)
@@ -22,8 +27,9 @@ class CostCenter(NestedSet):
 		self.update_nsm_model()
 
 	def autoname(self):
-		abbr = frappe.db.get_value("Company", self.company, "abbr")
-		self.name = self.cost_center_name+" - "+abbr
+		if self.parent_cost_center != 'Cost Center Structure' and self.company:
+			abbr = frappe.db.get_value("Company", self.company, "abbr")
+			self.name = self.cost_center_name+" - "+abbr
 
 	def on_trash(self):
 		self.update_nsm_model()
@@ -38,23 +44,34 @@ class CostCenter(NestedSet):
 		for cc in cc_dict:
 			if cc.lft <= self.lft and cc.rgt >= self.rgt:
 				self.company = cc.name
-		# direct = []
-		# child = []
-		# for cc in cc_dict:
-		# 	if cc.parent == "Cost Center Structure":
-		# 		direct.append({"name":cc.name,"lft":cc.lft,"rgt":cc.rgt})
-		# 	elif cc.parent is not None:
-		# 		child.append({"name":cc.name,"lft":cc.lft,"rgt":cc.rgt})
 
-		# for cost in child:
-		# 	for center in direct:
-		# 		if center.lft <= cost.lft and center.rgt >= cost.rgt:
-		# 			frappe.db.sql("""""")
+@frappe.whitelist()
+def reset_tree():
+	frappe.db.sql("""UPDATE `tabCost Center` SET lft=NULL, rgt=NULL """)
 
 @frappe.whitelist()
 def create_root():
-	frappe.db.sql("""INSERT INTO `tabCost Center` (cost_center_name, modified_by, owner, creation, modified, `name`, parent_cost_center, lft, rgt) 
-		VALUES ('Cost Center Structure','Administrator','Administrator',NOW(),NOW(),'Cost Center Structure','', 1, 2) """)
+	cost_center_root = frappe.db.sql("""SELECT `name` FROM `tabCost Center` WHERE `name`='Cost Center Structure' """, as_list=True)
+	if cost_center_root:
+		frappe.db.sql("""DELETE FROM `tabCost Center` WHERE `name` = 'Cost Center Structure' """)
+
+	frappe.db.sql("""INSERT INTO `tabCost Center` (cost_center_name, modified_by, owner, creation, modified, `name`, parent_cost_center, lft, rgt, is_root) 
+		VALUES ('Cost Center Structure','Administrator','Administrator',NOW(),NOW(),'Cost Center Structure','', 1, 2, 1) """)
+
+@frappe.whitelist()
+def create_root_entries():
+	company = frappe.db.sql("""SELECT `name` FROM `tabCompany` """, as_dict=True)
+	cost_center = frappe.db.sql("""SELECT `name` FROM `tabCost Center` """, as_list=True)
+	for com in company:
+		frappe.db.sql("""DELETE FROM `tabCost Center` WHERE `name` = '{0}' """.format(com.name))
+
+		if com not in cost_center:
+			frappe.db.sql("""INSERT INTO `tabCost Center` (cost_center_name, modified_by, owner, creation, modified, `name`, parent_cost_center, is_root, is_group) 
+				VALUES ('{0}', 'Administrator', 'Administrator', NOW(), NOW(), '{0}','Cost Center Structure', 1, 1) """.format(com.name))
+
+@frappe.whitelist()
+def set_default_parent():
+	frappe.db.sql("""UPDATE `tabCost Center` SET parent_cost_center='Cost Center Structure' WHERE parent_cost_center IS NULL """)
 
 @frappe.whitelist()
 def company_as_parent_cost_center():
@@ -65,7 +82,23 @@ def parent_cost_center_as_company():
 	frappe.db.sql("""UPDATE `tabCost Center` SET company=parent_cost_center WHERE parent_cost_center IN (SELECT `name` FROM `tabCompany`) """)
 
 @frappe.whitelist()
-def rebuild_costcenter_tree():
+def rename_cost_center():
+	import frappe.model.rename_doc as rd
+
+	company = frappe.db.sql("""SELECT `name` FROM `tabCompany` """, as_dict=True)
+	excluded_list = ['Cost Center Structure', 'Cost Center Tree']
+	for com in company:
+		excluded_list.append(cstr(com.name))
+	excluded_str = "', '".join(excluded_list)
+	excluded_str = "'"+excluded_str+"'"
+
+	frappe.db.sql("""UPDATE `tabCost Center` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` SET TD.`cost_center_name`=TRIM(CONCAT(" - ", TC.abbr) FROM TD.`name`) """)
+	dept_list = frappe.db.sql(""" SELECT TD.`name`, TD.`cost_center_name`, TD.`company`, TC.`abbr` FROM `tabCost Center` TD LEFT JOIN `tabCompany` TC ON TD.`company`=TC.`name` WHERE TD.`company` IN ({0}) """.format(excluded_str), as_dict=1)
+	for dept in dept_list:
+		rd.rename_doc("Cost Center", dept.name, cstr(dept.cost_center_name)+" - "+cstr(dept.abbr), force=True)
+
+@frappe.whitelist()
+def rebuild_cost_center_tree():
 	rebuild_tree("Cost Center", "parent_cost_center")
 
 @frappe.whitelist()

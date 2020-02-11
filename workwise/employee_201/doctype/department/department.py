@@ -14,6 +14,11 @@ class Department(NestedSet):
 	def validate(self):
 		self.validate_group()
 		self.validate_department()
+		self.validate_company()
+
+	def validate_company(self):
+		if not self.company:
+			frappe.throw("Please Create Cost Center in Cost Center Tree.")
 
 	def update_nsm_model(self):
 		frappe.utils.nestedset.update_nsm(self)
@@ -30,8 +35,9 @@ class Department(NestedSet):
 				frappe.throw("Parent Department is Required if not group")
 
 	def autoname(self):
-		abbr = frappe.db.get_value("Company", self.company, "abbr")
-		self.name = self.department_name+" - "+abbr
+		if self.company and self.parent_department != "Organizational Structure":
+			abbr = frappe.db.get_value("Company", self.company, "abbr")
+			self.name = self.department_name+" - "+abbr
 
 	def validate_department(self):
 		holidays = frappe.db.sql("""SELECT `name` FROM `tabDepartment`
