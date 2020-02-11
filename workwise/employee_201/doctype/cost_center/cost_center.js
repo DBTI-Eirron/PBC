@@ -7,6 +7,14 @@ frappe.ui.form.on('Cost Center', {
 		frm.add_custom_button(__("Cost Center Tree"), function() {
 			frappe.set_route("Tree", "Cost Center");
 		});
+
+		cur_frm.set_query("parent_cost_center", function() {
+		return {
+			"filters": [
+				['Cost Center', 'name', '!=', 'Cost Center Structure']
+				]
+			};
+		});
 	},
 
 	set_root_readonly: function(frm) {
@@ -17,3 +25,5 @@ frappe.ui.form.on('Cost Center', {
 		}
 	},
 });
+
+
