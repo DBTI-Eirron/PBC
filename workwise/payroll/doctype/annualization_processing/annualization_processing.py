@@ -26,7 +26,8 @@ class AnnualizationProcessing(Document):
 		return self.create_log(ss_list)
 
 	def get_employee(self, from_year, to_year):
-		employees = frappe.db.sql("""select `name`, tin, full_name, company, tin, date_hired, date_retired, date_resigned, date_terminated, sensitivity from tabEmployee WHERE company = %(company)s AND payroll_schedule = %(schedule)s {conditions} 
+		employees = frappe.db.sql("""select `name`, tin, full_name, company, tin, date_hired, date_retired, date_resigned, date_terminated, sensitivity from tabEmployee WHERE company = %(company)s 
+			AND payroll_schedule = %(schedule)s AND date_hired < %(to_year)s {conditions} 
 			ORDER BY full_name ASC """.format( conditions=self.get_employee_conditions() ),
 				({ 
 					"company": self.company,
