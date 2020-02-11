@@ -241,6 +241,7 @@ class PayrollProcessing(Document):
 							pr.append("payroll_register_entries", {
 								"pay_type": tr_map[d.get('pay_code')]['type'],
 								"pay_code": d.get('pay_code'),
+								"pay_time": d.get('pay_time'),
 								"pay_description": tr_map[d.get('pay_code')]['title'],	
 								"entry_type": tr_map[d.get('pay_code')]['entry_type'],
 								"amount": d.get('amount'),
