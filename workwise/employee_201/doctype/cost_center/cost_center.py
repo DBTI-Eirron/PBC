@@ -4,7 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe
-from frappe.utils import cint, validate_email_add
+from frappe.utils import cint, validate_email_add, cstr
 from frappe import throw, _
 from frappe.utils.nestedset import NestedSet, rebuild_tree
 
@@ -132,4 +132,3 @@ def add_node():
 		args.parent_cost_center = None
 
 	frappe.get_doc(args).insert()
-
