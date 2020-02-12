@@ -202,8 +202,9 @@ def get_work(entry):
 			entry['work'] = entry['work'] / 2
 
 	if entry.get('ob_stat') > 1:
-		entry['work'] = (entry.get('work_hours') * 60) * 60
-		entry['work'] = entry['work'] / 2
+		if not entry["lv_status"]:
+			entry['work'] = (entry.get('work_hours') * 60) * 60
+			entry['work'] = entry['work'] / 2
 
 	if (not entry.get('is_restday') or not entry.get('is_holiday')) and entry["lv_status"] == 1 and not entry['is_lwop'] and not entry['card_in'] and not entry['card_out']:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
@@ -632,11 +633,13 @@ def get_undertime(entry):
 				else:
 					if entry.get('ob_out') < entry.get('time_out'): #if OB is wholeday
 						entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
-	
+
+	if entry.get('lv_status') == 3 or entry.get('ob_status') == 3:
+		entry['undertime'] = 0
 
 	if entry.get('ut_interval'):
 		entry['undertime'] = (entry.get('ut_interval') * 60) * int( entry.get('undertime') / (entry.get('ut_interval') * 60))
-
+	
 	return entry
 
 def get_cto(entry, cto):
