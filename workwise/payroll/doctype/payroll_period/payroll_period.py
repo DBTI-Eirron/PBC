@@ -143,11 +143,13 @@ class PayrollPeriod(Document):
 						if d.pay_type == "Income":
 							ps.append("payslip_incomes", {
 								"description": d.pay_description,
+								"pay_time": d.pay_time,
 								"amount": d.amount,
 							})
 						elif d.pay_type == "Deduction":
 							ps.append("payslip_deductions", {
 								"description": d.pay_description,
+								"pay_time": d.pay_time,
 								"amount": d.amount,
 							})
 
