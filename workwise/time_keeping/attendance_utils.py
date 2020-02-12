@@ -1050,11 +1050,13 @@ def get_final_processing(entry):
 		entry["overtime"] = 0
 		entry["overtime_nd"] = 0
 		entry["overtime_ex"] = 0
+		entry["ot_list"] = []
 
 	if not entry.get('card_out') and entry.get('strict_otcard_out'):
 		entry["overtime"] = 0
 		entry["overtime_nd"] = 0
 		entry["overtime_ex"] = 0
+		entry["ot_list"] = []
 
 	return entry
 
