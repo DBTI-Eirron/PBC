@@ -74,6 +74,10 @@ class Employee(Document):
 			us = frappe.get_doc("User", self.user_id)
 			us.update({ "enabled": 0, })
 			us.save()
+		elif self.user_id and self.is_active:
+			us = frappe.get_doc("User", self.user_id)
+			us.update({ "enabled": 1, })
+			us.save()
 			
 	def on_update(self):
 		if self.user_id:
