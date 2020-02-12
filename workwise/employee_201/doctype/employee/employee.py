@@ -387,3 +387,17 @@ class Employee(Document):
 		for emp in emp_list:
 			result.append(user_list[emp])
 		return result
+
+@frappe.whitelist()
+def update_user():
+	employees = frappe.db.sql("""SELECT user_id, is_active FROM `tabEmployee`""",as_dict=True)
+	for emp in employees:
+		if emp.user_id and not emp.is_active:
+			us = frappe.get_doc("User", emp.user_id)
+			us.update({ "enabled": 0, })
+			us.save()
+		elif emp.user_id and emp.is_active:
+			us = frappe.get_doc("User", emp.user_id)
+			us.update({ "enabled": 1, })
+			us.save()
+
