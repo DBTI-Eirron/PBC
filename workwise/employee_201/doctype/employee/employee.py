@@ -74,6 +74,10 @@ class Employee(Document):
 			us = frappe.get_doc("User", self.user_id)
 			us.update({ "enabled": 0, })
 			us.save()
+		elif self.user_id and self.is_active:
+			us = frappe.get_doc("User", self.user_id)
+			us.update({ "enabled": 1, })
+			us.save()
 			
 	def on_update(self):
 		if self.user_id:
@@ -383,3 +387,17 @@ class Employee(Document):
 		for emp in emp_list:
 			result.append(user_list[emp])
 		return result
+
+@frappe.whitelist()
+def update_user():
+	employees = frappe.db.sql("""SELECT user_id, is_active FROM `tabEmployee`""",as_dict=True)
+	for emp in employees:
+		if emp.user_id and not emp.is_active:
+			us = frappe.get_doc("User", emp.user_id)
+			us.update({ "enabled": 0, })
+			us.save()
+		elif emp.user_id and emp.is_active:
+			us = frappe.get_doc("User", emp.user_id)
+			us.update({ "enabled": 1, })
+			us.save()
+

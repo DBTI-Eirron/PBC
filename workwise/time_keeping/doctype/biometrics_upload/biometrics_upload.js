@@ -8,6 +8,13 @@ erpnext.hr.Coriolis = frappe.ui.form.Controller.extend({
 		this.show_upload();
 	},
 
+	get_template:function() {
+		window.location.href = repl(frappe.request.url + 
+			'?cmd=%(cmd)s', {
+				cmd: 'workwise.time_keeping.doctype.biometrics_upload.biometrics_upload.get_template',
+			});
+	},	
+
 	show_upload: function() {
 		var me = this;
 		var $wrapper = $(cur_frm.fields_dict.upload_html.wrapper).empty();

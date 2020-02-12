@@ -270,7 +270,7 @@ def get_overtime(entry, ot_apps):
 							ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
 
 				#Always follow whichever is lower between card_out and ot_out
-				if entry.get('card_in') and entry.get('card_out') and entry.get('strict_otcard'):
+				if entry.get('card_in') and entry.get('card_out') and entry.get('otout_as_cardout'):
 					if ot_in < entry.get('time_in'):
 						if entry.get('ob_in') and entry.get('ob_in') < entry.get('card_in'):
 							ot_in = entry.get('ob_in')
@@ -814,12 +814,14 @@ def get_flexible(entry, obs):
 					if flex_start > ( flex + datetime.timedelta(minutes=entry.get('grace'))):
 						if entry['graceperiod_late']:
 							entry['late'] = ( flex_start - (flex + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+							flex_start = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
 						else:
 							entry['late'] = ( flex_start - flex ).total_seconds()
+							flex_start = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
 				
 				#always reduce break mins
 				diff = abs( (flex_start - flex_end).total_seconds())  - (entry.get('break_mins') * 60) + flex_ob_time
-				
+
 				#Get Undertime
 				if entry.get('lv_status') > 1:
 					diff += (entry.get('worker_secs') / 2)
@@ -834,6 +836,16 @@ def get_flexible(entry, obs):
 					
 					entry['undertime'] = ut
 					entry['work'] = entry.get('worker_secs') - ut
+
+				if entry.get('lv_status') == 2:
+					lv = (entry.get('worker_secs') / 2)
+					entry['work'] -= lv
+					entry['late'] = 0
+
+				if entry.get('lv_status') == 3:
+					lv = (entry.get('worker_secs') / 2)
+					entry['work'] -= lv
+					entry['undertime'] = 0
 		else:
 			#if no card in card out get OB hrs
 			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
@@ -1033,6 +1045,16 @@ def get_final_processing(entry):
 		entry["is_absent"] = 0
 		entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 		entry["undertime"] = 0
+
+	if not entry.get('card_in') and entry.get('strict_otcard_in'):
+		entry["overtime"] = 0
+		entry["overtime_nd"] = 0
+		entry["overtime_ex"] = 0
+
+	if not entry.get('card_out') and entry.get('strict_otcard_out'):
+		entry["overtime"] = 0
+		entry["overtime_nd"] = 0
+		entry["overtime_ex"] = 0
 
 	return entry
 
@@ -1720,7 +1742,9 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"max_holiday_ot": flt(frappe.db.get_single_value('Timekeeping Settings', 'max_holiday_ot'), 8),
 		"late_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'late_interval'), 8),
 		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
-		"strict_otcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard'), 8),
+		"otout_as_cardout": flt(frappe.db.get_single_value('Timekeeping Settings', 'otout_as_cardout'), 8),
+		"strict_otcard_in": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard_in'), 8),
+		"strict_otcard_out": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard_out'), 8),
 		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
 		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho'),
 		"at_work_rdho": frappe.db.get_single_value('Timekeeping Settings', 'at_work_rdho'),
