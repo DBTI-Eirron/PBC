@@ -1017,6 +1017,7 @@ class PayrollProcessing(Document):
 						amt = rec.amount
 					
 					if rec.method == "Present Days":
+						amt = rec.amount
 						amt = flt(amt * header.get('present_days'), 8)
 
 					elif rec.method == "Actual Present Days":
@@ -1028,8 +1029,19 @@ class PayrollProcessing(Document):
 							amt = 0
 
 					elif rec.method == 'Work Days':
+						amt = rec.amount
 						amt = flt(amt * header.get('work_days'), 8)
-		
+
+					elif rec.method == 'Standard':
+						div = flt(header.get("no_weeks"))
+						if rec.frequency == 'Both':
+							div = 2
+
+						if amt > 0:
+							amt = rec.amount
+
+						amt = flt(amt / div, 8)
+						
 					elif rec.method == 'Deduct Absent':
 						hourly_rate = self.get_hourly_rate_base(amt, emp)
 						
@@ -1039,7 +1051,6 @@ class PayrollProcessing(Document):
 							absent_days = header.get('absent_days')
 
 						amt = (amt - (( absent_days * emp.get('no_hours') ) * hourly_rate * 2))
-
 
 					elif rec.method == 'Deduct Absent Actual':
 						if header.get('work_days') > 0 and emp.get('no_hours') > 0:
