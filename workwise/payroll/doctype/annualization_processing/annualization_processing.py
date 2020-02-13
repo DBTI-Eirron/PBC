@@ -13,6 +13,7 @@ from workwise.payroll.payroll_utils import get_transaction_map
 class AnnualizationProcessing(Document):
 	def process_annualization(self):
 		ss_list = []
+		processed = 0
 		self.validate_filters()
 		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
 
@@ -21,12 +22,15 @@ class AnnualizationProcessing(Document):
 		previous_bir = self.get_previous_bir(from_year, to_year)
 		lastpay = self.get_lastpay(from_year, to_year)
 
-		self.create_entries(employees, registers, previous_bir, lastpay, from_year, to_year)	
+		self.create_entries(employees, registers, previous_bir, lastpay, from_year, to_year, processed)	
 
-		return self.create_log(ss_list)
+		if employees:
+			processed = 1
+
+		return self.create_log(ss_list, processed)
 
 	def get_employee(self, from_year, to_year):
-		employees = frappe.db.sql("""select `name`, tin, full_name, company, tin, date_hired, date_retired, date_resigned, date_terminated, sensitivity from tabEmployee WHERE company = %(company)s 
+		employees = frappe.db.sql("""select `name`, tin, full_name, company, tin, date_hired, date_retired, date_resigned, date_terminated, date_contract_ended, sensitivity from tabEmployee WHERE company = %(company)s 
 			AND payroll_schedule = %(schedule)s AND date_hired < %(to_year)s {conditions} 
 			ORDER BY full_name ASC """.format( conditions=self.get_employee_conditions() ),
 				({ 
@@ -320,7 +324,7 @@ class AnnualizationProcessing(Document):
 						if btype == "TAX":
 							emp_map[lp.employee].tax_withheld += -(lp.amount) if _type == "Add" else lp.amount 
 
-	def create_entries(self, employees, registers, previous_bir, lastpay, from_year, to_year):
+	def create_entries(self, employees, registers, previous_bir, lastpay, from_year, to_year, processed):
 		emp_map = self.get_employee_map(employees)
 		self.get_employee_wise_register(registers, previous_bir, lastpay, emp_map)
 
@@ -329,13 +333,14 @@ class AnnualizationProcessing(Document):
 			ntax_benefits, tax_benefits, tax_due, adj_tax = 0, 0, 0, 0
 			ntax_total, amt_withheld, over_withheld = 0, 0, 0
 			exclude = 0
+			last_date_list = []
 
 			emp_dict.from_date = getdate(from_year)
 			emp_dict.to_date = getdate(to_year)
 			if getdate(emp_dict.date_hired) > getdate(from_year):
 				emp_dict.from_date = getdate(emp_dict.date_hired)
 
-			if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired:
+			if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired or emp_dict.date_contract_ended:
 				if getdate(emp_dict.date_terminated) <= getdate(to_year):
 					emp_dict.is_terminated = 1
 					emp_dict.to_date = getdate(emp_dict.date_terminated)
@@ -349,7 +354,7 @@ class AnnualizationProcessing(Document):
 					emp_dict.is_terminated = 1
 					emp_dict.to_date = getdate(emp_dict.date_retired)					
 			
-			if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired:
+			if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired or emp_dict.date_contract_ended:
 				if getdate(emp_dict.date_terminated) <= getdate(from_year):
 					exclude = 1
 				if getdate(emp_dict.date_resigned) <= getdate(from_year):
@@ -460,6 +465,7 @@ class AnnualizationProcessing(Document):
 					"date_terminated": emp.date_terminated,
 					"date_resigned": emp.date_resigned,
 					"date_retired": emp.date_retired,
+					"date_contract_ended": emp.date_contract_ended,
 					#STATUS
 					"with_previous": 0,
 					"is_terminated": 0,
@@ -605,8 +611,8 @@ class AnnualizationProcessing(Document):
 					emp_map[reg.employee].nt_other += reg.daily_rate * (credits)
 				included_employee.append(reg.employee)
 
-	def create_log(self, ss_list):
+	def create_log(self, ss_list, processed):
 		log = "<p>" + _("No Annualization Registers Created") + "</p>"
-		if ss_list:
+		if processed > 0:
 			log = "<p>" + _("Annualization Registers Created") + "</p>"
 		return log
