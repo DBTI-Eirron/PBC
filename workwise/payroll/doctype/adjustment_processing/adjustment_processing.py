@@ -419,15 +419,6 @@ class AdjustmentProcessing(Document):
 							pho_days += 1
 
 					if at.get('is_holiday') == 1 and is_uho == 1 and (not at.get('is_ob')) and not at.get('is_restday'):
-						if emp.get("rate_type") == "Daily Rate" and at.get('is_absent'):
-							#if Daily Rate is Absent on Holiday should not have Unpaid Holiday
-							unpaid_holiday += 0
-						else:
-							unpaid_holiday += at.get('work_hours') * flt(rates.get('hourly_rate'), 8)
-							if header.get('uho_ab_days') == 1:
-								absent_days += 1
-
-					if at.get('is_holiday') == 1 and is_uho == 1 and (not at.get('is_ob')) and not at.get('is_restday'):
 						#if present not UHO
 						if emp.get("rate_type") != "Daily Rate":
 							if at.get('work') and (not at.get('is_lwop')) and (not at.get('absent')) and (not at.get('is_restday')) and (not at.get('is_halfday')):
