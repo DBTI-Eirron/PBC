@@ -135,7 +135,7 @@ def get_headers(filters, data):
 	tax_id = frappe.db.get_value("Company", filters.company, "tax_id")
 
 	data.append({
-		"1": "<b> BIR FORM 1604CF - SCHEDULE 7.3 </b>",
+		"1": "<b> BIR FORM 1604CF - SCHEDULE 7.4 </b>",
 	})
 
 	data.append({
@@ -301,181 +301,181 @@ def get_columns(filters):
 	columns = [
 		{
 			"fieldname": "1",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 150
 		},
 		{
 			"fieldname": "2",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "3",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 200
 		},
 		{
 			"fieldname": "4a",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4b",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4c",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4d",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4e",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4f",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4g",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4h",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4i",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4j",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4k",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4l",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4m",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4n",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4o",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4p",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4q",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4r",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4s",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4t",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "7",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "5",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "6a",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "6b",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "7a",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "7b",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "8",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},

@@ -82,139 +82,139 @@ def get_columns(filters):
 	columns = [
 		{
 			"fieldname": "1",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 150
 		},
 		{
 			"fieldname": "2",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "3",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 200
 		},
 		{
 			"fieldname": "4a",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4b",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4c",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4d",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4e",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4f",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4g",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4h",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4i",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "4j",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "5a",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "5b",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "6a",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "5",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "6b",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "7",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "8a",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "8b",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "9",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
 			"fieldname": "10",
-			"label": _(""),
+			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
