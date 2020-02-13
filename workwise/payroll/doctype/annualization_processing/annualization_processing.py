@@ -13,7 +13,6 @@ from workwise.payroll.payroll_utils import get_transaction_map
 class AnnualizationProcessing(Document):
 	def process_annualization(self):
 		ss_list = []
-		processed = 0
 		self.validate_filters()
 		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
 
@@ -22,9 +21,9 @@ class AnnualizationProcessing(Document):
 		previous_bir = self.get_previous_bir(from_year, to_year)
 		lastpay = self.get_lastpay(from_year, to_year)
 
-		self.create_entries(employees, registers, previous_bir, lastpay, from_year, to_year, processed)	
+		self.create_entries(employees, registers, previous_bir, lastpay, from_year, to_year, ss_list)
 
-		return self.create_log(ss_list, processed)
+		return self.create_log(ss_list)
 
 	def get_employee(self, from_year, to_year):
 		employees = frappe.db.sql("""select `name`, tin, full_name, company, tin, date_hired, date_retired, date_resigned, date_terminated, date_contract_ended, sensitivity from tabEmployee WHERE company = %(company)s 
@@ -321,7 +320,7 @@ class AnnualizationProcessing(Document):
 						if btype == "TAX":
 							emp_map[lp.employee].tax_withheld += -(lp.amount) if _type == "Add" else lp.amount 
 
-	def create_entries(self, employees, registers, previous_bir, lastpay, from_year, to_year, processed):
+	def create_entries(self, employees, registers, previous_bir, lastpay, from_year, to_year, ss_list):
 		emp_map = self.get_employee_map(employees)
 		self.get_employee_wise_register(registers, previous_bir, lastpay, emp_map)
 
@@ -444,7 +443,7 @@ class AnnualizationProcessing(Document):
 				register = frappe.new_doc("Annualization Register")
 				register.update(emp_dict)
 				register.insert()
-				processed = 1
+				ss_list.append( cstr(register.employee)+": "+cstr(register.employee_name) )
 
 	def get_employee_map(self, employees):
 		emp_map = frappe._dict()
@@ -609,8 +608,11 @@ class AnnualizationProcessing(Document):
 					emp_map[reg.employee].nt_other += reg.daily_rate * (credits)
 				included_employee.append(reg.employee)
 
-	def create_log(self, ss_list, processed):
+	def create_log(self, ss_list):
 		log = "<p>" + _("No Annualization Registers Created") + "</p>"
-		if int(processed) > 0:
+		if ss_list:
 			log = "<p>" + _("Annualization Registers Created") + "</p>"
+			log_list = '<br>'.join(ss_list)
+			log += log_list
+
 		return log
