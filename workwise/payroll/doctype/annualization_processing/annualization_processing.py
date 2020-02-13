@@ -24,9 +24,6 @@ class AnnualizationProcessing(Document):
 
 		self.create_entries(employees, registers, previous_bir, lastpay, from_year, to_year, processed)	
 
-		if employees:
-			processed = 1
-
 		return self.create_log(ss_list, processed)
 
 	def get_employee(self, from_year, to_year):
@@ -447,6 +444,7 @@ class AnnualizationProcessing(Document):
 				register = frappe.new_doc("Annualization Register")
 				register.update(emp_dict)
 				register.insert()
+				processed = 1
 
 	def get_employee_map(self, employees):
 		emp_map = frappe._dict()
@@ -613,6 +611,6 @@ class AnnualizationProcessing(Document):
 
 	def create_log(self, ss_list, processed):
 		log = "<p>" + _("No Annualization Registers Created") + "</p>"
-		if processed > 0:
+		if int(processed) > 0:
 			log = "<p>" + _("Annualization Registers Created") + "</p>"
 		return log
