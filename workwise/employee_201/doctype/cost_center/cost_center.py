@@ -15,6 +15,7 @@ class CostCenter(NestedSet):
 		self.validate_company()
 		self.validate_group()
 		self.update_company()
+		rebuild_tree("Cost Center", "parent_cost_center")
 
 	def validate_company(self):
 		if not self.company:
@@ -24,7 +25,7 @@ class CostCenter(NestedSet):
 		frappe.utils.nestedset.update_nsm(self)
 
 	def on_update(self):
-		self.update_nsm_model()
+		rebuild_tree("Cost Center", "parent_cost_center")
 
 	def autoname(self):
 		if self.parent_cost_center != 'Cost Center Structure' and self.company:
@@ -32,7 +33,7 @@ class CostCenter(NestedSet):
 			self.name = self.cost_center_name+" - "+abbr
 
 	def on_trash(self):
-		self.update_nsm_model()
+		rebuild_tree("Cost Center", "parent_cost_center")
 
 	def validate_group(self):
 		if not self.is_group:
