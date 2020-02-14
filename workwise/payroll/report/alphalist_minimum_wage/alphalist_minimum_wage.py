@@ -139,7 +139,7 @@ def get_headers(filters, data):
 	})
 
 	data.append({
-		"1": "<b> ALPHALIST OF EMPLOYEES AS OF DECEMBER 31 WITH NO PREVIOUS EMPLOYER WITHIN THE YEAR </b>",
+		"1": "<b> ALPHALIST OF MINIMUM WAGE EARNERS </b>",
 	})	
 
 	data.append({
