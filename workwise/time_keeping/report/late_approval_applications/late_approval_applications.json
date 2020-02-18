@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-09-20 13:11:23.117965", 
+ "modified": "2019-10-11 15:44:29.402893", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Late Approval Applications", 
@@ -17,31 +17,7 @@
  "report_type": "Script Report", 
  "roles": [
   {
-   "role": "HR Manager"
-  }, 
-  {
-   "role": "Payroll Manager"
-  }, 
-  {
    "role": "Time Keeping Manager"
-  }, 
-  {
-   "role": "Rank and File"
-  }, 
-  {
-   "role": "Manager"
-  }, 
-  {
-   "role": "Officer"
-  }, 
-  {
-   "role": "Approver"
-  }, 
-  {
-   "role": "System Manager"
-  }, 
-  {
-   "role": "HR Comp Ben"
   }
  ]
 }

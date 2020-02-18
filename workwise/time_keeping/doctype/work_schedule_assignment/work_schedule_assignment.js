@@ -5,8 +5,9 @@ frappe.ui.form.on('Work Schedule Assignment', {
 	refresh: function(frm){
 		frm.disable_save();
 		frm.add_fetch("employee", "full_name", "employee_name")
+		frm.trigger("default");
+		frm.trigger("get_company");
 	},
-
 	onload_post_render: function() {
 		cur_frm.get_field("employees").grid.set_multiple_add("employee");
 	},
@@ -79,6 +80,35 @@ frappe.ui.form.on('Work Schedule Assignment', {
 				}
 			});
 		} 
+	},
+	default: function(frm) {
+		return frappe.call({
+		method: "set_default",
+		doc: frm.doc,
+		callback: function(r) {
+			if(r.message == "1")
+			{	cur_frm.set_value("assignment", "Single");
+				cur_frm.set_df_property("assignment", "hidden", 1);
+			}
+			frm.refresh_fields();
+		}
+		});
+	
+	},
+
+	get_company: function(frm) {
+		return frappe.call({
+		method: "get_company",
+		doc: frm.doc,
+		callback: function(r) {
+			if(r.message == "1")
+			{	
+				cur_frm.set_df_property("filter_company", "hidden", 1);
+			}
+			frm.refresh_fields();
+		}
+		});
+	
 	},
 
 	clear_tables: function(frm) {

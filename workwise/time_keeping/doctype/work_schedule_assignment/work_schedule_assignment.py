@@ -146,7 +146,7 @@ class WorkScheduleAssignment(Document):
 			sched_map = self.get_sched_template()
 
 		if len(unique_emp) == 1:
-			self.assignment = "Single"
+			#self.assignment = "Single"
 			self.set('single_employee', [])
 			for em in unique_emp:
 				for dt in date_list:
@@ -166,7 +166,7 @@ class WorkScheduleAssignment(Document):
 					"new_shift": None,
 				})
 		else:
-			self.assignment = "Multiple"
+			#self.assignment = "Multiple"
 			for em in unique_emp:
 				employee_list.append({
 					"employee": unique_emp[em]['employee'],
@@ -288,3 +288,14 @@ class WorkScheduleAssignment(Document):
 
 		assignment_logs.flags.ignore_permissions = True
 		assignment_logs.save()
+
+	def set_default(self):
+		self_scheduling = frappe.db.get_single_value('Timekeeping Settings', 'wsa_disable_multiple')
+
+		return self_scheduling
+
+
+	def get_company(self):
+		get_company = frappe.db.get_single_value('Timekeeping Settings', 'wsa_disable_company')
+		
+		return get_company
