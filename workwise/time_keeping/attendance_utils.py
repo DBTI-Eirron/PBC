@@ -1049,13 +1049,7 @@ def get_final_processing(entry):
 		entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 		entry["undertime"] = 0
 
-	if not entry.get('card_in') and entry.get('strict_otcard_in'):
-		entry["overtime"] = 0
-		entry["overtime_nd"] = 0
-		entry["overtime_ex"] = 0
-		entry["ot_list"] = []
-
-	if not entry.get('card_out') and entry.get('strict_otcard_out'):
+	if (not entry.get('card_in') or not entry.get('card_out')) and not entry.get('disable_ot_strict_logs') and not entry.get('ob_status'):
 		entry["overtime"] = 0
 		entry["overtime_nd"] = 0
 		entry["overtime_ex"] = 0
@@ -1748,8 +1742,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"late_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'late_interval'), 8),
 		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
 		"otout_as_cardout": flt(frappe.db.get_single_value('Timekeeping Settings', 'otout_as_cardout'), 8),
-		"strict_otcard_in": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard_in'), 8),
-		"strict_otcard_out": flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_otcard_out'), 8),
+		"disable_ot_strict_logs": flt(frappe.db.get_single_value('Timekeeping Settings', 'disable_ot_strict_logs'), 8),
 		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
 		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho'),
 		"at_work_rdho": frappe.db.get_single_value('Timekeeping Settings', 'at_work_rdho'),
