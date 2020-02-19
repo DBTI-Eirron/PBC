@@ -21,11 +21,20 @@ def execute(filters=None):
 	else:
 		income_map = get_income_map(filters, employee_list)
 		deduction_map = get_deduction_map(filters, employee_list)
-
 		data = []
 		dtotal_income, dtotal_deduction, dtotal_payroll = 0.00, 0.00, 0.00
 		income_total, deduction_total = [], []
 		total_present = 0
+		if filters.include_header:
+			data.append(["<b>"+filters.company+"</b>"])
+			data.append(["<b>"+filters.payroll_period+"</b>"])
+			if filters.location:
+				data.append(["<b>"+filters.location+"</b>"])
+			data.append({})
+			header = []
+			for col in columns:
+				header.append(col['fieldlabel'])
+			data.append(header)
 
 		for income in income_types:
 			income_total.append(0)
@@ -34,6 +43,7 @@ def execute(filters=None):
 			deduction_total.append(0)
 
 		for emp in employee_list:
+			totals={}
 			# rates = get_rates(emp)
 			# period_type = frappe.get_value('Payroll Period', filters.payroll_period, 'schedule')
 			# if period_type == 'Weekly':
@@ -57,6 +67,10 @@ def execute(filters=None):
 					total_income += flt(income_amount, 8)
 					income_total[i] += flt(income_amount, 8)
 					row.append(format_precision(income_amount, filters.value_precision))
+					if income not in totals:
+						totals[income] = 0
+					totals[income] += flt(income_amount, 8)
+
 					i += 1
 
 				total_deduction = 0.00
@@ -66,6 +80,9 @@ def execute(filters=None):
 					total_deduction += flt(deduction_amount, 8)
 					deduction_total[i] += flt(deduction_amount, 8)
 					row.append(format_precision(deduction_amount, filters.value_precision))
+					if deduction not in totals:
+						totals[deduction] = 0
+					totals[deduction] += flt(deduction_amount, 8)
 					i += 1
 
 				total_payroll = flt(total_income, 8) - flt(total_deduction, 8)
@@ -76,43 +93,25 @@ def execute(filters=None):
 				dtotal_deduction += total_deduction
 				dtotal_payroll += total_payroll
 				data.append(row)
+
 		total_row = ["<b> Total</b>","",total_present]
-		if filters.hide_zero:
-			i = 0
-			for income in income_types:
-				if income_total[i] > 0:
-					total_row.append(format_precision(income_total[i], filters.value_precision))
-					i += 1
-				else:
-					del columns[i+3]
-					del income_total[i]
-					for d in data:
-						del d[i+3]
-						
-			inlen = i
-			i = 0
-			for deduction in deduction_types:
-				if deduction_total[i] > 0:
-					total_row.append(format_precision(deduction_total[i], filters.value_precision))
-					i += 1
-				else:
-					del columns[i+inlen+3]
-					del deduction_total[i]
-					for d in data:
-						del d[i+inlen+3]
-		else:
-			i = 0
-			for income in income_types:
-				total_row.append(format_precision(income_total[i], filters.value_precision))
-				i += 1
+		i = 0
+		for income in income_types:
+			total_row.append(format_precision(income_total[i], filters.value_precision))
+			i += 1
 
-			i = 0
-			for deduction in deduction_types:
-				total_row.append(format_precision(deduction_total[i], filters.value_precision))
-				i += 1
-
+		i = 0
+		for deduction in deduction_types:
+			total_row.append(format_precision(deduction_total[i], filters.value_precision))
+			i += 1
 		total_row += [format_precision(dtotal_income, filters.value_precision), format_precision(dtotal_deduction, filters.value_precision), format_precision(dtotal_payroll, filters.value_precision)]
 		data.append(total_row)
+
+		if filters.hide_zero:
+			for col in columns:
+				if col['fieldname'] not in ["employee", "employee_name", "present_days", "total_income", "total_deduction", "total_payroll"]:
+					if totals[col['fieldname']] <= 0:
+						col['hidden'] = 1
 
 	return columns, data
 
@@ -131,22 +130,28 @@ def get_columns(filters,employee_list):
 	columns = [
 		{
 			"fieldname": "employee",
-			"label": _("Employee"),
+			"label": _("Employee" if not filters.include_header else ""),
 			"fieldtype": "Link",
 			"options": "Employee",
-			"width": 100
+			"width": 200 if filters.include_header else 120,
+			"fieldlabel": "Employee",
+			"hidden": 0
 		},
 		{
 			"fieldname": "employee_name",
-			"label": _("Employee Name"),
+			"label": _("Employee Name" if not filters.include_header else ""),
 			"fieldtype": "Data",
-			"width": 200
+			"width": 200,
+			"fieldlabel": "Employee Name",
+			"hidden": 0
 		},
 		{
 			"fieldname": "present_days",
 			"label": _("Present Days"),
 			"fieldtype": "Data",
-			"width": 120
+			"width": 120,
+			"fieldlabel": "Present Days",
+			"hidden": 0
 		},
 	]
 	
@@ -161,38 +166,48 @@ def get_columns(filters,employee_list):
 			pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
 			columns.append({			
 				"fieldname": pay_code,
-				"label": pay_title,
+				"label": pay_title if not filters.include_header else "",
 				"fieldtype": "Data",
-				"width": 100
+				"width": 100,
+				"fieldlabel": pay_title,
+				"hidden": 0
 			})
 
 		for pay_code in deduction_types:
 			pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
 			columns.append({			
 				"fieldname": pay_code,
-				"label": pay_title,
+				"label": pay_title if not filters.include_header else "",
 				"fieldtype": "Data",
-				"width": 100
+				"width": 100,
+				"fieldlabel": pay_title,
+				"hidden": 0
 			})
 
 	columns += [
 		{
 			"fieldname": "total_income",
-			"label": _("Total Income"),
+			"label": _("Total Income" if not filters.include_header else ""),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"fieldlabel": "Total Income",
+			"hidden": 0
 		},
 		{
 			"fieldname": "total_deduction",
-			"label": _("Total Deduction"),
+			"label": _("Total Deduction" if not filters.include_header else ""),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"fieldlabel": "Total Deduction",
+			"hidden": 0
 		},
 		{
 			"fieldname": "total_payroll",
-			"label": _("Total Payroll"),
+			"label": _("Total Payroll" if not filters.include_header else ""),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 100,
+			"fieldlabel": "Total Payroll",
+			"hidden": 0
 		},
 	]
 
