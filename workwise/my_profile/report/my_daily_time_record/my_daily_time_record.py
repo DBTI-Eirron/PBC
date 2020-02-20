@@ -115,6 +115,12 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 400
 		},
+		{
+			"fieldname": "links",
+			"label": _("Links"),
+			"fieldtype": "Data",
+			"width": 400
+		},
 	]
 	
 	if filters.flt_precision:
@@ -175,6 +181,8 @@ def get_data(filters):
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			complete_sched(emp_dict, pay_from, pay_to, template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
+			if filters.show_adjusted:
+				processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
 				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
 				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
