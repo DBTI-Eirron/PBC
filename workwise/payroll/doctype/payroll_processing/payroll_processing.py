@@ -1034,8 +1034,9 @@ class PayrollProcessing(Document):
 
 					elif rec.method == 'Standard':
 						div = 1
-						if emp.get('payroll_schedule') == "Weekly":
+						if emp.get('payroll_schedule') == "Weekly" and rec.frequency == 'All':
 							div = flt(header.get("no_weeks"))
+
 						if rec.frequency == 'Both':
 							div = 2
 
