@@ -10,7 +10,7 @@ from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule, get_actual_logs
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, chk_time_format, timediff_hrs, timediff_mins, str_datetime
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date )
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date,message_for_cut_off_date, validate_user_permission)
 
 class OvertimeApplication(Document):
 	def validate(self):
@@ -31,6 +31,7 @@ class OvertimeApplication(Document):
 		validate_approve_own_application(self)
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
+
 
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
@@ -114,8 +115,11 @@ class OvertimeApplication(Document):
 					for a in autobreak_setup:
 						if flt(a.from_hrs) <= flt(total_hrs) <= flt(a.to_hrs):
 							self.break_hrs = flt(a.break_mins, 2)/60
+							self.break_mins = a.break_mins
+							self.from_hrs = a.from_hrs
+							self.to_hrs = a.to_hrs
 							break
-							
+
 	def validate_overtime(self):
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)
 		if schedule:
@@ -127,19 +131,20 @@ class OvertimeApplication(Document):
 
 				max_holiday_ot = flt(frappe.db.get_single_value('Timekeeping Settings', 'max_holiday_ot')) / 60
 				is_holiday_ot = self.chk_holiday(self.target_date)
-				if is_holiday_ot:
+
+				if int(is_holiday_ot) > 0:
 					if (max_holiday_ot > 0) and (flt(self.total_hrs, 2) > flt(max_holiday_ot, 2)):
 						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Holiday Overtime Hours is {1} Hours, Did not save").format(self.name, max_holiday_ot))
 				else:
-					if shifts[0].max_ot_hrs > 0:
+					if int(shifts[0].max_ot_hrs) > 0:
 						if flt(self.total_hrs, 2) > flt(shifts[0].max_ot_hrs, 2):
 							frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Hours Per Application is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_hrs))
 				
-				if shifts[0].max_ot_break > 0:
+				if int(shifts[0].max_ot_break) > 0:
 					if flt(self.break_hrs, 2) > flt(shifts[0].max_ot_break, 2):
 						frappe.throw(_("<b>Overtime Application: {0}</b><hr> Maximum Overtime Break is {1} Hours, Did not save").format(self.name, shifts[0].max_ot_break))
 				
-				if shifts[0].allow_ot_in_shift < 1:
+				if int(shifts[0].allow_ot_in_shift) < 1:
 					if shifts[0].time_in <= shifts[0].time_out:
 						shift_from = datetime.datetime.strptime(str(self.target_date) + ' ' + str(shifts[0].time_in), '%Y-%m-%d %H:%M:%S')
 						shift_to = datetime.datetime.strptime(str(self.target_date) + ' ' + str(shifts[0].time_out), '%Y-%m-%d %H:%M:%S')
@@ -156,7 +161,7 @@ class OvertimeApplication(Document):
 						if not is_holiday:
 							frappe.throw(_("<b>Overtime Application: {0}</b><hr> Overtime Filing is not allowed within the Shift, Did not save").format(self.name))
 				
-				if shifts[0].max_ot_hrs_day > 0:
+				if int(shifts[0].max_ot_hrs_day) > 0 and int(is_holiday_ot) == 0:
 					total_max_ot_hrs = 0.0
 					max_application = frappe.db.sql(""" SELECT `total_hrs` FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)
 					for max_app in max_application:
@@ -203,13 +208,9 @@ class OvertimeApplication(Document):
 		location = frappe.get_value("Employee", self.employee, "location")
 
 		holiday = frappe.db.sql("""SELECT `name`, `location` FROM `tabHoliday` WHERE holiday_date = %s 
-			AND company = %s """, (target_date, self.company), as_dict=True)
+			AND company = %s """, (getdate(target_date), self.company), as_dict=True)
 
 		if holiday:
-			if holiday[0].location:
-				if holiday[0].location == location:
-					holiday_tag = 1
-			else:
-				holiday_tag = 1
+			holiday_tag = 1
 
 		return holiday_tag 
