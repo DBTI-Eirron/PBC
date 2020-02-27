@@ -64,6 +64,8 @@ def get_data(filters):
 			total = 0
 			for con in contribution_types:
 				contribution_amount = flt(contribution_map.get(emp.name, {}).get(con))
+				if con == "HDMF":
+					contribution_amount += flt(contribution_map.get(emp.name, {}).get("HDMFM"))
 				total += contribution_amount
 				row.append(contribution_amount)
 

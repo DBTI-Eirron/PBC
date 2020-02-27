@@ -1033,7 +1033,10 @@ class PayrollProcessing(Document):
 						amt = flt(amt * header.get('work_days'), 8)
 
 					elif rec.method == 'Standard':
-						div = flt(header.get("no_weeks"))
+						div = 1
+						if emp.get('payroll_schedule') == "Weekly" and rec.frequency == 'All':
+							div = flt(header.get("no_weeks"))
+
 						if rec.frequency == 'Both':
 							div = 2
 

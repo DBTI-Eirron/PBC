@@ -34,7 +34,7 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 
 	if entry.get('break_end') < entry.get('time_in'):
 		entry['break_end'] = add_days(entry.get('break_end'), 1)
-
+ 
 	if obs:
 		for ob in obs:
 			if ob['target_date'] == entry['target_date']:
@@ -182,7 +182,9 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	get_links(entry)
 
 def get_work(entry):
+
 	if (not entry.get('is_restday') or not entry.get('is_holiday')) and entry['card_in'] and entry['card_out']:
+
 		entry['work'] = (entry.get('work_hours') * 60) * 60
 		if entry["lv_status"] == 3:
 			entry['work'] = entry['work'] / 2
@@ -215,16 +217,20 @@ def get_work(entry):
 		if entry['work'] > max_work:
 			entry['work'] = max_work
 
+
+
 	return entry
 
 def get_overtime(entry, ot_apps):
 	ot_list = []
+	work_shift = []
 	ot_map = get_overtime_map()
 	total_ot, total_brk, total_ot_n, total_ot_nd, total_ot_ex = 0.0, 0.0, 0.0, 0.0, 0.0
 	otho_total, otho_used = 0.00, 0.00
 	nd_start = None
 	nd_end = None
 	nd_early_start = None
+	strict_logs = frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs')
 
 	#Get Nigthdiff Setup
 	if entry.get('nd_start') and entry.get('nd_end'):
@@ -237,16 +243,21 @@ def get_overtime(entry, ot_apps):
 
 	if ot_apps:
 		for d in ot_apps:
-			ot_hrs, ot_nd, ot_normal = 0, 0, 0
+			ot_int_start = None
+			per_time_with_ot = []
+			is_break_deducted = 0
+			ot_hrs, ot_nd, ot_normal, org_ot_normal = 0, 0, 0, 0
 			if getdate(d.get('target_date')) == entry.get('target_date'):
 				entry['ot_links'].append(d.get("name")) 
 				linked_ot = d.name
-				ot_in = get_datetime( str(d.from_date) +" "+ str(d.from_time) )
+				ot_in = get_datetime( str(d.from_date) +" "+ str(d.from_time))
 				ot_out = get_datetime( str(d.to_date) +" "+ str(d.to_time) )
+				org_ot_in = get_datetime( str(d.from_date) +" "+ str(d.from_time) )
+				org_ot_out = get_datetime( str(d.to_date) +" "+ str(d.to_time) )
 				is_saturday = 1 if getdate(entry.get('target_date')).weekday() == 5 else 0
 				is_sunday = 1 if getdate(entry.get('target_date')).weekday() == 6 else 0
 				is_db_holiday = entry.get('is_db_holiday')
-				
+
 				#get Card Out if Straight OT
 				if ot_out and entry.get('straight_ot'):
 					if entry['card_out']:
@@ -256,11 +267,14 @@ def get_overtime(entry, ot_apps):
 						entry['card_out'] = ot_out
 
 				#get OT Start based from interval
+				if entry['ot_interval']:
+					ot_int_start = add_to_date(ot_in, hours=(entry.get('ot_start_delay') / 60) )
 				if entry.get('ot_start_delay'):
-					ot_int_start = add_to_date(entry.get('time_out'), hours=(entry.get('ot_start_delay') / 60) )
-					if ot_int_start > ot_in:
-						ot_in = ot_int_start
+					ot_delay_start = add_to_date(entry.get('time_out'), hours=(entry.get('ot_start_delay') / 60) )
+					if ot_delay_start > ot_in:
+						ot_in = ot_delay_start
 
+				
 				#get OT Start Deduct Late
 				if entry.get('ot_deduct_late') and not entry.get('is_flexible'):
 					if entry.get('is_restday') < 1:
@@ -268,99 +282,131 @@ def get_overtime(entry, ot_apps):
 							if entry.get('ot_dedlt_ho'):
 								ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
 						else:
-							ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
+							ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ))
+
 
 				#Always follow whichever is lower between card_out and ot_out
-				if entry.get('card_in') and entry.get('card_out') and entry.get('otout_as_cardout'):
-					if ot_in < entry.get('time_in'):
-						if entry.get('ob_in') and entry.get('ob_in') < entry.get('card_in'):
-							ot_in = entry.get('ob_in')
-						else:
-							if ot_in > entry.get('card_in'): #for Early OT
-								ot_in = ot_in
+
+				if entry.get('ot_strict_logs'):
+					ot_card_in, ot_card_out = get_ot(ot_in,ot_out,entry.get('card_in'), entry.get('card_out'),entry.get('time_out'),entry['is_restday'],ot_int_start, entry['is_holiday'])
+					
+					if entry.get('ob_in'):
+						ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('ob_in'), entry.get('ob_out'),entry.get('time_out'),entry['is_restday'],ot_int_start, entry['is_holiday'])
+
+						if entry['card_in']:
+
+							if ot_card_in <= ot_ob_in <= ot_card_out:
+
+								if ot_card_out < ot_ob_out:
+									ot_card_out = ot_ob_out
+
+							if ot_card_out > ot_ob_in and ot_card_in <= ot_ob_in:
+								ot_in = ot_card_in
+
+								if ot_card_out < ot_ob_out:
+									ot_out = ot_ob_out
+								else:
+									ot_out = ot_card_out
+							
+						if ot_card_in == ot_card_out:
+							per_time_with_ot.append({
+								"ot_in": ot_ob_in,
+						 		"ot_out": ot_ob_out
+							})
+	
+					if 	ot_card_in != ot_card_out:
+						per_time_with_ot.append({
+								"ot_in": ot_card_in,
+						 		"ot_out": ot_card_out
+						})
+				if not per_time_with_ot and entry.get('ot_strict_logs'):
+					if ot_in and ot_out:
+						per_time_with_ot.append({
+							"ot_in": ot_in,
+						 	"ot_out": ot_in
+						})
+				if not entry.get('ot_strict_logs'):
+					if ot_in and ot_out:
+						per_time_with_ot.append({
+							"ot_in": ot_in,
+						 	"ot_out": ot_out
+						})
+
+				for o in per_time_with_ot:
+					ot_in = o['ot_in']
+					ot_out = o['ot_out']
+
+					#get Max Holiday OT per day
+					if entry.get('is_holiday') == 1:
+						if entry.get('max_holiday_ot'):
+							otho_maxdiff = (ot_out - ot_in).total_seconds() / 60.0
+
+							if otho_total < entry.get('max_holiday_ot'):
+								if (otho_total + otho_maxdiff) <= entry.get('max_holiday_ot'):
+									otho_total += otho_maxdiff
+								else:
+									otho_total = entry.get('max_holiday_ot')
+ 	
+								otho_out = ot_in + datetime.timedelta(minutes=otho_total-otho_used)
+								if otho_out <= ot_out:
+									ot_out = otho_out
+								otho_used += otho_total
 							else:
-								ot_in = entry.get('card_in')
-					else:
-						if ot_in < entry.get('card_in'):
-							if entry.get('ob_in') and entry.get('ob_in') < entry.get('card_in'):
-								ot_in = entry.get('ob_in')
+								ot_out = ot_in
+
+					# OT IN should not be greater than OT Out
+					if ot_in > ot_out:
+						ot_in = ot_out
+
+					#Get Normal OT before ND and Should also consider early ND OT
+					ot_normal += abs((ot_in - ot_out).total_seconds())
+
+					#Get ND OT Start and End
+					ot_nd_start = None #Start Time of OT ND computation
+					ot_nd_end = None #End Time of OT ND computation
+					if nd_start and nd_end:
+						if ot_out > nd_start:
+							# GET ND OT START
+							if ot_in >= nd_start:
+								ot_nd_start = ot_in
+								# if OT in is greater than ot out set to None
+								if ot_in > ot_out:
+									ot_nd_start = None
+							elif ot_in < nd_start: #if OT IN is beyond ND, limit to ND START
+								ot_nd_start = nd_start
+	
+							# GET ND OT END
+							if ot_out <= nd_end: #if OT OUT is inside ND
+								ot_nd_end = ot_out
+								# if OT OUT is less than OT IN set to none
+								if ot_out < nd_start:
+									ot_nd_end = None
+							elif ot_out > nd_end:  #if OT OUT is beyond ND, limit to ND END
+								ot_nd_end = nd_end
+	
+					#Get ND OT and Calculate ND OT From Start to End
+					if ot_nd_start and ot_nd_end and ot_nd_start < ot_nd_end:
+						ot_nd = abs((ot_nd_start - ot_nd_end).total_seconds())
+	
+					if nd_early_start:
+						#Get early ND OT
+						if ot_in < nd_early_start:
+							if ot_out > nd_early_start:
+								ot_nd = abs((ot_in - nd_early_start).total_seconds())
 							else:
-								ot_in = entry.get('card_in')
-
-					if ot_out > entry.get('time_out'):
-						if entry.get('ob_out') and entry.get('ob_out') > entry.get('card_out'):
-							if entry.get('ob_out') < ot_out:
-								ot_out = entry.get('ob_out')
-						else:
-							if entry.get('card_out') < ot_out:
-								ot_out = entry.get('card_out')
+								ot_nd = abs((ot_in - ot_out).total_seconds())
 
 
+					if d.break_hrs:
+						to_hrs, from_hrs, break_mins = frappe.db.get_value("Overtime Application", d['name'], ["to_hrs", "from_hrs", "break_mins"])
+						if is_break_deducted != 1:
+							if flt(from_hrs, 8) * 60 * 60 <= ot_normal <= flt(to_hrs, 8) * 60 * 60:
+								total_brk += flt(break_mins, 8) * 60
+							is_break_deducted = 1
 
-				#get Max Holiday OT per day
-				if entry.get('is_holiday') == 1:
-					if entry.get('max_holiday_ot'):
-						otho_maxdiff = (ot_out - ot_in).total_seconds() / 60.0
+					total_ot += ot_normal
 
-						if otho_total < entry.get('max_holiday_ot'):
-							if (otho_total + otho_maxdiff) <= entry.get('max_holiday_ot'):
-								otho_total += otho_maxdiff
-							else:
-								otho_total = entry.get('max_holiday_ot')
- 
-							otho_out = ot_in + datetime.timedelta(minutes=otho_total-otho_used)
-							if otho_out <= ot_out:
-								ot_out = otho_out
-							otho_used += otho_total
-						else:
-							ot_out = ot_in
-
-				# OT IN should not be greater than OT Out
-				if ot_in > ot_out:
-					ot_in = ot_out
-				
-				#Get Normal OT before ND and Should also consider early ND OT
-				ot_normal += abs((ot_in - ot_out).total_seconds())
-
-				#Get ND OT Start and End
-				ot_nd_start = None #Start Time of OT ND computation
-				ot_nd_end = None #End Time of OT ND computation
-				if nd_start and nd_end:
-					if ot_out > nd_start:
-						# GET ND OT START
-						if ot_in >= nd_start:
-							ot_nd_start = ot_in
-							# if OT in is greater than ot out set to None
-							if ot_in > ot_out:
-								ot_nd_start = None
-						elif ot_in < nd_start: #if OT IN is beyond ND, limit to ND START
-							ot_nd_start = nd_start
-
-						# GET ND OT END
-						if ot_out <= nd_end: #if OT OUT is inside ND
-							ot_nd_end = ot_out
-							# if OT OUT is less than OT IN set to none
-							if ot_out < nd_start:
-								ot_nd_end = None
-						elif ot_out > nd_end:  #if OT OUT is beyond ND, limit to ND END
-							ot_nd_end = nd_end
-
-				#Get ND OT and Calculate ND OT From Start to End
-				if ot_nd_start and ot_nd_end and ot_nd_start < ot_nd_end:
-					ot_nd = abs((ot_nd_start - ot_nd_end).total_seconds())
-
-				if nd_early_start:
-					#Get early ND OT
-					if ot_in < nd_early_start:
-						if ot_out > nd_early_start:
-							ot_nd = abs((ot_in - nd_early_start).total_seconds())
-						else:
-							ot_nd = abs((ot_in - ot_out).total_seconds())
-
-				if d.break_hrs:
-					total_brk += flt(d.break_hrs, 8) * 60 * 60
-				total_ot += ot_normal
-				total_ot_nd += ot_nd
+					total_ot_nd += ot_nd
 
 		# REDUCE BREAK HRS ON REGULAR OT
 		if total_brk:
@@ -435,7 +481,41 @@ def get_overtime(entry, ot_apps):
 		entry['ot_list'] = ot_list
 	return entry
 
+def get_ot(ot_in=None ,ot_out=None, start=None, end=None, bound=None, restday=None, interval=None, holiday=None):
+	
+	if holiday or restday:
+		bound = ot_in
+
+	if start:
+		if get_datetime(ot_in) <= get_datetime(start)<= get_datetime(ot_out) or get_datetime(ot_in) <= get_datetime(end):
+			if start < bound:
+				if get_datetime(ot_in) <= get_datetime(bound):
+					ot_in = bound
+
+			elif start >= bound:
+				if not get_datetime(ot_in) <= get_datetime(start):
+					ot_in = start
+				if ot_out <= start:
+					ot_out = ot_in
+
+			if get_datetime(ot_out) >= get_datetime(end):
+				ot_out = end
+
+			if get_datetime(ot_in) >= get_datetime(end):
+				ot_out = ot_in
+		else:
+			ot_out = ot_in
+	else:
+		ot_out = ot_in
+
+	if interval:
+		if get_datetime(start) > get_datetime(interval):
+			ot_out = ot_in
+
+	return (ot_in, ot_out)
+
 def get_ndiff(entry):
+
 	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_value("Employee", entry['employee'], "ignore_nd"):
 		#get ND start and end
 		nd_start, nd_end  = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) ), get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
@@ -490,6 +570,7 @@ def get_ndiff(entry):
 	return entry
 
 def get_ndiff_min_max(_start, _end, _out, _in):
+
 	fmin = _start
 	fmax = _start
 	fpro = 1
@@ -511,6 +592,7 @@ def get_ndiff_min_max(_start, _end, _out, _in):
 	return fmin, fmax, fpro
 
 def get_late(entry):
+
 	if entry.get('lv_status') == 2 and entry['card_in']: #get late if leave is 1sthalf halfday
 		if entry.get('card_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('b_grace')):
 			entry['late'] += abs((entry.get('card_in') - entry.get('break_end')).total_seconds())
@@ -750,9 +832,14 @@ def get_absent(entry):
 	return entry
 
 def get_flexible(entry, obs):
+
 	if entry.get('is_flexible'):
 		flex_ob_time = 0
 		less_break = 0
+		lv = 0
+		diff_break = 0
+
+
 		if entry.get('ob_in') and entry.get('ob_out'):
 			flex_ob_time = abs((entry.get('ob_in') - entry.get('ob_out')).total_seconds())
 
@@ -781,7 +868,7 @@ def get_flexible(entry, obs):
 
 				if diff < (entry.get('worker_secs')):
 					ut = 0
-					lv = 0
+					
 					if entry.get('ut_interval'):
 						ut = (entry.get('worker_secs') - diff) 
 						ut = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
@@ -821,9 +908,12 @@ def get_flexible(entry, obs):
 						else:
 							entry['late'] = ( flex_start - flex ).total_seconds()
 							flex_start = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
+
+				if get_datetime(flex_end) >= get_datetime(entry.get('break_end')):
+					diff_break = entry.get('break_mins') * 60
 				
 				#always reduce break mins
-				diff = abs( (flex_start - flex_end).total_seconds())  - (entry.get('break_mins') * 60) + flex_ob_time
+				diff = abs( (flex_start - flex_end).total_seconds())  - (diff_break) + flex_ob_time
 
 				#Get Undertime
 				if entry.get('lv_status') > 1:
@@ -1049,11 +1139,6 @@ def get_final_processing(entry):
 		entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 		entry["undertime"] = 0
 
-	if (not entry.get('card_in') or not entry.get('card_out')) and not entry.get('disable_ot_strict_logs') and not entry.get('ob_status'):
-		entry["overtime"] = 0
-		entry["overtime_nd"] = 0
-		entry["overtime_ex"] = 0
-		entry["ot_list"] = []
 
 	return entry
 
@@ -1741,8 +1826,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"max_holiday_ot": flt(frappe.db.get_single_value('Timekeeping Settings', 'max_holiday_ot'), 8),
 		"late_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'late_interval'), 8),
 		"ut_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_interval'), 8),
-		"otout_as_cardout": flt(frappe.db.get_single_value('Timekeeping Settings', 'otout_as_cardout'), 8),
-		"disable_ot_strict_logs": flt(frappe.db.get_single_value('Timekeeping Settings', 'disable_ot_strict_logs'), 8),
+		"ot_strict_logs": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs'), 8),
 		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
 		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho'),
 		"at_work_rdho": frappe.db.get_single_value('Timekeeping Settings', 'at_work_rdho'),
