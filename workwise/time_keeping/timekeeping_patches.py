@@ -593,3 +593,20 @@ def update_date_contract_ended():
 	for up in update_list:
 		frappe.db.sql("""UPDATE `tabEmployee` SET date_contract_ended=%s WHERE `name` = %s """,(getdate(update_list[up]["date_contract_ended"]), up))
 
+def overtime_auto_break_update():
+	Overtime_app_list = frappe.db.sql("""SELECT `name`, employee, target_date, break_mins, from_hrs, to_hrs, from_date, from_time, to_date, to_time  FROM  `tabOvertime Application`  WHERE `creation` > "2020-01-01 00:00:00.000000" """, as_dict=1)
+	for oa in Overtime_app_list:
+		schedule = get_schedule(oa.employee, oa.target_date, oa.target_date)
+		if schedule:
+			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
+			if shifts:
+				autobreak_setup = frappe.db.sql("""SELECT break_mins, from_hrs, to_hrs FROM `tabOvertime Auto Break Table` WHERE `parenttype` = "Work Shift" AND `parent` = %s """,(shifts[0].name), as_dict=True)
+				from_date = str(oa.from_date) + ' ' + str(oa.from_time)
+				to_date = str(oa.to_date) + ' ' + str(oa.to_time)
+				total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
+				if autobreak_setup:
+					for ob in autobreak_setup:
+						if flt(ob.from_hrs) <= flt(total_hrs) <= flt(ob.to_hrs):
+							frappe.db.set_value("Overtime Application", oa.name, "break_mins", ob.break_mins)
+							frappe.db.set_value("Overtime Application", oa.name, "from_hrs", ob.from_hrs)
+							frappe.db.set_value("Overtime Application", oa.name, "to_hrs", ob.to_hrs)
