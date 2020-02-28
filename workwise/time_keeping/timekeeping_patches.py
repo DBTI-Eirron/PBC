@@ -593,13 +593,6 @@ def update_date_contract_ended():
 	for up in update_list:
 		frappe.db.sql("""UPDATE `tabEmployee` SET date_contract_ended=%s WHERE `name` = %s """,(getdate(update_list[up]["date_contract_ended"]), up))
 
-def fix_hdmf():
-	frappe.db.sql("""UPDATE `tabTransaction Type` SET `code`='HDMFCL' WHERE `code` = 'HDMF Calamity Loan'; """)
-	frappe.db.sql("""UPDATE `tabTransaction Type` SET `code`='HDMFL' WHERE `code` = 'HDMF Salary Loan'; """)
-	frappe.db.sql("""UPDATE `tabPayroll Register Entries` SET pay_code='HDMFCL' WHERE pay_code='HDMF Calamity Loan'; """)
-	frappe.db.sql("""UPDATE `tabPayroll Register Entries` SET pay_code='HDMFL' WHERE pay_code='HDMF Salary Loan'; """)
-	frappe.db.commit()
-	
 def overtime_auto_break_update():
 	Overtime_app_list = frappe.db.sql("""SELECT `name`, employee, target_date, break_mins, from_hrs, to_hrs, from_date, from_time, to_date, to_time  FROM  `tabOvertime Application`  WHERE `creation` > "2020-01-01 00:00:00.000000" """, as_dict=1)
 	for oa in Overtime_app_list:
@@ -614,6 +607,6 @@ def overtime_auto_break_update():
 				if autobreak_setup:
 					for ob in autobreak_setup:
 						if flt(ob.from_hrs) <= flt(total_hrs) <= flt(ob.to_hrs):
-							frappe.db.set_value("Overtime Application", oa.name, "break_mins", 1)
+							frappe.db.set_value("Overtime Application", oa.name, "break_mins", ob.break_mins)
 							frappe.db.set_value("Overtime Application", oa.name, "from_hrs", ob.from_hrs)
 							frappe.db.set_value("Overtime Application", oa.name, "to_hrs", ob.to_hrs)
