@@ -77,6 +77,10 @@ class SpecialProcessing(Document):
 
 			if not self.convert_to:
 				frappe.throw(_("Converted Transaction Type is required"))
+
+			
+			if not frappe.db.get_value("Leave Type", self.lv_convert, "convertible"):
+				frappe.throw(_("Leave Type is not convertible"))
  
 	def process_special(self):
 		self.validate_employee()
