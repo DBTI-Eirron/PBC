@@ -430,7 +430,7 @@ class PayrollProcessing(Document):
 						if cint(header.get("no_weeks")) == cint(5):
 							not_freq.append("4th")
 
-						if emp.get('phic_freq') == "Both":
+						if emp.get('sss_freq') == "Both":
 							if self.schedule == "Weekly":
 								if self.frequency not in not_freq:
 									amt = flt(eval(l), 8) / 2
@@ -527,173 +527,67 @@ class PayrollProcessing(Document):
 			mode = emp.get('phic_mode')
 			target_amt = 0
 
-			if header.get('govt_use_old'):
-				if self.frequency == emp.get('phic_freq') or emp.get('phic_freq') == 'Both':
-					if emp.get('phic_freq') == '2nd':
-						if emp.get('payroll_schedule') == "Semi-Monthly":
-							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_phic_inc'), 8)) - flt(header.get('prev_phic_ded'), 8)
-						elif emp.get('payroll_schedule') == "Monthly":
-							target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8)
+			if self.frequency == emp.get('phic_freq') or emp.get('phic_freq') in ['Both', 'All']:
+				target_amt = rates.get('monthly_rate')
+				if emp.get('rate_type') == "Daily Rate" and emp.get('phic_mode') == "Table":
+					target_amt = header.get('govt_basic') + header.get('prev_govt_basic')
 
-					elif emp.get('phic_freq') == 'Both' or emp.get('phic_freq') == '1st':
-						target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8)
+				if header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('phic_freq') == 'Both':
+					target_amt = rates.get('monthly_rate')
 
-					if mode != "None":
-						phic_rate = 59999.99
-						phice_grate = 150
-						phice_lrate = 900
-						phic_perc = 3
-						payroll_year = frappe.get_value("Payroll Period", self.period, "payroll_year")
-						if payroll_year == '2019':
-							phic_rate = 49999.99
-							phice_grate = 137.50
-							phice_lrate = 687.50
-							phic_perc = 2.75
-
-						phic, phice = 0, 0
-						if target_amt < 10000:
-							phic = manual if mode == "Manual" and manual > phice_grate else phice_grate
-							phice = phice_grate
-						elif target_amt > phic_rate:
-							phic = manual if mode == "Manual" and manual > phice_lrate else phice_lrate
-							phice = phice_lrate
-						else:
-							percent_rate = ( target_amt * (flt(phic_perc, 8) / 100) / 2)
-							phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
-							phice = percent_rate 
-						
-						for l in phic_list:
-							not_freq = ["1st", "3rd"]
-							amt = 0
-							if cint(header.get("no_weeks")) == cint(5):
-								not_freq.append("4th")
-
-							if emp.get('phic_freq') == "Both":
-								if self.schedule == "Weekly":
-									if self.frequency not in not_freq:
-										amt = flt(eval(l), 8) / 2
-								else:
-									amt = flt(eval(l), 8) / 2
-							else:
-								if self.schedule == "Weekly":
-									if self.frequency not in not_freq:
-										amt = flt(eval(l), 8) 
-								else:
-									amt = flt(eval(l), 8)
-							phic_register.append({"pay_code": l.upper(), "amount": amt })
-
-			else:
-				if self.schedule == "Weekly":
-					if emp.get('phic_mode') == "ME Table":
-						if emp.get('phic_freq') == 'Both':
-							if cint(header.get("no_weeks")) == cint(5):
-								if self.frequency in ["2nd", "5th"]:
-									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-								else:
-									target_amt = 0
-									
-							elif cint(header.get("no_weeks")) == cint(4):
-								if self.frequency in ["2nd", "4th"]:
-									target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-								else:
-									target_amt = 0
-						elif emp.get('phic_freq') != 'None':
-							if self.frequency == "2nd" and emp.get('phic_freq') == "1st":
-								target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-							else:
-								if cint(header.get("no_weeks")) == cint(5):
-									if self.frequency == "5th" and emp.get('phic_freq') == "2nd":
-										target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-
-								elif cint(header.get("no_weeks")) == cint(4):
-									if self.frequency == "4th" and emp.get('phic_freq') == "2nd":
-										target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-					else:
-						target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(header.get('govt_basic'), 8) )
-
-				else:
-					if self.frequency == emp.get('phic_freq') or emp.get('phic_freq') == 'Both':
-						if header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('phic_freq') == 'Both':
-							target_amt = rates.get('monthly_rate')
-
-						elif emp.get('phic_mode') == "ME Table":
-							target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
-							
-						else:
-							if emp.get('phic_freq') == '1st':
-								target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
-
-							elif emp.get('phic_freq') == '2nd':
-								if emp.get('payroll_schedule') == "Semi-Monthly":
-									if header.get('prev_monthly_rate') != rates.get('monthly_rate') and header.get('prev_monthly_basis') > 0:
-										target_amt = rates.get('monthly_rate') / 2 + \
-											(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))							
-									else:
-										target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
-											(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
-									
-								elif emp.get('payroll_schedule') == "Monthly":
-									target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
-
-							elif emp.get('phic_freq') == 'Both':
-								target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
-									(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
-				
 				if mode != "None" and target_amt:
-					phic_rate = 59999.99
-					phice_grate = 150
-					phice_lrate = 900
+					phic_min_range = 10000
+					phic_max_range = 60000
 					phic_perc = 3
+					phic_min_rate = 300
+					phic_max_rate = 1800
 					payroll_year = frappe.get_value("Payroll Period", self.period, "payroll_year")
 					if payroll_year == '2019':
-						phic_rate = 49999.99
-						phice_grate = 137.50
-						phice_lrate = 687.50
+						phic_min_range = 10000
+						phic_max_range = 50000
 						phic_perc = 2.75
+						phic_min_rate = 275
+						phic_max_rate = 1375
 
 					phic, phice = 0, 0
-					if target_amt < 10000:
-						phic = manual if mode == "Manual" and manual > phice_grate else phice_grate
-						phice = phice_grate
-					elif target_amt > phic_rate:
-						phic = manual if mode == "Manual" and manual > phice_lrate else phice_lrate
-						phice = phice_lrate
-					else:
-						percent_rate = ( target_amt * (flt(phic_perc, 8) / 100) / 2)
-						phic = manual if mode == "Manual" and manual > percent_rate else percent_rate 
-						phice = percent_rate 
-					
+					if target_amt <= phic_min_range:
+						phic = manual if mode == "Manual" and manual > phic_min_rate else phic_min_rate
+						phice = phic_min_rate
+
+					if phic_min_range < target_amt < phic_max_range:
+						rate_value = ( target_amt * (flt(phic_perc, 8) / 100) / 2)
+						phic = manual if mode == "Manual" and manual > rate_value else rate_value 
+						phice = rate_value
+
+					if target_amt >= phic_max_range:
+						phic = manual if mode == "Manual" and manual > phic_max_rate else phic_max_rate
+						phice = phic_max_rate
+
 					for l in phic_list:
-						if emp.get('phic_mode') == "ME Table" and self.schedule != "Weekly":
-							if emp.get('phic_freq') == "Both":
-								if emp.get('payroll_schedule') == "Semi-Monthly":
-									amt = flt(eval(l), 8) / 2
-								else:
-									amt = flt(eval(l), 8)
-							else:
-								amt = flt(eval(l), 8)
-						else:
-							if emp.get('phic_freq') == "Both" and self.schedule == "Weekly":
+						amt = flt(eval(l), 8)
+						if emp.get('phic_freq') in ['Both', 'All'] and emp.get('payroll_schedule') == "Semi-Monthly":
+							amt = flt(eval(l), 8) / 2
+
+						if emp.get('phic_freq') in ['Both'] and emp.get('payroll_schedule') == "Weekly":
+							amt = flt(eval(l), 8) / 2
+
+						if emp.get('phic_freq') in ['All'] and emp.get('payroll_schedule') == "Weekly":
+							amt = flt(eval(l), 8) / header.get("no_weeks")
+
+						if emp.get('phic_freq') in ['Both']:
+							freq = csrt(int(header.get("no_weeks")))+"th"
+							if self.frequency in ["2nd", freq]:
 								amt = flt(eval(l), 8) / 2
-							elif emp.get('phic_freq') == "All" and self.schedule == "Weekly":
-								amt = flt(eval(l), 8) / 4
-							elif header.get('phic_mo_basis') and emp.get('payroll_schedule') == "Semi-Monthly":
-								amt = flt(eval(l), 8)
-								if emp.get('phic_freq') == "Both":
-									if self.frequency == "1st":
-										amt = flt(eval(l), 8) / 2
-
-									if self.frequency == "2nd":
-										amt = flt(eval(l), 8) / 2
-										if not header.get(_('prev_phic_amt')):
-											amt = flt(eval(l), 8)
 							else:
-								amt = flt(eval(l), 8)
+								amt = 0
 
-							if header.get('prev_phic_amt') and emp.get('phic_freq') == "Both" and (not header.get('phic_mo_basis')):
-								amt = amt - header.get('prev_phic_amt') 
-								if amt < 1:
-									amt = 0
+						if header.get('govt_use_old'):
+							wamt = flt(eval(l), 8)
+							if wamt < (header.get('prev_govt_basic') + amt):
+								if header.get('prev_govt_basic') > amt:
+									amt = header.get('prev_govt_basic') - amt
+								else:
+									amt = amt - header.get('prev_govt_basic')
 
 						phic_register.append({"pay_code": l.upper(), "amount": amt })
 
