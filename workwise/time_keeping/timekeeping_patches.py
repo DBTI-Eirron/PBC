@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_to_date, cstr
+from workwise.time_keeping.attendance_utils import get_schedule
 from frappe import _
 
 #APPLICATION PATCHES
