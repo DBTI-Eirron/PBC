@@ -22,6 +22,15 @@ frappe.ui.form.on('Special Processing', {
 	},
 
 	refresh: function(frm) {
+
+		frm.set_query('lv_convert', function(doc) {
+			return {
+				filters: {
+					"convertible" : 1 
+				}
+			};
+		});
+		
 		frm.disable_save();
 
 		frm.set_query("employee", function() {
