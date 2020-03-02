@@ -613,7 +613,7 @@ def overtime_auto_break_update():
 							frappe.db.set_value("Overtime Application", oa.name, "from_hrs", ob.from_hrs)
 							frappe.db.set_value("Overtime Application", oa.name, "to_hrs", ob.to_hrs)
 
-def Update_is_holiday():
+def update_ot_rates_holiday():
 	holiday = 1
 	ot_rates = frappe.db.sql("""SELECT `name`, is_restday, is_holiday, is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess, is_ndiff  FROM  `tabOvertime Rates`  WHERE (is_sp_holiday = 1 OR is_db_holiday = 1) AND is_holiday = 0 """, as_dict=1)
 	for o in ot_rates: 
