@@ -11,7 +11,10 @@ class OvertimeRates(Document):
 		self.get_code()
 
 	def get_code(self):
+		if self.is_sp_holiday or self.is_db_holiday:
+			self.is_holiday = 1
 		#[RD][HO][SHO][DHO][SUN][SAT][EX][ND]
 		overtime_type = [self.is_restday, self.is_holiday, self.is_sp_holiday, self.is_db_holiday, self.is_sunday, self.is_saturday, self.is_excess, self.is_ndiff]
 		overtime_type = ''.join(str(x) for x in overtime_type)
 		self.ot_code = overtime_type
+

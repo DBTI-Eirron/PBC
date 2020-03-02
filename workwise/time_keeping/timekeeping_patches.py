@@ -612,3 +612,16 @@ def overtime_auto_break_update():
 							frappe.db.set_value("Overtime Application", oa.name, "break_mins", ob.break_mins)
 							frappe.db.set_value("Overtime Application", oa.name, "from_hrs", ob.from_hrs)
 							frappe.db.set_value("Overtime Application", oa.name, "to_hrs", ob.to_hrs)
+
+def Update_is_holiday():
+	holiday = 1
+	ot_rates = frappe.db.sql("""SELECT `name`, is_restday, is_holiday, is_sp_holiday, is_db_holiday, is_sunday, is_saturday, is_excess, is_ndiff  FROM  `tabOvertime Rates`  WHERE (is_sp_holiday = 1 OR is_db_holiday = 1) AND is_holiday = 0 """, as_dict=1)
+	for o in ot_rates: 
+		frappe.db.set_value("Overtime Rates", o.name, "is_holiday", holiday)
+		overtime_type = [o.is_restday, holiday, o.is_sp_holiday, o.is_db_holiday, o.is_sunday, o.is_saturday, o.is_excess, o.is_ndiff]
+		overtime_type = ''.join(str(x) for x in overtime_type)
+		existing_ot_code = frappe.db.sql("""SELECT `name` FROM  `tabOvertime Rates`  WHERE ot_code = %s """,overtime_type ,as_dict=1)
+		if existing_ot_code:
+			frappe.delete_doc("Overtime Rates", o.name)
+		else:
+			frappe.db.set_value("Overtime Rates", o.name, "ot_code", overtime_type)
