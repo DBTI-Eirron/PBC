@@ -25,6 +25,7 @@ def execute(filters=None):
 		dtotal_income, dtotal_deduction, dtotal_payroll = 0.00, 0.00, 0.00
 		income_total, deduction_total = [], []
 		total_present = 0
+		totals={}
 		if filters.include_header:
 			data.append(["<b>"+filters.company+"</b>"])
 			data.append(["<b>"+filters.payroll_period+"</b>"])
@@ -43,7 +44,6 @@ def execute(filters=None):
 			deduction_total.append(0)
 
 		for emp in employee_list:
-			totals={}
 			# rates = get_rates(emp)
 			# period_type = frappe.get_value('Payroll Period', filters.payroll_period, 'schedule')
 			# if period_type == 'Weekly':
