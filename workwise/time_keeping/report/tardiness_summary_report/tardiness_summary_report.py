@@ -83,8 +83,8 @@ def get_data(filters):
 				included = 0
 
 		if included == 1:
-			data.append({"data":"<b>Employee: </b>"+emp.full_name+"",})
-			data.append({"data":"<b>Late</b>",})
+			data.append({"data":"Employee: "+emp.full_name+"",})
+			data.append({"data":"Late",})
 			
 			total_late = 0.0
 
@@ -103,7 +103,7 @@ def get_data(filters):
 				"time": total_late
 			}
 			data.append(total_late_data)
-			data.append({"data":"<b>Undertime</b>",})
+			data.append({"data":"Undertime",})
 
 			total_undertime = 0.0
 

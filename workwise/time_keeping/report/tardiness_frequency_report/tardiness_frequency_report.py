@@ -50,7 +50,7 @@ def get_data(filters):
 	company, att_from, att_to =  filters.company, filters.from_date, filters.to_date
 
 	data.append({
-		"data":"<b>Company: </b>"+filters.company+"",
+		"data":"Company: "+filters.company+"",
 	})
 	data.append({})
 
@@ -83,13 +83,13 @@ def get_data(filters):
 				included = 0
 
 		if included == 1:
-			data.append({"data":"<b>Employee: </b>"+emp.full_name+"",})
+			data.append({"data":"Employee: "+emp.full_name+"",})
 			
 			total_late = 0
 			for lates in late_result:
 				total_late += 1
 			total_late_data = {
-				"data": _("<b>Late</b>"),
+				"data": _("Late"),
 				"time": total_late
 			}
 			data.append(total_late_data)
@@ -98,7 +98,7 @@ def get_data(filters):
 			for undertimes in undertime_result:
 				total_undertime += 1
 			total_undertime_data = {
-				"data": _("<b>Undertime</b>"),
+				"data": _("Undertime"),
 				"time": total_undertime
 			}
 			data.append(total_undertime_data)

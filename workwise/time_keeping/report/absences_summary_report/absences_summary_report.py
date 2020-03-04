@@ -46,7 +46,7 @@ def get_data(filters):
 	att_to = getdate(filters.from_date)
 	att_from = getdate(filters.to_date)
 
-	data.append({	"data":"<b>Company: </b>"+filters.company+"",	})
+	data.append({	"data":"Company: "+filters.company+"",	})
 	data.append({})
 
 	employees = get_employees(filters, att_to, att_from)
@@ -67,11 +67,11 @@ def get_data(filters):
 		data_entry[emp.employee]['absent_count'] += 1
 
 	for dat in data_entry:
-		data.append({"data":"<b>Employee: </b>"+cstr(data_entry[dat]['employee_name'])+"",})
-		data.append({"data":"<b>Absent</b>",})
+		data.append({"data":"Employee: "+cstr(data_entry[dat]['employee_name'])+"",})
+		data.append({"data":"Absent",})
 		for ab in sorted(data_entry[dat]['absents']):
 			data.append( {"data": str(ab) })
-		data.append({"data":"<b>Count: </b>"+str(data_entry[dat]['absent_count']),})
+		data.append({"data":"Count: "+str(data_entry[dat]['absent_count']),})
 		data.append({})
 
 	return data
