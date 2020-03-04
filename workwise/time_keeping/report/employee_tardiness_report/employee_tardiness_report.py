@@ -94,10 +94,10 @@ def get_data(filters):
 	pay_from, pay_to = filters.from_date, filters.to_date
 	employees = get_employees(filters)
 
-	data.append({"target_date":"<b>Company: </b>"+filters.company+"",})
+	data.append({"target_date":"Company: "+filters.company+"",})
 	if filters.department:
-		data.append({"target_date":"<b>Department: </b>"+filters.department+"</b>",})
-	data.append({"target_date":"<b>Period: </b>"+cstr(filters.from_date)+" - "+cstr(filters.to_date)+"</b>",})
+		data.append({"target_date":"Department: "+filters.department,})
+	data.append({"target_date":"Period: "+cstr(filters.from_date)+" - "+cstr(filters.to_date),})
 	data.append({})
 
 	for emp in employees:
@@ -106,7 +106,7 @@ def get_data(filters):
 			total_work = 0.00
 			total_late = 0.00
 			total_ut = 0.00
-			data.append({"target_date":"<b>"+emp.full_name+"</b>",})
+			data.append({"target_date":emp.full_name,})
 			for r in register:
 				#if r.late > 0 or r.undertime > 0:
 				

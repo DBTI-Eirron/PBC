@@ -84,10 +84,10 @@ def get_data(filters):
 	pay_from = getdate(filters.from_date)
 	pay_to = getdate(filters.to_date)
 
-	data.append({	"emp_name":"<b>Company: </b>"+filters.company+"",	})
+	data.append({	"emp_name":"Company: "+filters.company,	})
 	if filters.department:
-		data.append({	"emp_name":"<b>Department: </b>"+filters.department+"</b>",	})
-	data.append({	"emp_name":"<b>Period: </b>"+cstr(filters.payroll_period)+"</b>",	})
+		data.append({	"emp_name":"Department: "+filters.department,	})
+	data.append({	"emp_name":"Period: "+cstr(filters.payroll_period),	})
 	data.append({})
 
 	register = get_register(filters, pay_from, pay_to)
@@ -115,8 +115,8 @@ def get_data(filters):
 				}
 		#frappe.throw(_(sorted(data_entry.items(), key=lambda x: x['employee_name'])))
 		for dat in data_entry:
-			data.append({	"emp_name":"<b>Employee Name: </b>"+cstr(data_entry[dat]['employee_name'])+"</b>",	})
-			data.append({	"emp_name":"<b>ID Number: </b>"+cstr(dat)+"</b>",	})
+			data.append({	"emp_name":"Employee Name: "+cstr(data_entry[dat]['employee_name']),	})
+			data.append({	"emp_name":"ID Number: "+cstr(dat),	})
 
 			for i in sorted(data_entry[dat]['incomlete_attendance']):
 				data.append({
