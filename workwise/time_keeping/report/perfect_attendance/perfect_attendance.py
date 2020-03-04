@@ -39,9 +39,9 @@ def get_data(filters):
 	data = []
 	included_list = []
 	remove_list = []	
-	employees = frappe.db.sql(""" SELECT AR.employee, TE.`biometrics_id`, TE.`full_name`, AR.is_holiday, AR.is_restday, AR.is_absent, AR.is_lwop, AR.late, AR.undertime
+	employees = frappe.db.sql(""" SELECT AR.employee, TE.`biometrics_id`, TE.`full_name`, AR.is_holiday, AR.is_restday, AR.is_absent, AR.is_lwop, AR.late, AR.undertime, AR.cto, AR.work, AR.lv_status, AR.work_hours
 		FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.employee = TE.`name` 
-		WHERE TE.company = %(company)s
+		WHERE TE.company = %(company)s 
 		AND (AR.target_date BETWEEN %(from_date)s AND %(to_date)s)
 		ORDER BY TE.full_name """,{ 
 		"company": filters.company,
@@ -56,13 +56,15 @@ def get_data(filters):
 			"full_name": emp.full_name,
 		}
 		if emp.is_holiday != 1 and emp.is_restday != 1:
-			if emp.is_absent == 1 or emp.is_lwop == 1 or emp.late != 0 or emp.undertime!= 0:
+			work = 0
+			work += emp.cto
+			work += emp.work
+
+			if work >= emp.work_hours:
+				if row not in data:
+					data.append(row)
+			if work < emp.work_hours:
 				if row in data:
 					data.remove(row)
-				if row not in remove_list:
-					remove_list.append(row)
-		if row not in data:
-			if row not in remove_list and row not in data:
-				data.append(row)
 
 	return data
