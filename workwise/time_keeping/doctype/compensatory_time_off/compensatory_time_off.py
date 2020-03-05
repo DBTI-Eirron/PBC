@@ -18,21 +18,27 @@ class CompensatoryTimeOff(Document):
 		self.clear_fields()
 		self.file_validate_cto()
 		self.use_validate_cto()
+		self.validate_strict_cto()
+
 
 	def before_submit(self):
 		validate_approve_own_application(self)
 		if not frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
 			self.use_deduct_cto()
 
+
 	def on_submit(self):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 
+
 	def before_update_after_submit(self):
+		self.validate_strict_cto()
 		if frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
 			self.use_validate_deduct()
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
+
 		
 	def on_update_after_submit(self):
 		if self.workflow_state == "Approved":
@@ -47,6 +53,14 @@ class CompensatoryTimeOff(Document):
 		get_cancelled_by_and_date(self)
 
 	#GENERAL
+	def validate_strict_cto(self):
+		if frappe.db.get_single_value('Timekeeping Settings', 'cto_strict'):
+			ot_app = frappe.db.sql("""SELECT * FROM `tabOvertime Application` 
+				WHERE (`target_date` = %s or `target_date` = %s) AND `employee` = %s AND `workflow_state` = "Approved" 
+				AND ((`to_time` BETWEEN  %s AND %s) OR (`from_time` BETWEEN  %s AND %s))""",(self.use_target_date, self.file_target_date, self.employee, self.use_fromtime, self.use_totime, self.file_from_time, self.file_to_time), as_dict=True)
+			if ot_app:
+				frappe.throw(_("There's already an Overtime Application filed with the same date."))
+
 	def get_timekeeping_settings_for_cto_use_type(self):
 		cto_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
 		if cto_type == "Day":
@@ -115,7 +129,7 @@ class CompensatoryTimeOff(Document):
 			self.file_validate_max_filing()
 			self.file_process_cto()
 			self.file_get_workshift_setup()
-			self.file_post_validate_fields()
+			#self.file_post_validate_fields()
 
 	def file_pre_validate_fields(self):
 		if not self.file_from_date:
@@ -294,15 +308,15 @@ class CompensatoryTimeOff(Document):
 			if shifts:
 				if self.type == "File":
 					if shifts[0].cto_min_filing_hrs > 0:
-						if self.total_hours < shifts[0].cto_min_filing_hrs:
+						if self.total_hours < int(shifts[0].cto_min_filing_hrs):
 							frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Minimum hours of filing is {1}").format(self.name, shifts[0].cto_min_filing_hrs))
 					if shifts[0].cto_max_filing_hrs > 0:
-						if self.total_hours > shifts[0].cto_max_filing_hrs:
+						if self.total_hours > int(shifts[0].cto_max_filing_hrs):
 							frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Maximum hours of filing is {1}").format(self.name, shifts[0].cto_max_filing_hrs))
 
-	def file_post_validate_fields(self):
-		if self.credits_earned <= 0:
-			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Credits Earned must be greater than 0").format(self.name))
+	#def file_post_validate_fields(self):
+	#	if self.credits_earned <= 0:
+	#		frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Credits Earned must be greater than 0").format(self.name))
 
 	def file_cancel_cto(self):
 		if self.type == "File":
@@ -419,10 +433,10 @@ class CompensatoryTimeOff(Document):
 			shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
 			if shifts:
 				if self.type == "Use":
-					if shifts[0].cto_min_usage_hrs > 0:
+					if int(shifts[0].cto_min_usage_hrs) > 0:
 						if self.use_total_hours < shifts[0].cto_min_usage_hrs:
 							frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Minimum hours of usage is {1}").format(self.name, shifts[0].cto_min_usage_hrs))
-					if shifts[0].cto_max_usage_hrs > 0:
+					if int(shifts[0].cto_max_usage_hrs) > 0:
 						if self.use_total_hours > shifts[0].cto_max_usage_hrs:
 							frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Maximum hours of usage is {1}").format(self.name, shifts[0].cto_max_usage_hrs))
 
