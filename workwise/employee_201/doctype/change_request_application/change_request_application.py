@@ -17,6 +17,7 @@ class ChangeRequestApplication(Document):
 		self.validate_item_format()
 		grant_head_subordinate_access(self)
 		change_owner(self)
+		self.validate_civil_status()
 
 	def on_submit(self):
 		validate_approve_own_application(self)
@@ -25,6 +26,7 @@ class ChangeRequestApplication(Document):
 
 	def before_update_after_submit(self):
 		get_levelled_approval(self)
+		self.validate_civil_status()
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
@@ -55,6 +57,18 @@ class ChangeRequestApplication(Document):
 			for item in item_sel:
 				item_cur = frappe.db.get_value("Employee", self.employee, item.fieldname)
 				item_req.current = item_cur
-
+				
 				if item_req.action == "Approved":
 					frappe.client.set_value("Employee", self.employee, item.fieldname, item_req.request)
+
+	def validate_civil_status(self):
+		validate = 0
+		for item_req in self.get("change_request"):
+			if item_req.item == "Civil Status" and item_req.current == "Single":
+				for i in self.get("change_request"):
+					if i.item == "Spouse" and i.request != "":
+						frappe.db.set_value("Employee", self.employee, "spouse", "None")
+						validate = 1
+				if validate == 0:
+					frappe.throw(_("Spouse is required if Married"))
+					

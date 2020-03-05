@@ -26,6 +26,7 @@ class OvertimeApplication(Document):
 		self.get_recipients()
 		self.validate_overtime()
 		self.validate_duplicate_ot_application()
+		self.validate_cto_strict()
 
 	def on_submit(self):
 		validate_approve_own_application(self)
@@ -34,6 +35,7 @@ class OvertimeApplication(Document):
 
 
 	def before_update_after_submit(self):
+		self.validate_cto_strict()
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 
@@ -46,6 +48,14 @@ class OvertimeApplication(Document):
 		time_fds = ['from_time', 'to_time']
 		for fd in time_fds:
 			chk_time_format(str(self.get(fd)), "%H:%M:%S")
+
+	def validate_cto_strict(self):
+		if frappe.db.get_single_value('Timekeeping Settings', 'cto_strict'):
+			ot_app = frappe.db.sql("""SELECT * FROM `tabCompensatory Time Off` WHERE (`use_target_date` = %s OR `file_target_date` = %s) AND `employee` = %s AND `workflow_state` = "Approved" 
+				AND (((%s BETWEEN `use_fromtime` AND `use_totime`) OR (%s BETWEEN `use_fromtime` AND `use_totime`)) 
+				OR ((%s BETWEEN file_from_time AND file_to_time) OR (%s BETWEEN file_from_time AND file_to_time))) """,(self.target_date, self.target_date, self.employee, self.from_time, self.to_time,  self.from_time, self.to_time), as_dict=True)
+			if ot_app:
+				frappe.throw(_("There's already an Compensatory Time Off Application filed with the same date."))
 
 	def get_recipients(self):
 		recipients = []
