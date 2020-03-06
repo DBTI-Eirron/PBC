@@ -40,13 +40,20 @@ frappe.query_reports["SSS Loan Report"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "date_format",
+			"label": __("Loan Date Format"),
+			"fieldtype": "Select",
+			"options": [
+				{ "value": "1", "label": __("mmddyy") },
+				{ "value": "2", "label": __("mm-dd-yy") },
+			],
+			"default": "1",
+			"reqd": 1
+		},
+
+		{
 			"fieldname": "include_header",
 			"label": __("Include Header"),
-			"fieldtype": "Check",
-		},
-		{
-			"fieldname": "date",
-			"label": __("Loan Date Format : <p> 'mm-dd-yy' <p/>"),
 			"fieldtype": "Check",
 		},
 	]
