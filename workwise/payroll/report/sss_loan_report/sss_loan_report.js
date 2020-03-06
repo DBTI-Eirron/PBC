@@ -44,5 +44,10 @@ frappe.query_reports["SSS Loan Report"] = {
 			"label": __("Include Header"),
 			"fieldtype": "Check",
 		},
+		{
+			"fieldname": "date",
+			"label": __("Loan Date Format : <p> 'mm-dd-yy' <p/>"),
+			"fieldtype": "Check",
+		},
 	]
 }
