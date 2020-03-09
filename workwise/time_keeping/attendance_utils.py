@@ -174,54 +174,179 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	get_undertime(entry)
 	get_ndiff(entry)
 	get_absent(entry)
-	get_work(entry)
-	get_cto(entry, cto)
+	get_work(entry, leaves)
+	get_cto(entry, cto, ots)
 	get_flexible(entry, obs)
 	get_final_processing(entry)
 	get_tags(entry)
 	get_links(entry)
 
-def get_work(entry):
+def get_work(entry, leaves):
 
-	if (not entry.get('is_restday') or not entry.get('is_holiday')) and entry['card_in'] and entry['card_out']:
+	first_set =	{			
+		"late" : 0, 
+		"absent" : 0,
+		"ut" : 0,
+		"work" : 0,
+	}
+	second_set = {
+		"late" : 0, 
+		"absent" : 0,
+		"ut" : 0,
+		"work" : 0,
+	}
+	leave_set = 0
+	leave_type = ""
+	#leaves	
+	lv_whole = {"half_lv": 0, "half_lwop": 0}
+	for l in leaves:
+		if l['leave_date'] == entry['target_date']:
 
-		entry['work'] = (entry.get('work_hours') * 60) * 60
-		if entry["lv_status"] == 3:
-			entry['work'] = entry['work'] / 2
+			if l['is_excluded'] != 1:
+				leave_set = 1
+
+				if l.is_lwop == 1:
+					leave_type = "lwop"
+
+				if not l.is_lwop:
+					leave_type = "leave_hrs"
+				
+				if l.is_half_day and not l.is_second_half:
+					leave_set = 2
+
+				if l.is_second_half:
+					leave_set = 3
+
+
+	if not entry.get('is_restday') or entry.get('is_holiday'):
+		late, ut, absent, work = 0,0,0,0
+		if not leave_type:
+			first_set = get_time(entry['card_in'], entry['card_out'], entry['ob_in'], entry['ob_out'], entry['time_in'], entry['break_start'])
+			second_set = get_time(entry['card_in'], entry['card_out'], entry['ob_in'], entry['ob_out'], entry['break_end'], entry['time_out'])
+
+		#Get Leave
+		if leave_type:
+
+			if leave_set == 2:
+				second_set = get_time(entry['card_in'], entry['card_out'], entry['ob_in'], entry['ob_out'], entry['break_end'], entry['time_out'])
+				if leave_type == "leave_hrs":
+					entry['leave'] += abs((entry['time_in'] - entry['break_start']).total_seconds())
+
+			if leave_set == 3:
+				first_set = get_time(entry['card_in'], entry['card_out'], entry['ob_in'], entry['ob_out'], entry['time_in'], entry['break_start'])
+				if leave_type == "leave_hrs":
+					entry['leave'] += abs((entry['break_end'] - entry['time_out']).total_seconds())
+
+			if leave_set == 1:
+				entry['leave'] = entry['worker_secs']
+
+		if not first_set and (leave_set != 2 or leave_set != 1):
+			first_set['absent'] == ((4 * 60) *60)
+
+		if not second_set and (leave_set != 3 or leave_set != 1):
+			second_set['absent'] == ((4 * 60) *60)
+		absent = first_set['absent'] + second_set['absent']
+		if absent != 8:
+			if first_set['absent'] == 4 and second_set['work'] != 0 and (leave_set != 2 or leave_set != 1):
+				first_set['absent'], first_set['late'] = 0, ((4 * 60) *60)
+	
+			if second_set['absent'] == 4 and first_set['work'] != 0 and (leave_set != 3 or leave_set != 1):
+				second_set['absent'], second_set['ut'] = 0, ((4 * 60) *60)
+
+		entry['late'] = first_set['late'] + second_set['late']
+		entry['undertime'] = first_set['ut'] + second_set['ut']
+		absent = first_set['absent'] + second_set['absent']
+		entry['work'] = first_set['work'] + second_set['work']
+
 		
-		elif entry["lv_status"] == 2:
-			entry['work'] = entry['work'] / 2
-
-		elif entry["lv_status"] == 1:
-			entry['work'] = 0
-
-		else:
-			if entry["is_halfday"] == 1:
-				entry['work'] = entry['work'] / 2
-	elif entry.get('ob_status') == 1:
-		entry['work'] = (entry.get('work_hours') * 60) * 60
-		if entry["is_halfday"] == 1:
-			entry['work'] = entry['work'] / 2
-
-	if entry.get('ob_stat') > 1:
-		if not entry["lv_status"]:
-			entry['work'] = (entry.get('work_hours') * 60) * 60
-			entry['work'] = entry['work'] / 2
-
-	if (not entry.get('is_restday') or not entry.get('is_holiday')) and entry["lv_status"] == 1 and not entry['is_lwop'] and not entry['card_in'] and not entry['card_out']:
-		entry['work'] = (entry.get('work_hours') * 60) * 60
-
-	if (entry.get('is_restday') or entry.get('is_holiday')) and entry.get('card_in') and entry.get('card_out') and entry.get('at_work_rdho'):
-		entry['work'] = abs((entry.get('card_out') - entry.get('card_in')).total_seconds())
-		max_work = (entry.get('work_hours') * 60) * 60
-		if entry['work'] > max_work:
-			entry['work'] = max_work
-
-
-
 	return entry
 
+def get_time(card_in=None, card_out=None, ob_in=None, ob_out=None, start=None, end=None):
+	time_in, time_out = start, start
+	late, ut, absent, work = 0, 0, 0, 0
+
+	if (card_in and card_out) or (ob_in and ob_out):
+
+		#set Card boundery
+		if card_in and card_out:
+
+			if get_datetime(card_in) <= get_datetime(start):
+				card_in = start
+			if get_datetime(card_out) >= get_datetime(end):
+				card_out = end
+			if get_datetime(card_in) > get_datetime(time_out) or get_datetime(card_out) < get_datetime(time_in):
+				card_out = card_in
+
+		#set ob boundery
+		if ob_in and ob_out:
+
+			if get_datetime(ob_in) <= get_datetime(start):
+				ob_in = start
+			if get_datetime(ob_out) >= get_datetime(end):
+				ob_out = end
+			if get_datetime(ob_in) > get_datetime(time_out) or get_datetime(ob_out) < get_datetime(time_in):
+				ob_out = ob_in
+
+		if ob_in and (card_in and card_out): 
+
+			if get_datetime(card_in) != get_datetime(card_out) and get_datetime(ob_in) != get_datetime(ob_out):
+
+				if get_datetime(card_in) <= get_datetime(ob_in) <= get_datetime(card_out):
+					if get_datetime(ob_out) > get_datetime(card_out):
+						time_out = ob_out
+	
+				if get_datetime(ob_in) < get_datetime(card_in) <= get_datetime(card_out):
+					time_in = ob_in
+
+					if get_datetime(ob_out) > get_datetime(card_out):
+						time_out = ob_out
+	
+				if get_datetime(ob_in) > get_datetime(card_out):
+
+					ut += abs((card_out - get_datetime(ob_in)).total_seconds())
+					work -= abs((card_out - get_datetime(ob_in)).total_seconds())
+					time_in, time_out = card_in, ob_out
+	
+				if get_datetime(card_in) > get_datetime(ob_out):
+
+					ut += abs((ob_out - card_in).total_seconds())
+					work -= abs((ob_out - card_in).total_seconds())
+					time_in, time_out = ob_in, card_out
+
+		if (not ob_in or get_datetime(ob_in) == get_datetime(ob_out)) and get_datetime(card_in) != get_datetime(card_out):
+			time_in, time_out = card_in, card_out
+
+		if (not card_in or not card_out or get_datetime(card_in) == get_datetime(card_out)) and get_datetime(ob_in) != get_datetime(ob_out):
+			time_in, time_out = ob_in, ob_out
+
+		if (not card_in or not card_out or get_datetime(card_in) == get_datetime(card_out)) and (not ob_in or get_datetime(ob_in) == get_datetime(ob_out)):
+			absent = 4
+
+		if not absent:
+			#Get Late
+			if get_datetime(time_in) > get_datetime(start):
+				late = abs((start - time_in).total_seconds())
+	
+			#Get Undertime
+			if get_datetime(time_out) < get_datetime(end):
+				ut = abs((time_out - get_datetime(end)).total_seconds())
+
+		work += abs((get_datetime(time_in) - get_datetime(time_out)).total_seconds())
+
+	else:
+		absent = 4
+
+	logs = {
+		"late" : late, 
+		"absent" : absent,
+		"ut" : ut,
+		"work" : work,
+	}
+
+	return logs
+
 def get_overtime(entry, ot_apps):
+
 	ot_list = []
 	work_shift = []
 	ot_map = get_overtime_map()
@@ -231,6 +356,7 @@ def get_overtime(entry, ot_apps):
 	nd_end = None
 	nd_early_start = None
 	strict_logs = frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs')
+	entry["ot_card_in"], entry["ot_card_out"], entry["ot_ob_in"], entry["ot_ob_out"] = "","","",""
 
 	#Get Nigthdiff Setup
 	if entry.get('nd_start') and entry.get('nd_end'):
@@ -247,6 +373,7 @@ def get_overtime(entry, ot_apps):
 			per_time_with_ot = []
 			is_break_deducted = 0
 			ot_hrs, ot_nd, ot_normal, org_ot_normal = 0, 0, 0, 0
+
 			if getdate(d.get('target_date')) == entry.get('target_date'):
 				entry['ot_links'].append(d.get("name")) 
 				linked_ot = d.name
@@ -289,10 +416,10 @@ def get_overtime(entry, ot_apps):
 
 				if entry.get('ot_strict_logs'):
 					ot_card_in, ot_card_out = get_ot(ot_in,ot_out,entry.get('card_in'), entry.get('card_out'),entry.get('time_out'),entry['is_restday'],ot_int_start, entry['is_holiday'])
-					
+					entry["ot_card_in_ot"], entry["ot_card_out"] = ot_card_in, ot_card_out
 					if entry.get('ob_in'):
 						ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('ob_in'), entry.get('ob_out'),entry.get('time_out'),entry['is_restday'],ot_int_start, entry['is_holiday'])
-
+						entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
 						if entry['card_in']:
 
 							if ot_card_in <= ot_ob_in <= ot_card_out:
@@ -482,7 +609,7 @@ def get_overtime(entry, ot_apps):
 	return entry
 
 def get_ot(ot_in=None ,ot_out=None, start=None, end=None, bound=None, restday=None, interval=None, holiday=None):
-	
+
 	if holiday or restday:
 		bound = ot_in
 
@@ -563,9 +690,9 @@ def get_ndiff(entry):
 			if entry.get('time_in') <= nd_early_start:
 				if get_datetime(entry.get('card_in')) < nd_early_start:
 					if get_datetime(entry.get('card_in')) < get_datetime(entry.get('time_in')):
-						entry['nightdiff'] = abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())
+						entry['nightdiff'] = (abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())) + entry['nightdiff']
 					else:
-						entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())
+						entry['nightdiff'] = (abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())) + entry['nightdiff']
 
 	return entry
 
@@ -724,7 +851,8 @@ def get_undertime(entry):
 	
 	return entry
 
-def get_cto(entry, cto):
+def get_cto(entry, cto, ot_apps):
+
 	if cto:
 		for d in cto:
 			if d['use_target_date'] == entry['target_date']:
@@ -955,15 +1083,7 @@ def get_flexible(entry, obs):
 			entry['undertime'] = 0
 
 def get_final_processing(entry):
-	if not entry.get('is_flexible'):
-		entry['work'] -= entry['late']
-		entry['work'] -= entry['undertime']
-		if entry.get('ex_tardiness'):
-			entry['late'] = 0
-			entry['undertime'] = 0
 
-		if entry['work'] < 0: 
-			entry['work'] = 0
 			#entry['late'] = 0
 			#entry['undertime'] = 0
 			#entry['is_absent'] = 1
@@ -979,6 +1099,7 @@ def get_final_processing(entry):
 		entry['overtime_ex'] = 0
 		entry['ot_list'] = ""
 		entry["undertime"] = 0
+
 
 	ch_tr=0
 	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
@@ -997,6 +1118,7 @@ def get_final_processing(entry):
 		entry["is_halfday"] = 1		
 		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
 		chu_tr=1
+
 
 	if chu_tr == 1 and ch_tr == 1:
 		entry["late"] = 0		
@@ -1017,6 +1139,7 @@ def get_final_processing(entry):
 		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
+
 		
 	if entry.get('lv_status') != 1 and not entry.get('card_in') and strict_card:
 		entry['is_absent'] = 1
@@ -1025,13 +1148,16 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["undertime"] = 0
 
+
 	#Restday
 	if entry.get('is_restday'):
 		# Strictly no work, late, undertime absent if restday
-		entry['work'] = 0
-		entry['late'] = 0
-		entry['undertime'] = 0
-		entry['is_absent'] = 0
+		if not entry['is_holiday']:
+			entry['work'] = 0
+			entry['late'] = 0
+			entry['undertime'] = 0
+			entry['is_absent'] = 0
+
 
 	#Holiday
 	if entry.get('is_holiday'):
@@ -1054,6 +1180,7 @@ def get_final_processing(entry):
 
 		else:
 			if entry.get('mo_abho'):
+
 				if (not entry.get('card_out')) and (not entry.get('card_in')) and (not entry.get('is_restday')) and exemption:
 					entry['is_absent'] = 1
 				else:
@@ -1062,8 +1189,9 @@ def get_final_processing(entry):
 					entry['nightdiff'] = 0
 					entry['is_absent'] = 0
 			else:
+
 				# Strictly no work, late, undertime absent for non daily rate if holiday
-				if entry.get('card_in') and entry.get('card_out'):
+				if (entry.get('card_in') and entry.get('card_out')) or entry['ob_in']:
 					entry['work'] = (entry.get('work_hours') * 60 * 60) #set work hours equal to wholeday of work
 				else:
 					entry['work'] = 0
@@ -1072,6 +1200,7 @@ def get_final_processing(entry):
 				entry['late'] = 0
 				entry['undertime'] = 0
 				entry['is_absent'] = 0
+
 
 	#If not Restday, Holiday, Wholeday Leave and Wholeday OB
 	if entry.get('is_attendance_base') and entry.get('is_restday') != 1 and entry.get('is_holiday') != 1 and entry.get('lv_status') != 1 and entry.get('ob_status') != 1:
