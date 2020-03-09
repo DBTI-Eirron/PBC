@@ -219,9 +219,12 @@ def get_work(entry):
 
 
 
+
+
 	return entry
 
 def get_overtime(entry, ot_apps):
+
 	ot_list = []
 	work_shift = []
 	ot_map = get_overtime_map()
@@ -231,6 +234,7 @@ def get_overtime(entry, ot_apps):
 	nd_end = None
 	nd_early_start = None
 	strict_logs = frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs')
+	entry["ot_card_in"], entry["ot_card_out"], entry["ot_ob_in"], entry["ot_ob_out"] = "","","",""
 
 	#Get Nigthdiff Setup
 	if entry.get('nd_start') and entry.get('nd_end'):
@@ -247,6 +251,7 @@ def get_overtime(entry, ot_apps):
 			per_time_with_ot = []
 			is_break_deducted = 0
 			ot_hrs, ot_nd, ot_normal, org_ot_normal = 0, 0, 0, 0
+
 			if getdate(d.get('target_date')) == entry.get('target_date'):
 				entry['ot_links'].append(d.get("name")) 
 				linked_ot = d.name
@@ -289,10 +294,10 @@ def get_overtime(entry, ot_apps):
 
 				if entry.get('ot_strict_logs'):
 					ot_card_in, ot_card_out = get_ot(ot_in,ot_out,entry.get('card_in'), entry.get('card_out'),entry.get('time_out'),entry['is_restday'],ot_int_start, entry['is_holiday'])
-					
+					entry["ot_card_in_ot"], entry["ot_card_out"] = ot_card_in, ot_card_out
 					if entry.get('ob_in'):
 						ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('ob_in'), entry.get('ob_out'),entry.get('time_out'),entry['is_restday'],ot_int_start, entry['is_holiday'])
-
+						entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
 						if entry['card_in']:
 
 							if ot_card_in <= ot_ob_in <= ot_card_out:
@@ -482,7 +487,7 @@ def get_overtime(entry, ot_apps):
 	return entry
 
 def get_ot(ot_in=None ,ot_out=None, start=None, end=None, bound=None, restday=None, interval=None, holiday=None):
-	
+
 	if holiday or restday:
 		bound = ot_in
 
@@ -563,9 +568,9 @@ def get_ndiff(entry):
 			if entry.get('time_in') <= nd_early_start:
 				if get_datetime(entry.get('card_in')) < nd_early_start:
 					if get_datetime(entry.get('card_in')) < get_datetime(entry.get('time_in')):
-						entry['nightdiff'] = abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())
+						entry['nightdiff'] = (abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())) + entry['nightdiff']
 					else:
-						entry['nightdiff'] = abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())
+						entry['nightdiff'] = (abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())) + entry['nightdiff']
 
 	return entry
 
@@ -725,6 +730,7 @@ def get_undertime(entry):
 	return entry
 
 def get_cto(entry, cto):
+
 	if cto:
 		for d in cto:
 			if d['use_target_date'] == entry['target_date']:
@@ -964,6 +970,7 @@ def get_final_processing(entry):
 
 		if entry['work'] < 0: 
 			entry['work'] = 0
+
 			#entry['late'] = 0
 			#entry['undertime'] = 0
 			#entry['is_absent'] = 1
@@ -979,6 +986,7 @@ def get_final_processing(entry):
 		entry['overtime_ex'] = 0
 		entry['ot_list'] = ""
 		entry["undertime"] = 0
+
 
 	ch_tr=0
 	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
@@ -997,6 +1005,7 @@ def get_final_processing(entry):
 		entry["is_halfday"] = 1		
 		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
 		chu_tr=1
+
 
 	if chu_tr == 1 and ch_tr == 1:
 		entry["late"] = 0		
@@ -1017,6 +1026,7 @@ def get_final_processing(entry):
 		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
+
 		
 	if entry.get('lv_status') != 1 and not entry.get('card_in') and strict_card:
 		entry['is_absent'] = 1
@@ -1025,13 +1035,16 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["undertime"] = 0
 
+
 	#Restday
 	if entry.get('is_restday'):
 		# Strictly no work, late, undertime absent if restday
-		entry['work'] = 0
-		entry['late'] = 0
-		entry['undertime'] = 0
-		entry['is_absent'] = 0
+		if not entry['is_holiday']:
+			entry['work'] = 0
+			entry['late'] = 0
+			entry['undertime'] = 0
+			entry['is_absent'] = 0
+
 
 	#Holiday
 	if entry.get('is_holiday'):
@@ -1054,6 +1067,7 @@ def get_final_processing(entry):
 
 		else:
 			if entry.get('mo_abho'):
+
 				if (not entry.get('card_out')) and (not entry.get('card_in')) and (not entry.get('is_restday')) and exemption:
 					entry['is_absent'] = 1
 				else:
@@ -1062,8 +1076,9 @@ def get_final_processing(entry):
 					entry['nightdiff'] = 0
 					entry['is_absent'] = 0
 			else:
+
 				# Strictly no work, late, undertime absent for non daily rate if holiday
-				if entry.get('card_in') and entry.get('card_out'):
+				if (entry.get('card_in') and entry.get('card_out')) or entry['ob_in']:
 					entry['work'] = (entry.get('work_hours') * 60 * 60) #set work hours equal to wholeday of work
 				else:
 					entry['work'] = 0
@@ -1072,6 +1087,7 @@ def get_final_processing(entry):
 				entry['late'] = 0
 				entry['undertime'] = 0
 				entry['is_absent'] = 0
+
 
 	#If not Restday, Holiday, Wholeday Leave and Wholeday OB
 	if entry.get('is_attendance_base') and entry.get('is_restday') != 1 and entry.get('is_holiday') != 1 and entry.get('lv_status') != 1 and entry.get('ob_status') != 1:
