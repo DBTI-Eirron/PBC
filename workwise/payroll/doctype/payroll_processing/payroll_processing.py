@@ -574,8 +574,8 @@ class PayrollProcessing(Document):
 						if emp.get('phic_freq') in ['All'] and emp.get('payroll_schedule') == "Weekly":
 							amt = flt(eval(l), 8) / header.get("no_weeks")
 
-						if emp.get('phic_freq') in ['Both']:
-							freq = csrt(int(header.get("no_weeks")))+"th"
+						if emp.get('phic_freq') in ['Both'] and emp.get('payroll_schedule') == "Weekly":
+							freq = cstr(int(header.get("no_weeks")))+"th"
 							if self.frequency in ["2nd", freq]:
 								amt = flt(eval(l), 8) / 2
 							else:
