@@ -539,7 +539,7 @@ class PayrollProcessing(Document):
 					phic_min_range = 10000
 					phic_max_range = 60000
 					phic_perc = 3
-					phic_min_rate = 300
+					phic_min_rate = 150
 					phic_max_rate = 1800
 					payroll_year = frappe.get_value("Payroll Period", self.period, "payroll_year")
 					if payroll_year == '2019':
