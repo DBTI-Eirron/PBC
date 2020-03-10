@@ -1469,6 +1469,7 @@ class PayrollProcessing(Document):
 				"is_taxable": t.is_taxable, "is_standard": t.is_standard, "is_active": t.is_active, "is_bonus": t.is_bonus, "is_government": t.is_government,
 				"is_sss": t.is_sss, "is_phic": t.is_phic, "is_hdmf": t.is_hdmf,
 			}
+
 		return tr_map
 
 	def get_overtime_map(self):

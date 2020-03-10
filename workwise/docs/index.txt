@@ -1,5 +1,0 @@
-assetsindex
-install
-license
-license
-user
