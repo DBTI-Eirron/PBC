@@ -644,6 +644,3 @@ def update_ot_rates_holiday():
 			frappe.delete_doc("Overtime Rates", o.name)
 		else:
 			frappe.db.set_value("Overtime Rates", o.name, "ot_code", overtime_type)
-
- def nyek():
-	frappe.db.sql("""UPDATE `tabEmployee` SET `cost_center`=null WHERE `cost_center`=' - 3030 DPP'; """)
