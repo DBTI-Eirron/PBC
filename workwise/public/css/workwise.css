@@ -3,7 +3,7 @@ body[data-route=""] .navbar-default,
 body[data-route="desktop"] .navbar-default {
   background-color: rgba(33, 33, 33, 0.9);
   border-color: rgba(54, 65, 76, 0.1);
-}
+} 
 .dropdown-help .dropdown-menu .input-group {
   width: 100%;
   background-color: #666;
