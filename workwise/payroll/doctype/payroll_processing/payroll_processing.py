@@ -540,14 +540,14 @@ class PayrollProcessing(Document):
 					phic_max_range = 60000
 					phic_perc = 3
 					phic_min_rate = 150
-					phic_max_rate = 1800
+					phic_max_rate = 900
 					payroll_year = frappe.get_value("Payroll Period", self.period, "payroll_year")
 					if payroll_year == '2019':
 						phic_min_range = 10000
 						phic_max_range = 50000
 						phic_perc = 2.75
-						phic_min_rate = 275
-						phic_max_rate = 1375
+						phic_min_rate = 275 / 2
+						phic_max_rate = 1375 / 2
 
 					phic, phice = 0, 0
 					if target_amt <= phic_min_range:
@@ -574,8 +574,8 @@ class PayrollProcessing(Document):
 						if emp.get('phic_freq') in ['All'] and emp.get('payroll_schedule') == "Weekly":
 							amt = flt(eval(l), 8) / header.get("no_weeks")
 
-						if emp.get('phic_freq') in ['Both']:
-							freq = csrt(int(header.get("no_weeks")))+"th"
+						if emp.get('phic_freq') in ['Both'] and emp.get('payroll_schedule') == "Weekly":
+							freq = cstr(int(header.get("no_weeks")))+"th"
 							if self.frequency in ["2nd", freq]:
 								amt = flt(eval(l), 8) / 2
 							else:
