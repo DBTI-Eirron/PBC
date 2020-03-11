@@ -14,12 +14,18 @@ from workwise.time_keeping.application_utils import validate_inactive_employee
 
 class LoanApplication(Document):
 	def validate(self):
+		self.validate_loan()
 		validate_inactive_employee(self)
 		self.update_missing_names()
 		self.update_paid_unpaid()
 		self.validate_date()
 		self.validate_user_sensitivity_level()
 		self.update_amounts()
+
+	def validate_loan(self):
+		loan_type = frappe.db.sql("""SELECT `name` FROM `tabTransaction Type` WHERE `code` = %s and `entry_type` = 'Loan'""", self.loan_type, as_dict=True)
+		if not loan_type:
+			frappe.throw(_("Incorrect Loan Type"))
 
 	def update_missing_names(self):
 		self.employee_name = frappe.db.get_value("Employee", self.employee, "full_name")
