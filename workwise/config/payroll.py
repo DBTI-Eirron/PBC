@@ -16,6 +16,10 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Thirteenth Month Pay Processing",
+				},
+				{
+					"type": "doctype",
 					"name": "Adjustment Processing",
 				},
 				{

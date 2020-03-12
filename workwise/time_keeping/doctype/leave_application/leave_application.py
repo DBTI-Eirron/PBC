@@ -8,7 +8,7 @@ from workwise.time_keeping.timekeeping_utils import datediff_days_raw
 from workwise.payroll.policy_utils import get_policy
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date)
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_approver_userperm, validate_cutoff_approval_date)
 from frappe.model.document import Document
 
 class LeaveApplication(Document):
@@ -24,6 +24,7 @@ class LeaveApplication(Document):
 		self.validate_employee()
 		self.validate_balance()
 		self.validate_leave()
+		self.validate_medical()
 		change_owner(self)
 		self.get_recipients()
 
@@ -35,10 +36,14 @@ class LeaveApplication(Document):
 		self.update_leave_credits()
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
+		#validate_approver_userperm(self)
+		#validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
+		#validate_approver_userperm(self)
+		#validate_cutoff_approval_date(self)
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
@@ -282,7 +287,7 @@ class LeaveApplication(Document):
 			valid_day = frappe.db.get_single_value('Timekeeping Settings', 'require_medical')
 			#valid_day = get_policy("TK-REQMED" ,self.company)
 			if valid_day:
-				if flt(self.total_leave_days, 2) >= flt(valid_day, 2) and not self.medical_cert:
+				if (flt(self.total_leave_days, 2) >= flt(valid_day, 2)) and not self.medical_cert:
 					frappe.throw(_("<b>Leave Application: {0}</b><hr> Medical Certificate Required").format(self.name))
 				
 	def get_leaves_balances(self):
