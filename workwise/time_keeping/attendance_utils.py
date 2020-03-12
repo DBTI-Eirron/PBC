@@ -1,3 +1,4 @@
+
 from __future__ import unicode_literals
 import frappe, datetime, math
 from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
@@ -203,7 +204,7 @@ def get_work(entry):
 		if entry["is_halfday"] == 1:
 			entry['work'] = entry['work'] / 2
 
-	if entry.get('ob_stat') > 1:
+	if entry.get('ob_stat') > 1 and not (entry['card_in'] and entry['card_out']):
 		if not entry["lv_status"]:
 			entry['work'] = (entry.get('work_hours') * 60) * 60
 			entry['work'] = entry['work'] / 2
@@ -216,10 +217,6 @@ def get_work(entry):
 		max_work = (entry.get('work_hours') * 60) * 60
 		if entry['work'] > max_work:
 			entry['work'] = max_work
-
-
-
-
 
 	return entry
 
@@ -807,6 +804,9 @@ def get_absent(entry):
 		elif entry.get('lv_status') == 3 and entry.get('ob_stat') == 2 and not entry.get('is_lwop'):
 			entry["is_absent"] = 0
 			entry["is_halfday"] = 0
+		elif (entry.get('lv_status') == 2 or entry.get('lv_status') == 3) and (entry.get('ob_stat') == 2 or entry.get('ob_stat') == 3) and entry.get('is_lwop'):
+			entry["is_absent"] = 0
+			entry["is_halfday"] = 0
 		else:
 			entry["is_absent"] = 1
 			entry["is_halfday"] = 1
@@ -950,11 +950,15 @@ def get_flexible(entry, obs):
 			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
 			if flex_ob_time > 0:
 				if flex_ob_time < entry.get('worker_secs'):
-					ut = (entry.get('worker_secs') - flex_ob_time) 
+					ut = (entry.get('worker_secs') - flex_ob_time)
 					ut = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
-					entry['undertime'] = ut
-					entry['work'] = entry.get('worker_secs')  - ut
-		
+					if (entry.get('lv_status') == 2 and entry.get('ob_stat') == 3) or (entry.get('lv_status') == 3 and entry.get('ob_stat') == 2):
+						entry['work'] = entry['work']/2
+						ut = 0
+					else:
+						entry['undertime'] = ut
+						entry['work'] = entry.get('worker_secs')  - ut
+
 		#Work should not be greater than assigned work hrs
 		if entry['work'] > entry.get('worker_secs'):
 			entry['work'] = entry.get('worker_secs')
@@ -1027,7 +1031,7 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["undertime"] = 0
 
-		
+
 	if entry.get('lv_status') != 1 and not entry.get('card_in') and strict_card:
 		entry['is_absent'] = 1
 		entry["is_halfday"] = 0
@@ -1155,6 +1159,12 @@ def get_final_processing(entry):
 		entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 		entry["undertime"] = 0
 
+	if entry.get('lv_status') == 1:
+		entry["is_absent"] = 0
+		entry["is_halfday"] = 0
+		entry["late"] = 0
+		entry["undertime"] = 0
+		entry["work"] = 0
 
 	return entry
 
