@@ -9,8 +9,8 @@ from frappe.utils import cint, flt, getdate, cstr, nowdate, add_to_date, get_dat
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule, get_actual_logs
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs, sub_date, chk_time_format, timediff_hrs, timediff_mins, str_datetime
-from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date)
+from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, validate_approver_userperm,
+change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_cutoff_approval_date)
 
 class OvertimeApplication(Document):
 	def validate(self):
@@ -32,12 +32,15 @@ class OvertimeApplication(Document):
 		validate_approve_own_application(self)
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
-
+		#validate_approver_userperm(self)
+		#validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
 		self.validate_cto_strict()
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
+		#validate_approver_userperm(self)
+		#validate_cutoff_approval_date(self)
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)

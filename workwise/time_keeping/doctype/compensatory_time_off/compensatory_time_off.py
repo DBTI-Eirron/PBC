@@ -10,8 +10,8 @@ from frappe.utils import nowdate, get_time, flt, getdate, get_datetime
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule, get_ob_list
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
-from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, get_overrides,
-change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs)
+from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, get_overrides, change_owner, get_levelled_approval, 
+	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs, validate_approver_userperm, validate_cutoff_approval_date)
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
@@ -20,17 +20,16 @@ class CompensatoryTimeOff(Document):
 		self.use_validate_cto()
 		self.validate_strict_cto()
 
-
 	def before_submit(self):
 		validate_approve_own_application(self)
 		if not frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
 			self.use_deduct_cto()
 
-
 	def on_submit(self):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
-
+		#validate_approver_userperm(self)
+		#validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
 		self.validate_strict_cto()
@@ -38,7 +37,8 @@ class CompensatoryTimeOff(Document):
 			self.use_validate_deduct()
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
-
+		#validate_approver_userperm(self)
+		#validate_cutoff_approval_date(self)
 		
 	def on_update_after_submit(self):
 		if self.workflow_state == "Approved":
@@ -271,8 +271,8 @@ class CompensatoryTimeOff(Document):
 				frappe.throw(_("You cannot file within your shift"))
 			if datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_in), '%Y-%m-%d %H:%M:%S') < to_date < datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_out), '%Y-%m-%d %H:%M:%S'):
 				frappe.throw(_("You cannot file within your shift"))
-			if (schedule[0]['datetime_out'] > from_date):
-				from_date = schedule[0]['datetime_out']
+			#if (schedule[0]['datetime_out'] > from_date):
+			#	from_date = schedule[0]['datetime_out']
 
 		if from_date <= to_date:
 			total_hrs = to_date - from_date

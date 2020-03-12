@@ -111,26 +111,70 @@ def level_of_approval_next_level(self, approver_level, highest_level, req_level)
 		set_levelled_approval_to_progress(self, approver_level)
 	else:
 		frappe.throw(_("<b>{0}: {1}</b><hr> Insufficient permission to approve this application").format(self.doctype, self.name))
-def message_for_cut_off_date(self, pass_value):
+		
+def validate_cutoff_approval_date(self):
 	if self.workflow_state == "Approved":
 		cutoff_list = []
-		date = getdate(self.approved_on)
-		if pass_value == "Use":
-			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND `attendance_from` <= %s And `attendance_to` >= %s """,(self.company, self.use_from_date, self.use_to_date), as_dict=True)
-		elif pass_value == "File":
-			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND `attendance_from` <= %s And `attendance_to` >= %s """,(self.company, self.file_from_date, self.file_to_date), as_dict=True)
-		elif pass_value == "excuse":
-			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND %s BETWEEN `attendance_from` AND `attendance_to` """,(self.company, self.date), as_dict=True)	
-		elif pass_value == "undertime":
-			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND %s BETWEEN `attendance_from` AND `attendance_to` """,(self.company, self.from_date), as_dict=True)
-		elif pass_value == "dtr":
-			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND %s BETWEEN `attendance_from` AND `attendance_to` """,(self.company, self.target_date), as_dict=True)
-		else:
-			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND `attendance_from` <= %s And `attendance_to` >= %s """,(self.company, self.from_date, self.to_date), as_dict=True)
+		target_date, from_date, to_date = None, None, None
+		approved_on = getdate(self.approved_on)
+		if self.doctype in ['Leave Application', 'Overtime Application', 'Official Business Application', 'Change Schedule Application']:
+			from_date = self.from_date
+			to_date = self.to_date
+
+		if self.doctype in ['Compensatory Time Off']:
+			if self.type == 'Use':
+				from_date = self.use_from_date
+				to_date = self.use_to_date
+			if self.type == 'File':
+				from_date = self.file_from_date
+				to_date = self.file_to_date
+
+		if self.doctype in ['Excuse Tardiness Application']:
+			target_date = self.date
+
+		if self.doctype in ['Undertime Application']:
+			target_date = self.from_date
+
+		if self.doctype in ['DTR Problem Application']:
+			target_date = self.from_date
+
+		if target_date:
+			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND %s BETWEEN `attendance_from` AND `attendance_to` """,(self.company, target_date), as_dict=1)
+		if from_date and to_date:
+			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND `attendance_from` <= %s And `attendance_to` >= %s """,(self.company, from_date, to_date), as_dict=1)
+		
 		for ap in approvals_cutoff:
 			if ap.approval_cutoff:
-				if date >= getdate(ap.approval_cutoff):
+				if approved_on >= getdate(ap.approval_cutoff):
 					frappe.msgprint("Approved Application is Beyond Approval Cut off")
+
+def validate_approver_userperm(self):
+	missing_up = {}
+
+	approvers = frappe.db.sql("""SELECT EA.`approver`, EA.`level`, TE.`full_name`, TE.`user_id` 
+		FROM `tabEmployee Approvers` EA INNER JOIN `tabEmployee` TE ON EA.`approver`=TE.`name`
+		WHERE EA.`parent` = %s AND (EA.`application` = %s OR EA.`application` = "All")""",(self.employee, self.doctype), as_dict=1)
+	if approvers:
+		for app in approvers:
+			user_permission = frappe.db.sql("""SELECT `name` FROM `tabUser Permission` 
+				WHERE `for_value` = %s AND `user` = %s AND `allow` = 'Employee' """,(self.employee, app.user_id),as_dict=True)
+	
+			if not user_permission:
+				missing_up[cstr(str(app.approver)+str(app.level))] = {
+					"approver": app.approver,
+					"full_name": app.full_name,
+					"level": app.level,
+				}
+	
+		missing_out = []
+		for ms in sorted(missing_up.items(), key=lambda k: k[1]['level']):
+			missing_out.append( "Level: "+cstr(ms[1]['level'])+" Approver:"+cstr(ms[1]['approver'])+" - "+cstr(ms[1]['full_name']) )
+		if missing_out:
+			message = "Approvers with No Permission with this Employee: <br>"
+			message+="<br>".join(missing_out)
+			frappe.throw(_(message))
+	else:
+		frappe.throw(_("Employee has No Approver for this Application"))
 
 def set_levelled_approval_to_progress(self, approver_level):
 	approval_history = ""
