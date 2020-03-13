@@ -243,6 +243,12 @@ def get_data():
 					"doctype": "Leave Application",
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "Workdays Summary",
+					"doctype": "Workdays Summary",
+					"is_query_report": True
+				},
 			],
 		},	
 	]
