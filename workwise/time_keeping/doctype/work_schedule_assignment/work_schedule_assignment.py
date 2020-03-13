@@ -135,10 +135,13 @@ class WorkScheduleAssignment(Document):
 		unique_emp = {}
 		for e in self.employees:
 			if e.employee not in unique_emp:
+				work_shift = e.new_shift
+				if self.work_shift:
+					work_shift = self.work_shift
 				unique_emp[e.employee] = {
 					"employee": e.employee,
 					"employee_name": e.employee_name,
-					"new_shift": e.new_shift,
+					"new_shift": work_shift,
 				}
 
 		employee_list = []
@@ -152,26 +155,26 @@ class WorkScheduleAssignment(Document):
 				for dt in date_list:
 					if self.apply_type == 'Template':
 						day = datetime.datetime.strptime(str(dt), '%Y-%m-%d').strftime('%A').lower()
-
 					self.append('single_employee', {
 						"employee": unique_emp[em]['employee'],
 						"employee_name": unique_emp[em]['employee_name'],
-						"new_shift": sched_map[day]['work_shift'] if self.apply_type == 'Template' else unique_emp[em]['new_shift'],
+						"new_shift": unique_emp[em]['new_shift'],
 						"target_date": dt,
 					})
 
 				employee_list.append({
 					"employee": unique_emp[em]['employee'],
 					"employee_name": unique_emp[em]['employee_name'],
-					"new_shift": None,
+					"new_shift": unique_emp[em]['new_shift'],
 				})
 		else:
 			#self.assignment = "Multiple"
+			
 			for em in unique_emp:
 				employee_list.append({
 					"employee": unique_emp[em]['employee'],
 					"employee_name": unique_emp[em]['employee_name'],
-					"new_shift": None,
+					"new_shift": unique_emp[em]['new_shift'],
 				})
 
 		self.set('employees', [])

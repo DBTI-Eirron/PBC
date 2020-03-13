@@ -15,28 +15,30 @@ class Company(Document):
 	def on_trash(self):
 		delete_contact_and_address('Company', self.name)
 
-	def on_update(self):
-		if not frappe.db.exists("Cost Center",self.company_name):
+	def after_insert(self):
+		if not frappe.db.exists("Cost Center", self.company_name):
 			cost_center = frappe.new_doc("Cost Center")
 			cost_center.update({
+				"name": 'qwerty',
 				"cost_center_name": self.company_name,
 				"parent_cost_center": "Cost Center Structure",
-				"is_group":1,
-				"is_root":1,
-				"company":self.company_name,
+				"is_group": 1,
+				"is_root": 1,
+				"company": self.company_name,
 			})
-			cost_center.save()
+			cost_center.insert()
 
-		if not frappe.db.exists("Department",self.company_name):
+		if not frappe.db.exists("Department", self.company_name):
 			department = frappe.new_doc("Department")
 			department.update({
+				"name": self.company_name,
 				"department_name": self.company_name,
 				"parent_department": "Organizational Structure",
-				"is_group":1,
-				"is_root":1,
-				"company":self.company_name,
+				"is_group": 1,
+				"is_root": 1,
+				"company": self.company_name,
 			})
-			department.save()
+			department.insert()
 
 @frappe.whitelist()
 def get_company_logo(user):
