@@ -65,7 +65,7 @@ def get_columns(filters):
 			"fieldname": "address_html",
 			"label": _("Address"),
 			"fieldtype": "Data",
-			"width": 150
+			"width": 600
 		},
 		{
 			"fieldname": "birthday",
@@ -77,7 +77,7 @@ def get_columns(filters):
 			"fieldname": "age",
 			"label": _("Age"),
 			"fieldtype": "Data",
-			"width": 100
+			"width": 70
 		},
 		{
 			"fieldname": "birth_place",
@@ -140,16 +140,40 @@ def get_employees(filters):
 		AND is_active = 1 ORDER BY last_name, first_name""",{ 
 			"company": filters.company
 	}, as_dict=True)
+	
+	return employees
 
+def get_address(employees, add_dict, filters):
+	address = frappe.db.sql("""SELECT  DL.`link_name` as name, A.`address_line1` as address_line1, A.`address_line2` as address_line2, A.`city` as city, A.`address_type` as address_type
+	 	FROM `tabAddress` A INNER JOIN `tabDynamic Link` DL ON A.`name` = DL.`parent`
+	 	WHERE DL.`link_doctype` = 'Employee'""", as_dict=True)
+	
+	for a in address:
+		if a.name not in add_dict:
+			add_dict[a.name] = []
+		add_dict[a.name].append({'address_type': a.address_type, 'address_line1': a.address_line1,'address_line2': a.address_line2, 'city': a.city})
+	
 	return employees
 
 def get_data(filters):
 	data = []
+	add_dict = {}
 	employees = get_employees(filters)
-
-	for emp in employees: 
-		data.append(emp)
-
+	employees = get_address(employees, add_dict, filters)
+	for emp in employees:
+		if emp.name in add_dict:
+			emp['address'] = ""
+			
+			for ad in add_dict[emp.name]:
+				if not emp['address']:
+					emp['address'] = (cstr(ad['address_type'] if ad['address_type'] else None))+': '+(cstr(ad['address_line1']if ad['address_line1'] else None))+' '+(cstr(ad['address_line2']if ad['address_line2'] else None))+' '+(cstr(ad['city']if ad['city'] else None))
+					data.append(emp)
+					continue
+				if len(add_dict[emp.name]) > 1:
+					data.append({
+						'address': (cstr(ad['address_type'] if ad['address_type'] else None))+': '+(cstr(ad['address_line1']if ad['address_line1'] else None))+' '+(cstr(ad['address_line2']if ad['address_line2'] else None))+' '+(cstr(ad['city']if ad['city'] else None)),
+						'birthday': '',
+					})
 	return data
  
 def get_result_as_list(data, filters):
@@ -162,7 +186,8 @@ def get_result_as_list(data, filters):
 			user_sensitivity.append(user.parent)
 
 	for d in data:
-		bday = d.get("birthday")
+		if d.get("birthday"):
+			bday = d.get("birthday")
 		if not "Administrator" in frappe.get_roles(cur_user):
 			if d.get("sensitivity") in user_sensitivity:
 				row = {
@@ -172,13 +197,13 @@ def get_result_as_list(data, filters):
 					"middle_name": d.get("middle_name"),
 					"position_title": d.get("position_title"),
 					"date_hired": d.get("date_hired"),
-					"address_html": d.get("address_html"),
-					"birthday": d.get("birthday"),
-					"age": calculate_age(bday),
+					"address_html": d.get("address"),
+					"birthday": d.get("birthday") if d.get("birthday") else None,
+					"age": calculate_age(bday) if d.get("birthday") else None,
 					"birth_place": d.get("birth_place"),
 					"gender": d.get("gender"),
 					"civil_status": d.get("civil_status"),
-					"rate": format_decimal_by_2(d.get("rate")),
+					"rate": format_decimal_by_2(d.get("rate")) if d.get("rate") else None,
 					"sss_no": d.get("sss_no"),
 					"hdmf_no": d.get("hdmf_no"),
 					"tin": d.get("tin"),
@@ -192,9 +217,9 @@ def get_result_as_list(data, filters):
 					"middle_name": d.get("middle_name"),
 					"position_title": d.get("position_title"),
 					"date_hired": d.get("date_hired"),
-					"address_html": d.get("address_html"),
-					"birthday": d.get("birthday"),
-					"age": calculate_age(bday),
+					"address_html": d.get("address"),
+					"birthday": d.get("birthday") if d.get("birthday") else None,
+					"age": calculate_age(bday) if d.get("birthday") else None,
 					"birth_place": d.get("birth_place"),
 					"gender": d.get("gender"),
 					"civil_status": d.get("civil_status"),
@@ -207,13 +232,13 @@ def get_result_as_list(data, filters):
 				"middle_name": d.get("middle_name"),
 				"position_title": d.get("position_title"),
 				"date_hired": d.get("date_hired"),
-				"address_html": d.get("address_html"),
-				"birthday": d.get("birthday"),
-				"age": calculate_age(bday),
+				"address_html": d.get("address"),
+				"birthday": d.get("birthday") if d.get("birthday") else None,
+				"age": calculate_age(bday) if d.get("birthday") else None,
 				"birth_place": d.get("birth_place"),
 				"gender": d.get("gender"),
 				"civil_status": d.get("civil_status"),
-				"rate": format_decimal_by_2(d.get("rate")),
+				"rate": format_decimal_by_2(d.get("rate")) if d.get("birthday") else None,
 				"sss_no": d.get("sss_no"),
 				"hdmf_no": d.get("hdmf_no"),
 				"tin": d.get("tin"),
