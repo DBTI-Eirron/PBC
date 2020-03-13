@@ -13,6 +13,7 @@ class RecurringEntry(Document):
 		self.validate_transaction_type()
 		self.remove_duplicates()
 		self.validate_weekly()
+		self.validate_range_date()
 
 	def validate_transaction_type(self):
 		is_rec, is_act = frappe.db.get_value("Transaction Type", self.transaction_type, ["is_recurring", "is_active"])
@@ -21,6 +22,11 @@ class RecurringEntry(Document):
 
 		if not is_act:
 			frappe.throw(_("Transaction Type is not Active"))
+
+	def validate_range_date(self):
+		if self.recurring_type == "Range":
+			if not self.date_from or not self.date_to:
+				frappe.throw(_("Date From and Date To is Required"))
 
 	def validate_weekly(self):
 		if self.frequency in ["3rd", "4th", "5th"]:
