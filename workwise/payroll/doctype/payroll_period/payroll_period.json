@@ -630,7 +630,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2019-11-26 18:41:35.406562", 
+ "modified": "2020-03-09 12:23:57.634582", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "Payroll Period", 
@@ -744,7 +744,7 @@
  "search_fields": "schedule", 
  "show_name_in_global_search": 0, 
  "sort_field": "from_date", 
- "sort_order": "DESC", 
+ "sort_order": "ASC", 
  "title_field": "", 
  "track_changes": 1, 
  "track_seen": 0
