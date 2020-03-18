@@ -14,3 +14,14 @@ class MyPayslip(Document):
 			access = True
 			
 		return access
+
+	def check_loan(self):
+		loan = frappe.db.sql("""SELECT LA.loan_type, LA.loan_amount
+		FROM `tabLoan Application` LA 
+		WHERE LA.docstatus = 1 and LA.employee = %s and LA.on_hold = 0
+		""",(self.employee),as_dict=True)
+
+		for l in loan:
+			return True
+
+		return False

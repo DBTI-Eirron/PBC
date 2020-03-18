@@ -11,6 +11,7 @@ frappe.ui.form.on('My Payslip', {
 		cur_frm.toggle_display('basic_section',false);
 		cur_frm.toggle_display('entries_section',false);
 		cur_frm.toggle_display('totals_section',false);
+		cur_frm.toggle_display('loan_section',false);
 		frm.pass_dialog = new frappe.ui.Dialog({
 			title: __("Enter Password"),
 			fields: [
@@ -31,7 +32,8 @@ frappe.ui.form.on('My Payslip', {
 					} else {
 						cur_frm.toggle_display('basic_section', true);
 						cur_frm.toggle_display('entries_section', true);
-						cur_frm.toggle_display('totals_section', true);		
+						cur_frm.toggle_display('totals_section', true);	
+						cur_frm.toggle_display('loan_section', true);	
 					}
 					frm.pass_dialog.hide()
 					frappe.call({
@@ -53,6 +55,14 @@ frappe.ui.form.on('My Payslip', {
 		});
 		frm.pass_dialog.show();
 		
+		frappe.call({
+			method: "check_loan",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		});
+
 		cur_frm.set_query("payroll_period", function() {
 			return {
 				"filters": {
