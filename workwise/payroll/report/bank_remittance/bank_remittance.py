@@ -30,9 +30,15 @@ def get_columns(filters):
 			"width": 180
 		},
 		{
+			"fieldname": "employee_account",
+			"label": _("Account Number"),
+			"fieldtype": "Data",
+			"width": 180
+		},
+		{
 			"fieldname": "amount",
 			"label": _("Amount"),
-			"fieldtype": "Float",
+			"fieldtype": "Data",
 			"width": 120
 		},
 		{
@@ -249,7 +255,7 @@ def get_net_pay(filters):
 	if not "Administrator" in frappe.get_roles(frappe.session.user):
 		document = frappe.db.sql(""" SELECT DISTINCT TE.last_name, TE.first_name, TE.middle_name, 
 			BT.employee, BT.employee_name, BT.employee_account, BT.bank_type, BT.branch_code,
-			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account
+			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account, BT.employee_account
 			FROM `tabBank Remittance Setup` BR JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
 			WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
 			AND BR.payroll_period = %(period)s AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s {conditions}
@@ -263,7 +269,7 @@ def get_net_pay(filters):
 	else:
 		document = frappe.db.sql(""" SELECT DISTINCT TE.last_name, TE.first_name, TE.middle_name, 
 			BT.employee, BT.employee_name, BT.employee_account, BT.bank_type, BT.branch_code,
-			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account
+			BT.amount, BT.remarks, BR.payroll_time, BR.payroll_schedule, BR.funding_account, BT.employee_account
 			FROM `tabBank Remittance Setup` BR JOIN `tabBank Remittance Setup Table` BT ON BR.`name` = BT.parent JOIN `tabEmployee` TE ON BT.employee = TE.`name`
 			WHERE BR.payroll_period = %(period)s 
 			AND BR.docstatus = 1 AND BR.company = %(company)s AND BR.bank = %(bank)s {conditions}
@@ -443,7 +449,8 @@ def get_result_as_list(data_list, filters):
 			row = {
 				"employee": d.get("employee"),
 				"employee_name": d.get("employee_name"),
-				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+				"employee_account": d.get("employee_account"),
+				"amount": format_align_right(format_precision(d.amount, filters.value_precision)),
 				"remarks": d.get("remarks"),
 			}
 			result.append(row)
