@@ -28,9 +28,12 @@ class CostCenter(NestedSet):
 		rebuild_tree("Cost Center", "parent_cost_center")
 
 	def autoname(self):
-		if self.parent_cost_center != 'Cost Center Structure' and self.company:
-			abbr = frappe.db.get_value("Company", self.company, "abbr")
-			self.name = self.cost_center_name+" - "+abbr
+		if self.parent_cost_center != 'Cost Center Structure':
+			if self.company:
+				abbr = frappe.db.get_value("Company", self.company, "abbr")
+				self.name = self.cost_center_name+" - "+abbr
+		else:
+			self.name = self.company
 
 	def on_trash(self):
 		rebuild_tree("Cost Center", "parent_cost_center")
