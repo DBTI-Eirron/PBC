@@ -48,6 +48,27 @@ def get_columns(filters):
 			"width": 250
 		},
 	]
+	if filters.bank == "Asia United Bank":
+		columns = [
+			{
+				"fieldname": "employee_account",
+				"label": _("Account Number"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "amount",
+				"label": _("Amount"),
+				"fieldtype": "Data",
+				"width": 120
+			},
+			{
+				"fieldname": "employee_name",
+				"label": _("Employee Name"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+		]
 
 	if filters.bank == "EastWest Bank":
 		columns = [
@@ -438,7 +459,7 @@ def get_result_as_list(data_list, filters):
 			result.append(row)
 		total = {
 			"account_number": "Headcount: "+str(total_count),
-			"amount": "Total Amount: "+format_align_right(format_precision(total_amount, filters.value_precision)),
+			"amount": "Total Amount:    "+format_precision(total_amount, filters.value_precision),
 			"employee_name": "",
 			"remarks": "",
 		}
@@ -456,10 +477,12 @@ def get_result_as_list(data_list, filters):
 			result.append(row)
 		total = {
 			"employee": "TOTAL",
+			"employee_account": "TOTAL" if filters.bank == "Asia United Bank" else None,
 			"employee_name": total_count,
 			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 			"remarks": "",
 		}
+
 		result.append(total)
 
 	return result
