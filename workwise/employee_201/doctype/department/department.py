@@ -36,9 +36,12 @@ class Department(NestedSet):
 				frappe.throw("Parent Department is Required if not group")
 
 	def autoname(self):
-		if self.company and self.parent_department != "Organizational Structure":
-			abbr = frappe.db.get_value("Company", self.company, "abbr")
-			self.name = self.department_name+" - "+abbr
+		if self.parent_department != "Organizational Structure":
+			if self.company:
+				abbr = frappe.db.get_value("Company", self.company, "abbr")
+				self.name = self.department_name+" - "+abbr
+		else:
+			self.name = self.company
 
 	def validate_department(self):
 		holidays = frappe.db.sql("""SELECT `name` FROM `tabDepartment`
