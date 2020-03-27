@@ -312,6 +312,7 @@ class EmployeeMovement(Document):
 			emp_entry['email'] = self.new_email
 			emp_entry['is_active'] = 1
 			emp_entry['date_hired'] = today()
+			emp_entry['company'] = self.rh_new_company
  
 			if emp_entry:
 				emp = frappe.get_doc("Employee", self.employee)
