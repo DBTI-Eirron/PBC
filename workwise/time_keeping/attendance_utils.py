@@ -1,4 +1,3 @@
-
 from __future__ import unicode_literals
 import frappe, datetime, math
 from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
@@ -224,7 +223,6 @@ def get_work(entry):
 	return entry
 
 def get_overtime(entry, ot_apps):
-
 	ot_list = []
 	work_shift = []
 	ot_map = get_overtime_map()
@@ -292,74 +290,71 @@ def get_overtime(entry, ot_apps):
 						else:
 							ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ))
 
-
 				#Always follow whichever is lower between card_out and ot_out
-
-				if entry.get('ot_strict_logs') and not entry['is_holiday']:
+				if entry.get('ot_strict_logs') and not entry['is_holiday'] and not entry['is_restday']:
 					bound = None
 					if ot_in < entry.get('time_in'):
 						bound = entry.get('time_in')
 					else:
 						bound = entry.get('time_out')
-
 					ot_card_in, ot_card_out = get_ot(ot_in,ot_out,entry.get('card_in'), entry.get('card_out'),bound, entry['is_restday'], ot_int_start, entry['is_holiday'])
 					entry["ot_card_in_ot"], entry["ot_card_out"] = ot_card_in, ot_card_out
 					if entry.get('ob_in'):
-						if not entry.get('ob_in') >= ot_out or not entry.get('ob_out') <= ot_in:
-							ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('ob_in'), entry.get('ob_out'), bound, entry['is_restday'], ot_int_start, entry['is_holiday'])
-							entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
-							if entry['card_in']:
-	
-								if ot_card_in <= ot_ob_in <= ot_card_out:
-	
-									if ot_card_out < ot_ob_out:
-										ot_card_out = ot_ob_out
-	
-								if ot_card_out > ot_ob_in and ot_card_in <= ot_ob_in:
-									ot_in = ot_card_in
-	
-									if ot_card_out < ot_ob_out:
-										ot_out = ot_ob_out
-									else:
-										ot_out = ot_card_out
-								
-							if ot_card_in == ot_card_out:
-								per_time_with_ot.append({
-									"ot_in": ot_ob_in,
-							 		"ot_out": ot_ob_out
-								})
+						if not entry.get('ob_in') >= ot_out:
+							if not entry.get('ob_out') <= ot_in:
+								ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('ob_in'), entry.get('ob_out'), bound, entry['is_restday'], ot_int_start, entry['is_holiday'])
+								entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
+								if entry['card_in']:
+		
+									if ot_card_in <= ot_ob_in <= ot_card_out:
+		
+										if ot_card_out < ot_ob_out:
+											ot_card_out = ot_ob_out
+		
+									if ot_card_out > ot_ob_in and ot_card_in <= ot_ob_in:
+										ot_in = ot_card_in
+		
+										if ot_card_out < ot_ob_out:
+											ot_out = ot_ob_out
+										else:
+											ot_out = ot_card_out
+									
+								if ot_card_in == ot_card_out:
+									per_time_with_ot.append({
+										"ot_in": ot_ob_in,
+								 		"ot_out": ot_ob_out
+									})
 					if entry['early_ob'] == 1:
-						if not entry.get('early_ob_in') <= ot_out or not entry.get('early_ob_out') >= ot_in:
-							ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('early_ob_in'), entry.get('early_ob_out'), bound, entry['is_restday'], ot_int_start, entry['is_holiday'])
-							entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
-							if entry['card_in']:
-	
-								if ot_card_in <= ot_ob_in <= ot_card_out:
-	
-									if ot_card_out < ot_ob_out:
-										ot_card_out = ot_ob_out
-	
-								if ot_card_out > ot_ob_in and ot_card_in <= ot_ob_in:
-									ot_in = ot_card_in
-	
-									if ot_card_out < ot_ob_out:
-										ot_out = ot_ob_out
-									else:
-										ot_out = ot_card_out
-								
-							if ot_card_in == ot_card_out:
-								per_time_with_ot.append({
-									"ot_in": ot_ob_in,
-							 		"ot_out": ot_ob_out
-								})
-	
+						if  not entry.get('early_ob_in') >= ot_out:
+							if not entry.get('early_ob_out') <= ot_in:
+								ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('early_ob_in'), entry.get('early_ob_out'), bound, entry['is_restday'], ot_int_start, entry['is_holiday'])
+								entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
+								if entry['card_in']:
+		
+									if ot_card_in <= ot_ob_in <= ot_card_out:
+		
+										if ot_card_out < ot_ob_out:
+											ot_card_out = ot_ob_out
+		
+									if ot_card_out > ot_ob_in and ot_card_in <= ot_ob_in:
+										ot_in = ot_card_in
+		
+										if ot_card_out < ot_ob_out:
+											ot_out = ot_ob_out
+										else:
+											ot_out = ot_card_out
+									
+								if ot_card_in == ot_card_out:
+									per_time_with_ot.append({
+										"ot_in": ot_ob_in,
+								 		"ot_out": ot_ob_out
+									})
 					if 	ot_card_in != ot_card_out:
 						per_time_with_ot.append({
 								"ot_in": ot_card_in,
 						 		"ot_out": ot_card_out
 						})
-
-				if not per_time_with_ot and entry.get('ot_strict_logs') and not entry.get('is_holiday') and not entry.get('is_restday'):
+				if not per_time_with_ot and entry.get('ot_strict_logs') and not entry.get('is_holiday') and not entry['is_restday']:
 					if ot_in and ot_out:
 						per_time_with_ot.append({
 							"ot_in": ot_in,
@@ -372,6 +367,7 @@ def get_overtime(entry, ot_apps):
 							"ot_in": ot_in,
 						 	"ot_out": ot_out
 						})
+
 				for o in per_time_with_ot:
 					ot_in = o['ot_in']
 					ot_out = o['ot_out']
@@ -1525,7 +1521,7 @@ def get_shift_map():
 	shift_map = {}
 	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
 			is_flexible, setup_preshift, setup_postshift, flex_from, flex_to, time_in, time_out, break_start, break_end, break_mins,
-			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type, nd_end, nd_start, work_shift_type
+			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type, nd_end, nd_start, work_shift_type, allow_ot_in_shift
 		FROM `tabWork Shift` """, as_dict=True)
 	
 	for d in shifts:
@@ -1556,7 +1552,8 @@ def get_shift_map():
 			"time_out": d.time_out,
 			"break_start":d.break_start,
 			"break_end":d.break_end,
-			"break_mins":d.break_mins
+			"break_mins":d.break_mins,
+			"allow_ot_in_shift": d.allow_ot_in_shift
 		}
 
 	return shift_map
@@ -1903,6 +1900,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		#SHIFT POLICIES
 		"graceperiod_late": shift_map[sched['work_shift']]['graceperiod_late'],
 		"straight_ot": shift_map[sched['work_shift']]['straight_ot'],
+		"allow_ot_in_shift": shift_map[sched['work_shift']]['allow_ot_in_shift'],
 		"flexible_type": shift_map[sched['work_shift']]['flexible_type'],
 		#GLOBAL POLICIES
 		"ot_deduct_late": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_deduct_late'), 8),
