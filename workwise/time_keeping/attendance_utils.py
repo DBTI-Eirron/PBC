@@ -291,18 +291,20 @@ def get_overtime(entry, ot_apps):
 							ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ))
 
 				#Always follow whichever is lower between card_out and ot_out
-				if entry.get('ot_strict_logs') and not entry['is_holiday'] and not entry['is_restday']:
+				if entry.get('ot_strict_logs'):
 					bound = None
 					if ot_in < entry.get('time_in'):
 						bound = entry.get('time_in')
 					else:
 						bound = entry.get('time_out')
-					ot_card_in, ot_card_out = get_ot(ot_in,ot_out,entry.get('card_in'), entry.get('card_out'),bound, entry['is_restday'], ot_int_start, entry['is_holiday'])
+
+					ot_card_in, ot_card_out = get_ot(ot_in,ot_out,entry.get('card_in'), entry.get('card_out'),bound, entry['is_restday'], entry['is_holiday'])
 					entry["ot_card_in_ot"], entry["ot_card_out"] = ot_card_in, ot_card_out
+
 					if entry.get('ob_in'):
 						if not entry.get('ob_in') >= ot_out:
 							if not entry.get('ob_out') <= ot_in:
-								ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('ob_in'), entry.get('ob_out'), bound, entry['is_restday'], ot_int_start, entry['is_holiday'])
+								ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('ob_in'), entry.get('ob_out'), bound, entry['is_restday'], entry['is_holiday'])
 								entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
 								if entry['card_in']:
 		
@@ -324,10 +326,11 @@ def get_overtime(entry, ot_apps):
 										"ot_in": ot_ob_in,
 								 		"ot_out": ot_ob_out
 									})
+
 					if entry['early_ob'] == 1:
 						if  not entry.get('early_ob_in') >= ot_out:
 							if not entry.get('early_ob_out') <= ot_in:
-								ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('early_ob_in'), entry.get('early_ob_out'), bound, entry['is_restday'], ot_int_start, entry['is_holiday'])
+								ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('early_ob_in'), entry.get('early_ob_out'), bound, entry['is_restday'], entry['is_holiday'])
 								entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
 								if entry['card_in']:
 		
@@ -354,14 +357,14 @@ def get_overtime(entry, ot_apps):
 								"ot_in": ot_card_in,
 						 		"ot_out": ot_card_out
 						})
-				if not per_time_with_ot and entry.get('ot_strict_logs') and not entry.get('is_holiday') and not entry['is_restday']:
+				if not per_time_with_ot and entry.get('ot_strict_logs'):
 					if ot_in and ot_out:
 						per_time_with_ot.append({
 							"ot_in": ot_in,
 						 	"ot_out": ot_in
 						})
 
-				if not entry.get('ot_strict_logs') or entry.get('is_holiday') or entry.get('is_restday'):
+				if not entry.get('ot_strict_logs'):
 					if ot_in and ot_out:
 						per_time_with_ot.append({
 							"ot_in": ot_in,
@@ -518,60 +521,44 @@ def get_overtime(entry, ot_apps):
 		entry['ot_list'] = ot_list
 	return entry
 
-def get_ot(ot_in=None ,ot_out=None, start=None, end=None, bound=None, restday=None, interval=None, holiday=None):
+def get_ot(ot_in=None ,ot_out=None, start=None, end=None, bound=None, restday=None, holiday=None):
 
 	if holiday or restday:
 		bound = ot_in
-		
 	if start:
 		#After shift ot
 		if get_datetime(bound) <= get_datetime(ot_in):
 
-			if get_datetime(ot_in) <= get_datetime(start)<= get_datetime(ot_out) or get_datetime(ot_in) <= get_datetime(end):
+			if not (get_datetime(ot_in) >= get_datetime(end)) and not (get_datetime(ot_out) <= get_datetime(start)):
 				if get_datetime(start) < get_datetime(bound):
-					if get_datetime(ot_in) <= get_datetime(bound):
-						ot_in = bound
-	
-				elif get_datetime(start) >=get_datetime(bound):
-					if not get_datetime(ot_in) <= get_datetime(start):
-						ot_in = start
-					if ot_out <= start:
-						ot_out = ot_in
-	
-				if get_datetime(ot_out) >= get_datetime(end):
+					start = bound
+				if get_datetime(ot_in) <= get_datetime(bound):
+					ot_in = bound
+				if get_datetime(start) > ot_in:
+					ot_in = start
+				if get_datetime(end) < ot_out:
 					ot_out = end
-	
-				if get_datetime(ot_in) >= get_datetime(end):
-					ot_out = ot_in
+
 			else:
 				ot_out = ot_in
+
 		#Early OT
 		if get_datetime(bound) > get_datetime(ot_in):
 			
-			if get_datetime(ot_in) <= get_datetime(start)<= get_datetime(ot_out) or get_datetime(ot_in) <= get_datetime(end):
+			if not get_datetime(ot_in) >= get_datetime(end) and not get_datetime(ot_out) <= get_datetime(start):
 				if get_datetime(end) > get_datetime(bound):
-					if get_datetime(ot_out) >= get_datetime(bound):
-						ot_out = bound
-	
-				elif get_datetime(end) <= get_datetime(bound):
-					if not get_datetime(ot_in) <= get_datetime(start):
-						ot_in = start
-					if ot_out <= start:
-						ot_out = ot_in
-	
-				if get_datetime(ot_out) >= get_datetime(end):
+					end = bound
+				if get_datetime(ot_out) >= get_datetime(bound):
+					ot_out = bound
+				if get_datetime(start) > ot_in:
+					ot_in = start
+				if get_datetime(end) < ot_out:
 					ot_out = end
-	
-				if get_datetime(ot_in) >= get_datetime(end):
-					ot_out = ot_in
 			else:
 				ot_out = ot_in
 	else:
 		ot_out = ot_in
 
-	if interval:
-		if get_datetime(start) > get_datetime(interval):
-			ot_out = ot_in
 
 	return (ot_in, ot_out)
 
@@ -900,6 +887,7 @@ def get_flexible(entry, obs):
 	if entry.get('is_flexible'):
 		flex_ob_time = 0
 		less_break = 0
+		diff_break = 0
 		lv = 0
 
 		if entry.get('ob_in') and entry.get('ob_out'):
