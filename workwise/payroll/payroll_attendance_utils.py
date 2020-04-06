@@ -19,8 +19,9 @@ def get_absent_days(at, opt):
 				AT = 1
 		else:
 			if at['is_lwop'] == 1 and at['lv_status'] > 1: #if lwop is 1st half or 2nd half
-				AT = 0.5 
-				if at['is_halfday']: #if lwop halfday with absent halfday absent is wholeday absent
+				if at['is_halfday'] and at['is_absent']: #if lwop halfday with absent halfday absent is wholeday absent
+					AT = 0.5 
+				else: 
 					AT = 1										
 			else: 
 				#if absent only no lwop, set to whole day
