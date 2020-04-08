@@ -171,7 +171,7 @@ class AttendanceProcessing(Document):
 			for reg in reg_list:
 				row = {
 					'employee': reg['employee'],
-					'employee_name': reg['employee_name'],
+					'employee_name': frappe.db.get_value("Employee", reg['employee'], ["full_name"]),
 					'target_date': reg['target_date'],
 					'work_shift': reg['work_shift'],
 					'work_hours': reg['work_hours'],
@@ -186,7 +186,7 @@ class AttendanceProcessing(Document):
 					'cto': reg['cto'],
 					'linked_leave': reg['linked_leave'],
 					'leave_name': reg['leave_name'],
-					'linked_overtime': reg['linked_overtime'],
+					'linked_overtime': "",
 					'linked_ob': reg['linked_ob'],
 					'linked_holiday': reg['linked_holiday'],
 					'is_leave': reg['is_leave'],
@@ -202,7 +202,7 @@ class AttendanceProcessing(Document):
 					'is_db_holiday': reg['is_db_holiday'],
 					'is_default_schedule': reg['is_default_schedule'],
 					'is_change_schedule': reg['is_change_schedule'],
-					'has_issue': reg['has_issue'],
+					'has_issue': "",
 					'card_in': reg['card_in'],
 					'card_out': reg['card_out'],
 					'tags': reg['tags'],
