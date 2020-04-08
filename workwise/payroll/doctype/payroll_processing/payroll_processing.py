@@ -1493,7 +1493,7 @@ class PayrollProcessing(Document):
 										pass
 									else:
 
-										if not at.is_db_holiday and not header.get('uho_ab_days'):
+										if not at.is_db_holiday:
 											unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 											
 										if header.get('uho_ab_days') == 1:
