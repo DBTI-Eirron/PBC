@@ -143,15 +143,19 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 					entry["lv_status"] = 2
 					if l.is_lwop != 1:
 						lv_whole["half_lv"] += 1
+						entry["pd_lv_status"] = 2
 					else:
 						lv_whole["half_lwop"] += 1
+						entry["lwop_status"] = 2
 
 				if l.is_second_half:
 					entry["lv_status"] = 3
 					if l.is_lwop != 1:
 						lv_whole["half_lv"] += 1
+						entry["pd_lv_status"] = 3
 					else:
 						lv_whole["half_lwop"] += 1
+						entry["lwop_status"] = 3
 
 				elif l.is_half_day:
 					entry["lv_status"] = 2
@@ -880,6 +884,7 @@ def get_absent(entry):
 		entry['overtime_ex'] = 0
 		entry['ot_list'] = ""
 
+
 	return entry
 
 def get_flexible(entry, obs):
@@ -1207,6 +1212,11 @@ def get_final_processing(entry):
 		entry["late"] = 0
 		entry["undertime"] = 0
 		entry["work"] = 0
+		
+	if entry.get('lwop_status') and entry.get('pd_lv_status'):
+		if (entry.get('lwop_status') == 2 and entry.get('pd_lv_status') == 3) or (entry.get('lwop_status') == 3 and entry.get('pd_lv_status') == 2):
+			entry["is_absent"] = 0
+			entry["is_halfday"] = 0
 
 	return entry
 
@@ -1840,7 +1850,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"ot_in": "",
 		"ot_out": "",
 		"ot_list": "",
-		
+		"is_change_schedule": 0,
 		#LEAVE
 		"linked_leave": "",
 		"leave_name": "",
@@ -1848,6 +1858,8 @@ def get_defaults(emp, sched, shift_map, overrides):
 
 		"is_leave": 0,
 		"is_lwop": 0,
+		"pd_lv_status": 0,
+		"lwop_status": 0,
 		#OB
 		"linked_ob": "",
 		"is_ob": 0,
