@@ -169,8 +169,48 @@ class AttendanceProcessing(Document):
 				otdoc.insert()
 
 			for reg in reg_list:
+				row = {
+					'employee': reg['employee'],
+					'employee_name': reg['employee_name'],
+					'target_date': reg['target_date'],
+					'work_shift': reg['work_shift'],
+					'work_hours': reg['work_hours'],
+					'work': reg['work'],
+					'break': reg['break'],
+					'late': reg['late'],
+					'overtime': reg['overtime'],
+					'overtime_nd': reg['overtime_nd'],
+					'overtime_ex': reg['overtime_ex'],
+					'nightdiff': reg['nightdiff'],
+					'undertime': reg['undertime'],
+					'cto': reg['cto'],
+					'linked_leave': reg['linked_leave'],
+					'leave_name': reg['leave_name'],
+					'linked_overtime': reg['linked_overtime'],
+					'linked_ob': reg['linked_ob'],
+					'linked_holiday': reg['linked_holiday'],
+					'is_leave': reg['is_leave'],
+					'lv_status': reg['lv_status'],
+					'is_halfday': reg['is_halfday'],
+					'is_ob': reg['is_ob'],
+					'is_absent': reg['is_absent'],
+					'is_flexible': reg['is_flexible'],
+					'is_restday': reg['is_restday'],
+					'is_holiday': reg['is_holiday'],
+					'is_lwop': reg['is_lwop'],
+					'is_sp_holiday': reg['is_sp_holiday'],
+					'is_db_holiday': reg['is_db_holiday'],
+					'is_default_schedule': reg['is_default_schedule'],
+					'is_change_schedule': reg['is_change_schedule'],
+					'has_issue': reg['has_issue'],
+					'card_in': reg['card_in'],
+					'card_out': reg['card_out'],
+					'tags': reg['tags'],
+					'links': reg['links'],
+				}
+
 				register = frappe.new_doc("Attendance Register")
-				register.update(reg)
+				register.update(row)
 				register.flags.ignore_mandatory = True
 				register.flags.ignore_permissions = True
 				register.insert()
