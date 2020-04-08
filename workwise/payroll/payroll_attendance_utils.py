@@ -12,17 +12,18 @@ def get_absent_days(at, opt):
 
 	#if absent or is leave without pay
 	if ( at['is_absent'] == 1 or at['is_lwop'] == 1 ):
-		if at['is_holiday'] and mo_abho: #if holiday and allowed absent on holiday
-			if at['is_sp_holiday']: #special holiday is allowed by default
-				AT = 1
-			elif (not at['is_sp_holiday']) and ab_regho: #if absent in regular holiday is allowed
-				AT = 1
+		if at['is_holiday']: #if holiday and allowed absent on holiday
+			if mo_abho:
+				if at['is_sp_holiday']: #special holiday is allowed by default
+					AT = 1
+				elif (not at['is_sp_holiday']) and ab_regho: #if absent in regular holiday is allowed
+					AT = 1
 		else:
 			if at['is_lwop'] == 1 and at['lv_status'] > 1: #if lwop is 1st half or 2nd half
-				if at['is_halfday'] and at['is_absent']: #if lwop halfday with absent halfday absent is wholeday absent
-					AT = 0.5 
-				else: 
-					AT = 1										
+				AT = 0.5 
+				if at.is_absent:
+					AT = 1
+									
 			else: 
 				#if absent only no lwop, set to whole day
 				#but if with halfday tag set it to halfday 0.5
