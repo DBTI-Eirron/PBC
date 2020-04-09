@@ -1246,6 +1246,8 @@ class PayrollProcessing(Document):
 			hourly_basic, no_previous = 0, 0
 			prev_day_work, prev_half, prev_lwop, prev_lv_status = 0, 0, 0, 0
 			ho_paid = 0
+			prev_holiday, holiday_work = 0, 0 
+			cur_suc_hol_wout_before, before_holiday_work = 0, 0 
 			test = []
 
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
@@ -1302,7 +1304,7 @@ class PayrollProcessing(Document):
 						"pay_time": flt(merge_hrs, 8),
 						"amount": flt(merge_amount, 8) 
 					})
-
+			
 			if attendance:
 				for at in attendance:
 					WK_days, AT_days = 0, 0
@@ -1387,7 +1389,7 @@ class PayrollProcessing(Document):
 							absent_days += AT #add to employee total absent days
 							AT_days += AT #add to current day total absent days
 							#test.append(_(""+cstr(at.target_date)+" "+cstr(absent_days)+" "+cstr(at.work_hours * flt(AT, 8))+" "+cstr(flt(rates.get('hourly_rate'), 8))+"")) #test script for absent
-							
+						
 						if at.cto:
 							max_cto = 0
 							max_cto += at.undertime
@@ -1436,17 +1438,18 @@ class PayrollProcessing(Document):
 								else:
 									if dl_absent == 1 and at.is_sp_holiday and header.get('uho_ab_spnw'):
 										ho_paid = 0 #not paid holiday on special HO
-									elif dl_absent == 1 and (not is_uho):
+									elif dl_absent == 1 and (not is_uho) and (not at.is_sp_holiday):
 										if not header.get('ab_regho'): #if not absent on regular HO
 											ho_paid = 1 #paid holiday if absent and not UHO
-									elif dl_absent == 0 and (not is_uho):
-										ho_paid = 1 #paid holiday if not absent and not UHO
+									elif dl_absent == 0:
+											ho_paid = 1  
 									
-							if dl_absent == 0 and (not at.is_restday):
-								if at.is_halfday:
-									dl_days += 0.5
-								else:
-									dl_days += 1
+							else: 
+								if dl_absent == 0 and (not at.is_restday):
+									if at.is_halfday:
+										dl_days += 0.5
+									else:
+										dl_days += 1
 
 							#check if lwop halfday
 							if dl_absent == 1 and at.is_lwop:
@@ -1462,24 +1465,25 @@ class PayrollProcessing(Document):
 							if not header.get('dis_dho_tran'):
 								if not header.get('dho'):
 									frappe.throw(_("Must have Double Holiday Transaction Type in Payroll Settings"))
-									
-								if not is_uho:
-									if emp.get("rate_type") == "Daily Rate":
-										if ho_paid == 1:
-											dho_amount += flt(rates.get('daily_rate'), 8)*1
-											register.append({"pay_code": header.get('dho'), "amount": dho_amount})
-									else:
+
+								if emp.get("rate_type") == "Daily Rate":
+									if ho_paid == 1:
 										dho_amount += flt(rates.get('daily_rate'), 8)*1
 										register.append({"pay_code": header.get('dho'), "amount": dho_amount})
 
-								if is_uho:
-									ho_paid = 0
-									unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
+								if emp.get("rate_type") != "Daily Rate":
+									if not is_uho or at.work:
+										dho_amount += flt(rates.get('daily_rate'), 8)*1
+										register.append({"pay_code": header.get('dho'), "amount": dho_amount})
 									
 	
-
 						if ho_paid == 1:
 							pho_days += ho_paid
+
+						#set Special holiday to UHO if not work On Holiday Before this Day
+						if at.is_holiday and at.is_sp_holiday:
+							if cur_suc_hol_wout_before > 1:
+								is_uho = 1
 
 						if at.is_holiday == 1 and is_uho == 1 and (not at.is_ob) and not at.is_restday:
 							#if present not UHO
@@ -1492,10 +1496,9 @@ class PayrollProcessing(Document):
 									if at.is_absent and header.get('mo_abho'):
 										pass
 									else:
-
-										if not at.is_db_holiday:
+										if not at.work:
+											frappe.throw(_(getdate(at.target_date)))
 											unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
-											
 										if header.get('uho_ab_days') == 1:
 											absent_days += 1
 											AT_days += 1
@@ -1567,9 +1570,29 @@ class PayrollProcessing(Document):
 							total_work += at.work
 							total_work += at.overtime
 
+						#Succesive Holiday Without attendance Before the start 
+						if not at.is_holiday and not at.is_restday:
+							cur_suc_hol_wout_before = 0
+
+							if at.work:
+								before_holiday_work = 1
+							else:
+								before_holiday_work = 0
+ 
+						if at.is_holiday and not at.is_sp_holiday and before_holiday_work == 0:
+							cur_suc_hol_wout_before = 1
+
+						if at.is_holiday and at.is_sp_holiday:
+							cur_suc_hol_wout_before = 0
+
+							if at.work:
+								before_holiday_work = 1
+							else:
+								before_holiday_work = 0
+
 						# Save work For Next Day in Attendace Processing
 				header['no_attendance'] = 1
-
+			
 				if total_work > 0:
 					header['no_attendance'] = 0
 				if emp.get("rate_type") == "Daily Rate":
@@ -1584,7 +1607,7 @@ class PayrollProcessing(Document):
 					present_days =  work_days - absent_days
 
 				if header.get('ignore_uho'):
-					unpaid_holiday = 0
+					unpaid_holiday = 0	
 
 				if emp.get('ignore_late'):
 					late = 0
