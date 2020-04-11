@@ -1497,7 +1497,6 @@ class PayrollProcessing(Document):
 										pass
 									else:
 										if not at.work:
-											frappe.throw(_(getdate(at.target_date)))
 											unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 										if header.get('uho_ab_days') == 1:
 											absent_days += 1
