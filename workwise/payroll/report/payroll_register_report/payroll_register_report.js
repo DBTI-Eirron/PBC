@@ -76,6 +76,11 @@ frappe.query_reports["Payroll Register Report"] = {
 			"fieldname": "include_header",
 			"label": __("Include Header"),
 			"fieldtype": "Check",
+		},
+		{
+			"fieldname": "employee_details",
+			"label": __("Include Employee Details"),
+			"fieldtype": "Check",
 		},	
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {
