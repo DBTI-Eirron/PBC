@@ -95,6 +95,9 @@ class LeaveApplication(Document):
 			if getdate(nowdate()) > getdate(only_from_date):
 				frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file {1} day(s) before {2} ").format(self.name, filing_days, self.from_date))
 
+		if self.total_leave_days == 0:
+			frappe.throw(_("<b>Leave Application: {0}</b><hr> Have a Total of 0 Leave days").format(self.name))
+
 	def set_lwop(self):
 		is_lwop = frappe.get_value("Leave Type", self.leave_type, "is_lwop")
 		if is_lwop:
