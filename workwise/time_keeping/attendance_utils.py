@@ -656,11 +656,17 @@ def get_late(entry):
 			if entry.get('ob_status') == 1 and entry.get('ob_in') < entry.get('card_in'): #if has OB and is lesser than card in
 				if entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')) : #if OB is in second half
 					entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
+					entry['late'] += abs((entry.get('break_start') - entry.get('time_in')).total_seconds())
 				else: #if OB is in first half
-					if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
-						entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+					if entry.get('ob_in') > entry.get('break_start'):
+						entry['late'] += abs((entry.get('break_start') - entry.get('time_in')).total_seconds())
+					else:
+						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')) :
+							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+
 			else:
 				if entry.get('card_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+
 					if entry['graceperiod_late']:
 						entry['late'] += ( entry.get('card_in') - ( entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
 						if entry.get('card_in') > entry.get('break_start'): #Reduce late based from Break Time
@@ -675,6 +681,18 @@ def get_late(entry):
 								entry['late'] -= abs((entry.get('break_start') - entry.get('break_end')).total_seconds())
 							else:
 								entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
+
+				if entry.get('ob_status') == 1 and entry.get('card_out') <= entry.get('time_in'):
+
+					if entry.get('ob_in') > entry.get('time_in') and entry.get('ob_in') <= entry.get('break_start'):
+						entry['late'] += (entry.get('ob_in') - entry.get('time_in')).total_seconds()
+
+					if entry.get('ob_in') >= entry.get('break_end') and entry.get('ob_in') < entry.get('time_out'):
+						entry['late'] += (entry.get('ob_in') - entry.get('break_end')).total_seconds()
+						entry['late'] += (entry.get('break_start') - entry.get('time_in')).total_seconds()
+
+					if entry.get('ob_in') > entry.get('break_start') and entry.get('ob_in') < entry.get('break_end'):
+						entry['late'] += (entry.get('break_start') - entry.get('time_in')).total_seconds()
 		
 		else: #if no card in check for OB
 			if entry.get('ob_stat') > 1:
@@ -738,14 +756,27 @@ def get_undertime(entry):
 	else:	
 		if entry.get('card_out') and entry.get('lv_status') != 1:
 			if entry.get('ob_status') == 1:
-				if entry.get('card_out') > entry.get('ob_out'):
+				if entry.get('card_out') > entry.get('ob_out') and not (entry.get('card_in') >= entry.get('time_out') or entry.get('card_out') <= entry.get('time_in')):
 					if entry.get('card_out') < entry.get('time_out'):
-						entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+						if entry.get('card_out') >= entry.get('break_end'):
+							entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
+
+						if entry.get('card_out') > entry.get('break_start') and entry.get('card_out') < entry.get('break_end'):
+							entry['undertime'] += abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
+
+						if entry.get('card_out') <= entry.get('break_start'):
+							entry['undertime'] += abs((entry.get('card_out') - entry.get('break_start')).total_seconds())
+							entry['undertime'] += abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
+
 				else:
 					if entry.get('ob_out') < entry.get('time_out'):
 						if entry.get('ob_out') >= entry.get('break_end'):
 							entry['undertime'] += abs((entry.get('ob_out') - entry.get('time_out')).total_seconds())
-						if entry.get('ob_out') < entry.get('break_start'):
+
+						if entry.get('ob_out') > entry.get('break_start') and entry.get('ob_out') < entry.get('break_end'):
+							entry['undertime'] += abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
+
+						if entry.get('ob_out') <= entry.get('break_start'):
 							entry['undertime'] += abs((entry.get('ob_out') - entry.get('break_start')).total_seconds())
 							entry['undertime'] += abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
 
