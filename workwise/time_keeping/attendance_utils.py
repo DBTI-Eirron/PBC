@@ -682,7 +682,7 @@ def get_late(entry):
 							else:
 								entry['late'] -= abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
 
-				if entry.get('ob_status') == 1 and entry.get('card_out') <= entry.get('time_in'):
+				if entry.get('ob_status') == 1 and get_datetime(entry.get('card_out')) <= get_datetime(entry.get('time_in')):
 
 					if entry.get('ob_in') > entry.get('time_in') and entry.get('ob_in') <= entry.get('break_start'):
 						entry['late'] += (entry.get('ob_in') - entry.get('time_in')).total_seconds()
@@ -756,7 +756,7 @@ def get_undertime(entry):
 	else:	
 		if entry.get('card_out') and entry.get('lv_status') != 1:
 			if entry.get('ob_status') == 1:
-				if entry.get('card_out') > entry.get('ob_out') and not (entry.get('card_in') >= entry.get('time_out') or entry.get('card_out') <= entry.get('time_in')):
+				if get_datetime(entry.get('card_out')) > get_datetime(entry.get('ob_out')) and not (get_datetime(entry.get('card_in')) >= get_datetime(entry.get('time_out')) or get_datetime(entry.get('card_out')) <= get_datetime(entry.get('time_in'))):
 					if entry.get('card_out') < entry.get('time_out'):
 						if entry.get('card_out') >= entry.get('break_end'):
 							entry['undertime'] += abs((entry.get('card_out') - entry.get('time_out')).total_seconds())
