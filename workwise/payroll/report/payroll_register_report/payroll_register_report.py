@@ -116,13 +116,18 @@ def execute(filters=None):
 				if columns[x]['fieldname'] not in ["employee", "employee_name", "present_days", "position_title", "total_income", "total_deduction", "total_payroll"]:
 					if totals[columns[x]['fieldname']] <= 0:
 						del columns[x]
-						for y,d in enumerate(data):
-							del data[y][x]
+						if filters.include_header:
+							for y,d in enumerate(data[3:]):
+								data[y+3][x]
+						else:
+							for y,d in enumerate(data):
+								data[y][x]
 						colen -= 1
 					else:
 						x +=1
 				else:
 					x += 1
+
 
 	return columns, data
 
