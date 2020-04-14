@@ -1249,6 +1249,7 @@ class PayrollProcessing(Document):
 			prev_holiday, holiday_work = 0, 0 
 			cur_suc_hol_wout_before, before_holiday_work = 0, 0 
 			test = []
+			paid_leave = 0
 
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
@@ -1318,49 +1319,7 @@ class PayrollProcessing(Document):
 									if at.is_absent:
 										is_uho = 1			
 					else:
-						#Leap uho due to Lockdown -- Start
-						#if getdate(at.target_date) == getdate("2020-04-09") or getdate(at.target_date) == getdate("2020-04-10"):
-						#	if header.get('sc_ap9'):
-						#		if getdate(at.target_date) == getdate("2020-04-10") and not header.get('sc_ap10'):
-						#			break
-						#		leap_uho_link = getdate("2020-03-16")
-						#		leap_uho_attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register`
-						#			WHERE employee = %s AND target_date = %s LIMIT 1""", (emp.get('name'), leap_uho_link), as_dict=1)
-						#		if leap_uho_attendance:
-						#			for lua in leap_uho_attendance:
-						#				no_previous = 1
-						#				is_uho = 0
-						#				if lua.is_absent or lua.is_lwop:
-						#					is_uho = 1
-						#				if header.get('hd_lwop_as_uho') == 1:
-						#					if (lua.lv_status == 2 or lua.lv_status == 3) or lua.is_halfday:
-						#						is_uho = 0
-						#						if lua.is_absent:
-						#							is_uho = 1
-						#				if lua.is_restday:
-						#					while lua.is_restday == 1: 
-						#						leap_uho_link = getdate(add_days(leap_uho_link, -1))
-						#						leap_uho_attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register`
-						#							WHERE employee = %s AND target_date = %s LIMIT 1""", (emp.get('name'), leap_uho_link), as_dict=1)
-						#						if leap_uho_attendance:
-						#							for lua in leap_uho_attendance:
-						#								no_previous = 1
-						#								is_uho = 0
-						#								if lua.is_absent or lua.is_lwop:
-						#									is_uho = 1
-						#								if header.get('hd_lwop_as_uho') == 1:
-						#									if (lua.lv_status == 2 or lua.lv_status == 3) or lua.is_halfday:
-						#										is_uho = 0
-						#										if lua.is_absent:
-						#											is_uho = 1
-						#						else:
-						#							is_uho = 1
-						#		else:
-						#			is_uho = 1
 
-								# Leap uho due to lockdown -- end
-
-						#if date is the first check if no_previous
 						if getdate(at.target_date) == getdate(self.attendance_from):
 							if no_previous == 0:
 								is_uho = 1
@@ -1569,6 +1528,10 @@ class PayrollProcessing(Document):
 							total_work += at.work
 							total_work += at.overtime
 
+						if not at.is_restday:
+							if AT < 1:
+								paid_leave = 1
+
 						#Succesive Holiday Without attendance Before the start 
 						if not at.is_holiday and not at.is_restday:
 							cur_suc_hol_wout_before = 0
@@ -1592,7 +1555,7 @@ class PayrollProcessing(Document):
 						# Save work For Next Day in Attendace Processing
 				header['no_attendance'] = 1
 			
-				if total_work > 0:
+				if total_work > 0 or paid_leave > 0 or cto_days > 0:
 					header['no_attendance'] = 0
 				if emp.get("rate_type") == "Daily Rate":
 					if dl_days > 0:
