@@ -96,7 +96,10 @@ def execute(filters=None):
 				dtotal_payroll += total_payroll
 				data.append(row)
 
-		total_row = ["<b> Total</b>","",total_present]
+		if filters.employee_details:
+			total_row = ["<b> Total</b>","",total_present,""]
+		else:
+			total_row = ["<b> Total</b>","",total_present]
 		i = 0
 		for income in income_types:
 			total_row.append(format_precision(income_total[i], filters.value_precision))
@@ -118,10 +121,10 @@ def execute(filters=None):
 						del columns[x]
 						if filters.include_header:
 							for y,d in enumerate(data[3:]):
-								data[y+3][x]
+								del data[y+3][x]
 						else:
 							for y,d in enumerate(data):
-								data[y][x]
+								del data[y][x]
 						colen -= 1
 					else:
 						x +=1
