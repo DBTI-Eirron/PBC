@@ -397,7 +397,7 @@ def get_overtime(entry, ot_apps):
 								ot_out = ot_in
 
 					# OT IN should not be greater than OT Out
-					if ot_in > ot_out:
+					if get_datetime(ot_in) > get_datetime(ot_out):
 						ot_in = ot_out
 
 					#Get Normal OT before ND and Should also consider early ND OT
