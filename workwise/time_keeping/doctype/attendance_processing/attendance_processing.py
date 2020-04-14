@@ -126,6 +126,11 @@ class AttendanceProcessing(Document):
 					if no_work == 1:
 						if entry['work'] > 0:
 							no_work = 0
+						if entry['cto'] > 0:
+							no_work = 0
+						if not entry['is_restday'] and not entry['is_holiday']:
+							if entry['is_absent'] == 0 and entry['is_lwop'] == 0:
+								no_work = 0
 
 				if not emp_dict['schedules']:
 					issue_tag += " <span class='label label-danger'> No Schedule </span>"
