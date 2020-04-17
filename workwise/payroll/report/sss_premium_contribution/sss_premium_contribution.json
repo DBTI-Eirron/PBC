@@ -7,20 +7,17 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-07-19 12:32:26.655287", 
+ "modified": "2020-04-01 11:04:14.823871", 
  "modified_by": "Administrator", 
  "module": "Payroll", 
  "name": "SSS Premium Contribution", 
  "owner": "Administrator", 
- "ref_doctype": "Employee", 
+ "ref_doctype": "Payroll Register", 
  "report_name": "SSS Premium Contribution", 
  "report_type": "Script Report", 
  "roles": [
   {
    "role": "Payroll Manager"
-  }, 
-  {
-   "role": "CompBen"
   }
  ]
 }
