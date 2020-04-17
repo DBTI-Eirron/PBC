@@ -201,6 +201,11 @@ def get_data():
 					"name": "YTD - Payroll Register Report",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Employee Daily Rate Report",
+					"doctype": "Employee",	
+					"is_query_report": True
 				}
 			],
 		},
