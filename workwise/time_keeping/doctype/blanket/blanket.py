@@ -87,11 +87,11 @@ class Blanket(Document):
 		elif self.application_type == "Compensatory Time Off":
 			self.make_compensatory_time_off_application()
 
-	def on_cancel(self):
-		if self.application_type == "Leave Application":
-			for emp in self.get("blad_table"):
-				frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits - %s 
-					WHERE name = %s """, (self.la_total_leave_days, emp.from_balance))
+	#def on_cancel(self):
+	#	if self.application_type == "Leave Application":
+	#		for emp in self.get("blad_table"):
+	#			frappe.db.sql("""UPDATE `tabLeave Balance` SET used_credits = used_credits - %s 
+	#				WHERE name = %s """, (self.la_total_leave_days, emp.from_balance))
 
 	#Filter
 	def filter_reset(self):
