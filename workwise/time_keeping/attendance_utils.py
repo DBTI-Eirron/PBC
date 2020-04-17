@@ -260,6 +260,8 @@ def get_overtime(entry, ot_apps):
 			per_time_with_ot = []
 			is_break_deducted = 0
 			ot_hrs, ot_nd, ot_normal, org_ot_normal = 0, 0, 0, 0
+			ot_log_list, ots = [], []
+			log_used = 0
 
 			if getdate(d.get('target_date')) == entry.get('target_date'):
 				entry['ot_links'].append(d.get("name")) 
@@ -300,71 +302,109 @@ def get_overtime(entry, ot_apps):
 
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('ot_strict_logs'):
-					bound = None
-					if ot_in < entry.get('time_in'):
-						bound = entry.get('time_in')
+					if ot_in < entry.get('time_in') and ot_out >  entry.get('time_out') and not entry.get('is_restday') and not entry.get('is_holiday'):
+						ots = [{'ot_in': ot_in, 'ot_out': entry.get('time_in')}, {'ot_in': entry.get('time_out'), 'ot_out': ot_out}]
+						
 					else:
-						bound = entry.get('time_out')
+						ots = [{'ot_in': ot_in, 'ot_out': ot_out}]
+					start, end = None, None
+					bound = None
 
-					ot_card_in, ot_card_out = get_ot(ot_in,ot_out,entry.get('card_in'), entry.get('card_out'),bound, entry['is_restday'], entry['is_holiday'])
-					entry["ot_card_in_ot"], entry["ot_card_out"] = ot_card_in, ot_card_out
+					if (entry['card_in'] and not entry['card_out']) or (entry['card_out'] and not entry['card_in']):
+						if entry['card_in']:
+							start = entry['card_in']
 
-					if entry.get('ob_in'):
-						if not entry.get('ob_in') >= ot_out:
-							if not entry.get('ob_out') <= ot_in:
-								ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('ob_in'), entry.get('ob_out'), bound, entry['is_restday'], entry['is_holiday'])
-								entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
-								if entry['card_in']:
-		
-									if ot_card_in <= ot_ob_in <= ot_card_out:
-		
-										if ot_card_out < ot_ob_out:
-											ot_card_out = ot_ob_out
-		
-									if ot_card_out > ot_ob_in and ot_card_in <= ot_ob_in:
-										ot_in = ot_card_in
-		
-										if ot_card_out < ot_ob_out:
-											ot_out = ot_ob_out
-										else:
-											ot_out = ot_card_out
+							if entry['early_ob'] == 1:
+								if not (ot_in >= entry.get('early_ob_out') or ot_out <= entry.get('early_ob_in')):
+									end = entry.get('early_ob_out')
+									if entry.get('early_ob_in') < entry.get('card_in'):
+										start =  entry.get('early_ob_in')
 									
-								if ot_card_in == ot_card_out:
-									per_time_with_ot.append({
-										"ot_in": ot_ob_in,
-								 		"ot_out": ot_ob_out
-									})
 
-					if entry['early_ob'] == 1:
-						if  not entry.get('early_ob_in') >= ot_out:
-							if not entry.get('early_ob_out') <= ot_in:
-								ot_ob_in, ot_ob_out = get_ot(ot_in,ot_out,entry.get('early_ob_in'), entry.get('early_ob_out'), bound, entry['is_restday'], entry['is_holiday'])
-								entry["ot_ob_in"], entry["ot_ob_out"] = ot_ob_in, ot_ob_out
-								if entry['card_in']:
-		
-									if ot_card_in <= ot_ob_in <= ot_card_out:
-		
-										if ot_card_out < ot_ob_out:
-											ot_card_out = ot_ob_out
-		
-									if ot_card_out > ot_ob_in and ot_card_in <= ot_ob_in:
-										ot_in = ot_card_in
-		
-										if ot_card_out < ot_ob_out:
-											ot_out = ot_ob_out
+							if entry.get('ob_in'):
+								if not (ot_in >= entry.get('ob_out') or ot_out <= entry.get('ob_in')):
+									if start and end:
+										if not (entry.get('ob_in') >= end or entry.get('ob_out') <= start):
+											if entry.get('ob_in') < get_datetime(start):
+												start = entry.get('ob_in') 
+											if entry.get('ob_out') > end:
+												end = entry.get('ob_out') 
 										else:
-											ot_out = ot_card_out
+											ot_log_list.append({'start': entry.get('ob_in'), 'end': entry.get('ob_out')})
+									else:
+										end = entry.get('ob_out')
+										if entry.get('ob_in') < entry.get('card_in'):
+											start = entry['ob_in'] 
 									
-								if ot_card_in == ot_card_out:
-									per_time_with_ot.append({
-										"ot_in": ot_ob_in,
-								 		"ot_out": ot_ob_out
-									})
-					if 	ot_card_in != ot_card_out:
-						per_time_with_ot.append({
-								"ot_in": ot_card_in,
-						 		"ot_out": ot_card_out
-						})
+
+						if entry['card_out']:
+							end = entry['card_out']
+							
+							if entry['ob_in']:
+								if not (ot_in >= entry.get('ob_out') or ot_out <= entry.get('ob_in')):
+									start = entry.get('ob_in')
+									if entry.get('ob_out') > entry.get('card_out'):
+										end =  entry.get('ob_out')
+
+							if entry.get('early_ob'):
+								if not (ot_in >= entry.get('early_ob_out') or ot_out <= entry.get('early_ob_in')):
+									if start and end:
+										if not (entry.get('early_ob_in') >= end or entry.get('early_ob_out') <= get_datetime(start)):
+											if entry.get('early_ob_in') < get_datetime(start):
+												start = entry.get('ob_in') 
+											if entry.get('early_ob_out') > end:
+												end = entry.get('ob_out') 
+										else:
+											ot_log_list.append({'start': entry.get('early_ob_in'), 'end': entry.get('early_ob_out')})
+									else:
+										start = entry.get('early_ob_in')
+										if entry.get('early_ob_out') > entry.get('card_out'):
+											end = entry['early_ob_out'] 
+
+					else:
+						if entry.get('card_in') and entry.get('card_out'):
+							if not (ot_in >= entry.get('card_out') or ot_out <= entry.get('card_in')):
+								start, end = entry.get('card_in'), entry.get('card_out')
+								
+						if entry['early_ob'] == 1:
+							if not (ot_in >= entry.get('early_ob_out') or ot_out <= entry.get('early_ob_in')):
+								if start:
+									if not (get_datetime(start) >= get_datetime(entry['early_ob_out']) and get_datetime(end) <= get_datetime(entry['early_ob_in'])):
+										if entry.get('early_ob_in') < get_datetime(start):
+											start = entry.get('early_ob_in')
+										if entry.get('early_ob_out') > get_datetime(end):
+											end = entry.get('early_ob_out')
+									else:
+										ot_log_list.append({'start': entry.get('early_ob_in'), 'end': entry.get('early_ob_out')})
+								else:
+									start, end = entry.get('early_ob_in'), entry.get('early_ob_out')
+
+						if entry.get('ob_in'):
+							if not (ot_in >= entry.get('ob_out') or ot_out <= entry.get('ob_in')):
+								if start:
+									if not (get_datetime(start) >= entry.get('ob_out') and get_datetime(end) <= entry.get('ob_in')):
+										if entry.get('ob_in') < get_datetime(start):
+											start = entry.get('ob_in')
+										if entry.get('ob_out') > get_datetime(end):
+											end = entry.get('ob_out')
+									else:
+										ot_log_list.append({'start': entry.get('ob_in'), 'end': entry.get('ob_out')})
+								else:
+									start, end = entry.get('ob_in'), entry.get('ob_out')
+
+					if start and end:
+						ot_log_list.append({'start': start, 'end': end})
+					for o in ots:
+						if o.get('ot_in') < entry.get('time_in'):
+							bound = entry.get('time_in')
+						else:
+							bound = entry.get('time_out')
+
+						for ot in ot_log_list:
+							ot_start, ot_end = get_ot(o.get('ot_in'), o.get('ot_out'), ot.get('start'), ot.get('end'), bound, entry['is_restday'], entry['is_holiday'])
+							if ot_start != ot_end:
+								per_time_with_ot.append({"ot_in": ot_start, "ot_out": ot_end})
+
 				if not per_time_with_ot and entry.get('ot_strict_logs'):
 					if ot_in and ot_out:
 						per_time_with_ot.append({
