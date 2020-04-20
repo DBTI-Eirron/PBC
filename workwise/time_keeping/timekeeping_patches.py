@@ -644,3 +644,19 @@ def update_ot_rates_holiday():
 			frappe.delete_doc("Overtime Rates", o.name)
 		else:
 			frappe.db.set_value("Overtime Rates", o.name, "ot_code", overtime_type)
+
+def recompute_leavebalances():
+	leaves = frappe.db.sql("""SELECT `name`, `total_leave_days`, `from_balance` FROM `tabLeave Application` 
+		WHERE workflow_state IN ('Pending', 'Approval in Progress', 'Approved') AND `from_balance` IS NOT NULL AND `from_balance` != "" """, as_dict=1)
+
+	shouldbe = {}
+	for lv in leaves:
+		if lv.from_balance not in shouldbe:
+			shouldbe[lv.from_balance] = 0
+		shouldbe[lv.from_balance] += lv.total_leave_days
+
+	for s in shouldbe:
+		leaves = frappe.db.sql(""" UPDATE `tabLeave Balance` SET used_credits=%(used_credits)s WHERE `name` = %(name)s """,{
+			"used_credits": shouldbe[s],
+			"name": s,
+		})
