@@ -797,6 +797,9 @@ def get_late(entry):
 				entry['late'] += b_diff.total_seconds()
 				entry['work'] -= b_diff.total_seconds()
 				entry['break'] -= b_diff.total_seconds()
+
+	if entry.get('late_interval'):
+		entry['late'] = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
 	
 	return entry
 
@@ -900,6 +903,9 @@ def get_undertime(entry):
 
 	if entry.get('lv_status') == 3 or entry.get('ob_status') == 3:
 		entry['undertime'] = 0
+
+	if entry.get('ut_interval'):
+		entry['undertime'] = (entry.get('ut_interval') * 60) * int( entry.get('undertime') / (entry.get('ut_interval') * 60))
 	
 	return entry
 
@@ -1185,12 +1191,6 @@ def get_final_processing(entry):
 			#entry['late'] = 0
 			#entry['undertime'] = 0
 			#entry['is_absent'] = 1
-
-	if entry.get('late_interval'):
-		entry['late'] = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
-
-	if entry.get('ut_interval'):
-		entry['undertime'] = (entry.get('ut_interval') * 60) * int( entry.get('undertime') / (entry.get('ut_interval') * 60))
 
 	if not entry.get('is_attendance_base'):
 		entry["work"] = 0 if entry.get('is_restday') else (entry.get('work_hours') * 60) * 60
