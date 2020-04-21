@@ -1528,7 +1528,7 @@ class PayrollProcessing(Document):
 							total_work += at.work
 							total_work += at.overtime
 
-						if not at.is_restday:
+						if not at.is_restday and not at.is_holiday:
 							if AT < 1:
 								paid_leave = 1
 
