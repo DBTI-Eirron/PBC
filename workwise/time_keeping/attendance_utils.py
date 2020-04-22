@@ -1148,43 +1148,41 @@ def get_final_processing(entry):
 	if not entry.get('is_flexible'):
 		entry['work'] -= entry['late']
 		entry['work'] -= entry['undertime']
-
-		for et in entry['ex_tardiness']:
-			exc_start, exc_end = None, None
-
-
-			if et['type'] == "Late":
-				for lt in entry['late_list']:
-					if not (get_datetime(lt['from_time']) >= get_datetime(et['to_time']) or get_datetime(lt['to_time']) <= get_datetime(et['from_time'])):
-
-						if get_datetime(lt['from_time']) > get_datetime(et['from_time']):
-							exc_start = get_datetime(lt['from_time'])
-						else: 
-							exc_start = get_datetime(et['from_time'])
-
-						if lt.get('to_time') < et.get('to_time'):
-							exc_end = get_datetime(lt['to_time'])
-						else: 
-							exc_end = get_datetime(et['to_time'])
-						
-						entry['late'] -= abs((exc_end - exc_start).total_seconds())
-
-			if et['type'] == "Undertime":
-				for ut in entry['ut_list']:
-					if not (get_datetime(ut['from_time']) >= get_datetime(et['to_time']) or get_datetime(ut['to_time']) <= get_datetime(et['from_time'])):
-
-						if get_datetime(ut['from_time']) > get_datetime(et['from_time']):
-							exc_start = get_datetime(ut['from_time'])
-						else: 
-							exc_start = get_datetime(et['from_time'])
-
-						if ut.get('to_time') < et.get('to_time'):
-							exc_end = get_datetime(ut['to_time'])
-						else: 
-							exc_end = get_datetime(et['to_time'])
-
-						entry['undertime'] -= abs((exc_end - exc_start).total_seconds())
-
+		if entry['ext_deduct']:
+			for et in entry['ex_tardiness']:
+				exc_start, exc_end = None, None
+				if et['type'] == "Late":
+					for lt in entry['late_list']:
+						if not (get_datetime(lt['from_time']) >= get_datetime(et['to_time']) or get_datetime(lt['to_time']) <= get_datetime(et['from_time'])):
+	
+							if get_datetime(lt['from_time']) > get_datetime(et['from_time']):
+								exc_start = get_datetime(lt['from_time'])
+							else: 
+								exc_start = get_datetime(et['from_time'])
+	
+							if lt.get('to_time') < et.get('to_time'):
+								exc_end = get_datetime(lt['to_time'])
+							else: 
+								exc_end = get_datetime(et['to_time'])
+							
+							entry['late'] -= abs((exc_end - exc_start).total_seconds())
+	
+				if et['type'] == "Undertime":
+					for ut in entry['ut_list']:
+						if not (get_datetime(ut['from_time']) >= get_datetime(et['to_time']) or get_datetime(ut['to_time']) <= get_datetime(et['from_time'])):
+	
+							if get_datetime(ut['from_time']) > get_datetime(et['from_time']):
+								exc_start = get_datetime(ut['from_time'])
+							else: 
+								exc_start = get_datetime(et['from_time'])
+	
+							if ut.get('to_time') < et.get('to_time'):
+								exc_end = get_datetime(ut['to_time'])
+							else: 
+								exc_end = get_datetime(et['to_time'])
+	
+							entry['undertime'] -= abs((exc_end - exc_start).total_seconds())
+	
 		if entry['work'] < 0: 
 			entry['work'] = 0
 
@@ -2081,6 +2079,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"at_work_rdho": frappe.db.get_single_value('Timekeeping Settings', 'at_work_rdho'),
 		"mo_abho": frappe.db.get_single_value('Timekeeping Settings', 'mo_abho'),
 		"ab_regho": frappe.db.get_single_value('Timekeeping Settings', 'ab_regho'),
+		"ext_deduct": frappe.db.get_single_value('Timekeeping Settings', 'ext_deduct'),
 	}
 	
 	return entry
