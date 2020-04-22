@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import frappe
 from datetime import datetime
 from frappe import _
-from frappe.utils import nowdate
+from frappe.utils import nowdate, get_datetime, cstr, getdate
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, 
@@ -16,11 +16,9 @@ class ExcuseTardinessApplication(Document):
 	def validate(self):
 		validate_inactive_employee(self)
 		clear_approval_history(self)
-		time_in, time_out = self.get_timelogs()
+		time_in, time_out = self.get_actual_logs()
 		if not time_in and not time_out:
-			has_ob = self.check_employee_ob()
-			if not has_ob:
-				frappe.throw(_("<b>Excuse Tardiness Application: {0}</b><hr> No timelogs for employee {1}").format(self.name, self.employee))
+			frappe.throw(_("<b>Excuse Tardiness Application: {0}</b><hr> No timelogs for employee {1}").format(self.name, self.employee))
 		grant_head_subordinate_access(self)
 		change_owner(self)
 
@@ -73,6 +71,33 @@ class ExcuseTardinessApplication(Document):
 
 		return time_in, time_out
 
-	def check_employee_ob(self):
-		ob_apps = frappe.db.sql("""SELECT OBA.`name`FROM `tabOfficial Business Application Table` OBAT INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
+	def get_actual_logs(self):
+		actual_in = []
+		actual_out = []
+
+		obas = frappe.db.sql("""SELECT OBA.`name`, OBAT.`date`, OBAT.`from_time`, OBAT.`to_date`, OBAT.`to_time` FROM `tabOfficial Business Application Table` OBAT 
+			INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`
 			WHERE OBA.employee = %s AND OBA.workflow_state = 'Approved' AND OBAT.target_date = %s AND OBAT.is_excluded = 0 """,(self.employee, self.date), as_dict=1)
+
+		bio_id = frappe.get_value("Employee", self.employee, "biometrics_id")
+		if bio_id:
+			time_out = frappe.db.sql(""" SELECT `time`, TIMESTAMP(date, time) as card_datetime FROM `tabTime Card` WHERE `biometrics_id` = %s AND `card_type` = 0 AND `is_disabled` = 0 AND `date` = %s LIMIT 1 """, (bio_id, self.date), as_dict=1)
+			time_in = frappe.db.sql(""" SELECT `time`, TIMESTAMP(date, time) as card_datetime FROM `tabTime Card` WHERE `biometrics_id` = %s AND `card_type` = 1 AND `is_disabled` = 0 AND `date` = %s LIMIT 1 """, (bio_id, self.date), as_dict=1)
+
+		for d in obas:
+			actual_in.append( get_datetime(cstr(getdate(d.date))+" "+cstr(d.from_time)) )
+			actual_out.append( get_datetime(cstr(getdate(d.to_date))+" "+cstr(d.to_time)) )
+
+		for to in time_out:
+			actual_out.append( get_datetime(to.card_datetime) )
+
+		for ti in time_in:
+			actual_in.append( get_datetime(ti.card_datetime) )
+
+		if actual_in and actual_out:
+			actual_in = min(actual_in)
+			actual_out = max(actual_out)
+
+			return actual_in, actual_out
+		else:
+			return None, None
