@@ -660,3 +660,52 @@ def recompute_leavebalances():
 			"used_credits": shouldbe[s],
 			"name": s,
 		})
+
+def validate_loanpayments():
+	payment_removed = []
+	to_remove = []
+
+	laps = frappe.db.sql("""SELECT LP.`name`, LP.`parent`, LA.`employee`, LP.payment_status, LP.payment_date, LA.beginning_balance, LP.payment_amount, LP.idx
+		FROM `tabLoan Application Payments` LP INNER JOIN `tabLoan Application` LA ON LP.`parent`=LA.`name` WHERE LP.`payment_status` = 'Paid' """,as_dict=1)
+
+	prs = frappe.db.sql("""SELECT employee, posting_date FROM `tabPayroll Register` PR """,as_dict=1)
+	prs_dict = {}
+	for p in prs:
+		if p.employee not in prs_dict:
+			prs_dict[p.employee] = []
+		prs_dict[p.employee].append(getdate(p.posting_date))
+
+	for l in laps:
+		if getdate(l.payment_date) not in prs_dict[l.employee]:
+			if (getdate(l.payment_date) == getdate('2020-03-14')):
+				if flt(l.beginning_balance, 8) == flt(l.payment_amount, 8):
+					if (l.idx != 1):
+						frappe.db.sql("""UPDATE `tabLoan Application Payments` LP SET LP.payment_status='Unpaid', LP.payment_date=NULL WHERE LP.`name`=%s """,(l.name))
+						frappe.db.sql("""UPDATE `tabLoan Application` SET unpaid_amount=unpaid_amount+%s, 
+							paid_amount=paid_amount-%s WHERE `name`=%s """,(l.payment_amount, l.payment_amount, l.parent))
+						payment_removed.append( "Employee: "+cstr(l.employee)+" Loan ID: "+cstr(l.parent)+" Payment Date: "+cstr(getdate(l.payment_date))  )
+				else:
+						frappe.db.sql("""UPDATE `tabLoan Application Payments` LP SET LP.payment_status='Unpaid', LP.payment_date=NULL WHERE LP.`name`=%s """,(l.name))
+						frappe.db.sql("""UPDATE `tabLoan Application` SET unpaid_amount=unpaid_amount+%s, 
+							paid_amount=paid_amount-%s WHERE `name`=%s """,(l.payment_amount, l.payment_amount, l.parent))
+						payment_removed.append( "Employee: "+cstr(l.employee)+" Loan ID: "+cstr(l.parent)+" Payment Date: "+cstr(getdate(l.payment_date))  )
+			else:
+				if flt(l.beginning_balance, 8) == flt(l.payment_amount, 8):
+					if (l.idx != 1):
+						to_remove.append( "Employee: "+cstr(l.employee)+" Loan ID: "+cstr(l.parent)+" Payment Date: "+cstr(getdate(l.payment_date))  )
+				else:
+					to_remove.append( "Employee: "+cstr(l.employee)+" Loan ID: "+cstr(l.parent)+" Payment Date: "+cstr(getdate(l.payment_date))  )
+	
+	cnt = 0
+	print( "Payments Removed: " )
+	for pym in payment_removed:
+		print(pym)
+		cnt += 1
+	print( "Total Payment Removed: "+cstr(cnt) )
+
+	ct = 0
+	print( "Payments To Remove: " )
+	for trm in to_remove:
+		print(trm)
+		ct += 1
+	print( "Total Payment To Remove: "+cstr(ct) )
