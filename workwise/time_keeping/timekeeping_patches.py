@@ -709,3 +709,9 @@ def validate_loanpayments():
 		print(trm)
 		ct += 1
 	print( "Total Payment To Remove: "+cstr(ct) )
+
+def update_loans_payrollperiod():
+	loan_update = frappe.db.sql("""SELECT LA.`name` as "loan_name", P.`name` as "payroll_period" FROM `tabLoan Application Payments` LA INNER JOIN `tabPayroll Period` P 
+		on LA.`payment_date` = P.`payroll_date`  WHERE LA.`payment_status` = 'Paid' """, as_dict=True )
+	for l in loan_update:
+		frappe.db.sql("""UPDATE `tabLoan Application Payments` SET  payroll_period = %s WHERE `name` = %s   """,(l.payroll_period, l.loan_name))
