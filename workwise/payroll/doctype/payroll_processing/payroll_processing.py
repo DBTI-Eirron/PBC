@@ -294,7 +294,7 @@ class PayrollProcessing(Document):
 							proc_emp += 1
 							for d in register:
 								if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
-									update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'))
+									update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'), self.period)
 						payslip_label = " " + emp.full_name +""
 						
 

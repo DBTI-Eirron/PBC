@@ -85,7 +85,7 @@ def get_employee_loan(emp, header, register, loans_map, frequency):
 					"linked_document": dl.name,
 					"linked_doctype": "Loan Application",
 					"loan_idx": dl.idx,
-					"pay_code": dl.loan_type,
+					"pay_code": dl.loan_type,	
 					"amount": flt( dl.payment_amount, 8),
 				})
 
@@ -96,11 +96,11 @@ def reload_loans(employee_name, payroll_date):
 	frappe.db.sql("""UPDATE `tabLoan Application Payments` LAP INNER JOIN `tabLoan Application` LA ON LAP.parent = LA.name SET LAP.payment_status = 'Unpaid', 
 		LAP.payment_date = NULL WHERE LA.employee = %s AND LAP.payment_date = %s AND LAP.payment_status = 'Paid' """,( employee_name, payroll_date), as_dict=True )
 
-def update_loans(payroll_date, loan_doc, loan_idx):
+def update_loans(payroll_date, loan_doc, loan_idx, period):
 	if loan_doc:
 		total_paid, total_unpaid = 0, 0
-		frappe.db.sql("""UPDATE `tabLoan Application Payments` SET payment_status = 'Paid', payment_date = %s
-			WHERE parent = %s AND idx = %s AND payment_status = 'Unpaid'   """,(payroll_date, loan_doc, loan_idx), as_dict=True )
+		frappe.db.sql("""UPDATE `tabLoan Application Payments` SET payment_status = 'Paid', payment_date = %s, payroll_period = %s
+			WHERE parent = %s AND idx = %s AND payment_status = 'Unpaid'   """,(payroll_date, period, loan_doc, loan_idx), as_dict=True )
 
 		payments = frappe.db.sql("""SELECT payment_status, payment_amount FROM `tabLoan Application Payments` 
 			WHERE parent = %s""",(loan_doc), as_dict=True )
