@@ -147,7 +147,7 @@ def get_data(filters):
 
 	pay_from, pay_to, schedule = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "schedule"])
 	emp_map = init_employee_map(filters, pay_from, pay_to, schedule)
-	grand_work, grand_break, grand_late, grand_ot, grand_otnd, grand_otex, grand_ut, grand_nd = 0, 0, 0, 0, 0, 0, 0, 0
+	grand_work, grand_break, grand_late, grand_ot, grand_otnd, grand_otex, grand_ut, grand_nd, grand_cto = 0, 0, 0, 0, 0, 0, 0, 0, 0
 	data.append({
 		"target_date":"<b>Company: </b>"+filters.company+"",
 	})
@@ -181,6 +181,7 @@ def get_data(filters):
 				emp_dict['sub_overtime_nd'] += r.overtime_nd
 				emp_dict['sub_overtime_ex'] += r.overtime_ex
 				emp_dict['sub_nightdiff'] += r.nightdiff
+				emp_dict['sub_cto'] += r.cto
 				emp_dict['sub_undertime'] += r.undertime
 				data.append(r)
 
@@ -191,6 +192,7 @@ def get_data(filters):
 			grand_otnd += emp_dict['sub_overtime_nd']
 			grand_otex += emp_dict['sub_overtime_ex']
 			grand_nd += emp_dict['sub_nightdiff']
+			grand_cto += emp_dict['sub_cto']
 			grand_ut += emp_dict['sub_undertime']
 			data.append({
 				"target_date": _("TOTAL"),
@@ -201,6 +203,7 @@ def get_data(filters):
 				"overtime_nd": emp_dict['sub_overtime_nd'],
 				"overtime_ex": emp_dict['sub_overtime_ex'],
 				"nightdiff": emp_dict['sub_nightdiff'],
+				"cto": emp_dict['sub_cto'],
 				"undertime": emp_dict['sub_undertime'],
 			})
 			data.append({})
@@ -214,6 +217,7 @@ def get_data(filters):
 		"overtime_nd": grand_otnd,
 		"overtime_ex": grand_otex,
 		"nightdiff": grand_nd,
+		"cto": grand_cto,
 		"undertime": grand_ut,
 	})
 
@@ -241,6 +245,7 @@ def init_employee_map(filters, pay_from, pay_to, schedule):
 				"sub_overtime_nd": 0.0,
 				"sub_overtime_ex": 0.0,
 				"sub_nightdiff": 0.0,
+				"sub_cto": 0.0,
 				"sub_undertime": 0.0,
 			})
 		)
