@@ -19,7 +19,7 @@ class Department(NestedSet):
 
 	def validate_company(self):
 		if not self.company:
-			frappe.throw("Please Create Cost Center in Cost Center Tree.")
+			frappe.throw("Please Create Department in Department Tree.")
 
 	def update_nsm_model(self):
 		frappe.utils.nestedset.update_nsm(self)
