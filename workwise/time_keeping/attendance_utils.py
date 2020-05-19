@@ -311,7 +311,7 @@ def get_overtime(entry, ot_apps):
 
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('ot_strict_logs'):
-					if ot_in < entry.get('time_in') and ot_out >  entry.get('time_out') and not entry.get('is_restday') and not entry.get('is_holiday'):
+					if ot_in < entry.get('time_in') and ot_out >  entry.get('time_out') and not entry.get('is_restday'):
 						ots = [{'ot_in': ot_in, 'ot_out': entry.get('time_in')}, {'ot_in': entry.get('time_out'), 'ot_out': ot_out}]
 						
 					else:
@@ -783,9 +783,14 @@ def get_late(entry):
 
 				#if OB is in 1st Half
 				elif entry.get('ob_stat') == 2:
-					if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-						entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
-						entry['late_list'].append({'from_time': entry.get('time_in'), 'to_time': entry.get('ob_in')})
+					if entry['graceperiod_late']:
+						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+							entry['late'] += abs((entry.get('ob_in') - (entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')))).total_seconds())
+							entry['late_list'].append({'from_time': entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')), 'to_time': entry.get('ob_in')})
+					else:
+						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+							entry['late_list'].append({'from_time': entry.get('time_in'), 'to_time': entry.get('ob_in')})
 
 					if entry.get('ob_in') > entry.get('break_end') + datetime.timedelta(minutes=entry.get('grace')):
 						entry['late'] += abs((entry.get('ob_in') - entry.get('break_end')).total_seconds())
@@ -795,9 +800,14 @@ def get_late(entry):
 				if entry.get('ob_stat') == 1:
 					#if there is no leave on first half
 					if entry.get('lv_status') != 2:
-						if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
-							entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
-							entry['late_list'].append({'from_time': entry.get('time_in'), 'to_time': entry.get('ob_in')})
+						if entry['graceperiod_late']:
+							if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+								entry['late'] += abs((entry.get('ob_in') - (entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')))).total_seconds())
+								entry['late_list'].append({'from_time': entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')), 'to_time': entry.get('ob_in')})
+						else:
+							if entry.get('ob_in') > entry.get('time_in') + datetime.timedelta(minutes=entry.get('grace')):
+								entry['late'] += abs((entry.get('ob_in') - entry.get('time_in')).total_seconds())
+								entry['late_list'].append({'from_time': entry.get('time_in'), 'to_time': entry.get('ob_in')})
 
 	#break_out
 	if not entry['is_leave'] and not entry['is_holiday'] and not entry['is_ob'] and entry['card_in']:
