@@ -31,6 +31,11 @@ def get_data():
 					"name": "Certificate of Maternity",
 					"description": _("Certificate of Maternity"),
 				},
+				{
+					"type": "doctype",
+					"name": "Employee Accountability",
+					"description": _("Employee Accountability"),
+				},
 			]
 		},
 		{
