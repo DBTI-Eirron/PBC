@@ -132,6 +132,11 @@ def get_data():
 					"name": "Exit Interview",
 					"description": _("Exit Interview"),
 				},
+				{
+					"type": "doctype",
+					"name": "Wage Order",
+					"description": _("Wage Order"),
+				},
 			]
 		},
 		{
