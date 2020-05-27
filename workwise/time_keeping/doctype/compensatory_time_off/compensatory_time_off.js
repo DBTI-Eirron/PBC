@@ -5,44 +5,6 @@ cur_frm.add_fetch('employee','company','company');
 
 frappe.ui.form.on('Compensatory Time Off', {
 	onload: function(frm) {
-		cur_frm.set_query("employee", function() {
-			return {
-				"filters": {
-					"is_active": 1,
-				}
-			};
-		});
-
-		frm.set_query('filed_cto', function(doc) {
-			if(frm.doc.employee && frm.doc.type == "Use"){
-				return {
-					filters: {
-						"workflow_state": 'Approved',
-						"docstatus": 1,
-						"type": "File",
-						"employee": doc.employee,
-						"balance": ['>',0]
-					}
-				};
-			}else{
-				return {
-					filters: {
-						"type": "",
-					}
-				};
-			}
-		});
-			
-		frappe.call({
-			method: "get_timekeeping_settings_for_cto_use_type",
-			doc: frm.doc,
-			callback: function(r) {
-				if (r.message == "hour"){
-					cur_frm.toggle_display('filed_cto', false);
-				}
-				frm.refresh_fields();
-			}
-		});	
 		
 	},
 
@@ -140,7 +102,44 @@ frappe.ui.form.on('Compensatory Time Off', {
 	},
 
 	refresh: function(frm) {
+		cur_frm.set_query("employee", function() {
+			return {
+				"filters": {
+					"is_active": 1,
+				}
+			};
+		});
 
+		frm.set_query('filed_cto', function(doc) {
+			if(frm.doc.employee && frm.doc.type == "Use"){
+				return {
+					filters: {
+						"workflow_state": 'Approved',
+						"docstatus": 1,
+						"type": "File",
+						"employee": doc.employee,
+						"balance": ['>',0]
+					}
+				};
+			}else{
+				return {
+					filters: {
+						"type": "",
+					}
+				};
+			}
+		});
+			
+		frappe.call({
+			method: "get_timekeeping_settings_for_cto_use_type",
+			doc: frm.doc,
+			callback: function(r) {
+				if (r.message == "forfeit_disabled"){
+					cur_frm.toggle_display('filed_cto', false);
+				}
+				frm.refresh_fields();
+			}
+		});
 	},
 	
 });
