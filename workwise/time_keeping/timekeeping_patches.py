@@ -715,3 +715,42 @@ def update_loans_payrollperiod():
 		on LA.`payment_date` = P.`payroll_date`  WHERE LA.`payment_status` = 'Paid' """, as_dict=True )
 	for l in loan_update:
 		frappe.db.sql("""UPDATE `tabLoan Application Payments` SET  payroll_period = %s WHERE `name` = %s   """,(l.payroll_period, l.loan_name))
+
+def convert_ctocreds():
+	frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET old_total_credits_earned = total_credits_earned WHERE `type` = 'Use' """)
+	ctos = frappe.db.sql(""" SELECT * FROM `tabCompensatory Time Off` WHERE docstatus != 2 """, as_dict=1)
+	fctotabs = frappe.db.sql(""" SELECT CT.`name`, CT.`filed_cto`, CT.`credits_used`, CT.`balance`, CT.`forfeited_balance`, C.`total_hours`, C.`credits_earned` 
+		FROM `tabCompensatory Time Off Table` CT INNER JOIN `tabCompensatory Time Off` C ON CT.`filed_cto`=C.`name` WHERE C.type = 'File' """, as_dict=1)
+
+	for ct in fctotabs:
+		if ct.total_hours:
+			nce, ncu, nb, nfb = 0, 0, 0, 0
+			nce = ct.total_hours
+			ncu = (((ct.credits_used *100) / ct.credits_earned) / 100) * ct.total_hours
+			nb = (((ct.balance *100) / ct.credits_earned) / 100) * ct.total_hours
+			nfb = (((ct.forfeited_balance *100) / ct.credits_earned) / 100) * ct.total_hours
+			frappe.db.sql(""" UPDATE `tabCompensatory Time Off Table` SET forfeited_balance=%s, credits_used=%s, balance=%s WHERE `name` = %s """,(nfb, ncu, nb, ct.name))
+
+	for c in ctos:
+		if c.type == 'File' and c.total_hours and c.credits_earned:
+			nce, ncu, nb = 0, 0, 0
+			nce = c.total_hours
+			ncu = (((c.credits_used *100) / c.credits_earned) / 100) * c.total_hours
+			nb = (((c.balance *100) / c.credits_earned) / 100) * c.total_hours
+			frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET credits_earned=total_hours, credits_used=%s, balance=%s WHERE `name` = %s """,(ncu, nb, c.name))
+
+	ectotabs = frappe.db.sql(""" SELECT CT.`name`, CT.filed_cto, CT.credits_used, CT.balance, CT.forfeited_balance, CT.parent
+		FROM `tabCompensatory Time Off Table` CT INNER JOIN `tabCompensatory Time Off` C ON CT.`parent`=C.`name` """, as_dict=1)
+
+	edic = {}
+	for e in ectotabs:
+		if e.parent not in edic:
+			edic[e.parent] = 0
+		edic[e.parent] += e.balance
+
+	for ec in ctos:
+		if ec.type == 'Use':
+			if ec.name in edic:
+				frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET total_credits_earned=%s, required_credits=use_total_hours WHERE `name` = %s """,(flt(edic[ec.name]), ec.name))
+			else:
+				frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET total_credits_earned=use_total_hours, required_credits=use_total_hours WHERE `name` = %s """,(ec.name))

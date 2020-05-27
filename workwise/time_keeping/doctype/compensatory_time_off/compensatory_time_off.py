@@ -39,8 +39,6 @@ class CompensatoryTimeOff(Document):
 		get_levelled_approval(self)
 		#validate_approver_userperm(self)
 		#validate_cutoff_approval_date(self)
-		
-	def on_update_after_submit(self):
 		if self.workflow_state == "Approved":
 			if frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
 				self.use_deduct_cto()
@@ -62,11 +60,10 @@ class CompensatoryTimeOff(Document):
 				frappe.throw(_("There's already an Overtime Application filed with the same date."))
 
 	def get_timekeeping_settings_for_cto_use_type(self):
-		cto_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
-		if cto_type == "Day":
-			return 'day'
+		if frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit'):
+			return 'forfeit_enabled'
 		else:
-			return 'hour'
+			return 'forfeit_disabled'
 
 	def get_target_date(self):
 		if self.type == "File":
@@ -129,7 +126,7 @@ class CompensatoryTimeOff(Document):
 			self.file_validate_max_filing()
 			self.file_process_cto()
 			self.file_get_workshift_setup()
-			#self.file_post_validate_fields()
+			self.file_post_validate_fields()
 
 	def file_pre_validate_fields(self):
 		if not self.file_from_date:
@@ -137,6 +134,12 @@ class CompensatoryTimeOff(Document):
 
 		if not self.file_to_date:
 			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> File To Date is required").format(self.name))
+
+		from_date = datetime.strptime(str(self.file_from_date) + ' ' + str(self.file_from_time), '%Y-%m-%d %H:%M:%S')
+		to_date = datetime.strptime(str(self.file_to_date) + ' ' + str(self.file_to_time), '%Y-%m-%d %H:%M:%S')
+
+		if from_date > to_date:
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> File From must be less than File To").format(self.name))
 
 	def file_get_target_date(self):
 		if self.file_from_date and self.file_to_date:
@@ -169,10 +172,10 @@ class CompensatoryTimeOff(Document):
 			time_in_list.append( get_datetime(ob_from_date) )
 
 			if ob_to_date:
-				if datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S') > ob_to_date:
-					ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
+				if datetime.strptime(str(ob.to_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S') > ob_to_date:
+					ob_to_date = datetime.strptime(str(ob.to_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
 			else:
-				ob_to_date = datetime.strptime(str(ob.target_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
+				ob_to_date = datetime.strptime(str(ob.to_date) + ' ' + str(ob.to_time), '%Y-%m-%d %H:%M:%S')
 			time_out_list.append( get_datetime(ob_to_date) )
 
 		#Get Overrides
@@ -190,9 +193,9 @@ class CompensatoryTimeOff(Document):
 			to_date = max(time_out_list)
 
 		if (not from_date) and (not to_date):
-			frappe.throw(_("You have no actual logs for today"))
+			frappe.throw(_("You have no actual logs"))
 		if (not from_date) or (not to_date):
-			frappe.throw(_("You have incomplete actual logs for today"))
+			frappe.throw(_("You have incomplete actual logs"))
 
 		self.file_actual_in = get_datetime(from_date)
 		self.file_actual_out = get_datetime(to_date)
@@ -200,15 +203,29 @@ class CompensatoryTimeOff(Document):
 		return get_datetime(from_date), get_datetime(to_date)
 
 	def file_validate_duplicate(self):
-		existing_application = frappe.db.sql("""SELECT `name`, `file_from_date`, `file_to_date`, `file_from_time`, `file_to_time` FROM `tabCompensatory Time Off` 
-			WHERE `employee` = %s AND `type` = "File" AND `file_target_date` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" """,( self.employee, self.file_target_date ), as_dict=1)
+		condition = "AND `type` = 'File' AND `file_target_date` = '"+str(getdate(self.file_target_date))+"'"
+		if self.type == 'Use':
+			condition = "AND `type` = 'Use' AND `use_target_date` = '"+str(getdate(self.use_target_date))+"'"
+
+		existing_application = frappe.db.sql("""SELECT `name`, `file_from_date`, `file_to_date`, `file_from_time`, `file_to_time`,
+			`use_from_date`, `use_to_date`, `use_fromtime`, `use_totime` FROM `tabCompensatory Time Off` 
+			WHERE `employee` = %s AND `docstatus` = 1 AND `workflow_state` = "Approved" {condition} """.format(condition=condition),( self.employee ), as_dict=1)
+
 		if existing_application:
 			for d in existing_application:
-				existing_from = datetime.strptime(str(d.file_from_date) + ' ' + str(d.file_from_time), '%Y-%m-%d %H:%M:%S')
-				existing_to = datetime.strptime(str(d.file_to_date) + ' ' + str(d.file_to_time), '%Y-%m-%d %H:%M:%S')
-				
-				cur_from = datetime.strptime(str(self.file_from_date) + ' ' + str(self.file_from_time), '%Y-%m-%d %H:%M:%S')
-				cur_to = datetime.strptime(str(self.file_to_date) + ' ' + str(self.file_to_time), '%Y-%m-%d %H:%M:%S')
+				if self.type == 'File':
+					existing_from = datetime.strptime(str(d.file_from_date) + ' ' + str(d.file_from_time), '%Y-%m-%d %H:%M:%S')
+					existing_to = datetime.strptime(str(d.file_to_date) + ' ' + str(d.file_to_time), '%Y-%m-%d %H:%M:%S')
+					
+					cur_from = datetime.strptime(str(self.file_from_date) + ' ' + str(self.file_from_time), '%Y-%m-%d %H:%M:%S')
+					cur_to = datetime.strptime(str(self.file_to_date) + ' ' + str(self.file_to_time), '%Y-%m-%d %H:%M:%S')
+
+				if self.type == 'Use':
+					existing_from = datetime.strptime(str(d.use_from_date) + ' ' + str(d.use_fromtime), '%Y-%m-%d %H:%M:%S')
+					existing_to = datetime.strptime(str(d.use_to_date) + ' ' + str(d.use_totime), '%Y-%m-%d %H:%M:%S')
+					
+					cur_from = datetime.strptime(str(self.use_from_date) + ' ' + str(self.use_fromtime), '%Y-%m-%d %H:%M:%S')
+					cur_to = datetime.strptime(str(self.use_to_date) + ' ' + str(self.use_totime), '%Y-%m-%d %H:%M:%S')
 
 				if existing_from == cur_from and existing_to == cur_to:
 					frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Compensatory Time Off Application already exists, {1}").format(self.name, d.name))
@@ -257,22 +274,26 @@ class CompensatoryTimeOff(Document):
 		actual_from_date, actual_to_date = self.file_validate_actual_logs()
 		schedule = get_schedule(self.employee, self.file_target_date, self.file_target_date)
 
-		if not actual_from_date <= from_date <= actual_to_date:
-			frappe.throw(_("File From is not within your actual logs"))
-
-		if not actual_from_date <= to_date <= actual_to_date: 
-			frappe.throw(_("File To is not within your actual logs"))
-
 		shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=1)
-		#if not shift[0]['cto_allow_file_within_shift'] and (schedule[0]['datetime_out'] > from_date):
-		#	from_date = schedule[0]['datetime_out']
-		if not shift[0]['cto_allow_file_within_shift'] and not self.chk_holiday(self.file_target_date):
-			if datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_in), '%Y-%m-%d %H:%M:%S') < from_date < datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_out), '%Y-%m-%d %H:%M:%S'):
+
+		if shift[0]['cto_allow_file_within_shift'] < 1 and not self.chk_holiday(self.file_target_date):
+			shift_from = datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_in), '%Y-%m-%d %H:%M:%S')
+			shift_to = datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_out), '%Y-%m-%d %H:%M:%S')
+
+			if (shift_from < from_date < shift_to) or (shift_from < to_date < shift_to):
 				frappe.throw(_("You cannot file within your shift"))
-			if datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_in), '%Y-%m-%d %H:%M:%S') < to_date < datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_out), '%Y-%m-%d %H:%M:%S'):
+			if (from_date < shift_from < to_date) or  (from_date < shift_to < to_date):
+				frappe.throw(_("You cannot file within your shift"))
+			if shift_from == from_date and to_date == shift_to: 
 				frappe.throw(_("You cannot file within your shift"))
 			#if (schedule[0]['datetime_out'] > from_date):
 			#	from_date = schedule[0]['datetime_out']
+			
+		if not (actual_from_date <= from_date <= actual_to_date):
+			frappe.throw(_("File From is not within your actual logs"))
+
+		if not (actual_from_date <= to_date <= actual_to_date):
+			frappe.throw(_("File To is not within your actual logs"))
 
 		if from_date <= to_date:
 			total_hrs = to_date - from_date
@@ -283,22 +304,7 @@ class CompensatoryTimeOff(Document):
 		self.get_autobreak_hrs(total_hours)
 		total_hours = flt(total_hours, 2) - flt(self.break_hours, 2)
 		self.total_hours = flt(total_hours, 2)
-
-		work_hours = 8
-		for d in schedule:
-			if d['work_hours'] > 0:
-				work_hours = flt(d['work_hours'])
-			else:
-				work_hours = 8
-
-		if work_hours > 0:
-			if frappe.db.get_single_value('Timekeeping Settings', 'cto_file_type') == "Day":
-				self.credits_earned = flt(self.total_hours,2)/flt(work_hours, 2)
-				if self.credits_earned > 1:
-					self.credits_earned = 1.0
-			else:
-				self.credits_earned = flt(self.total_hours,2)/flt(work_hours, 2)
-
+		self.credits_earned = flt(total_hours,2)
 		self.balance = self.credits_earned - self.credits_used		
 
 	def file_get_workshift_setup(self):
@@ -314,9 +320,14 @@ class CompensatoryTimeOff(Document):
 						if self.total_hours > int(shifts[0].cto_max_filing_hrs):
 							frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Maximum hours of filing is {1}").format(self.name, shifts[0].cto_max_filing_hrs))
 
-	#def file_post_validate_fields(self):
+	def file_post_validate_fields(self):
 	#	if self.credits_earned <= 0:
 	#		frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Credits Earned must be greater than 0").format(self.name))
+		if not self.credits_earned:
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> No Credits Earned").format(self.name))
+
+		if not self.total_hours:
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> No Total Hours").format(self.name))
 
 	def file_cancel_cto(self):
 		if self.type == "File":
@@ -330,6 +341,7 @@ class CompensatoryTimeOff(Document):
 		if self.type == "Use":
 			self.use_pre_validate_fields()
 			self.use_get_target_date()
+			self.file_validate_duplicate()
 			self.use_process_cto()
 			self.use_validate_date()
 			self.validate_use_credits()
@@ -343,9 +355,14 @@ class CompensatoryTimeOff(Document):
 		if not self.use_to_date:
 			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Use To Date is required").format(self.name))
 
-		if frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type') == "Day":
+		if frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit'):
 			if not self.filed_cto:
-				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Filed CTO is required").format(self.name))
+				frappe.throw(_("<balance>Compensatory Time Off: {0}</b><hr> Filed CTO is required").format(self.name))
+
+		from_date = datetime.strptime(str(self.use_from_date) + ' ' + str(self.use_fromtime), '%Y-%m-%d %H:%M:%S')
+		to_date = datetime.strptime(str(self.use_to_date) + ' ' + str(self.use_totime), '%Y-%m-%d %H:%M:%S')
+		if from_date > to_date:
+			frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> From Date must me less than To Date").format(self.name))
 
 	def use_get_target_date(self):
 		if self.use_from_date and self.use_to_date:
@@ -366,33 +383,23 @@ class CompensatoryTimeOff(Document):
 		self.get_autobreak_hrs(total_hours)
 		total_hours = flt(total_hours, 2) - flt(self.use_break_hours, 2)
 		self.use_total_hours = total_hours
-
-		work_hours = 8
-		schedule = get_schedule(self.employee, self.use_target_date, self.use_target_date)
-		if schedule:
-			for d in schedule:
-				if d['work_hours'] > 0:
-					work_hours = flt(d['work_hours'])
-				else:
-					work_hours = 8
-
-		if work_hours > 0:
-			self.required_credits = flt(total_hours,2)/flt(work_hours, 2)
+		self.required_credits = flt(total_hours,2)
 
 		total_credits_earned = 0.00
 		date_list = []
 		last_date = None
 		
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
-		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
+		cto_forfeit = frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit')
 		if cto_validity > 0:
 			cto_validity_condition = " AND (%(use_date)s BETWEEN `file_target_date` AND DATE_SUB(`file_target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
 		else:
 			cto_validity_condition = ""
 
-		if cto_use_type == "Day":
+		if cto_forfeit:
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `file_target_date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s AND `balance` > 0 {conditions} """.format(conditions=cto_validity_condition),{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved"
+				AND `name` = %(filed_cto)s AND `balance` > 0 {conditions} """.format(conditions=cto_validity_condition),{
 				"employee": self.employee,
 				"filed_cto": self.filed_cto,
 				"use_date": getdate(self.use_target_date),
@@ -400,7 +407,8 @@ class CompensatoryTimeOff(Document):
 			}, as_dict=True)
 		else:
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `file_target_date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved' AND `balance` > 0 AND `file_target_date` <= %(use_date)s {conditions} ORDER BY `file_target_date` ASC """.format(conditions=cto_validity_condition),{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = 'Approved'
+				AND `balance` > 0 AND `file_target_date` <= %(use_date)s {conditions} ORDER BY `file_target_date` ASC """.format(conditions=cto_validity_condition),{
 				"employee": self.employee,
 				"use_date": getdate(self.use_target_date),
 				"cto_validity": cto_validity,
@@ -450,15 +458,16 @@ class CompensatoryTimeOff(Document):
 			req_credits = self.required_credits
 
 			cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
-			cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
+			cto_forfeit = frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit')
 			if cto_validity > 0:
 				cto_validity_condition = " AND (%(use_date)s BETWEEN `file_target_date` AND DATE_SUB(`file_target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
 			else:
 				cto_validity_condition = ""
 
-			if cto_use_type == "Day":
+			if cto_forfeit:
 				filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `file_target_date` FROM `tabCompensatory Time Off` 
-					WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s AND `balance` > 0 {conditions} """.format(conditions=cto_validity_condition),{
+					WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s 
+					AND `balance` > 0 {conditions} """.format(conditions=cto_validity_condition),{
 					"employee": self.employee,
 					"filed_cto": self.filed_cto,
 					"use_date": getdate(self.use_target_date),
@@ -466,7 +475,8 @@ class CompensatoryTimeOff(Document):
 					}, as_dict=True)
 			else:
 				filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `file_target_date` FROM `tabCompensatory Time Off` 
-					WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `balance` > 0 {conditions} ORDER BY `file_target_date` ASC""".format(conditions=cto_validity_condition),{
+					WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" 
+					AND `balance` > 0 {conditions} ORDER BY `file_target_date` ASC""".format(conditions=cto_validity_condition),{
 					"employee": self.employee,
 					"use_date": getdate(self.use_target_date),
 					"cto_validity": cto_validity,
@@ -479,13 +489,14 @@ class CompensatoryTimeOff(Document):
 					fc_credits_earned += fc.balance
 				if flt(fc_credits_earned, 2) < flt(req_credits, 2):
 					frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You dont have enough credits").format(self.name))
+
 				#Map CTO
 				for a in filed_cto:
-					if req_credits > 0: 
+					if req_credits > 0:
 						cred_used = 0
 						deduct = 0
 						if a.balance > 0:
-							if flt(a.balance) >= flt(req_credits):
+							if a.balance >= flt(req_credits):
 								remain_bal = a.balance - req_credits
 								cred_used = req_credits
 								req_credits = req_credits - cred_used
@@ -501,15 +512,28 @@ class CompensatoryTimeOff(Document):
 								"credits_used": cred_used,
 								"forfeited_balance": 0,
 							}
+
+							deduct = a.credits_used + cred_used
+							if cto_forfeit:
+								if a.balance >= flt(req_credits):
+									row['forfeited_balance'] = a.balance - cred_used
+								else:
+									row['forfeited_balance'] = a.balance - deduct
+
+								if row['forfeited_balance'] <= 0:
+									row['forfeited_balance'] = 0
+								deduct += row['forfeited_balance']
 							
-							deduct = flt(a.credits_used)+flt(cred_used)
-							if cto_use_type == "Day":
-								row['forfeited_balance'] = a.balance - deduct
-								deduct = flt(a.balance)
-							
-							entries.append(row);
-							frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET `credits_used` = %s WHERE `name` = %s """,( deduct, a.name))
-							frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET `balance` = credits_earned-credits_used WHERE `name` = %s """,(a.name))
+							entries.append(row)
+							ctof = frappe.db.sql(""" SELECT `balance`, `credits_used` FROM `tabCompensatory Time Off` WHERE `name` = %s """,(a.name), as_dict=1)
+							ctof_cred_used, ctof_bal = 0, 0
+							for f in ctof:
+								ctof_cred_used = deduct
+								ctof_bal = f.balance - (f.credits_used + deduct)
+								if ctof_bal < 0:
+									ctof_bal = 0
+							frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET `credits_used` = %s WHERE `name` = %s """,( ctof_cred_used, a.name))
+							frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET `balance` = `credits_earned`-`credits_used` WHERE `name` = %s """,(a.name))
 							frappe.db.commit()
 					else:
 						break
@@ -517,7 +541,6 @@ class CompensatoryTimeOff(Document):
 				for d in entries:
 					row = self.append('use_cto_table', {})
 					row.update(d)
-					row.save(d)
 			else:
 				frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You dont have enough credits").format(self.name))
 
@@ -525,15 +548,16 @@ class CompensatoryTimeOff(Document):
 		req_credits = self.required_credits
 
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
-		cto_use_type = frappe.db.get_single_value('Timekeeping Settings', 'cto_use_type')
+		cto_forfeit = frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit')
 		if cto_validity > 0:
 			cto_validity_condition = " AND (%(use_date)s BETWEEN `file_target_date` AND DATE_SUB(`file_target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
 		else:
 			cto_validity_condition = ""
 
-		if cto_use_type == "Day":
+		if cto_forfeit:
 			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `file_target_date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s AND `balance` > 0 {conditions} """.format(conditions=cto_validity_condition),{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `name` = %(filed_cto)s 
+				AND `balance` > 0 {conditions} """.format(conditions=cto_validity_condition),{
 				"employee": self.employee,
 				"filed_cto": self.filed_cto,
 				"use_date": getdate(self.use_target_date),
@@ -541,7 +565,8 @@ class CompensatoryTimeOff(Document):
 				}, as_dict=True)
 		else:
 			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `file_target_date` FROM `tabCompensatory Time Off` 
-				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `balance` > 0 {conditions} ORDER BY `file_target_date` ASC""".format(conditions=cto_validity_condition),{
+				WHERE `type` = "File" AND `employee` = %(employee)s AND `docstatus` = 1 AND `workflow_state` = "Approved" AND `balance` > 0 {conditions} 
+				ORDER BY `file_target_date` ASC""".format(conditions=cto_validity_condition),{
 				"employee": self.employee,
 				"use_date": getdate(self.use_target_date),
 				"cto_validity": cto_validity,
@@ -561,14 +586,11 @@ class CompensatoryTimeOff(Document):
 			if self.get('use_cto_table'):
 				for a in self.get('use_cto_table'):
 					revert_credit = a.credits_used
-					if a.forfeited_balance:
+					if a.forfeited_balance > 0:
 						revert_credit += a.forfeited_balance
 
 					frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET credits_used = credits_used - %s WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (revert_credit, a.filed_cto))
 					frappe.db.commit()
 
 					frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET `balance` = (credits_earned - credits_used) WHERE `name` = %s AND docstatus = 1 AND `workflow_state` = "Approved" """, (a.filed_cto))
-					frappe.db.commit()
-
-					frappe.db.sql(""" DELETE FROM `tabCompensatory Time Off Table` WHERE filed_cto = %s AND `date` = %s AND docstatus = 1 """, (a.filed_cto, a.date))
 					frappe.db.commit()
