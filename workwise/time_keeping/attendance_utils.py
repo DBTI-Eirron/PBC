@@ -218,24 +218,31 @@ def get_work(entry):
 	#		entry['work'] = (entry.get('work_hours') * 60) * 60
 	#		entry['work'] = entry['work'] / 2
 
-	if (not entry.get('is_restday') or not entry.get('is_holiday')):# and entry["lv_status"] == 1 and not entry['is_lwop'] and not entry['card_in'] and not entry['card_out']:
+	if (not entry.get('is_restday') and not entry.get('is_holiday')):# and entry["lv_status"] == 1 and not entry['is_lwop'] and not entry['card_in'] and not entry['card_out']:
 		entry['work'] = (entry.get('work_hours') * 60) * 60
 
-	if entry["lv_status"] > 1:
+		if entry["lv_status"] > 1:
+	
+			if entry["lv_status"] == 2:
+				entry['work'] = abs((entry.get('time_out') - entry.get('break_end')).total_seconds())
+			if entry["lv_status"] == 3:
+				entry['work'] = abs((entry.get('time_in') - entry.get('break_start')).total_seconds())
+	
+		elif entry["lv_status"] == 1:
+			entry['work'] = 0
 
-		if entry["lv_status"] == 2:
-			entry['work'] = abs((entry.get('time_out') - entry.get('break_end')).total_seconds())
-		if entry["lv_status"] == 3:
-			entry['work'] = abs((entry.get('time_in') - entry.get('break_start')).total_seconds())
-
-	elif entry["lv_status"] == 1:
-		entry['work'] = 0
-
-	if (entry.get('is_restday') or entry.get('is_holiday')) and entry.get('card_in') and entry.get('card_out') and entry.get('at_work_rdho'):
-		entry['work'] = abs((entry.get('card_out') - entry.get('card_in')).total_seconds())
-		max_work = (entry.get('work_hours') * 60) * 60
-		if entry['work'] > max_work:
-			entry['work'] = max_work
+	else:
+		if entry.get('card_in') and entry.get('card_out'):
+			entry['work'] = (entry.get('work_hours') * 60) * 60
+		else:
+			if entry.get('ob_stat') == 1:
+				entry['work'] = (entry.get('work_hours') * 60) * 60
+				if entry["is_halfday"] == 1:
+					entry['work'] = entry['work'] / 2
+			if entry.get('ob_stat') > 1 and not entry['card_in'] and not entry['card_out']:
+				if not entry["lv_status"]:
+					entry['work'] = (entry.get('work_hours') * 60) * 60
+					entry['work'] = entry['work'] / 2
 
 	return entry
 
@@ -946,11 +953,97 @@ def get_undertime(entry):
 	return entry
 
 def get_cto(entry, cto):
+	start, end = None, None
+	counter = 0
 	if cto:
 		for d in cto:
+			cto_log_list = []
+			cto_fromtime = None
+			cto_totime = None
 			if d['use_target_date'] == entry['target_date']:
 				entry['cto_links'].append(d.name)
-				entry['cto'] += d.use_total_hours * 60 * 60
+				cto_fromtime = get_datetime( str(d.use_from_date) +" "+ str(d.use_fromtime))
+				cto_totime = get_datetime( str(d.use_to_date) +" "+ str(d.use_totime))
+				if not (cto_fromtime >= entry.get('break_end') or cto_totime <= entry.get('break_start')):
+					if cto_fromtime < entry.get('break_start') and cto_totime > entry.get('break_end'):
+						cto_log_list.append({'start': cto_fromtime, 'end': entry.get('break_start')})
+						cto_log_list.append({'start': entry.get('break_end'), 'end': cto_totime})
+					else:
+						if cto_fromtime < entry.get('break_start'):
+							cto_log_list.append({'start': cto_fromtime, 'end': entry.get('break_start')})
+						if cto_totime > entry.get('break_end'):
+							cto_log_list.append({'start': entry.get('break_end'), 'end': cto_totime})
+
+				else:
+					cto_log_list.append({'start': cto_fromtime, 'end': cto_totime})
+
+				if cto_log_list:
+					for ct in cto_log_list:
+						if entry["late"]:
+							for l in entry["late_list"]:
+								start, end = None, None
+								if not (ct['start'] > l['to_time'] or ct['end'] < l['from_time']):
+									if ct['start'] > l['from_time']:
+										start = ct['start']
+									else:
+										start = l['from_time']
+									if ct['end'] < l['to_time']:
+										end = ct['end']
+									else:
+										end = l['to_time']
+									entry['cto'] += abs((start - end).total_seconds())
+						if entry["undertime"]:
+							for ut in entry["ut_list"]:
+								start, end = None, None
+								if not (ct['start'] > ut['to_time'] or ct['end'] < ut['from_time']):
+									if ct['start'] > ut['from_time']:
+										start = ct['start']
+									else:
+										start = ut['from_time']
+									if ct['end'] < ut['to_time']:
+										end = ct['end']
+									else:
+										end = ut['to_time']
+									entry['cto'] += abs((start - end).total_seconds())
+
+						if entry["is_absent"]:
+							entry['cto'] = d.use_total_hours * 60 * 60
+							if cto_fromtime < entry.get('time_in') < cto_totime: 
+								entry['cto'] -= abs((cto_fromtime - entry.get('time_in')).total_seconds())
+							if cto_fromtime < entry.get('time_out') < cto_totime: 
+								entry['cto'] -= abs((entry.get('time_out') - cto_totime).total_seconds())
+							if entry["lv_status"] == 1:
+								entry['cto'] = 0
+							if entry["lv_status"] == 2:
+								if not (ct['start'] > entry.get('time_out') or ct['end'] < entry.get('break_end')):
+									if ct['start'] > entry.get('break_end'):
+										start = ct['start']
+									else:
+										start = entry.get('break_end')
+									if ct['end'] < entry.get('time_out'):
+										end = ct['end']
+									else:
+										end = entry.get('time_out')
+									entry['cto'] = abs((start - end).total_seconds())
+									break
+								else:
+									entry['cto'] -=  abs((entry.get('time_in') - entry.get('break_start')).total_seconds())
+		
+							if entry["lv_status"] == 3:
+								if not (ct['start'] > entry.get('break_start') or ct['end'] < entry.get('time_in')):
+									if ct['start'] > entry.get('time_in'):
+										start = ct['start']
+									else:
+										start = entry.get('time_in')
+									if ct['end'] < entry.get('break_start'):
+										end = ct['end']
+									else:
+										end = entry.get('break_start')
+									entry['cto'] = abs((start - end).total_seconds())
+									break
+								else:
+									entry['cto'] -=  abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
+							break
 
 	return entry
 
