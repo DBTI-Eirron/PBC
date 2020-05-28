@@ -72,7 +72,11 @@ def get_data(filters):
 	if not gov_map:
 		frappe.msgprint("No Records Found");
 	else:
+		total_phic, total_phice = 0, 0
 		for emp in sorted(gov_map.items(), key = lambda k:k[1]['full_name']):
+			total_phic += gov_map[emp[0]]['PHIC']
+			total_phice += gov_map[emp[0]]['PHICE']
+
 			row = {
 				"phic_no": gov_map[emp[0]]['phic_no'],
 				"monthly_rate": gov_map[emp[0]]['rate'],
@@ -84,6 +88,17 @@ def get_data(filters):
 				"employer": format_precision(gov_map[emp[0]]['PHICE'], filters.value_precision),
 			}
 			data.append(row)
+		#Totals
+		data.append({
+			"phic_no": "",
+			"monthly_rate": "",
+			"employee_name": "",
+			"employee_status": "",
+			"date_hired": "",
+			"birth_day": "",
+			"employee": format_precision(total_phic, filters.value_precision),
+			"employer": format_precision(total_phice, filters.value_precision),
+		})
 
 	return data
 

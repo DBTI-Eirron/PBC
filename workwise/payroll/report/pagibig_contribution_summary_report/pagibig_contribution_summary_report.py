@@ -151,21 +151,23 @@ def get_data(filters):
 				LEFT JOIN `tabDynamic Link` DL ON TC.`name` = DL.link_name
 				LEFT JOIN `tabAddress` TA ON DL.parent = TA.`name`
 				LIMIT 1
-				""")
+				""", as_dict=1)
 
+			address = ""
+			zip_code = ""
+			contact = ""
+			hdmf_id = ""
 			if company:
-				address = str(company[0]['address_title'])+", "+str(company[0]['city'])
-				zipcode = str(company[0]['pincode'])
-				contact = str(company[0]['phone'])
-				hdmf_id = str(company[0]['hdmf_id'])
-			else:
-				address = ""
-				zip_code = ""
-				contact = ""
-				hdmf_id = ""
+				if company[0]['address_title'] or company[0]['city']:
+					address = str(company[0]['address_title'])+", "+str(company[0]['city'])
+				if company[0]['pincode']:
+					zipcode = str(company[0]['pincode'])
+				if company[0]['phone']:
+					contact = str(company[0]['phone'])
+				if company[0]['hdmf_id']:
+					hdmf_id = str(company[0]['hdmf_id'])
 
-
-			headers = ({
+			headers = [{
 				"hdmf_no": "Employer's Name: ",
 				"employee": filters.company,
 				"last_name": "",
@@ -205,10 +207,13 @@ def get_data(filters):
 				"HDMFE": "Employer Contribution",
 				"tin": "TIN",
 				"birthdate": "Birth Date",
-			})
-			data.append(headers)
+			}]
+			data += headers
 
+		total_hdmfe, total_hdmf = 0, 0
 		for emp in sorted(gov_map.items(), key = lambda k:k[1]['full_name']):
+			total_hdmfe += gov_map[emp[0]]['HDMFE']
+			total_hdmf += gov_map[emp[0]]['HDMF']
 			row = {
 				"hdmf_no": gov_map[emp[0]]['hdmf_no'],
 				"employee": emp[0],
@@ -221,6 +226,18 @@ def get_data(filters):
 				"birthdate": datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%Y%m%d"),
 			}
 			data.append(row)
+		#Totals
+		data.append({
+			"hdmf_no": "",
+			"employee": "",
+			"last_name": "",
+			"first_name": "",
+			"middle_name": "",
+			"HDMF": total_hdmfe,
+			"HDMFE": total_hdmf,
+			"tin": "",
+			"birthdate": "",
+		})
 
 	return data
 
