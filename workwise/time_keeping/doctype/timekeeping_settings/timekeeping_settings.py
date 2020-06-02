@@ -62,3 +62,11 @@ class TimekeepingSettings(Document):
 					"frequency": ent['frequency'],
 					"max_count": ent['max_count'],
 				})
+
+	def convert_credits(self):
+		cto = frappe.db.sql("""SELECT * FROM `tabCompensatory Time Off` """, as_dict=1)
+		for d in cto:
+			if d['type'] == 'File':
+				pass
+			if d['type'] == 'Use':
+				pass
