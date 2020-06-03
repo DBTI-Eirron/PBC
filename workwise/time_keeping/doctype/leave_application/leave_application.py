@@ -24,7 +24,6 @@ class LeaveApplication(Document):
 		self.validate_employee()
 		self.validate_balance()
 		self.validate_leave()
-		self.validate_medical()
 		change_owner(self)
 		self.get_recipients()
 
@@ -34,6 +33,7 @@ class LeaveApplication(Document):
 		self.validate_medical()
 		self.validate_balance()
 		self.update_leave_credits()
+		self.validate_medical()
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
