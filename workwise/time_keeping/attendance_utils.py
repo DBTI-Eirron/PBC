@@ -318,7 +318,7 @@ def get_overtime(entry, ot_apps):
 
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('ot_strict_logs'):
-					if ot_in < entry.get('time_in') and ot_out >  entry.get('time_out') and not entry.get('is_restday'):
+					if ot_in < entry.get('time_in') and ot_out >  entry.get('time_out') and not entry.get('is_restday') and not entry.get('is_holiday'):
 						ots = [{'ot_in': ot_in, 'ot_out': entry.get('time_in')}, {'ot_in': entry.get('time_out'), 'ot_out': ot_out}]
 						
 					else:
