@@ -1384,6 +1384,7 @@ class PayrollProcessing(Document):
 								elif max_cto >= at.work_hours:
 									cto_days += 1
 
+						dh_exemption = 0
 						ho_paid = 0 # set default not paid on holiday
 						if emp.get("rate_type") == "Daily Rate":
 							dl_absent = 1 #set default alaways absent
@@ -1416,6 +1417,9 @@ class PayrollProcessing(Document):
 											ho_paid = 1 #paid holiday if absent and not UHO
 									elif dl_absent == 0:
 											ho_paid = 1  
+								if (not at.is_sp_holiday) and ho_paid == 0 and header.get('ignore_uho'):
+									ho_paid = 1 
+									dh_exemption = 1
 									
 							else: 
 								if dl_absent == 0 and (not at.is_restday):
@@ -1443,7 +1447,7 @@ class PayrollProcessing(Document):
 									frappe.throw(_("Must have Double Holiday Transaction Type in Payroll Settings"))
 
 								if emp.get("rate_type") == "Daily Rate":
-									if ho_paid == 1:
+									if ho_paid == 1 and dh_exemption == 0:
 										dho_amount += flt(rates.get('daily_rate'), 8)*1
 										register.append({"pay_code": header.get('dho'), "amount": dho_amount})
 
