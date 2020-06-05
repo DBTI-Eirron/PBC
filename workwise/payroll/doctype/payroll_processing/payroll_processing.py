@@ -410,7 +410,7 @@ class PayrollProcessing(Document):
 			amt = rates.get('semi_rate')
 			if header.get('paid_holidays'):
 				amt += flt(rates.get('daily_rate'), 8) * header.get('paid_holidays')
-
+				
 		header['basic'] = amt
 		register.append({"pay_code": "BS", "amount": amt})
 
@@ -1247,7 +1247,7 @@ class PayrollProcessing(Document):
 			prev_day_work, prev_half, prev_lwop, prev_lv_status = 0, 0, 0, 0
 			ho_paid = 0
 			prev_holiday, holiday_work = 0, 0 
-			cur_suc_hol_wout_before, before_holiday_work = 0, 0 
+			cur_suc_hol_wout_before, before_holiday_work, before_sp_work = 0, 0, 0 
 			test = []
 			paid_leave = 0
 
@@ -1305,7 +1305,7 @@ class PayrollProcessing(Document):
 						"pay_time": flt(merge_hrs, 8),
 						"amount": flt(merge_amount, 8) 
 					})
-			
+			suc_list = []
 			if attendance:
 				for at in attendance:
 					WK_days, AT_days = 0, 0
@@ -1317,9 +1317,22 @@ class PayrollProcessing(Document):
 								if (at.lv_status == 2 or at.lv_status == 3) or at.is_halfday:
 									is_uho = 0
 									if at.is_absent:
-										is_uho = 1			
-					else:
+										is_uho = 1
+						if not at.is_holiday and not at.is_restday:
+							cur_suc_hol_wout_before = 0
 
+							if at.work:
+								before_holiday_work = 1
+								before_sp_work = 1
+							else:
+								if at.lv_status == 1 and not at.is_lwop:
+									before_holiday_work = 1
+									before_sp_work = 1 
+								else:
+									before_holiday_work = 0
+									before_sp_work = 0
+
+					else:
 						if getdate(at.target_date) == getdate(self.attendance_from):
 							if no_previous == 0:
 								is_uho = 1
@@ -1348,6 +1361,7 @@ class PayrollProcessing(Document):
 							absent_days += AT #add to employee total absent days
 							AT_days += AT #add to current day total absent days
 							#test.append(_(""+cstr(at.target_date)+" "+cstr(absent_days)+" "+cstr(at.work_hours * flt(AT, 8))+" "+cstr(flt(rates.get('hourly_rate'), 8))+"")) #test script for absent
+							
 						
 						if at.cto:
 							max_cto = 0
@@ -1415,7 +1429,10 @@ class PayrollProcessing(Document):
 								# if lwop halfday plus half day
 								if at.lv_status > 1:
 									if at.is_halfday: #if lwop halfday with absent halfday absent is wholeday absent
-										dl_days += 0
+										if at.work:
+											dl_days += 0.5
+										else:
+											dl_days += 0
 									else:
 										dl_days += 0.5
 
@@ -1438,12 +1455,19 @@ class PayrollProcessing(Document):
 	
 						if ho_paid == 1:
 							pho_days += ho_paid
-
-						#set Special holiday to UHO if not work On Holiday Before this Day
+						
+						#set Special holiday to UHO if not work On the Day Before Holiday
 						if at.is_holiday and at.is_sp_holiday:
-							if cur_suc_hol_wout_before > 1:
-								is_uho = 1
+							if emp.get("rate_type") == "Daily Rate":
+								if cur_suc_hol_wout_before <= 1:
+									is_uho = 1
+							if emp.get("rate_type") != "Daily Rate":
+								if before_sp_work:
+									is_uho = 0
+								else:
+									is_uho = 1
 
+						#suc_list.append({"Date": at.target_date, "UHO": is_uho})
 						if at.is_holiday == 1 and is_uho == 1 and (not at.is_ob) and not at.is_restday:
 							#if present not UHO
 							if emp.get("rate_type") != "Daily Rate":
@@ -1460,7 +1484,7 @@ class PayrollProcessing(Document):
 										if header.get('uho_ab_days') == 1:
 											absent_days += 1
 											AT_days += 1
-											
+						suc_list.append({"Date": at.target_date, "NO": is_uho})
 						#check if this attendance is lwop or absent for next attendance
 						if is_uho == 1:
 							#if present
@@ -1535,14 +1559,29 @@ class PayrollProcessing(Document):
 						#Succesive Holiday Without attendance Before the start 
 						if not at.is_holiday and not at.is_restday:
 							cur_suc_hol_wout_before = 0
-
 							if at.work:
 								before_holiday_work = 1
+								before_sp_work = 1
 							else:
-								before_holiday_work = 0
+								if at.lv_status == 1 and not at.is_lwop:
+									before_holiday_work = 1
+									before_sp_work = 1
+								else:
+									before_holiday_work = 0
+									before_sp_work = 0
  
-						if at.is_holiday and not at.is_sp_holiday and before_holiday_work == 0:
-							cur_suc_hol_wout_before = 1
+						if at.is_holiday and not at.is_sp_holiday:
+							if before_holiday_work:
+								if cur_suc_hol_wout_before:
+									cur_suc_hol_wout_before += 1
+								else:
+									cur_suc_hol_wout_before = 1
+							else:
+								if at.work:
+									before_holiday_work = 1
+								else:
+									if at.lv_status == 1 and not at.is_lwop:
+										before_holiday_work = 1
 
 						if at.is_holiday and at.is_sp_holiday:
 							cur_suc_hol_wout_before = 0
@@ -1551,10 +1590,10 @@ class PayrollProcessing(Document):
 								before_holiday_work = 1
 							else:
 								before_holiday_work = 0
-
+						
 						# Save work For Next Day in Attendace Processing
 				header['no_attendance'] = 1
-			
+				#frappe.throw(_(suc_list))
 				if total_work > 0 or paid_leave > 0 or cto_days > 0:
 					header['no_attendance'] = 0
 				if emp.get("rate_type") == "Daily Rate":
