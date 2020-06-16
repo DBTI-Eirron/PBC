@@ -33,14 +33,14 @@ class OvertimeApplication(Document):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
 		self.validate_cto_strict()
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
@@ -109,6 +109,7 @@ class OvertimeApplication(Document):
 			self.total_hrs = total_hrs
 
 	def get_autobreak_hrs(self):
+		has_break = 0
 		if self.is_new():
 			if not self.amended_from:
 				if not self.break_hrs:
@@ -127,11 +128,18 @@ class OvertimeApplication(Document):
 					self.break_hrs = 0.00
 					for a in autobreak_setup:
 						if flt(a.from_hrs) <= flt(total_hrs) <= flt(a.to_hrs):
+							has_break = 1
 							self.break_hrs = flt(a.break_mins, 2)/60
 							self.break_mins = a.break_mins
 							self.from_hrs = a.from_hrs
 							self.to_hrs = a.to_hrs
 							break
+						else:
+							if has_break == 0:
+								self.break_mins = None
+								self.from_hrs = None
+								self.to_hrs = None
+				
 
 	def validate_overtime(self):
 		schedule = get_schedule(self.employee, self.target_date, self.target_date)

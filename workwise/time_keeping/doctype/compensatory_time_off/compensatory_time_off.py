@@ -4,9 +4,9 @@
 
 from __future__ import unicode_literals
 import frappe, datetime, calendar
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from frappe import _
-from frappe.utils import nowdate, get_time, flt, getdate, get_datetime
+from frappe.utils import nowdate, get_time, flt, getdate, get_datetime, cstr
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule, get_ob_list
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
@@ -391,10 +391,15 @@ class CompensatoryTimeOff(Document):
 		
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 		cto_forfeit = frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit')
+		cto_zero_out = frappe.db.get_single_value('Timekeeping Settings', 'cto_zero_out')
+		cto_validity_condition = ""
 		if cto_validity > 0:
-			cto_validity_condition = " AND (%(use_date)s BETWEEN `file_target_date` AND DATE_SUB(`file_target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
-		else:
-			cto_validity_condition = ""
+			cto_validity_condition += " AND (%(use_date)s BETWEEN `file_target_date` AND DATE_SUB(`file_target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
+		if cto_zero_out:
+			nowyear = datetime.strptime(str(self.use_target_date), '%Y-%m-%d').year
+			year_start = getdate(cstr(nowyear)+'-01-'+'01')
+			year_end = getdate(cstr(nowyear)+'-12-'+'31')
+			cto_validity_condition += " AND (`file_target_date` BETWEEN '{0}' AND '{1}') ".format(cstr(year_start), cstr(year_end))
 
 		if cto_forfeit:
 			current_credits = frappe.db.sql("""SELECT credits_earned - credits_used as cred_balance, `file_target_date` FROM `tabCompensatory Time Off` 
@@ -459,10 +464,15 @@ class CompensatoryTimeOff(Document):
 
 			cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 			cto_forfeit = frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit')
+			cto_zero_out = frappe.db.get_single_value('Timekeeping Settings', 'cto_zero_out')
+			cto_validity_condition = ""
 			if cto_validity > 0:
-				cto_validity_condition = " AND (%(use_date)s BETWEEN `file_target_date` AND DATE_SUB(`file_target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
-			else:
-				cto_validity_condition = ""
+				cto_validity_condition += " AND (%(use_date)s BETWEEN `file_target_date` AND DATE_SUB(`file_target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
+			if cto_zero_out:
+				nowyear = datetime.strptime(str(self.use_target_date), '%Y-%m-%d').year
+				year_start = getdate(cstr(nowyear)+'-01-'+'01')
+				year_end = getdate(cstr(nowyear)+'-12-'+'31')
+				cto_validity_condition += " AND (`file_target_date` BETWEEN '{0}' AND '{1}')".format(cstr(year_start), cstr(year_end))
 
 			if cto_forfeit:
 				filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `file_target_date` FROM `tabCompensatory Time Off` 
@@ -549,10 +559,15 @@ class CompensatoryTimeOff(Document):
 
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 		cto_forfeit = frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit')
+		cto_zero_out = frappe.db.get_single_value('Timekeeping Settings', 'cto_zero_out')
+		cto_validity_condition = ""
 		if cto_validity > 0:
-			cto_validity_condition = " AND (%(use_date)s BETWEEN `file_target_date` AND DATE_SUB(`file_target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
-		else:
-			cto_validity_condition = ""
+			cto_validity_condition += " AND (%(use_date)s BETWEEN `file_target_date` AND DATE_SUB(`file_target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) "
+		if cto_zero_out:
+			nowyear = datetime.strptime(str(self.use_target_date), '%Y-%m-%d').year
+			year_start = getdate(cstr(nowyear)+'-01-'+'01')
+			year_end = getdate(cstr(nowyear)+'-12-'+'31')
+			cto_validity_condition += " AND (`file_target_date` BETWEEN '{0}' AND '{1}')".format(cstr(year_start), cstr(year_end))
 
 		if cto_forfeit:
 			filed_cto = frappe.db.sql("""SELECT `name`, `credits_earned`, credits_used, balance, `file_target_date` FROM `tabCompensatory Time Off` 
