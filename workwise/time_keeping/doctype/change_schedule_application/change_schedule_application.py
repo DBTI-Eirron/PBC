@@ -13,8 +13,6 @@ from workwise.time_keeping.application_utils import ( grant_head_subordinate_acc
 
 class ChangeScheduleApplication(Document):
 	def on_submit(self):
-		clear_approval_history(self)
-		grant_head_subordinate_access(self)
 		validate_approve_own_application(self)
 		#emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 		#if emp_app < 1:
@@ -46,6 +44,8 @@ class ChangeScheduleApplication(Document):
 
 	def validate(self):
 		validate_inactive_employee(self)
+		clear_approval_history(self)
+		grant_head_subordinate_access(self)
 		self.validate_dates()
 		self.validate_existing_application()
 
