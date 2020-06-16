@@ -320,9 +320,10 @@ def get_overtime(entry, ot_apps):
 				if entry.get('ot_strict_logs'):
 					if ot_in < entry.get('time_in') and ot_out >  entry.get('time_out') and not entry.get('is_restday') and not entry.get('is_holiday'):
 						ots = [{'ot_in': ot_in, 'ot_out': entry.get('time_in')}, {'ot_in': entry.get('time_out'), 'ot_out': ot_out}]
-						
+					
 					else:
 						ots = [{'ot_in': ot_in, 'ot_out': ot_out}]
+
 					start, end = None, None
 					bound = None
 
@@ -415,10 +416,15 @@ def get_overtime(entry, ot_apps):
 							bound = entry.get('time_in')
 						else:
 							bound = entry.get('time_out')
+							if o.get('ot_in') < bound <= o.get('ot_out'):
+								o['ot_in'] = bound
+							if o.get('ot_out') <= bound:
+								 start, end = None, None
 
 						for ot in ot_log_list:
 							ot_start, ot_end = get_ot(o.get('ot_in'), o.get('ot_out'), ot.get('start'), ot.get('end'), bound, entry['is_restday'], entry['is_holiday'])
 							if ot_start != ot_end:
+
 								per_time_with_ot.append({"ot_in": ot_start, "ot_out": ot_end})
 
 				if not per_time_with_ot and entry.get('ot_strict_logs'):
