@@ -65,6 +65,12 @@ frappe.query_reports["BIR1601-C"] = {
 			"label": __("Hide zero value"),
 			"fieldtype": "Check",
 		},
+		{
+			"fieldname": "is_standard",
+			"label": __("Is Standard"),
+			"fieldtype": "Check",
+			"default": "1"
+		},
 	],
 
 	onload: function(report) {
