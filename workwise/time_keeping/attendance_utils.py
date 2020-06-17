@@ -416,10 +416,11 @@ def get_overtime(entry, ot_apps):
 							bound = entry.get('time_in')
 						else:
 							bound = entry.get('time_out')
-							if o.get('ot_in') < bound <= o.get('ot_out'):
-								o['ot_in'] = bound
-							if o.get('ot_out') <= bound:
-								 start, end = None, None
+							if not entry.get('is_restday') and not entry.get('is_holiday'):
+								if o.get('ot_in') < bound <= o.get('ot_out'):
+									o['ot_in'] = bound
+								if o.get('ot_out') <= bound:
+									 start, end = None, None
 
 						for ot in ot_log_list:
 							ot_start, ot_end = get_ot(o.get('ot_in'), o.get('ot_out'), ot.get('start'), ot.get('end'), bound, entry['is_restday'], entry['is_holiday'])
