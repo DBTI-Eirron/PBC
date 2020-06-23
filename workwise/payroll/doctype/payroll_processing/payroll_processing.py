@@ -111,9 +111,7 @@ class PayrollProcessing(Document):
 		ab_regho = frappe.db.get_single_value('Timekeeping Settings', 'ab_regho')
 		mo_abho = frappe.db.get_single_value('Timekeeping Settings', 'mo_abho')
 		disable_pdhord = frappe.db.get_single_value('Payroll Settings', 'disable_pdhord')
-		#Special Cases Due to Lockdown
-		sc_ap9 = frappe.db.get_single_value('Payroll Settings', 'sc_ap9')
-		sc_ap10 = frappe.db.get_single_value('Payroll Settings', 'sc_ap10')
+		rec_pre_ph = frappe.db.get_single_value('Payroll Settings', 'rec_pre_ph')
 
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
@@ -225,8 +223,7 @@ class PayrollProcessing(Document):
 						'disable_pdhord': disable_pdhord,
 						'dis_dho_tran': dis_dho_tran,
 						'dho' : dho,
-						'sc_ap9': sc_ap9,
-						'sc_ap10' : sc_ap10
+						'rec_pre_ph' : rec_pre_ph,
 					}
 					
 					#Calculate Rates and Previous Entries
@@ -992,7 +989,10 @@ class PayrollProcessing(Document):
 					
 					if rec.method == "Present Days":
 						amt = rec.amount
-						amt = flt(amt * header.get('present_days'), 8)
+						if header.get('rec_pre_ph'):
+							amt = flt(amt * (header.get('present_days') + header.get('paid_holidays')), 8)
+						else:
+							amt = flt(amt * header.get('present_days'), 8)
 
 					elif rec.method == "Actual Present Days":
 						less = 0
