@@ -161,6 +161,12 @@ def get_data():
 				},
 				{
 					"type": "report",
+					"name": "CTO Balance Report",
+					"doctype": "CTO Balance Report",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
 					"name": "Detailed Attendance Report",
 					"doctype": "Attendance Register",	
 					"is_query_report": True
