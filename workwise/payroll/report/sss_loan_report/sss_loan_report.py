@@ -313,7 +313,7 @@ def get_data(filters):
 			"loan_date": datetime.datetime.strftime(getdate(emp.loan_date),"%m-%d-%y" if filters.date_format == "2" else "%m%d%y" ),
 			"loan_amount": format_precision(emp.loan_amount, filters.value_precision),
 			"penalty": 0,
-			"amount_pai": format_precision(loans, filters.value_precision),
+			"amount_paid": format_precision(loans, filters.value_precision),
 			"ampsdg": 0,
 			"remarks": emp.remarks,
 		}
