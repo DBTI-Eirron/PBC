@@ -143,6 +143,7 @@ class BatchApproval(Document):
 		table = "`tab"+self.application_type+"`"
 		additional_fields = ""
 		filter_date = "AP.`posting_date`"
+		record_list = []
 
 		if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
 			additional_fields += ", AP.total_hrs"
@@ -163,9 +164,9 @@ class BatchApproval(Document):
 			if self.based_on == "Target Date":	
 				filter_date = "AP.target_date"
 		if self.application_type == "Compensatory Time Off":
-			additional_fields += ", AP.`date`, AP.use_date, AP.`type`, AP.use_total_hours, AP.total_hours"
+			additional_fields += ", AP.`date`, AP.use_date, AP.`type`, AP.use_total_hours, AP.total_hours, AP.use_target_date, AP.file_target_date"
 			if self.based_on == "Target Date":	
-				filter_date = "AP.`date` or AP.use_date"
+				filter_date = "(AP.use_target_date  BETWEEN %(from_date)s AND %(to_date)s) or AP.file_target_date"
 
 		if not any(elem in ["Administrator", "Admin Approver"] for elem in frappe.get_roles(cur_user)):
 			enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
@@ -213,6 +214,20 @@ class BatchApproval(Document):
 					"from_date": getdate(self.from_date),
 					"to_date": getdate(self.to_date),
 				}, as_dict=True)
+
+		if self.application_type == "Compensatory Time Off": 
+			if record and self.based_on == "Target Date":
+				for c in record:
+					#frappe.throw(_(c.name))
+					if c.type == "Use":
+						if not getdate(self.from_date) <= getdate(c['use_target_date']) <= getdate(self.to_date):
+							record_list.append(c)
+							record.remove(c)
+							
+					if c.get('type') == "File":
+						if not getdate(self.from_date) <= getdate(c.file_target_date) <= getdate(self.to_date):
+							record_list.append(c)
+							record.remove(c)
 
 		return record
 
