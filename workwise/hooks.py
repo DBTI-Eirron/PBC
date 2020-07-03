@@ -32,9 +32,7 @@ scheduler_events = {
 	"monthly": [
 		"workwise.time_keeping.timekeeping_task.leave_balance_monthly",
 	],
-	#"cron": {
-    #    "0/10 * * * *": [
-    #        "workwise.time_keeping.timekeeping_task.employee_movement_effectivity"
-    #	],
-    #}
+	"daily": [
+           "bench execute workwise.employee_201.movement.run_employee_movement"
+    ],
 }
