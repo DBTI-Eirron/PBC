@@ -108,11 +108,16 @@ class CompensatoryTimeOff(Document):
 		holiday_tag  = 0
 		location = frappe.get_value("Employee", self.employee, "location")
 
-		holiday = frappe.db.sql("""SELECT `name` FROM `tabHoliday` WHERE holiday_date = %s 
-			AND company = %s AND location = %s """, (target_date, self.company, location), as_dict=True)
+		holiday = frappe.db.sql("""SELECT `name`, `company`, `location` FROM `tabHoliday` WHERE holiday_date = %s 
+			AND company = %s """, (target_date, self.company), as_dict=True)
 
 		if holiday:
-			holiday_tag = 1
+			for hol in holiday:
+				if hol.location:
+					if location == hol.location:
+						holiday_tag = 1
+				else:
+					holiday_tag = 1
 
 		return holiday_tag
 
@@ -273,39 +278,41 @@ class CompensatoryTimeOff(Document):
 		to_date = datetime.strptime(str(self.file_to_date) + ' ' + str(self.file_to_time), '%Y-%m-%d %H:%M:%S')
 		actual_from_date, actual_to_date = self.file_validate_actual_logs()
 		schedule = get_schedule(self.employee, self.file_target_date, self.file_target_date)
+		if schedule:
+			shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=1)
 
-		shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=1)
+			if shift[0]['cto_allow_file_within_shift'] < 1 and not self.chk_holiday(self.file_target_date):
+				shift_from = datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_in), '%Y-%m-%d %H:%M:%S')
+				shift_to = datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_out), '%Y-%m-%d %H:%M:%S')
 
-		if shift[0]['cto_allow_file_within_shift'] < 1 and not self.chk_holiday(self.file_target_date):
-			shift_from = datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_in), '%Y-%m-%d %H:%M:%S')
-			shift_to = datetime.strptime(str(self.file_target_date) + ' ' + str(shift[0].time_out), '%Y-%m-%d %H:%M:%S')
+				if (shift_from < from_date < shift_to) or (shift_from < to_date < shift_to):
+					frappe.throw(_("You cannot file within your shift"))
+				if (from_date < shift_from < to_date) or  (from_date < shift_to < to_date):
+					frappe.throw(_("You cannot file within your shift"))
+				if shift_from == from_date and to_date == shift_to: 
+					frappe.throw(_("You cannot file within your shift"))
+				#if (schedule[0]['datetime_out'] > from_date):
+				#	from_date = schedule[0]['datetime_out']
+				
+			if not (actual_from_date <= from_date <= actual_to_date):
+				frappe.throw(_("File From is not within your actual logs"))
 
-			if (shift_from < from_date < shift_to) or (shift_from < to_date < shift_to):
-				frappe.throw(_("You cannot file within your shift"))
-			if (from_date < shift_from < to_date) or  (from_date < shift_to < to_date):
-				frappe.throw(_("You cannot file within your shift"))
-			if shift_from == from_date and to_date == shift_to: 
-				frappe.throw(_("You cannot file within your shift"))
-			#if (schedule[0]['datetime_out'] > from_date):
-			#	from_date = schedule[0]['datetime_out']
-			
-		if not (actual_from_date <= from_date <= actual_to_date):
-			frappe.throw(_("File From is not within your actual logs"))
+			if not (actual_from_date <= to_date <= actual_to_date):
+				frappe.throw(_("File To is not within your actual logs"))
 
-		if not (actual_from_date <= to_date <= actual_to_date):
-			frappe.throw(_("File To is not within your actual logs"))
+			if from_date <= to_date:
+				total_hrs = to_date - from_date
+			else:
+				total_hrs = to_date - from_date + timedelta(days=1)
 
-		if from_date <= to_date:
-			total_hrs = to_date - from_date
+			total_hours = abs(flt(total_hrs.total_seconds() /60 /60, 2))
+			self.get_autobreak_hrs(total_hours)
+			total_hours = flt(total_hours, 2) - flt(self.break_hours, 2)
+			self.total_hours = flt(total_hours, 2)
+			self.credits_earned = flt(total_hours,2)
+			self.balance = self.credits_earned - self.credits_used	
 		else:
-			total_hrs = to_date - from_date + timedelta(days=1)
-
-		total_hours = abs(flt(total_hrs.total_seconds() /60 /60, 2))
-		self.get_autobreak_hrs(total_hours)
-		total_hours = flt(total_hours, 2) - flt(self.break_hours, 2)
-		self.total_hours = flt(total_hours, 2)
-		self.credits_earned = flt(total_hours,2)
-		self.balance = self.credits_earned - self.credits_used		
+			frappe.throw(_('No schedule'))	
 
 	def file_get_workshift_setup(self):
 		schedule = get_schedule(self.employee, self.file_target_date, self.file_target_date)
