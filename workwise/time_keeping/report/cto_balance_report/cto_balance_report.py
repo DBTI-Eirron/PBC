@@ -45,6 +45,7 @@ def get_result(filters):
 	total_bal = 0
 	employees = get_employee(filters)
 	cto = get_cto(employees, filters)
+	cto_list = []
 
 	for e in employees:
 		if filters.employee:
@@ -55,6 +56,7 @@ def get_result(filters):
 		for c in cto:
 			if e.name == c.employee:
 				balance += c.balance
+				cto_list.append({"Name": c.name, "Balance": balance})
 
 		if filters.hide_zero:
 			if balance == 0:
@@ -64,14 +66,15 @@ def get_result(filters):
 		data.append({
 			"employee_id": e.name,
 			"employee_name": e.full_name,
-			"balance": balance
+			"balance": flt(balance, 3)
 			})
 
 	data.sort(key=lambda x: x.get('employee_name'))
 	data.append({
 		"employee_name": "Total",
-		"balance": total_bal
+		"balance": flt(total_bal, 3) 
 		})
+	#frappe.throw(_(cto_list))
 	return data
 
 def get_employee(filters):
@@ -82,14 +85,12 @@ def get_employee(filters):
 def get_cto(emp, filters):
 	cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 	if cto_validity > 0:
-		cto_validity_condition = " AND (CTO.`file_target_date` BETWEEN CURDATE() AND DATE_SUB(CURDATE(), INTERVAL -"+str(int(cto_validity))+" DAY)) "
+		cto_validity_condition = "AND `file_target_date` BETWEEN DATE_SUB(CURDATE(), INTERVAL "+cto_validity+" DAY) AND CURDATE()"
 	else:
 		cto_validity_condition = ""
 
-	cto = frappe.db.sql("""SELECT CTO.`name`, CTO.`balance`, CTO.`file_target_date`, CTO.`employee` FROM `tabCompensatory Time Off` CTO INNER JOIN `tabEmployee` E ON CTO.`employee` = E.`name`
-			WHERE CTO.`type` = "File" AND CTO.`docstatus` = 1 AND CTO.`workflow_state` = "Approved" AND E.`company` = %(company)s
-			AND CTO.`balance` > 0 {conditions} ORDER BY CTO.`file_target_date` ASC""".format(conditions=cto_validity_condition),{
-				"cto_validity": cto_validity,
-				"company": filters.company
-				}, as_dict=True)
+	cto = frappe.db.sql("""SELECT credits_earned - credits_used as balance, `file_target_date`, `employee`, `name` FROM `tabCompensatory Time Off` 
+		WHERE `type` = "File" AND `docstatus` = 1 AND `workflow_state` = "Approved"
+		AND `balance` > 0 {conditions}""".format(conditions=cto_validity_condition), as_dict=True)
+
 	return cto
