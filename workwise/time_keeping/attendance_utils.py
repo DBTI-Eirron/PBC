@@ -1235,6 +1235,9 @@ def get_flexible(entry, obs):
 				#always reduce break mins
 				diff = abs( (flex_start - flex_end).total_seconds())  - (diff_break) + flex_ob_time
 
+				#if getdate("2020-01-13") == getdate(entry['target_date']):
+				#	frappe.throw(_("{0} {1}").format(flex_start, flex_end))
+
 				#Get Undertime
 				if entry.get('lv_status') > 1:
 					diff += (entry.get('worker_secs') / 2)
@@ -2480,6 +2483,8 @@ def get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 def get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
+	multi_csa = {}
+
 	if adjustment != 1:
 		conditions_list.append("CSA.approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")#
 
@@ -2492,14 +2497,26 @@ def get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 		FROM `tabChange Schedule Application` CSA 
 		INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
 		WHERE CSA.docstatus = 1 AND workflow_state = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s 
-		{conditions} ORDER BY CSA.approved_on """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+		{conditions} ORDER BY CSA.modified ASC """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in cs_apps:
 		if d.employee in emp_map:
-			emp_map[d.employee].csa.append(d)
+			if d.employee not in multi_csa:
+				multi_csa[d.employee] = {}
+
+			if d.target_date not in multi_csa[d.employee]:
+				multi_csa[d.employee][d.target_date] = []
+				
+			multi_csa[d.employee][d.target_date].append(d)
+
+	for m in multi_csa:
+		for ml in multi_csa[m]:
+			xml = max(multi_csa[m][ml], key=lambda x:x['approved_on'])
+			emp_map[m].csa.append(xml)
 
 def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
 	conditions_list = []
+	multi_dtrp = {}
 	#if adjustment == 1:
 	#	conditions_list.append("DA.approved_on >= '"+ cstr(getdate(approval_cutoff)) +"' ")
 	#else:
@@ -2519,7 +2536,22 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 
 	for d in dtr_apps:
 		if d.employee in emp_map:
-			emp_map[d.employee].dtrp.append(d)
+			if d.employee not in multi_dtrp:
+				multi_dtrp[d.employee] = {}
+
+			if d.target_date not in multi_dtrp[d.employee]:
+				multi_dtrp[d.employee][d.target_date] = {}
+
+			if d.type not in multi_dtrp[d.employee][d.target_date]:
+				multi_dtrp[d.employee][d.target_date][d.type] = []
+
+			multi_dtrp[d.employee][d.target_date][d.type].append(d)
+
+	for m in multi_dtrp:
+		for ml in multi_dtrp[m]:
+			for mlt in multi_dtrp[m][ml]:
+				xml = max(multi_dtrp[m][ml][mlt], key=lambda x:x['approved_on'])
+				emp_map[m].dtrp.append(xml)
 
 def complete_sched(emp_dict, pay_from, pay_to, template_map):
 	pay_from = getdate(pay_from)

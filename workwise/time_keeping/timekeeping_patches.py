@@ -754,3 +754,14 @@ def convert_ctocreds():
 				frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET total_credits_earned=%s, required_credits=use_total_hours WHERE `name` = %s """,(flt(edic[ec.name]), ec.name))
 			else:
 				frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET total_credits_earned=use_total_hours, required_credits=use_total_hours WHERE `name` = %s """,(ec.name))
+
+def targetdate_in_utapp():
+	frappe.db.sql(""" UPDATE `tabUndertime Application` SET target_date=from_date, to_date=from_date""")
+
+def update_payroll_date():
+	date = "2020-06-15"
+	frappe.db.sql(""" UPDATE `tabPayroll Period` SET `payroll_date`= %s WHERE `name` = "May21 Jun05 - JR&R2020" """,(date))
+
+def approved_on_to_datetime():
+	frappe.db.sql(""" UPDATE `tabChange Schedule Application` SET approved_on=modified WHERE docstatus = 1 AND workflow_state = 'Approved'""")
+	frappe.db.sql(""" UPDATE `tabDTR Problem Application` SET approved_on=modified WHERE docstatus = 1 AND workflow_state = 'Approved'""")
