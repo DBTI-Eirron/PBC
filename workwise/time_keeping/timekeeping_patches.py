@@ -711,10 +711,18 @@ def validate_loanpayments():
 	print( "Total Payment To Remove: "+cstr(ct) )
 
 def update_loans_payrollperiod():
-	loan_update = frappe.db.sql("""SELECT LA.`name` as "loan_name", P.`name` as "payroll_period" FROM `tabLoan Application Payments` LA INNER JOIN `tabPayroll Period` P 
-		on LA.`payment_date` = P.`payroll_date`  WHERE LA.`payment_status` = 'Paid' """, as_dict=True )
+	print('Gathering Loan Applications........')
+	loan_update = frappe.db.sql("""SELECT LAP.`name` as "loan_name", P.`name` as "payroll_period" FROM `tabLoan Application Payments` LAP INNER JOIN `tabPayroll Period` P 
+		on LAP.`payment_date` = P.`payroll_date` INNER JOIN `tabLoan Application` LA on LA.`name` = LAP.`parent` 
+		WHERE LAP.`payment_status` = 'Paid' AND P.`company` = LA.`company`""", as_dict=True )
+	updated_loan = 0
+	loan_count = len(loan_update)
 	for l in loan_update:
+		loan_count -= 1
+		updated_loan +=1
 		frappe.db.sql("""UPDATE `tabLoan Application Payments` SET  payroll_period = %s WHERE `name` = %s   """,(l.payroll_period, l.loan_name))
+		print('Remaining: '+cstr(loan_count)+" "+"Updated:"+cstr(updated_loan))
+	print('Finished')
 
 def convert_ctocreds():
 	frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET old_total_credits_earned = total_credits_earned WHERE `type` = 'Use' """)
