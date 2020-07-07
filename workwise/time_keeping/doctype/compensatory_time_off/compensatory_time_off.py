@@ -15,10 +15,14 @@ from workwise.time_keeping.application_utils import ( grant_head_subordinate_acc
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
+		validate_inactive_employee(self)
+		clear_approval_history(self)
+		grant_head_subordinate_access(self)
 		self.clear_fields()
 		self.file_validate_cto()
 		self.use_validate_cto()
 		self.validate_strict_cto()
+		change_owner(self)
 
 	def before_submit(self):
 		validate_approve_own_application(self)
