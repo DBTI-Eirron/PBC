@@ -64,8 +64,8 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"position_title": self.new_position,
-					"job_level": self.new_job_level,
+					"position_title": self.new_position if self.new_position else self.current_position,
+					"job_level": self.new_job_level if self.new_job_level else self.current_job_level,
 				})
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
@@ -134,9 +134,9 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"employment_status": self.change_employment_status,
+					"employment_status": self.change_employment_status if self.change_employment_status else self.current_employment_status,
 					"is_active": 1,
-					"position_title": self.change_position_title,
+					"position_title": self.change_position_title if self.change_position_title else self.current_position_title,
 				})
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
@@ -160,9 +160,9 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"company": self.new_company,
-					"department": self.new_department,
-					"location": self.new_location,
+					"company": self.new_company if self.new_company else self.current_company,
+					"department": self.new_department if self.new_department else self.current_department,
+					"location": self.new_location if self.new_location else self.current_location,
 				})
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
@@ -209,10 +209,10 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"rate_type": self.new_rate_type,
-					"rate": flt(self.new_rate, 2),
+					"rate_type": self.new_rate_type if self.new_rate_type else self.current_rate_type,
+					"rate": flt(self.new_rate, 2) if self.new_rate else flt(self.current_rate, 2),
 					"min_take_home": flt(self.new_minimum_take_home, 2) if self.new_minimum_take_home else flt(self.current_minimum_take_home, 2),
-					"is_attendance_base": self.new_attendance_base,
+					"is_attendance_base": self.new_attendance_base if self.new_attendance_base else self.current_attendance_base,
 					"cost_center": self.new_cost_center if self.new_cost_center else self.current_cost_center,
 				})
 			self.save_employee(emp)
@@ -239,9 +239,9 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"end_of_contract": self.new_end_of_contract,
-					"date_hired": self.new_date_hired,
-					"employment_status": self.new_employment_status,
+					"end_of_contract": self.new_end_of_contract if self.new_end_of_contract else self.current_end_of_contract,
+					"date_hired": self.new_date_hired if self.new_date_hired else self.current_date_hired,
+					"employment_status": self.new_employment_status if self.new_employment_status else self.employment_status,
 				})
 			self.save_employee(emp)
 
@@ -278,6 +278,8 @@ class EmployeeMovement(Document):
 	def cmd_rehire(self, process):
 		if process == "validate":
 			self.effective_on = today()
+			if not self.new_biometrics_id:
+				frappe.throw(_( 'New Biometrics ID is required' ))
 
 		elif process == "update":
 			emp_entry = {}
@@ -301,18 +303,18 @@ class EmployeeMovement(Document):
 					for tab_dat in table_data:
 						emp_entry[fld['fieldname']].append(tab_dat)
 
-			emp_entry['employee_id'] = None
+			emp_entry['employee_id'] = self.new_employee_id if self.new_employee_id else None
 			emp_entry['end_of_contract'] = None
 			emp_entry['date_retired'] = None
 			emp_entry['date_resigned'] = None
 			emp_entry['date_termindated'] = None
 			emp_entry['user_id'] = None
 			emp_entry['biometrics_id'] = self.new_biometrics_id
-			emp_entry['role'] = self.new_role
-			emp_entry['email'] = self.new_email
+			emp_entry['role'] = self.new_role if self.new_role else emp_data[0]['role']
+			emp_entry['email'] = self.new_email if self.new_email else emp_data[0]['email']
 			emp_entry['is_active'] = 1
 			emp_entry['date_hired'] = today()
-			emp_entry['company'] = self.rh_new_company
+			emp_entry['company'] = self.rh_new_company if self.rh_new_company else emp_data[0]['company']
  
 			if emp_entry:
 				emp = frappe.get_doc("Employee", self.employee)
