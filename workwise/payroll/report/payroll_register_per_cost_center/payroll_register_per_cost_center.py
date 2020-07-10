@@ -18,7 +18,7 @@ def execute(filters=None):
 	income_types = frappe.db.sql_list(""" SELECT code FROM `tabTransaction Type` WHERE `type` = 'Income' ORDER BY sort """)
 	deduction_types = frappe.db.sql_list(""" SELECT code FROM `tabTransaction Type` WHERE `type` = 'Deduction' ORDER BY sort""")
 
-	columns = get_columns(income_types, deduction_types)
+	columns = get_columns(income_types, deduction_types, filters)
 	
 	final_total_row = ["<b> Total</b>",""]
 	f_total_income, f_total_deduction, f_total_payroll = 0, 0, 0
@@ -34,6 +34,7 @@ def execute(filters=None):
 		header = []
 		for col in columns:
 			header.append(col['label'])
+			col['label'] = ""
 		data.append(header)
 	for f_income in income_types:
 		f_income_total.append(0)
@@ -42,7 +43,7 @@ def execute(filters=None):
 		f_deduction_total.append(0)
 
 	for cost_cent in cost_center_list:
-		cost_name = "<b>"+ cstr(cost_cent.name) +"</b>"
+		cost_name = "<b> Cost Center: "+ cstr(cost_cent.name) +"</b>"
 		employee_list = get_employees(filters, cost_cent.name)
 		if employee_list:
 			data.append([cost_name])
@@ -102,6 +103,7 @@ def execute(filters=None):
 			f_total_deduction += flt(dtotal_deduction, 2)
 			f_total_payroll += flt(dtotal_payroll, 2)
 			data.append(total_row)
+			data.append("")
 
 	#Final Total
 	i = 0
@@ -113,7 +115,6 @@ def execute(filters=None):
 		final_total_row.append(format_precision(f_deduction_total[i], filters.value_precision))
 		i += 1
 	final_total_row += [format_precision(f_total_income, filters.value_precision), format_precision(f_total_deduction, filters.value_precision), format_precision(f_total_payroll, filters.value_precision)]
-	data.append("")
 
 	if filters.hide_zero:
 		max_range = len(final_total_row)
@@ -136,14 +137,14 @@ def validate_filters(filters):
 	if filters.from_date > filters.to_date:
 		frappe.throw(_("From Date must be before To Date"))
 
-def get_columns(income_types, deduction_types):
+def get_columns(income_types, deduction_types, filters):
 	columns = [
 		{
 			"fieldname": "employee",
 			"label": _("Employee"),
 			"fieldtype": "Link",
 			"options": "Employee",
-			"width": 100
+			"width": 200
 		},
 		{
 			"fieldname": "employee_name",
@@ -195,20 +196,33 @@ def get_columns(income_types, deduction_types):
 	return columns
 
 def get_employees(filters, cost_center):
+	if filters.cost_center:
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
+		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name` INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent`
+		WHERE PR.period = %(period)s
+		AND PR.on_hold = 0
+		AND TE.company = %(company)s
+		AND PRE.cost_center = %(cost_center)s
+		{conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+			"period": filters.payroll_period,
+			"company": filters.company,
+			"employee": filters.employee,
+			"cost_center": cost_center,
+		}, as_dict=1)
 
-
-	employees = frappe.db.sql("""SELECT PR.employee, PR.employee_name
-	FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-	WHERE PR.period = %(period)s
-	AND PR.on_hold = 0
-	AND TE.company = %(company)s
-	AND TE.cost_center = %(cost_center)s
-	{conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
-		"period": filters.payroll_period,
-		"company": filters.company,
-		"employee": filters.employee,
-		"cost_center": cost_center,
-	}, as_dict=1)
+	else:
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
+		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name` INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent`
+		WHERE PR.period = %(period)s
+		AND PR.on_hold = 0
+		AND TE.company = %(company)s
+		AND PRE.cost_center = %(cost_center)s
+		{conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+			"period": filters.payroll_period,
+			"company": filters.company,
+			"employee": filters.employee,
+			"cost_center": cost_center,
+		}, as_dict=1)
 
 	return employees
 
@@ -238,7 +252,7 @@ def get_income_map(filters, employee_list):
 	income_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		WHERE PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ %
+		WHERE PR.period = %s AND employee in (%s) GROUP BY PRE.`name` """ % 
 		('%s',', '.join(['%s']*len(employee_list))), tuple([filters.payroll_period] + [emp.employee for emp in employee_list]), as_dict=1)
 
 	income_map = {}
