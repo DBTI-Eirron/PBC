@@ -1,16 +1,14 @@
 // Copyright (c) 2017, HDI Systech and contributors
 // For license information, please see license.txt
 
-frappe.provide("workwise.disciplinary_action");
-
 frappe.ui.form.on('Disciplinary Action', {
 	refresh: function(frm) {
 		if((!frm.doc.__islocal) && (frm.doc.sanction=='Termination') && (frm.doc.docstatus===1)){
-			frm.add_custom_button(__('Make Movement'),
-				function() {
-					workwise.disciplinary_action.make_movement(frm)
-				}
-			);
+			frm.add_custom_button(__('Make Movement'), function(){
+				var route_doc = frappe.model.get_new_doc('Employee Movement');
+				route_doc.employee = frm.doc.employee;
+				frappe.set_route('Form', 'Employee Movement', route_doc.name);
+			});
 		}
 	},
 
@@ -24,25 +22,20 @@ frappe.ui.form.on('Disciplinary Action', {
 
 	calc_suspension_days: function(frm) {
 		if( frm.doc.suspended_from && frm.doc.suspended_to ) {
-			return frappe.call({
-				method: "workwise.hr.doctype.disciplinary_action.disciplinary_action.calc_days",
-				args: {
-					suspended_from: frm.doc.suspended_from,
-					suspended_to: frm.doc.suspended_to,
-				},
+			frappe.call({
+				method: "calc_days",
+				doc: frm.doc,
 				callback: function(r) {
-					if (!r.exc && r.message) {
-						frm.set_value("suspension", r.message.suspension_days);
-					}
+					frm.refresh_fields();
 				}
-			});	
+			});
 		}
 	},
 });
 
-workwise.disciplinary_action.make_movement = function(frm) {
-	frappe.model.open_mapped_doc({
-		method: "workwise.hr.doctype.disciplinary_action.disciplinary_action.make_movement",
-		frm: frm
-	});
-};
+//workwise.disciplinary_action.make_movement = function(frm) {
+//	frappe.model.open_mapped_doc({
+//		method: "workwise.employee_201.doctype.disciplinary_action.disciplinary_action.make_movement",
+//		frm: frm
+//	});
+//};

@@ -25,12 +25,8 @@ class DisciplinaryAction(Document):
 		if offender == 0:
 			throw(_("Employee is not an Offender"))
 
-@frappe.whitelist()
-def calc_days(suspended_from, suspended_to):
-	fields_list = {
-		"suspension_days": datediff_days(suspended_from, suspended_to, "%Y-%m-%d"),
-	}
-	return fields_list
+	def calc_days(self):
+		self.suspension = int( (datediff_days(self.suspended_from, self.suspended_to, "%Y-%m-%d")).days + 1 )
 
 @frappe.whitelist()
 def make_movement(source_name, target_doc=None):
