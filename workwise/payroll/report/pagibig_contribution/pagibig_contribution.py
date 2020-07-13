@@ -18,24 +18,31 @@ def execute(filters=None):
 		return columns, employee_list
 
 	data = []
+	total = 0
 	for d in employee_list:
-		employee_amt = frappe.db.sql_list("""SELECT amount FROM `tabPayroll Register` WHERE
-					pay_code = 'HDMF' 
-					AND employee = %(employee)s 
-					AND pay_period = %(period)s LIMIT 1""",{ 
+		employee_amt, employer_amt = 0,0
+		transaction = frappe.db.sql("""SELECT PRE.pay_code, PRE.amount FROM `tabPayroll Register` PR INNER JOIN `tabPayroll Register Entries` PRE WHERE
+					(PRE.`pay_code` = 'HDMF' or PRE.`pay_code` = 'HDMFE' or PRE.`pay_code` = 'HDMFM') 
+					AND PR.employee = %(employee)s 
+					AND PR.period = %(period)s""",{ 
 				"employee": d.name,
 				"period": filters.payroll_period
-			})
+			}, as_dict = 1)
 		#frappe.throw(_("{0}").format(employee_amt))
-		employer_amt = frappe.db.sql_list("""SELECT employer_amount FROM `tabPayroll Register`
-					 pay_code = 'HDMF' 
-					 AND employee = %(employee)s 
-					 AND pay_period = %(period)s LIMIT 1""",{ 
-				"employee": d.name,
-				"period": filters.payroll_period
-			})
+		#employer_amt = frappe.db.sql_list("""SELECT employer_amount FROM `tabPayroll Register`
+		#			 pay_code = 'HDMF' 
+		#			 AND employee = %(employee)s 
+		#			 AND pay_period = %(period)s LIMIT 1""",{ 
+		#		"employee": d.name,
+		#		"period": filters.payroll_period
+		#	})
+		for tran in transaction:
+			if tran['pay_code'] == "HDMF" or tran['pay_code'] == "HDMFM":
+				employee_amt += tran['amount']
+			else:
+				employer_amt += tran['amount']
 
-		total = employee_amt + employer_amt
+
 		row = [d.hdmf_no, "", "", d.last_name, d.first_name, d.name_extension, d.middle_name, "",  employee_amt, employer_amt, "",]
 
 		data.append(row)
