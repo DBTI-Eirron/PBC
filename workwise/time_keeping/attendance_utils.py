@@ -954,6 +954,24 @@ def get_undertime(entry):
 
 	#entry['undertime'], entry['ut_list'] = cto_reduction(entry['undertime'], entry['ut_list'])
 
+	if entry['ut_from'] and entry['ut_to']:
+		additional_undertime = 0
+		if entry['card_in'] and entry['card_out'] or entry['ob_status']:
+			for ut in entry['ut_list']: 
+				if not (get_datetime(ut['from_time']) >= get_datetime(entry['ut_to']) or get_datetime(ut['to_time']) <= get_datetime(entry['ut_from'])):
+					if get_datetime(ut['from_time']) > get_datetime(entry['ut_from']):
+						additional_undertime += abs((entry['ut_from'] - ut['from_time']).total_seconds())
+						ut['from_time'] = entry['ut_from']
+
+					if get_datetime(ut['to_time']) < get_datetime(entry['ut_to']):
+						additional_undertime += abs((ut['from_time'] - entry['ut_to']).total_seconds())
+						ut['to_time'] = entry['ut_to']
+
+		if additional_undertime == 0:
+			additional_undertime =+  abs((entry['ut_from'] - entry['ut_to']).total_seconds())
+
+		entry['undertime'] += additional_undertime
+
 	if entry.get('ut_interval'):
 		entry['undertime'] = (entry.get('ut_interval') * 60) * int( entry.get('undertime') / (entry.get('ut_interval') * 60))
 
