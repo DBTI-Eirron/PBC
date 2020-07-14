@@ -11,6 +11,7 @@ from frappe.utils import getdate, today, cstr, flt, nowdate
 from frappe.model.document import Document
 from workwise.payroll.payroll_utils import format_decimal_by_2
 from workwise.time_keeping.application_utils import validate_inactive_employee, validate_active_employee
+from workwise.time_keeping.timekeeping_task import validate_create_lbentry
 
 class EmployeeMovement(Document):
 	def validate(self):
@@ -150,6 +151,7 @@ class EmployeeMovement(Document):
 				})
 			self.revert_employee(emp)
 			self.cmd_salary_adjustment(process=process)
+			self.create_lb_entry()
 
 	def cmd_transfer(self, process):
 		if process == "validate":
@@ -351,3 +353,26 @@ class EmployeeMovement(Document):
 		for d in movements:
 			move = frappe.get_doc("Employee Movement", d.name)
 			move.submit()
+
+	def create_lb_entry(self):
+		doc_emp = frappe.get_doc("Employee", self.employee)
+		if doc_emp.leave_balance_setup:
+			lb_sched = frappe.db.sql(""" SELECT * FROM `tabLeave Balance Schedule` WHERE `parent` = %s """,(doc_emp.leave_balance_setup),as_dict=1)
+			year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
+			for d in lb_sched:
+				if validate_create_lbentry({'employee': doc_emp.name, 'leave_type': d.leave_type}):
+					lb = frappe.new_doc("LB Entry")
+					lb.update({
+						"employee": doc_emp.name,
+						"employee_name": doc_emp.full_name,
+						"posting_date": nowdate(),
+						"company": doc_emp.company,
+						"leave_type": d.leave_type,
+						"balance_type": 'Add',
+						"created_from": 'Leave Balance Setup',
+						"from_date": nowdate(),
+						"to_date": year_end,
+						"credits": d.credits,
+					})
+					lb.flags.ignore_permissions = True
+					lb.insert()

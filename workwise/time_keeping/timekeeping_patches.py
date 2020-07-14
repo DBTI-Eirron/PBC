@@ -773,3 +773,131 @@ def update_payroll_date():
 def approved_on_to_datetime():
 	frappe.db.sql(""" UPDATE `tabChange Schedule Application` SET approved_on=modified WHERE docstatus = 1 AND workflow_state = 'Approved'""")
 	frappe.db.sql(""" UPDATE `tabDTR Problem Application` SET approved_on=modified WHERE docstatus = 1 AND workflow_state = 'Approved'""")
+
+def convert_leave_balacnce_to_lb_entry():
+	current_employees = []
+	employee_list = frappe.db.sql("""SELECT `name` FROM `tabEmployee` """, as_dict=1)
+	for el in employee_list:
+		current_employees.append(el.name)
+
+	included_old = []
+	leave_balance = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE `credits` > 0 """, as_dict=1)
+	for d in leave_balance:
+		if d.employee in current_employees:
+			old_from_balance = d.name
+			if old_from_balance and old_from_balance not in included_old:
+				included_old.append(old_from_balance)
+
+			full_name = None
+			get_full_name = frappe.db.get_value("Employee", d['employee'], ["full_name"])
+			if get_full_name:
+				full_name = get_full_name
+
+			company = None
+			get_company = frappe.db.get_value("Employee", d['employee'], ["company"])
+			if get_company:
+				company = get_company
+
+			lb = frappe.new_doc("LB Entry")
+			lb.update({
+				"employee": d.employee,
+				"employee_name": full_name,
+				"posting_date": nowdate(),
+				"company": company,
+				"leave_type": d.leave_type,
+				"balance_type": 'Add',
+				"created_from": 'Execute Script',
+				"from_date": d.from_date,
+				"to_date": d.to_date,
+				"credits": d.credits,
+				"deduct_credits_to": None
+			})
+			lb.flags.ignore_permissions = True
+			lb.flags.ignore_validate = True
+			lb.insert()
+			new_from_balance = lb.name
+			if old_from_balance in included_old:
+				frappe.db.sql("""UPDATE `tabLeave Application` SET from_balance=%s, old_from_balance=%s WHERE from_balance = %s AND leave_type = %s """,(new_from_balance, old_from_balance, old_from_balance, d.leave_type))
+
+	leave_apps = frappe.db.sql("""SELECT * FROM `tabLeave Application` WHERE `docstatus` = 1 AND `workflow_state` = 'Approved' """, as_dict=1)
+	for ap in leave_apps:
+		if ap.total_leave_days and ap.employee in current_employees:
+			
+			full_name = None
+			get_fullname = frappe.db.get_value("Employee", d['employee'], ["full_name"])
+			if get_fullname:
+				full_name = get_fullname
+				
+			company = None
+			get_company_name = frappe.db.get_value("Employee", d['employee'], ["company"])
+			if get_company_name:
+				company = get_company_name
+
+			if ap.company:
+				company = ap.company
+
+			alb = frappe.new_doc("LB Entry")
+			alb.update({
+				"employee": ap.employee,
+				"employee_name": ap.full_name,
+				"posting_date": ap.posting_date,
+				"company": company,
+				"leave_type": ap.leave_type,
+				"balance_type": 'Less',
+				"created_from": 'Leave Application',
+				"linked_document": ap.name,
+				"from_date": ap.from_date,
+				"to_date": ap.to_date,
+				"credits": ap.total_leave_days,
+				"deduct_credits_to": ap.leave_type,
+			})
+			alb.flags.ignore_permissions = True
+			alb.flags.ignore_validate = True
+			alb.insert()
+			frappe.db.sql("""UPDATE `tabLeave Application` SET linked_lb_entry=%s WHERE `name` = %s """,(alb.name, ap.name))
+
+def convert_leave_balacnce_to_lb_entry_balance_only():
+	current_employees = []
+	employee_list = frappe.db.sql("""SELECT `name` FROM `tabEmployee` """, as_dict=1)
+	for el in employee_list:
+		current_employees.append(el.name)
+
+	included_old = []
+	leave_balance = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE `credits` > 0 """, as_dict=1)
+	for d in leave_balance:
+		if d.employee in current_employees:
+			old_from_balance = d.name
+			if old_from_balance and old_from_balance not in included_old:
+				included_old.append(old_from_balance)
+
+			full_name = None
+			get_full_name = frappe.db.get_value("Employee", d['employee'], ["full_name"])
+			if get_full_name:
+				full_name = get_full_name
+
+			company = None
+			get_company = frappe.db.get_value("Employee", d['employee'], ["company"])
+			if get_company:
+				company = get_company
+
+			lb = frappe.new_doc("LB Entry")
+			lb.update({
+				"employee": d.employee,
+				"employee_name": full_name,
+				"posting_date": nowdate(),
+				"company": company,
+				"leave_type": d.leave_type,
+				"balance_type": 'Add',
+				"created_from": 'Execute Script',
+				"from_date": d.from_date,
+				"to_date": d.to_date,
+				"credits": d.credits - d.used_credits,
+				"deduct_credits_to": None
+			})
+			lb.flags.ignore_permissions = True
+			lb.flags.ignore_validate = True
+			lb.insert()
+			new_from_balance = lb.name
+			if old_from_balance in included_old:
+				frappe.db.sql("""UPDATE `tabLeave Application` SET old_from_balance=%s, from_balance=%s WHERE from_balance = %s AND leave_type = %s """,(old_from_balance, new_from_balance, old_from_balance, d.leave_type))
+	frappe.db.sql("""UPDATE `tabLeave Application` SET without_lbentry=1 """)

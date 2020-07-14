@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2019, OSI and Contributors
+# Copyright (c) 2020, OSI and Contributors
 # See license.txt
 from __future__ import unicode_literals
 
-# import frappe
+import frappe
 import unittest
 
-class TestLBEntry(unittest.TestCase):
+class TestTimekeepingLogs(unittest.TestCase):
 	pass

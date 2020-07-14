@@ -128,7 +128,7 @@ def get_data():
 				},				
 				{
 					"type": "doctype",
-					"name": "Leave Balance",
+					"name": "LB Entry",
 				},
 				{
 					"type": "doctype",
@@ -179,8 +179,14 @@ def get_data():
 				},
 				{
 					"type": "report",
-					"name": "Leave Balance Report",
-					"doctype": "Leave Balance Report",	
+					"name": "Leave Balance Summary Report",
+					"doctype": "LB Entry",	
+					"is_query_report": True
+				},
+				{
+					"type": "report",
+					"name": "Detailed Leave Balance Report",
+					"doctype": "LB Entry",	
 					"is_query_report": True
 				},
 				{

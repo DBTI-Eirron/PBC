@@ -55,13 +55,13 @@ frappe.ui.form.on('My Payslip', {
 		});
 		frm.pass_dialog.show();
 		
-		frappe.call({
-			method: "check_loan",
-			doc: frm.doc,
-			callback: function(r) {
-				frm.refresh_fields();
-			}
-		});
+		// frappe.call({
+		// 	method: "check_loan",
+		// 	doc: frm.doc,
+		// 	callback: function(r) {
+		// 		frm.refresh_fields();
+		// 	}
+		// });
 
 		cur_frm.set_query("payroll_period", function() {
 			return {
