@@ -30,9 +30,9 @@ notification_config = "workwise.notifications.notifications.get_notification_con
 
 scheduler_events = {
 	"monthly": [
-		"workwise.time_keeping.timekeeping_task.leave_balance_monthly",
 	],
 	"daily": [
-           "bench execute workwise.employee_201.movement.run_employee_movement"
+           "bench execute workwise.employee_201.movement.run_employee_movement",
+           "workwise.time_keeping.timekeeping_task.automated_leave_balance",
     ],
 }
