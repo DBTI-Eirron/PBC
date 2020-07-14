@@ -32,7 +32,7 @@ scheduler_events = {
 	"monthly": [
 	],
 	"daily": [
-           "bench execute workwise.employee_201.movement.run_employee_movement",
-           "workwise.time_keeping.timekeeping_task.automated_leave_balance",
-    ],
+		"workwise.employee_201.movement.run_employee_movement",
+		"workwise.time_keeping.timekeeping_task.automated_leave_balance",
+	],
 }
