@@ -38,7 +38,6 @@ class LeaveApplication(Document):
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
 		#validate_cutoff_approval_date(self)
-		self.update_leave_credits()
 
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
