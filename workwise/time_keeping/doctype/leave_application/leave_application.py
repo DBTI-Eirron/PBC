@@ -7,12 +7,13 @@ from frappe.email import queue
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
 from workwise.payroll.policy_utils import get_policy
 from workwise.time_keeping.attendance_utils import get_schedule
-from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, 
+from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, get_employee_details,
 change_owner, get_levelled_approval, get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_approver_userperm, validate_cutoff_approval_date)
 from frappe.model.document import Document
 
 class LeaveApplication(Document):
 	def validate(self):
+		get_employee_details(self)
 		validate_inactive_employee(self)
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)

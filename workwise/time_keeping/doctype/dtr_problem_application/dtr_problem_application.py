@@ -9,10 +9,11 @@ from frappe import _
 from frappe.utils import nowdate, cstr, getdate
 from frappe.model.document import Document
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, 
-	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_approver_userperm, validate_cutoff_approval_date)
+	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_approver_userperm, validate_cutoff_approval_date, get_employee_details )
 
 class DTRProblemApplication(Document):
 	def validate(self):
+		get_employee_details(self)
 		validate_inactive_employee(self)
 		clear_approval_history(self)
 		self.update_card_type()
@@ -29,7 +30,7 @@ class DTRProblemApplication(Document):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
@@ -39,7 +40,7 @@ class DTRProblemApplication(Document):
 		#	if self.workflow_state == "Approved":
 		#		self.approve_request()
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 		
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)

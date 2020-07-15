@@ -4,10 +4,6 @@ cur_frm.add_fetch('employee','full_name','employee_name');
 cur_frm.add_fetch('employee','company','company');
 
 frappe.ui.form.on('Compensatory Time Off', {
-	onload: function(frm) {
-		
-	},
-
 	//FILE
 	file_from_time: function(frm) {
 		frm.trigger("get_target_date");

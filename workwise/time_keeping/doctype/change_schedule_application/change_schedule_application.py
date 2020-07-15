@@ -9,7 +9,7 @@ from frappe import _
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, 
-	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_cutoff_approval_date, validate_approver_userperm )
+	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_cutoff_approval_date, validate_approver_userperm, get_employee_details )
 
 class ChangeScheduleApplication(Document):
 	def on_submit(self):
@@ -42,6 +42,7 @@ class ChangeScheduleApplication(Document):
 		get_cancelled_by_and_date(self)
 
 	def validate(self):
+		get_employee_details(self)
 		validate_inactive_employee(self)
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)

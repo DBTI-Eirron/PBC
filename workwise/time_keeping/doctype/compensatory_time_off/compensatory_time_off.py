@@ -11,10 +11,11 @@ from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule, get_ob_list
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, get_overrides, change_owner, get_levelled_approval, 
-	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs, validate_approver_userperm, validate_cutoff_approval_date)
+	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs, validate_approver_userperm, validate_cutoff_approval_date, get_employee_details)
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
+		get_employee_details(self)
 		validate_inactive_employee(self)
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)
