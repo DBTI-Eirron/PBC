@@ -19,6 +19,7 @@ def get_employee_details(self):
 		if not self.company:
 			self.company = company
 
+
 def grant_head_subordinate_access(self):
 	if self.is_new():
 		reject_head_access = frappe.db.get_single_value('System Settings', 'head_not_allowed_for_subordinate')
