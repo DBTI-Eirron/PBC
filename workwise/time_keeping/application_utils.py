@@ -5,6 +5,21 @@ from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money,
 from frappe import _, msgprint
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card, get_all_dtrp, get_schedule)
 
+def get_employee_details(self):
+	if self.is_new():
+		full_name, company = frappe.get_value("Employee", self.employee, ["full_name", "company"])
+		if self.doctype in ["Leave Application", "Overtime Application", "Change Request Application", "Official Business Application"]:
+			if not self.full_name:
+				self.full_name = full_name
+
+		if self.doctype in ["Undertime Application", "Excuse Tardiness Application", "Change Schedule Application", "DTR Problem Application", "Compensatory Time Off"]:
+			if not self.employee_name:
+				self.employee_name = full_name	
+	
+		if not self.company:
+			self.company = company
+
+
 def grant_head_subordinate_access(self):
 	if self.is_new():
 		reject_head_access = frappe.db.get_single_value('System Settings', 'head_not_allowed_for_subordinate')
