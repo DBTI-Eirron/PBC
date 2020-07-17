@@ -1,0 +1,27 @@
+{
+ "attach_print": 0, 
+ "creation": "2020-07-15 11:05:18.388700", 
+ "days_in_advance": 0, 
+ "docstatus": 0, 
+ "doctype": "Email Alert", 
+ "document_type": "Incident Report", 
+ "enabled": 1, 
+ "event": "Submit", 
+ "idx": 0, 
+ "is_standard": 1, 
+ "message": "<h3>Incident Report Details</h3>\n\n<table border=\"1\">\n<tr>\n<td>Incident Report</td>\n<td>{{doc.name}}</td>\n</tr>\n\n<tr>\n<td>Offense</td>\n<td>{{doc.offense}}</td>\n</tr>\n\n<tr>\n<td>Date and Time</td>\n<td>{{doc.date_time_offense}}</td>\n</tr>\n\n<tr>\n<td>Details of Violation</td>\n<td>{{doc.details_of_violation}}</td>\n</tr>\n\n<tr>\n<td>Incident Location</td>\n<td>{{doc.incident_location}}</td>\n</tr>\n\n</table>", 
+ "modified": "2020-07-15 13:57:25.227032", 
+ "modified_by": "Administrator", 
+ "module": "Employee 201", 
+ "name": "Filed Incident Report", 
+ "owner": "Administrator", 
+ "recipients": [
+  {
+   "email_by_document_field": "owner"
+  }, 
+  {
+   "email_by_document_field": "email_list"
+  }
+ ], 
+ "subject": "Incident Report"
+}
