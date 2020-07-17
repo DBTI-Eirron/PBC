@@ -94,75 +94,52 @@ class PayrollPeriod(Document):
 
 			msgprint("Payslips DELETED")
 
-	def get_lb_entry_balance(self,balance_list, from_date, to_date):
-		result = []
-		data = {}
+	def get_leave_balance(self,balances,leave_type,emp):
+		balance_dict = []
+		for lt in leave_type:
+			valid_entry = {}
+			less_entry = {}
+			add, less, total_balance = 0, 0, 0
+			min_date = None
+			for d in balances:
+				if d.employee == emp and (d.leave_type == lt.name or d.deduct_credits_to == lt.name):
+					if d.balance_type == "Add":
+						if lt.name == d.leave_type:
+							if d.name not in valid_entry:
+								valid_entry[d.name] = {
+									"credits": d.credits,
+									"from": getdate(d.from_date),
+									"to": getdate(d.to_date),
+								}
+					else:
+						if d.deduct_credits_to == lt.name:
+							if d.name not in less_entry:
+								less_entry[d.name] = {
+									"used": 0,
+									"credits": d.credits,
+									"from": getdate(d.from_date),
+									"to": getdate(d.to_date),
+								}
 
-		for li in balance_list:
-			emp = cstr(li['employee'])
-			lvtype = cstr(li['leave_type'])
-			if li.balance_type == 'Less':
-				lvtype = cstr(li['deduct_credits_to'])
+			for vl in valid_entry:
+				to_less = 0
+				for le in less_entry:
+					if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
+						if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+							to_less += less_entry[le]['credits']
+							less_entry[le]['used'] = 1
+				valid_entry[vl]['credits'] -= to_less
+				if ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ):
+					total_balance += valid_entry[vl]['credits']
 
-			if emp not in data:
-				data[emp] = {}
-			if lvtype not in data[emp]:
-				data[emp][lvtype] = {
-					'add_entry': [],
-					'less_entry': [],
-					'balance': 0,
-					'credits': 0,
-					'used': 0,
-				}
+			if total_balance <= 0:
+				total_balance = 0
+			balance_dict.append({
+				"leave_type":lt.name,
+				"balance":total_balance
+			})
 
-			if li.balance_type == 'Add':
-				data[emp][lvtype]['add_entry'].append({
-					"credits": li.credits,
-					"from_date": getdate(li.from_date),
-					"to_date": getdate(li.to_date),
-				})
-
-			if li.balance_type == 'Less':
-				data[emp][lvtype]['less_entry'].append({
-					"included": 0,
-					"credits": li.credits,
-					"from_date": getdate(li.from_date),
-					"to_date": getdate(li.to_date),
-				})
-
-		for d in data:
-			for l in data[d]:
-				for ad in data[d][l]['add_entry']:
-					to_less = 0
-					ad_from = ad['from_date']
-					ad_to = ad['to_date']
-					ad_cred = ad['credits']
-					data[d][l]['credits'] += ad_cred
-					for le in data[d][l]['less_entry']:
-						le_from = le['from_date']
-						le_to = le['to_date']
-						le_included = le['included']
-						le_cred = le['credits']
-
-						if ad_cred > 0 and not le_included:
-							if ( ad_from <= le_from <= ad_to ) or ( ad_from <= le_to <= ad_to ):
-								to_less += le_cred
-								le['included'] = 1
-								data[d][l]['used'] += le_cred
-						ad['credits'] -= to_less
-					if (( ad_from <= getdate(from_date) <= ad_to ) or ( ad_from <= getdate(to_date) <= ad_to )) \
-					or (( getdate(from_date) <= ad_from <= getdate(to_date) ) or ( getdate(from_date) <= ad_to <= getdate(to_date) )):
-						data[d][l]['balance'] += ad['credits']
-
-				result.append({
-					'employee': d,
-					'leave_type': l,
-					'balance': abs(data[d][l]['credits'] - data[d][l]['used']),
-					'credits': data[d][l]['credits'],
-					'used': data[d][l]['used'],
-				})
-
-		return result
+		return balance_dict
 
 	def make_payslips(self):
 		if self.status == "Open":
@@ -179,8 +156,8 @@ class PayrollPeriod(Document):
 						"period": self.name,
 					}, as_dict=True)
 
-				balances = frappe.db.sql(""" SELECT LE.* FROM `tabLB Entry` LE """, as_dict=True)
-				lv_bal = self.get_lb_entry_balance(balances, self.attendance_from, self.attendance_to)
+				leave_type = frappe.db.sql("""SELECT * FROM `tabLeave Type`""",as_dict=True)
+				balances = frappe.db.sql(""" SELECT * FROM `tabLB Entry`""", as_dict=True)
 
 				employees = frappe.db.sql(""" SELECT `name`, full_name, location, company, sss_no, phic_no, hdmf_no, tin, user_id
 				FROM tabEmployee WHERE `name` IN (SELECT employee FROM `tabPayroll Register` WHERE period = %s ) AND on_hold != 1  ORDER BY last_name, first_name  """, self.name,as_dict=1)
@@ -195,27 +172,24 @@ class PayrollPeriod(Document):
 						}, as_dict=True)
 
 
+
 					if register:
 						letter_head = frappe.db.get_value("Company", emp.company, "default_letter_head")
 						
-						leave = frappe.db.sql("""SELECT total_leave_days,leave_balance,to_date FROM `tabLeave Application` WHERE to_date <= %s AND employee = %s ORDER BY to_date DESC LIMIT 1""",(self.attendance_to,emp.name),as_dict=True);
-						leave_balance = 0
-						for l in leave:
-							leave_balance = l.leave_balance - l.total_leave_days
-
 						loan = frappe.db.sql("""SELECT LA.loan_type, LA.loan_amount, 
 							(SELECT COUNT(`name`) FROM `tabLoan Application Payments` WHERE parent = LA.`name` and payment_status = 'Paid' and payment_date <= %s) as count, 
 							(SELECT SUM(`payment_amount`) FROM `tabLoan Application Payments` WHERE parent = LA.`name` and payment_status = 'Paid' and payment_date <= %s) as paid_amount 
 							FROM `tabLoan Application` LA 
-							WHERE LA.docstatus = 1 and LA.employee = %s and LA.on_hold = 0
+							WHERE LA.docstatus = 1 and LA.employee = %s and LA.on_hold = 0 and (LA.unpaid_amount > 0 or paid_amount > 0)
 							""",(self.payroll_date,self.payroll_date,emp.name),as_dict=True)
 
+						leaves = self.get_leave_balance(balances,leave_type,emp.name)
 
 						ps = frappe.new_doc("My Payslip")
 						ps.update({
 							"owner": emp.user_id, "employee": emp.name, "payroll_period": self.name, 
 							"employee_name": emp.full_name, "company": emp.company,
-							"sss_no": emp.sss_no, "phic_no": emp.phic_no, "hdmf_no": emp.hdmf_no, "tin": emp.tin, "leave_balance": leave_balance
+							"sss_no": emp.sss_no, "phic_no": emp.phic_no, "hdmf_no": emp.hdmf_no, "tin": emp.tin
 						});
 
 						for ln in loan:
@@ -226,8 +200,8 @@ class PayrollPeriod(Document):
 								"loan_amount":ln.loan_amount,
 							})
 
-						for lv in lv_bal:
-							if lv['employee'] == emp.name:
+						for lv in leaves:
+							if lv['balance'] > 0:
 								ps.append("leave", {
 									"leave_type": lv['leave_type'],
 									"leave_balance": lv['balance'],
