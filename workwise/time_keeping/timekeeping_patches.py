@@ -901,3 +901,6 @@ def convert_leave_balacnce_to_lb_entry_balance_only():
 			if old_from_balance in included_old:
 				frappe.db.sql("""UPDATE `tabLeave Application` SET old_from_balance=%s, from_balance=%s WHERE from_balance = %s AND leave_type = %s """,(old_from_balance, new_from_balance, old_from_balance, d.leave_type))
 	frappe.db.sql("""UPDATE `tabLeave Application` SET without_lbentry=1 """)
+
+def move_my_payslip_leave_to_my_profile():
+	frappe.db.sql("""UPDATE `tabDocType` SET module = 'My Profile' WHERE `name`= 'My Payslip Leave'""")
