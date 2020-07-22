@@ -418,8 +418,8 @@ class LeaveApplication(Document):
 
 	def revert_leave_credits(self):
 		if self.linked_lb_entry:
-			frappe.delete_doc('LB Entry', self.linked_lb_entry)
-			self.linked_lb_entry = None
+			frappe.delete_doc('LB Entry', self.linked_lb_entry, ignore_permissions=True)
+			self.db_set("linked_lb_entry", None)
 
 	def validate_without_lbentry(self):
 		if self.without_lbentry:

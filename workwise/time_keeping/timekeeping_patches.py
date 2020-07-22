@@ -904,3 +904,6 @@ def convert_leave_balacnce_to_lb_entry_balance_only():
 
 def move_my_payslip_leave_to_my_profile():
 	frappe.db.sql("""UPDATE `tabDocType` SET module = 'My Profile' WHERE `name`= 'My Payslip Leave'""")
+
+def remove_lbentries_with_no_leave_application():
+	frappe.db.sql("""DELETE FROM `tabLB Entry` WHERE `balance_type` = 'Less' AND created_from = 'Leave Application' AND `name` NOT IN (SELECT `linked_lb_entry` FROM `tabLeave Application` WHERE `linked_lb_entry` IS NOT NULL) """)
