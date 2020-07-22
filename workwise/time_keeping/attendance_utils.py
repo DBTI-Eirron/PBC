@@ -84,8 +84,8 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 		for ut in uts:
 			if ut['from_date'] == entry['target_date']:
 				entry['ut_links'].append(ut.name)
-				entry['ut_from'] = ut.from_time
-				entry['ut_to'] = ut.to_time
+				entry['ut_from'] = get_datetime( str(ut.from_date)+" "+ str(ut.from_time))
+				entry['ut_to'] = get_datetime(str(ut.to_date) +" "+str(ut.to_time))
 				entry['linked_ut'] = ut.name
 
 	if ext:
@@ -1321,6 +1321,8 @@ def get_final_processing(entry):
 								exc_end = get_datetime(et['to_time'])
 							
 							entry['late'] -= abs((exc_end - exc_start).total_seconds())
+							if entry['late'] < 0:
+								entry['late'] = 0
 	
 				if et['type'] == "Undertime":
 					for ut in entry['ut_list']:
@@ -1337,6 +1339,8 @@ def get_final_processing(entry):
 								exc_end = get_datetime(et['to_time'])
 	
 							entry['undertime'] -= abs((exc_end - exc_start).total_seconds())
+							if entry['undertime'] < 0:
+								entry['undertime'] = 0
 	
 		if entry['work'] < 0: 
 			entry['work'] = 0
@@ -2433,7 +2437,7 @@ def get_all_uts(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 
-	undertimes = frappe.db.sql("""SELECT `name`, employee, from_time, to_time, from_date FROM `tabUndertime Application` 
+	undertimes = frappe.db.sql("""SELECT `name`, employee, from_time, to_time, from_date, to_date FROM `tabUndertime Application` 
 		WHERE workflow_state = 'Approved' AND from_date >= %s 
 		AND from_date <= %s {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 

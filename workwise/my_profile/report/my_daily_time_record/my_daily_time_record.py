@@ -9,7 +9,7 @@ from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, 
-get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,change_sched,get_template_map)
+get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,change_sched,get_template_map, processed_def_sched)
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -166,6 +166,7 @@ def get_data(filters):
 	shift_map = get_shift_map()
 	if employees:
 		data = []
+		adjustment = 0
 		if filters.month and filters.year and not filters.payroll_period:
 			pay_from = str(int(filters.month) + 1)+"-01-"+filters.year
 			pay_to = str(int(filters.month) + 1)+"-"+str(calendar.monthrange(int(filters.year), int(filters.month) + 1)[1])+"-"+filters.year
@@ -177,7 +178,11 @@ def get_data(filters):
 		employee_list = convert_to_list(employees)
 		template_map = get_template_map()
 		shift_map = get_shift_map()
-		emp_map = init_employee_map(employees, filters.employee, filters.company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		if (filters.show_adjusted and filters.payroll_period) or not filters.payroll_period:
+			adjustment = 1
+		else:
+			adjustment = 0
+		emp_map = init_employee_map(employees, filters.employee, filters.company, pay_from, pay_to, approval_cutoff, adjustment)
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			complete_sched(emp_dict, pay_from, pay_to, template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
