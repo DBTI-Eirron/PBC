@@ -34,7 +34,7 @@ class CompensatoryTimeOff(Document):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
 		self.validate_strict_cto()
@@ -43,7 +43,7 @@ class CompensatoryTimeOff(Document):
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 		if self.workflow_state == "Approved":
 			if frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
 				self.use_deduct_cto()
