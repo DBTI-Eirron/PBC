@@ -304,13 +304,20 @@ def get_data(filters):
 
 	for emp in employees: 
 		loans = get_loan_amount(filters, emp)
+		date = None
+		if filters.date_format == "1":
+			date = datetime.datetime.strftime(getdate(emp.loan_date),"%y%m%d") 
+		if filters.date_format == "2":
+			date = datetime.datetime.strftime(getdate(emp.loan_date),"%m%d%y")
+		if filters.date_format == "3":
+			date = datetime.datetime.strftime(getdate(emp.loan_date),"%m-%d-%y") 
 		row = {
 			"sss_id": emp.sss_id,
 			"last_name": emp.last_name,
 			"first_name": emp.first_name,
 			"middle_initial": emp.middle_initial,
 			"loan_type": emp.loan_type,
-			"loan_date": datetime.datetime.strftime(getdate(emp.loan_date),"%m-%d-%y" if filters.date_format == "2" else "%m%d%y" ),
+			"loan_date": date,
 			"loan_amount": format_precision(emp.loan_amount, filters.value_precision),
 			"penalty": 0,
 			"amount_paid": format_precision(loans, filters.value_precision),

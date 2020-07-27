@@ -44,8 +44,9 @@ frappe.query_reports["SSS Loan Report"] = {
 			"label": __("Loan Date Format"),
 			"fieldtype": "Select",
 			"options": [
-				{ "value": "1", "label": __("mmddyy") },
-				{ "value": "2", "label": __("mm-dd-yy") },
+				{ "value": "1", "label": __("yymmdd") },
+				{ "value": "2", "label": __("mmddyy") },
+				{ "value": "3", "label": __("mm-dd-yy") },
 			],
 			"default": "1",
 			"reqd": 1
