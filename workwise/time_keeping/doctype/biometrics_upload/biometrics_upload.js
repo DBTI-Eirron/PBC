@@ -61,6 +61,8 @@ erpnext.hr.Coriolis = frappe.ui.form.Controller.extend({
 						$p.css('color', 'green');
 					} else if(v.substr(0,5)=='Valid') {
 						$p.css('color', '#777');
+					}else if(v.substr(0,7)=='Ignored') {
+						$p.css('color', 'blue');
 					}
 				});
 			}

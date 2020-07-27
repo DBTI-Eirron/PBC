@@ -73,7 +73,6 @@ def upload():
 		result = frappe.db.sql("""SELECT `name` FROM `tabTime Card` WHERE card_type = %s AND `date` = %s AND biometrics_id = %s AND `time` = %s LIMIT 1""",(d["card_type"],fdate,d["biometrics_id"],d["time"]),as_dict=True)
 		for res in result:
 			d["name"] = res.name
-			
 		try:
 			check_record(d)
 			ret.append(import_doc(d, "Time Card", 0 , row_idx, submit=False))
