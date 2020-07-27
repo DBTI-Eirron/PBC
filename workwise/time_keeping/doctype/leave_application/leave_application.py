@@ -26,6 +26,7 @@ class LeaveApplication(Document):
 		self.validate_employee()
 		self.validate_balance()
 		self.validate_leave()
+		self.validate_convertible()
 		change_owner(self)
 		self.get_recipients()
 
@@ -38,13 +39,13 @@ class LeaveApplication(Document):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 		self.update_leave_credits()
 
 	def on_cancel(self):
@@ -91,10 +92,25 @@ class LeaveApplication(Document):
 				if self.total_leave_days > max_days:
 					frappe.throw(_("<b>Leave Application: {0}</b><hr> Maximum of {2} Day(s) are Allowed for ( {1} )").format(self.name, self.leave_type, max_days))
 
-		if filing_days > 0:
-			only_from_date = datetime.datetime.strptime(str(self.from_date), '%Y-%m-%d') - datetime.timedelta(days=filing_days)
-			if getdate(nowdate()) > getdate(only_from_date):
-				frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file {1} day(s) before {2} ").format(self.name, filing_days, self.from_date))
+		#Days Before Filing
+		dbf = frappe.db.sql(""" SELECT * FROM `tabLeave Type Before Filing Table` WHERE `parent` = %s """,(self.leave_type), as_dict=1)
+		if dbf:
+			lv_count = frappe.db.sql(""" SELECT COUNT(*) as count FROM `tabLeave Application` WHERE workflow_state = 'Approved' AND docstatus = 1
+				AND `company` = %s AND `employee` = %s AND `leave_type` = %s """,(self.company, self.employee, self.leave_type), as_dict=1)
+
+			count_lv = lv_count[0].count+self.total_leave_days
+			if frappe.db.get_single_value('Timekeeping Settings', 'lv_before_filing_per_app'):
+				count_lv = self.total_leave_days
+
+			for df in dbf:
+				if df.from_leave_day <= count_lv <= df.to_leave_day:
+					only_from_date = datetime.datetime.strptime(str(self.from_date), '%Y-%m-%d') - datetime.timedelta(days=df.days_before_filing)
+					only_to_date = datetime.datetime.strptime(str(self.to_date), '%Y-%m-%d') - datetime.timedelta(days=df.days_before_filing)
+					date_list = [only_from_date, only_to_date]
+					for dt in date_list:
+						if getdate(nowdate()) > getdate(dt):
+							frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file {1} day(s) before {2} ").format(self.name, df.days_before_filing, getdate(dt) ))
+							break
 
 	def set_lwop(self):
 		is_lwop = frappe.get_value("Leave Type", self.leave_type, "is_lwop")
@@ -102,6 +118,11 @@ class LeaveApplication(Document):
 			self.is_lwop = 1
 		else:
 			self.is_lwop = 0
+
+	def validate_convertible(self):
+		convertible = frappe.get_value("Leave Type", self.leave_type, "convertible")
+		if self.convert_cash and (not convertible):
+			frappe.throw(_("{0} is not Convertible to Cash").format(self.leave_type))
 
 	def validate_employee(self):
 		access_list = []
@@ -184,7 +205,7 @@ class LeaveApplication(Document):
 				add_days = 0.5
 
 			if getdate(d.leave_date).weekday() == 5:
-				lvbal_saturday = frappe.db.get_single_value('Timekeeping Settings', 'lvbal_saturday')
+				lvbal_saturday = frappe.get_value("Employee", self.employee, "lvbal_saturday")
 				if lvbal_saturday > 0:
 					add_days = flt(lvbal_saturday, 8)
 

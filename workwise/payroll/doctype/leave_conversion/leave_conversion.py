@@ -78,7 +78,7 @@ class LeaveConversion(Document):
 		self.validate_employee()
 		self.validate_period()
 		self.validate_leave_type()
-		ss_list = []
+		ss_list = 0
 		entries = []
 		header = {
 			'transaction_type': "",
@@ -90,26 +90,29 @@ class LeaveConversion(Document):
 		}
 
 		switcher = {
-			"Leave Balance to Cash": self.leave_to_cash,
+			"Leave Balance to Cash": self.leave_balance_to_cash,
+			"Leave Filing Convert to Cash": self.leave_to_cash,
 		}
 
-		self.leave_to_cash(header, entries)
+		func = switcher.get(self.method, lambda: frapp.throw(_("Invalid Method")))
+		func(header, entries)
 
-		batch = frappe.new_doc("Batch Entry")
-		batch.update(header)
-		for d in entries:
-			if d.get('amount') > 0:
-				batch.append("employees", {
-					"employee": d.get('employee'),
-					"employee_name": d.get('employee_name'),
-					"amount": d.get('amount'),
-				})
-
-		batch.insert()
+		if entries:
+			ss_list = 1
+			batch = frappe.new_doc("Batch Entry")
+			batch.update(header)
+			for d in entries:
+				if d.get('amount') > 0:
+					batch.append("employees", {
+						"employee": d.get('employee'),
+						"employee_name": d.get('employee_name'),
+						"amount": d.get('amount'),
+					})
+			batch.insert()
 
 		return self.create_log(ss_list)
 
-	def leave_to_cash(self, header, entries):
+	def leave_balance_to_cash(self, header, entries):
 		header['transaction_type'] = self.convert_to
 		header['remarks'] = ("Leave to cash for year {0}").format(self.payroll_year)
 
@@ -160,11 +163,69 @@ class LeaveConversion(Document):
 					total_balance = 0
 
 				total_amt = total_balance * rates.get('daily_rate')
-				entries.append({
-					"employee": emp.name,
-					"employee_name": emp.full_name, 
-					"amount": total_amt,
-				})
+
+				if total_amt > 0:
+					entries.append({
+						"employee": emp.name,
+						"employee_name": emp.full_name, 
+						"amount": total_amt,
+					})
+
+		return header, entries
+
+	def leave_to_cash(self, header, entries):
+		attendance_from, attendance_to = frappe.db.get_value("Payroll Period", self.period, ["attendance_from","attendance_to"])
+		header['transaction_type'] = self.convert_to
+		header['remarks'] = ("Leave Converted to cash from {0} to {1}").format(attendance_from, attendance_to)
+		
+		employees = self.get_employees()
+		if employees:
+			emp_map = frappe._dict()
+			for emp in employees:
+				emp_map.setdefault(emp.name, frappe._dict({
+						"employee": emp.name,
+						"employee_name": emp.full_name,
+						"employee_details": emp,
+						"leaves": [],
+						"amount": 0.0,
+					})
+				)
+
+			#Get Leaves
+			leaves = frappe.db.sql("""SELECT LA.`name`, LA.employee, LA.full_name, LAT.leave_date, LA.leave_type, LAT.is_half_day, LAT.is_excluded, LA.remarks 
+				FROM `tabLeave Application` LA 
+				INNER JOIN `tabLeave Application Table` LAT ON LAT.parent = LA.`name`
+				WHERE company = %(company)s 
+				AND LAT.leave_date >= %(from_date)s 
+				AND LAT.leave_date <= %(to_date)s
+				AND LA.leave_type = %(leave_type)s
+				AND LA.convert_cash = 1 AND LA.docstatus = 1 AND LAT.is_excluded != 1 """,{ 
+					"company": self.company,
+					"leave_type": self.lv_convert,
+					"from_date": attendance_from,
+					"to_date": attendance_to,
+				}, as_dict=True)
+
+			#Insert to dict Leaves per Employee
+			for ll in leaves:
+				if ll.employee in emp_map:
+					emp_map[ll.employee].leaves.append(ll)
+
+			#Total Leaves per employee
+			for e, edict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
+				rates = get_rates(emp)
+				for lv in edict['leaves']:
+					if lv.is_half_day:
+						edict['amount'] += (flt(0.5, 8) * flt(rates.get('daily_rate'), 8))
+					else:
+						edict['amount'] += flt(rates.get('daily_rate'), 8)
+
+				if edict['amount'] > 0:
+					entries.append({
+						"employee": edict['employee'],
+						"employee_name": edict['employee_name'], 
+						"amount": edict['amount'],
+					})
 
 		return header, entries
 
@@ -201,5 +262,8 @@ class LeaveConversion(Document):
 		}
 
 	def create_log(self, ss_list):
-		log = "<p>" + _("Special Entries created") + "</p>"
+		log = "<p>" + _("No Special Entries created") + "</p>"
+		if ss_list:
+			log = "<p>" + _("Special Entries created") + "</p>"
+
 		return log
