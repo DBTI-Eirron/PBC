@@ -21,7 +21,7 @@ class ChangeScheduleApplication(Document):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	#def on_update_after_submit(self):
 	#	emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
@@ -33,7 +33,7 @@ class ChangeScheduleApplication(Document):
 		get_levelled_approval(self)
 		get_approver_email_list(self, 'before_update_after_submit')
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
