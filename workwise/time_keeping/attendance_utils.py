@@ -1485,7 +1485,7 @@ def get_final_processing(entry):
 				entry["work"] = 0
 				entry["undertime"] = 0
 
-		if entry.get('card_in') and (not entry.get('card_out')):
+		if entry.get('card_in') and (not entry.get('card_out')) and (not entry.get('ob_stat')):
 			entry["work"] = 0
 			entry["undertime"] = 0
 			entry["is_absent"] = 1
@@ -1499,7 +1499,7 @@ def get_final_processing(entry):
 				entry["late"] = 0
 				entry["undertime"] = 0
 		
-		if entry.get('card_out') and (not entry.get('card_in')):
+		if entry.get('card_out') and (not entry.get('card_in')) and (not entry.get('ob_stat')):
 			entry["work"] = 0
 			entry["late"] = 0
 			entry["is_absent"] = 1
@@ -2259,7 +2259,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 	
 	return entry
 
-def init_employee_map(employees, employee, company, pay_from, pay_to, approval_cutoff, adjustment):
+def init_employee_map(employees, employee, company, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs = None):
 	pay_from = getdate(pay_from)
 	pay_to = getdate(pay_to)
 	emp_map = frappe._dict()
@@ -2297,7 +2297,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
-	get_all_csa(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
+	get_all_csa(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
 	get_all_dtrp(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
 
 	return emp_map
@@ -2504,23 +2504,32 @@ def get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 		if d.employee in emp_map:
 			emp_map[d.employee].wss.append(d)
 
-def get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+def get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs = None):
 	conditions_list = []
 	multi_csa = {}
 
-	if adjustment != 1:
-		conditions_list.append("CSA.approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' ")#
-
 	if employee:
-		conditions_list.append("CSA.employee='"+cstr(employee)+"'")
+		conditions_list.append("CSA.employee='"+cstr(employee)+"' ")
+
+	if adjustment != 1 and not monthly_approval_cutoffs:
+		conditions_list.append("CSA.approved_on <= '"+ cstr(getdate(approval_cutoff)) +"'")#
+
 
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
-
-	cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
-		FROM `tabChange Schedule Application` CSA 
-		INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
-		WHERE CSA.docstatus = 1 AND workflow_state = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s 
-		{conditions} ORDER BY CSA.modified ASC """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+	if not monthly_approval_cutoffs:
+		cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
+			FROM `tabChange Schedule Application` CSA 
+			INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
+			WHERE CSA.docstatus = 1 AND workflow_state = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s 
+			{conditions} ORDER BY CSA.modified ASC """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+	else:
+		cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
+			FROM `tabChange Schedule Application` CSA INNER JOIN `tabPayroll Period` PP ON CSA.`company` = PP.`company`
+			INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
+			WHERE CSA.docstatus = 1 AND workflow_state = 'Approved' AND CSAT.target_date >= %(pay_from)s AND CSAT.target_date <= %(pay_to)s AND CSA.approved_on <= PP.approval_cutoff 
+			AND CSAT.`target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to`
+			{conditions} ORDER BY CSA.modified ASC """.format( conditions=conditions ), {'pay_from': pay_from, 'pay_to': pay_to}, as_dict=1)
+		
 
 	for d in cs_apps:
 		if d.employee in emp_map:
@@ -2552,9 +2561,10 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 
 	dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
 		DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`
-		FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` 
+		FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` INNER JOIN `tabPayroll Period` PP ON DA.`company` = PP.`company`
 		WHERE DA.`workflow_state` = 'Approved'
-		AND DA.`target_date` >= %s AND DA.`target_date` <= %s {conditions}
+		AND DA.`target_date` >= %s AND DA.`target_date` <= %s 
+		AND DA.`approved_on` <= PP.`approval_cutoff` AND DA.`target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to` {conditions}
 		ORDER BY card_datetime """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in dtr_apps:
@@ -2614,12 +2624,13 @@ def change_sched(emp_dict, completed_schedules, csa):
 def processed_def_sched(employee, pay_from, pay_to, completed_schedules):
 	att_reg = frappe.db.sql(""" SELECT AR.`employee`, AR.`target_date`, AR.`work_shift`, AR.`is_default_schedule` FROM `tabAttendance Register` AR 
 		WHERE AR.`target_date` >= %s AND AR.`target_date` <= %s """,(pay_from, pay_to), as_dict=1)
-
 	for d in completed_schedules:
 		for ar in att_reg:
 			if (ar.employee == employee) and (ar.is_default_schedule) and (not d['is_change_schedule']):
 				if ar['target_date'] == d['target_date']:
 					d['work_shift'] = ar['work_shift']
+
+
 
 def daterange(start_date, end_date):
     for n in range( int((end_date - start_date).days) + 1):
