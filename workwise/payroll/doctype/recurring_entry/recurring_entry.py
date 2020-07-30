@@ -91,7 +91,7 @@ class RecurringEntry(Document):
 				lft, rgt = frappe.db.get_value("Department", self.filter_value, ["lft", "rgt"])
 				employees = frappe.db.sql("""SELECT TE.`name`, TE.`full_name` FROM `tabEmployee` TE 
 					LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
-					WHERE TE.company = %(company)s  
+					WHERE TE.company = %(company)s AND TE.is_active = 1  
 					AND TE.department = %(filter_value)s {conditions} 
 					ORDER BY TE.last_name, TE.first_name""".format( conditions=conditions ),{ 
 					"company": self.company,
@@ -106,7 +106,7 @@ class RecurringEntry(Document):
 
 			elif self.filter_type == 'Location':
 				employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s  
-						AND location = %(filter_value)s {conditions} 
+						AND location = %(filter_value)s AND is_active = 1 {conditions} 
 						ORDER BY last_name, first_name""".format( conditions=conditions ),{  
 					"company": self.company,
 					"filter_value": self.filter_value,

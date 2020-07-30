@@ -18,6 +18,13 @@ frappe.ui.form.on('Batch Entry', {
 				}
 			};
 		});
+		cur_frm.fields_dict["employees"].grid.get_field("employee").get_query = function(doc){
+		   return {
+		        filters:{
+		            "is_active": "1"
+		           	}
+		       	}
+		}
 	},
 
 	setup: function(frm) {
