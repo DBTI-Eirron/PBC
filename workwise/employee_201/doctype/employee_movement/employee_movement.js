@@ -2,6 +2,7 @@
 // For license information, please see license.txt
 
 cur_frm.add_fetch('employee', 'full_name', 'employee_name');
+cur_frm.add_fetch('employee', 'sensitivity', 'sensitivity_level');
 cur_frm.add_fetch('employee', 'company', 'company');
 cur_frm.add_fetch('employee', 'position_title', 'current_position');
 cur_frm.add_fetch('employee', 'job_level', 'current_job_level');
