@@ -3,7 +3,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, json
 from frappe import _
 #from workwise.utils.employee_utils import set_employee_name
 from frappe import throw
@@ -15,6 +15,7 @@ from workwise.time_keeping.timekeeping_task import validate_create_lbentry
 
 class EmployeeMovement(Document):
 	def validate(self):
+		self.get_sensitivity_level()
 		if self.movement_type in ["Job Rotation", "Retirement", "Resignation", "Regularization", "Transfer", "Termination", "Salary Adjustment", "Extension of Services"]:
 			validate_inactive_employee(self)
 		if self.movement_type in ["Rehire"]:
@@ -26,6 +27,9 @@ class EmployeeMovement(Document):
 
 	def on_cancel(self):
 		self.revert_movement()
+
+	def get_sensitivity_level(self):
+		self.sensitivity_level = frappe.db.get_value("Employee", self.employee, 'sensitivity')
 
 	def get_employee_details(self):
 		emp = frappe.get_doc("Employee", self.employee)
@@ -162,10 +166,23 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"company": self.new_company if self.new_company else self.current_company,
-					"department": self.new_department if self.new_department else self.current_department,
-					"location": self.new_location if self.new_location else self.current_location,
-				})
+				"company": self.new_company if self.new_company else self.current_company,
+				"department": self.new_department if self.new_department else self.current_department,
+				"location": self.new_location if self.new_location else self.current_location,
+			})
+			if self.new_department:
+				depthead = frappe.db.get_value("Department", self.new_department, ["head"])
+				if depthead:
+					head_full_name, head_user_id = frappe.db.get_value("Employee", depthead, ["full_name", "user_id"])
+					dept_row = {
+						'approver': cstr(depthead),
+						'approver_name': cstr(head_full_name),
+						'approver_userid': cstr(head_user_id),
+						'application': 'All',
+						'level': '1',
+					}
+					emp.append('approvers', dept_row)
+
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
 
