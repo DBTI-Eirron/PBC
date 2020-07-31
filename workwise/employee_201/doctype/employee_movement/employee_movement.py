@@ -170,19 +170,6 @@ class EmployeeMovement(Document):
 				"department": self.new_department if self.new_department else self.current_department,
 				"location": self.new_location if self.new_location else self.current_location,
 			})
-			if self.new_department:
-				depthead = frappe.db.get_value("Department", self.new_department, ["head"])
-				if depthead:
-					head_full_name, head_user_id = frappe.db.get_value("Employee", depthead, ["full_name", "user_id"])
-					dept_row = {
-						'approver': cstr(depthead),
-						'approver_name': cstr(head_full_name),
-						'approver_userid': cstr(head_user_id),
-						'application': 'All',
-						'level': '1',
-					}
-					emp.append('approvers', dept_row)
-
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
 
