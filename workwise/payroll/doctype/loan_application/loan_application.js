@@ -11,6 +11,7 @@ frappe.ui.form.on('Loan Application', {
 		frm.add_fetch("employee", "company", "company");
 		frm.add_fetch("employee", "company", "company");
 		frm.add_fetch("loan_type", "title", "loan_name");
+		frm.add_fetch("employee", "sensitivity", "sensitivity_level");
 	},
 
 	refresh: function(frm) {
