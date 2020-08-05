@@ -6,6 +6,7 @@ import frappe, datetime
 from frappe.utils import cint, flt, getdate, cstr
 from frappe import _
 from workwise.payroll.payroll_utils import get_rates, format_precision, format_align_right
+
 def execute(filters=None):
 	
 	columns = get_columns(filters)
@@ -69,13 +70,19 @@ def get_accounts(filters):
 	return accounts
 
 def get_register(filters):
+	conditions = ""
+	if filters.location:
+		conditions = "AND PR.location=%(location)s"
+
 	register_list = frappe.db.sql("""SELECT PE.pay_code,PE.pay_description, PE.amount, PE.cost_center FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PE ON PE.parent = PR.`name`
 		INNER JOIN `tabTransaction Type` TT ON TT.code = PE.pay_code
-		WHERE PE.cost_center != "" AND PR.on_hold = "0" AND PR.company = %(company)s AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s""",{
+		WHERE PE.cost_center != "" AND PR.on_hold = "0" AND PR.company = %(company)s AND PR.posting_date >= %(from_date)s 
+		AND PR.posting_date <= %(to_date)s {conditions} """.format( conditions=conditions ),{
 			"company": filters.company,
 			"from_date": filters.from_date,
-			"to_date": filters.to_date
+			"to_date": filters.to_date,
+			"location": filters.location
 		}, as_dict=True)
 
 	return register_list
@@ -119,6 +126,8 @@ def get_data(filters):
 	if accounts and register:
 		if filters.include_header:
 			data.append({ "account_code": filters.company })
+			if filters.location:
+				data.append({ "account_code": filters.location })
 			data.append({ "account_code": datetime.datetime.strptime(str(getdate(filters.from_date)), '%Y-%m-%d').strftime('%B %d, %Y') 
 				+" to "+ datetime.datetime.strptime(str(getdate(filters.to_date)), '%Y-%m-%d').strftime('%B %d, %Y') })
 			data.append({ "account_code": 'Account Code', "account_name": 'Account', "cost_center": 'Cost Center', "debit": 'Debit', "credit": 'Credit' })
@@ -161,10 +170,10 @@ def get_data(filters):
  		for sd in sort_data:
 			data.append(sd)
 		data.append({
-				"account_name": _("TOTAL"),
-				"debit": '{:,.2f}'.format(total_debit),
-				"credit": '{:,.2f}'.format(total_credit),
-			})
+			"account_name": _("TOTAL"),
+			"debit": '{:,.2f}'.format(total_debit),
+			"credit": '{:,.2f}'.format(total_credit),
+		})
 
 	return data
  

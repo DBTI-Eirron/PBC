@@ -20,6 +20,12 @@ frappe.query_reports["General Journal"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "location",
+			"label": __("Location"),
+			"fieldtype": "Link",
+			"options": "Location",
+		},
+		{
 			"fieldname": "cost_center",
 			"label": __("Cost Center"),
 			"fieldtype": "Link",
