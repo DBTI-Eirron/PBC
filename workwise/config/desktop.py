@@ -84,6 +84,14 @@ def get_data():
 			"reverse": 0
 		},
 		{
+			"module_name": "Analytics",
+			"color": "#3cc051",
+			"icon": "fa fa-line-chart",
+			"type": "module",
+			"label": _("Analytics"),
+			"reverse": 0
+		},
+		{
 			"module_name": "Utilities",
 			"color": "#666666",
 			"icon": "fa fa-wrench",
