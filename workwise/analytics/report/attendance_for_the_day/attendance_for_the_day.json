@@ -7,7 +7,7 @@
  "doctype": "Report", 
  "idx": 0, 
  "is_standard": "Yes", 
- "modified": "2019-11-05 06:42:00.144148", 
+ "modified": "2020-08-06 16:33:46.616793", 
  "modified_by": "Administrator", 
  "module": "Analytics", 
  "name": "Attendance for the Day", 
@@ -17,37 +17,13 @@
  "report_type": "Script Report", 
  "roles": [
   {
-   "role": "HR Manager"
-  }, 
-  {
-   "role": "Payroll Manager"
-  }, 
-  {
-   "role": "Time Keeping Manager"
-  }, 
-  {
-   "role": "Rank and File"
-  }, 
-  {
-   "role": "Manager"
-  }, 
-  {
-   "role": "Officer"
-  }, 
-  {
-   "role": "Approver"
-  }, 
-  {
    "role": "System Manager"
   }, 
   {
-   "role": "HR Comp Ben"
+   "role": "HR Manager"
   }, 
   {
-   "role": "HR User"
-  }, 
-  {
-   "role": "Timekeeper Approver"
+   "role": "Time Keeping Manager"
   }
  ]
 }
