@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-import frappe, datetime
+import frappe, datetime, calendar
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_to_date, cstr
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
@@ -907,3 +907,10 @@ def move_my_payslip_leave_to_my_profile():
 
 def remove_lbentries_with_no_leave_application():
 	frappe.db.sql("""DELETE FROM `tabLB Entry` WHERE `balance_type` = 'Less' AND created_from = 'Leave Application' AND `name` NOT IN (SELECT `linked_lb_entry` FROM `tabLeave Application` WHERE `linked_lb_entry` IS NOT NULL) """)
+
+def add_month_in_payroll_period():
+	period_list = frappe.db.sql(""" SELECT `name`, `from_date`, `to_date` FROM `tabPayroll Period` WHERE `payroll_month` IS NULL """, as_dict=1)
+	for period in period_list:
+		payroll_month = calendar.month_name[list(calendar.month_abbr).index(period.name[:3])]
+		frappe.db.sql(""" UPDATE `tabPayroll Period` SET `payroll_month`=%s WHERE `name` = %s """,( payroll_month, period.name ) )
+		frappe.db.commit()
