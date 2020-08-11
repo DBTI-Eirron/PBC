@@ -37,18 +37,22 @@ def get_data(present,absent,late,leave):
 	data.append({"employee":"<b>PRESENT</b>"})
 	for p in present:
 		data.append({"employee":p['name'],"full_name":p['full_name']})
+	data.append({"employee":"Total","full_name":len(present)})
 	data.append({})
 	data.append({"employee":"<b>ABSENT</b>"})
 	for a in absent:
 		data.append({"employee":a['name'],"full_name":a['full_name']})
+	data.append({"employee":"Total","full_name":len(absent)})
 	data.append({})
 	data.append({"employee":"<b>LATE</b>"})
 	for lt in late:
 		data.append({"employee":lt['name'],"full_name":lt['full_name']})
+	data.append({"employee":"Total","full_name":len(late)})
 	data.append({})
 	data.append({"employee":"<b>LEAVE</b>"})
 	for lv in leave:
-		data.append({"employee":lv['name'],"full_name":lv['full_name']})	
+		data.append({"employee":lv['name'],"full_name":lv['full_name']})
+	data.append({"employee":"Total","full_name":len(leave)})
 	return data
 
 def get_columns(filters):
