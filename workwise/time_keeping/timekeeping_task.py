@@ -71,7 +71,7 @@ def check_rundate(method, datesource):
 def automated_leave_balance(is_forced=0):
 	lb_entries_created = 0
 	created_lb_entries = 0
-	now_date = '2021-01-01'#nowdate()
+	now_date = nowdate()
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 	year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
 
@@ -327,7 +327,7 @@ def validate_create_lbentry(entry, data=None):
 
 def get_carryover_lvbal():
 	result = []
-	now_date = '2021-01-01'#nowdate()
+	now_date = nowdate()
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 	year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
 	pastyear = now_date.year - 1
