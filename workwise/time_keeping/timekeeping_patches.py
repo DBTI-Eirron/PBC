@@ -914,3 +914,6 @@ def add_month_in_payroll_period():
 		payroll_month = calendar.month_name[list(calendar.month_abbr).index(period.name[:3])]
 		frappe.db.sql(""" UPDATE `tabPayroll Period` SET `payroll_month`=%s WHERE `name` = %s """,( payroll_month, period.name ) )
 		frappe.db.commit()
+
+def fix_lbentry_fromdate():
+	frappe.db.sql(""" UPDATE `tabLB Entry` SET from_date=DATE(creation) """)
