@@ -108,6 +108,8 @@ class CompensatoryTimeOff(Document):
 							if a.from_hrs <= total_hours <= a.to_hrs:
 								self.break_hours = flt(a.break_mins, 2)/60
 								break
+				else:
+					self.break_hours = None
 
 	def chk_holiday(self, target_date):
 		holiday_tag  = 0
