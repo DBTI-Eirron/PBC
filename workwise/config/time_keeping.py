@@ -71,6 +71,10 @@ def get_data():
 					"type": "doctype",
 					"name": "Compensatory Time Off",
 				},
+				{
+					"type": "doctype",
+					"name": "Timelogs Application",
+				},
 
 			]
 		},
@@ -104,6 +108,10 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Timelogs Override",
+				},
+				{
+					"type": "doctype",
+					"name": "Convertrix",
 				},
 			]
 		},
