@@ -144,29 +144,42 @@ class BatchApproval(Document):
 		additional_fields = ""
 		filter_date = "AP.`posting_date`"
 		record_list = []
+		appfields = ["name", "posting_date", "employee"]
+		appfilterdate = "posting_date"
 
 		if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
 			additional_fields += ", AP.total_hrs"
+			appfields.append("total_hrs")
 		if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application", "Change Schedule Application"]:
 			additional_fields += ", AP.from_date, AP.to_date"
+			appfields.extend(["from_date", "to_date"])
 			if self.based_on == "Target Date":
 				filter_date = "AP.from_date"
+				appfilterdate = "from_date"
 		if self.application_type == "Undertime Application":
 			additional_fields += ", AP.from_date"
+			appfields.extend(["from_date"])
 			if self.based_on == "Target Date":	
 				filter_date = "AP.from_date"
+				appfilterdate = "from_date"
 		if self.application_type == "Excuse Tardiness Application":
 			additional_fields += ", AP.date"
+			appfields.extend(["date"])
 			if self.based_on == "Target Date":	
 				filter_date = "AP.date"
+				appfilterdate = "date"
 		if self.application_type in ["DTR Problem Application"]:
 			additional_fields += ", AP.target_date"
+			appfields.extend(["target_date"])
 			if self.based_on == "Target Date":	
 				filter_date = "AP.target_date"
+				appfilterdate = "target_date"
 		if self.application_type == "Compensatory Time Off":
 			additional_fields += ", AP.`date`, AP.use_date, AP.`type`, AP.use_total_hours, AP.total_hours, AP.use_target_date, AP.file_target_date"
+			appfields.extend(["date", "use_date", "type", "use_total_hours", "total_hours", "use_target_date", "file_target_date"])
 			if self.based_on == "Target Date":	
 				filter_date = "(AP.use_target_date  BETWEEN %(from_date)s AND %(to_date)s) or AP.file_target_date"
+				appfilterdate = "file_target_date"
 
 		if not any(elem in ["Administrator", "Admin Approver"] for elem in frappe.get_roles(cur_user)):
 			enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
@@ -187,19 +200,27 @@ class BatchApproval(Document):
 						"cur_user": cur_user,
 				}, as_dict=True)
 			else:
-				record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
-						FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` 
-						WHERE (AP.`workflow_state` = "Pending" OR AP.`workflow_state` = "Approval in Progress")
-						AND ("""+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s) 
-						{conditions} 
-						AND TE.company = %(company)s 
-					""".format(conditions=self.sql_select_filters()),{ 
-						"company": self.company,
-						"employee": self.employee,
-						"from_date": getdate(self.from_date),
-						"to_date": getdate(self.to_date),
-						"cur_user": cur_user,
-					}, as_dict=True)
+				#record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
+				#		FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` 
+				#		WHERE (AP.`workflow_state` = "Pending" OR AP.`workflow_state` = "Approval in Progress")
+				#		AND ("""+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s) 
+				#		
+				#		{conditions} 
+				#		AND TE.company = %(company)s 
+				#	""".format(conditions=self.sql_select_filters()),{ 
+				#		"company": self.company,
+				#		"employee": self.employee,
+				#		"from_date": getdate(self.from_date),
+				#		"to_date": getdate(self.to_date),
+				#		"cur_user": cur_user,
+				#	}, as_dict=True)
+
+				appfilters = {
+					"workflow_state": ["not in", "Approved", "Approval in Progress"], 
+					appfilterdate: [">=", str(getdate(self.from_date))], 
+					appfilterdate: ["<=", str(getdate(self.to_date))]
+				}
+				record = frappe.get_list(self.application_type, filters=appfilters, fields=appfields)
 		else:
 			record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
 					FROM """+table+""" AP JOIN `tabEmployee` TE 
@@ -229,6 +250,7 @@ class BatchApproval(Document):
 							record_list.append(c)
 							record.remove(c)
 
+		for rc in record:
+			rc["full_name"] = frappe.db.get_value("Employee", rc['employee'], ["full_name"])
+
 		return record
-
-
