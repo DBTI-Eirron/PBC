@@ -140,6 +140,10 @@ class OvertimeApplication(Document):
 								self.break_mins = None
 								self.from_hrs = None
 								self.to_hrs = None
+				else:
+					self.break_mins = None
+					self.from_hrs = None
+					self.to_hrs = None
 				
 
 	def validate_overtime(self):
