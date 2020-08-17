@@ -1,5 +1,5 @@
 from __future__ import unicode_literals
-import frappe, datetime
+import frappe, datetime, calendar
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_to_date, cstr
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
@@ -711,10 +711,18 @@ def validate_loanpayments():
 	print( "Total Payment To Remove: "+cstr(ct) )
 
 def update_loans_payrollperiod():
-	loan_update = frappe.db.sql("""SELECT LA.`name` as "loan_name", P.`name` as "payroll_period" FROM `tabLoan Application Payments` LA INNER JOIN `tabPayroll Period` P 
-		on LA.`payment_date` = P.`payroll_date`  WHERE LA.`payment_status` = 'Paid' """, as_dict=True )
+	print('Gathering Loan Applications........')
+	loan_update = frappe.db.sql("""SELECT LAP.`name` as "loan_name", P.`name` as "payroll_period" FROM `tabLoan Application Payments` LAP INNER JOIN `tabPayroll Period` P 
+		on LAP.`payment_date` = P.`payroll_date` INNER JOIN `tabLoan Application` LA on LA.`name` = LAP.`parent` 
+		WHERE LAP.`payment_status` = 'Paid' AND P.`company` = LA.`company`""", as_dict=True )
+	updated_loan = 0
+	loan_count = len(loan_update)
 	for l in loan_update:
+		loan_count -= 1
+		updated_loan +=1
 		frappe.db.sql("""UPDATE `tabLoan Application Payments` SET  payroll_period = %s WHERE `name` = %s   """,(l.payroll_period, l.loan_name))
+		print('Remaining: '+cstr(loan_count)+" "+"Updated:"+cstr(updated_loan))
+	print('Finished')
 
 def convert_ctocreds():
 	frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET old_total_credits_earned = total_credits_earned WHERE `type` = 'Use' """)
@@ -765,3 +773,147 @@ def update_payroll_date():
 def approved_on_to_datetime():
 	frappe.db.sql(""" UPDATE `tabChange Schedule Application` SET approved_on=modified WHERE docstatus = 1 AND workflow_state = 'Approved'""")
 	frappe.db.sql(""" UPDATE `tabDTR Problem Application` SET approved_on=modified WHERE docstatus = 1 AND workflow_state = 'Approved'""")
+
+def convert_leave_balacnce_to_lb_entry():
+	current_employees = []
+	employee_list = frappe.db.sql("""SELECT `name` FROM `tabEmployee` """, as_dict=1)
+	for el in employee_list:
+		current_employees.append(el.name)
+
+	included_old = []
+	leave_balance = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE `credits` > 0 """, as_dict=1)
+	for d in leave_balance:
+		if d.employee in current_employees:
+			old_from_balance = d.name
+			if old_from_balance and old_from_balance not in included_old:
+				included_old.append(old_from_balance)
+
+			full_name = None
+			get_full_name = frappe.db.get_value("Employee", d['employee'], ["full_name"])
+			if get_full_name:
+				full_name = get_full_name
+
+			company = None
+			get_company = frappe.db.get_value("Employee", d['employee'], ["company"])
+			if get_company:
+				company = get_company
+
+			lb = frappe.new_doc("LB Entry")
+			lb.update({
+				"employee": d.employee,
+				"employee_name": full_name,
+				"posting_date": nowdate(),
+				"company": company,
+				"leave_type": d.leave_type,
+				"balance_type": 'Add',
+				"created_from": 'Execute Script',
+				"from_date": d.from_date,
+				"to_date": d.to_date,
+				"credits": d.credits,
+				"deduct_credits_to": None
+			})
+			lb.flags.ignore_permissions = True
+			lb.flags.ignore_validate = True
+			lb.insert()
+			new_from_balance = lb.name
+			if old_from_balance in included_old:
+				frappe.db.sql("""UPDATE `tabLeave Application` SET from_balance=%s, old_from_balance=%s WHERE from_balance = %s AND leave_type = %s """,(new_from_balance, old_from_balance, old_from_balance, d.leave_type))
+
+	leave_apps = frappe.db.sql("""SELECT * FROM `tabLeave Application` WHERE `docstatus` = 1 AND `workflow_state` = 'Approved' """, as_dict=1)
+	for ap in leave_apps:
+		if ap.total_leave_days and ap.employee in current_employees:
+			
+			full_name = None
+			get_fullname = frappe.db.get_value("Employee", d['employee'], ["full_name"])
+			if get_fullname:
+				full_name = get_fullname
+				
+			company = None
+			get_company_name = frappe.db.get_value("Employee", d['employee'], ["company"])
+			if get_company_name:
+				company = get_company_name
+
+			if ap.company:
+				company = ap.company
+
+			alb = frappe.new_doc("LB Entry")
+			alb.update({
+				"employee": ap.employee,
+				"employee_name": ap.full_name,
+				"posting_date": ap.posting_date,
+				"company": company,
+				"leave_type": ap.leave_type,
+				"balance_type": 'Less',
+				"created_from": 'Leave Application',
+				"linked_document": ap.name,
+				"from_date": ap.from_date,
+				"to_date": ap.to_date,
+				"credits": ap.total_leave_days,
+				"deduct_credits_to": ap.leave_type,
+			})
+			alb.flags.ignore_permissions = True
+			alb.flags.ignore_validate = True
+			alb.insert()
+			frappe.db.sql("""UPDATE `tabLeave Application` SET linked_lb_entry=%s WHERE `name` = %s """,(alb.name, ap.name))
+
+def convert_leave_balacnce_to_lb_entry_balance_only():
+	current_employees = []
+	employee_list = frappe.db.sql("""SELECT `name` FROM `tabEmployee` """, as_dict=1)
+	for el in employee_list:
+		current_employees.append(el.name)
+
+	included_old = []
+	leave_balance = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE `credits` > 0 """, as_dict=1)
+	for d in leave_balance:
+		if d.employee in current_employees:
+			old_from_balance = d.name
+			if old_from_balance and old_from_balance not in included_old:
+				included_old.append(old_from_balance)
+
+			full_name = None
+			get_full_name = frappe.db.get_value("Employee", d['employee'], ["full_name"])
+			if get_full_name:
+				full_name = get_full_name
+
+			company = None
+			get_company = frappe.db.get_value("Employee", d['employee'], ["company"])
+			if get_company:
+				company = get_company
+
+			lb = frappe.new_doc("LB Entry")
+			lb.update({
+				"employee": d.employee,
+				"employee_name": full_name,
+				"posting_date": nowdate(),
+				"company": company,
+				"leave_type": d.leave_type,
+				"balance_type": 'Add',
+				"created_from": 'Execute Script',
+				"from_date": d.from_date,
+				"to_date": d.to_date,
+				"credits": d.credits - d.used_credits,
+				"deduct_credits_to": None
+			})
+			lb.flags.ignore_permissions = True
+			lb.flags.ignore_validate = True
+			lb.insert()
+			new_from_balance = lb.name
+			if old_from_balance in included_old:
+				frappe.db.sql("""UPDATE `tabLeave Application` SET old_from_balance=%s, from_balance=%s WHERE from_balance = %s AND leave_type = %s """,(old_from_balance, new_from_balance, old_from_balance, d.leave_type))
+	frappe.db.sql("""UPDATE `tabLeave Application` SET without_lbentry=1 """)
+
+def move_my_payslip_leave_to_my_profile():
+	frappe.db.sql("""UPDATE `tabDocType` SET module = 'My Profile' WHERE `name`= 'My Payslip Leave'""")
+
+def remove_lbentries_with_no_leave_application():
+	frappe.db.sql("""DELETE FROM `tabLB Entry` WHERE `balance_type` = 'Less' AND created_from = 'Leave Application' AND `name` NOT IN (SELECT `linked_lb_entry` FROM `tabLeave Application` WHERE `linked_lb_entry` IS NOT NULL) """)
+
+def add_month_in_payroll_period():
+	period_list = frappe.db.sql(""" SELECT `name`, `from_date`, `to_date` FROM `tabPayroll Period` WHERE `payroll_month` IS NULL """, as_dict=1)
+	for period in period_list:
+		payroll_month = calendar.month_name[list(calendar.month_abbr).index(period.name[:3])]
+		frappe.db.sql(""" UPDATE `tabPayroll Period` SET `payroll_month`=%s WHERE `name` = %s """,( payroll_month, period.name ) )
+		frappe.db.commit()
+
+def fix_lbentry_fromdate():
+	frappe.db.sql(""" UPDATE `tabLB Entry` SET from_date=DATE(creation) """)

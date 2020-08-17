@@ -139,7 +139,7 @@ def get_columns(filters):
 def get_data(filters):
 	#Initialize
 	data = []
-	transaction_type = ['HDMF','HDMFE']
+	transaction_type = ['HDMF','HDMFE', 'HDMFM']
 
 	gov_map = get_employees(filters,transaction_type)
 	if not gov_map:
@@ -213,14 +213,15 @@ def get_data(filters):
 		total_hdmfe, total_hdmf = 0, 0
 		for emp in sorted(gov_map.items(), key = lambda k:k[1]['full_name']):
 			total_hdmfe += gov_map[emp[0]]['HDMFE']
-			total_hdmf += gov_map[emp[0]]['HDMF']
+			total_hdmf += gov_map[emp[0]]['HDMF'] + gov_map[emp[0]]['HDMFM']
+			employee_HDFM = gov_map[emp[0]]['HDMF'] + gov_map[emp[0]]['HDMFM']
 			row = {
 				"hdmf_no": gov_map[emp[0]]['hdmf_no'],
 				"employee": emp[0],
 				"last_name": gov_map[emp[0]]['last_name'],
 				"first_name": gov_map[emp[0]]['first_name'],
 				"middle_name": gov_map[emp[0]]['middle_name'],
-				"HDMF": format_precision(gov_map[emp[0]]['HDMF'], filters.value_precision),
+				"HDMF": format_precision(employee_HDFM, filters.value_precision),
 				"HDMFE": format_precision(gov_map[emp[0]]['HDMFE'], filters.value_precision),
 				"tin": gov_map[emp[0]]['tin'],
 				"birthdate": datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%Y%m%d"),
@@ -233,8 +234,8 @@ def get_data(filters):
 			"last_name": "",
 			"first_name": "",
 			"middle_name": "",
-			"HDMF": total_hdmfe,
-			"HDMFE": total_hdmf,
+			"HDMF": total_hdmf,
+			"HDMFE": total_hdmfe,
 			"tin": "",
 			"birthdate": "",
 		})

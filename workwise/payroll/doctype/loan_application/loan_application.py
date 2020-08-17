@@ -16,6 +16,7 @@ class LoanApplication(Document):
 	def validate(self):
 		self.validate_loan()
 		validate_inactive_employee(self)
+		self.get_sensitivity_level()
 		self.update_missing_names()
 		self.update_paid_unpaid()
 		self.validate_date()
@@ -194,6 +195,9 @@ class LoanApplication(Document):
 			if emp_sensitivity not in employeee_list:
 				frappe.throw(_(" You dont have access to this employee "))
 
+	def get_sensitivity_level(self):
+		self.sensitivity_level = frappe.db.get_value("Employee", self.employee, 'sensitivity')
+
 @frappe.whitelist()
 def make_restructure(source_name, target_doc=None):
 	def add_entries(source, target):
@@ -220,6 +224,7 @@ def make_restructure(source_name, target_doc=None):
 		target_doc.employee = source_doc.employee
 		target_doc.employee_name = source_doc.employee_name
 		target_doc.freq_method = source_doc.freq_method
+		target_doc.sensitivity_level = source_doc.sensitivity_level
 
 	doclist = get_mapped_doc("Loan Application", source_name, {
 		"Loan Application": {

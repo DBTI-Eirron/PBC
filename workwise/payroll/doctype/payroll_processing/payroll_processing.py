@@ -969,23 +969,27 @@ class PayrollProcessing(Document):
 			else:
 				if self.frequency == rec.frequency or rec.frequency == 'Both' or rec.frequency == 'All':
 					amt = 0
-					if rec.frequency == 'Both' or rec.frequency == 'All':
+					if rec.frequency not in ['All', 'Both']:
+						amt = flt(rec.amount, 8)
+
+					if rec.frequency in ['All']:
+						if emp.get('payroll_schedule') == "Weekly":
+							amt = flt(rec.amount, 8) / flt(header.get("no_weeks"))
+						elif emp.get('payroll_schedule') == "Semi-Monthly":
+							amt = flt(rec.amount, 8) / 2
+						else:
+							amt = flt(rec.amount, 8)
+
+					if rec.frequency in ['Both']:
 						if emp.get('payroll_schedule') == "Weekly":
 							if cint(header.get("no_weeks")) == cint(5):
 								if self.frequency in ["2nd", "5th", "All"]:
-									amt = flt(rec.amount, 8) / 2
-								else:
-									amt = 0
-									
+									amt = flt(rec.amount, 8) / 2									
 							elif cint(header.get("no_weeks")) == cint(4):
 								if self.frequency in ["2nd", "4th", "All"]:
 									amt = flt(rec.amount, 8) / 2
-								else:
-									amt = 0
 						else:
 							amt = flt(rec.amount, 8) / 2
-					else:
-						amt = rec.amount
 					
 					if rec.method == "Present Days":
 						amt = rec.amount
@@ -1007,17 +1011,7 @@ class PayrollProcessing(Document):
 						amt = flt(amt * header.get('work_days'), 8)
 
 					elif rec.method == 'Standard':
-						div = 1
-						if emp.get('payroll_schedule') == "Weekly" and rec.frequency == 'All':
-							div = flt(header.get("no_weeks"))
-
-						if rec.frequency == 'Both':
-							div = 2
-
-						if amt > 0:
-							amt = rec.amount
-
-						amt = flt(amt / div, 8)
+						amt = flt(amt)
 						
 					elif rec.method == 'Deduct Absent':
 						hourly_rate = self.get_hourly_rate_base(rec.amount, emp)

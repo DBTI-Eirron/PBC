@@ -9,7 +9,7 @@ from frappe import _
 from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, 
-	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_cutoff_approval_date, validate_approver_userperm )
+	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_cutoff_approval_date, validate_approver_userperm, get_employee_details )
 
 class ChangeScheduleApplication(Document):
 	def on_submit(self):
@@ -21,7 +21,7 @@ class ChangeScheduleApplication(Document):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	#def on_update_after_submit(self):
 	#	emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
@@ -33,7 +33,7 @@ class ChangeScheduleApplication(Document):
 		get_levelled_approval(self)
 		get_approver_email_list(self, 'before_update_after_submit')
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	def on_cancel(self):
 		validate_reject_cancel_own_application(self)
@@ -42,6 +42,7 @@ class ChangeScheduleApplication(Document):
 		get_cancelled_by_and_date(self)
 
 	def validate(self):
+		get_employee_details(self)
 		validate_inactive_employee(self)
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)

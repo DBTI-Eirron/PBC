@@ -20,6 +20,10 @@ def get_data():
 				},
 				{
 					"type": "doctype",
+					"name": "Leave Conversion",
+				},
+				{
+					"type": "doctype",
 					"name": "Adjustment Processing",
 				},
 				{

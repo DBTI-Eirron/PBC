@@ -2,6 +2,8 @@
 // For license information, please see license.txt
 cur_frm.add_fetch('employee','full_name','full_name');
 cur_frm.add_fetch('employee','position_title','position_title');
+cur_frm.add_fetch('employee','date_hired','start_date_organization');
+cur_frm.add_fetch('employee','years_in_service','total_length_service');
 
 frappe.provide("workwise.exit_interview");
 

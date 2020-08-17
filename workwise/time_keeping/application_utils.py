@@ -1,9 +1,24 @@
 from __future__ import unicode_literals
 import frappe, datetime
 from datetime import time, datetime, timedelta
-from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money, now_datetime, add_to_date
+from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money, now_datetime, add_to_date, now
 from frappe import _, msgprint
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card, get_all_dtrp, get_schedule)
+
+def get_employee_details(self):
+	if self.is_new():
+		full_name, company = frappe.get_value("Employee", self.employee, ["full_name", "company"])
+		if self.doctype in ["Leave Application", "Overtime Application", "Change Request Application", "Official Business Application"]:
+			if not self.full_name:
+				self.full_name = full_name
+
+		if self.doctype in ["Undertime Application", "Excuse Tardiness Application", "Change Schedule Application", "DTR Problem Application", "Compensatory Time Off"]:
+			if not self.employee_name:
+				self.employee_name = full_name	
+	
+		if not self.company:
+			self.company = company
+
 
 def grant_head_subordinate_access(self):
 	if self.is_new():
@@ -136,7 +151,7 @@ def validate_cutoff_approval_date(self):
 			target_date = self.from_date
 
 		if self.doctype in ['DTR Problem Application']:
-			target_date = self.from_date
+			target_date = self.target_date
 
 		if target_date:
 			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND %s BETWEEN `attendance_from` AND `attendance_to` """,(self.company, target_date), as_dict=1)
@@ -185,7 +200,7 @@ def set_levelled_approval_to_progress(self, approver_level):
 	self.db_set("last_approval_level", approver_level[0].level)
 	self.db_set("workflow_state", "Approval in Progress")
 	self.db_set("approved_by", frappe.session.user)
-	self.db_set("approved_on", nowdate())
+	self.db_set("approved_on", now())
 	approver_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
 	if approver_name:
 		self.db_set("approver_name", cstr(approver_name[0].full_name))
@@ -204,7 +219,7 @@ def set_levelled_approval_to_approved(self, highest_level):
 	self.db_set("last_approval_level", highest_level[0].level)
 	self.db_set("workflow_state", "Approved")
 	self.db_set("approved_by", frappe.session.user)
-	self.db_set("approved_on", nowdate())
+	self.db_set("approved_on", now())
 	approver_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
 	if approver_name:
 		self.db_set("approver_name", cstr(approver_name[0].full_name))
@@ -227,7 +242,7 @@ def get_levelled_approval_rejection(self):
 def get_approver_and_date(self):
 	if self.workflow_state == "Approved":
 		self.db_set("approved_by", frappe.session.user)
-		self.db_set("approved_on", nowdate())
+		self.db_set("approved_on", now())
 		approver_name = frappe.db.sql("""SELECT full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
 		if approver_name:
 			self.db_set("approver_name", cstr(approver_name[0].full_name))

@@ -26,9 +26,12 @@ class AnnualizationProcessing(Document):
 		return self.create_log(ss_list)
 
 	def get_employee(self, from_year, to_year):
-		employees = frappe.db.sql("""select `name`, tin, full_name, company, tin, date_hired, date_retired, date_resigned, date_terminated, date_contract_ended, sensitivity from tabEmployee WHERE company = %(company)s 
-			AND payroll_schedule = %(schedule)s AND date_hired < %(to_year)s {conditions} 
-			ORDER BY full_name ASC """.format( conditions=self.get_employee_conditions() ),
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.tin, TE.full_name, TE.company, TE.tin, TE.date_hired, TE.date_retired, TE.date_resigned, 
+			TE.date_terminated, TE.date_contract_ended, TE.sensitivity 
+			FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name` 
+			WHERE TE.company = %(company)s 
+			AND TE.payroll_schedule = %(schedule)s AND TE.date_hired < %(to_year)s {conditions} 
+			ORDER BY TE.full_name ASC """.format( conditions=self.get_employee_conditions() ),
 				({ 
 					"company": self.company,
 					"schedule": self.payroll_schedule,
@@ -99,12 +102,19 @@ class AnnualizationProcessing(Document):
 	def get_employee_conditions(self):
 		conditions = []
 		if self.employee:
-			conditions.append("`name`=%(employee)s")
+			conditions.append("TE.`name`=%(employee)s")
 
+		if self.department:
+			lft, rgt = frappe.db.get_value("Department", self.department, ["lft", "rgt"])
+			conditions.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
+
+		if self.location:
+			conditions.append("TE.location=%(location)s")
+		
 		if frappe.session.user != "Administrator":
-			conditions.append(_("sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
+			conditions.append(_("TE.sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
 
-		return "and {}".format(" and ".join(conditions)) if conditions else ""
+		return "AND {}".format(" AND ".join(conditions)) if conditions else ""
 
 	def get_employee_wise_register(self, registers, previous_bir, lastpay, emp_map):
 		tr_map = get_transaction_map()

@@ -391,27 +391,43 @@ class SpecialProcessing(Document):
 			for emp in employees:
 				rates = get_rates(emp)
 				total_amt = 0
-				registerx = frappe.db.sql(""" SELECT credits, used_credits FROM `tabLeave Balance` 
-					WHERE employee = %(employee)s
-					AND leave_type =  %(lv_convert)s
-					AND from_date >= %(from_year)s 
-					AND to_date <= %(to_year)s """,{ 
-						"employee": emp.name,
-						"from_year": from_year,
-						"to_year": to_year,
-						"schedule": emp.payroll_schedule,
-						"lv_convert": self.lv_convert,
-				}, as_dict=True)
 
-				total_credits = 0.0
-				credits = 0
-				for d in registerx:
-					credits = 0
-					credits = d.credits - d.used_credits
-					if credits > 0:
-						total_credits += credits
+				valid_entry = {}
+				less_entry = {}
+				total_balance = 0
+				lb_entries = frappe.db.sql(""" SELECT * FROM `tabLB Entry` WHERE `employee` = %s AND `leave_type` = %s ORDER BY `from_date` ASC """, (emp.name, self.lv_convert), as_dict=1)
+				for d in lb_entries:
+					if d.balance_type == "Add":
+						if d.name not in valid_entry:
+							valid_entry[d.name] = {
+								"credits": d.credits,
+								"from": getdate(d.from_date),
+								"to": getdate(d.to_date),
+							}
+					else:
+						if d.name not in less_entry:
+							less_entry[d.name] = {
+								"used": 0,
+								"credits": d.credits,
+								"from": getdate(d.from_date),
+								"to": getdate(d.to_date),
+							}
 
-				total_amt = credits * rates.get('daily_rate')
+				for vl in valid_entry:
+					to_less = 0
+					for le in less_entry:
+						if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
+							if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+								to_less += less_entry[le]['credits']
+								less_entry[le]['used'] = 1
+					valid_entry[vl]['credits'] -= to_less
+					if ( valid_entry[vl]['from'] <= getdate(from_year) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(to_year) <= valid_entry[vl]['to'] ):
+						total_balance += valid_entry[vl]['credits']
+				
+				if total_balance <= 0:
+					total_balance = 0
+
+				total_amt = total_balance * rates.get('daily_rate')
 				entries.append({
 					"employee": emp.name,
 					"employee_name": emp.full_name, 

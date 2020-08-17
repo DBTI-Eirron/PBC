@@ -453,26 +453,57 @@ class LastPayEntry(Document):
 	def get_leave_conversion(self, employee, register, entry):
 		for emp in employee:
 			rates = self.get_rates(emp)
-			convertible_leaves = frappe.db.sql(""" SELECT leave_name, leave_code FROM `tabLeave Type` WHERE convertible = 1 """, as_dict=True)
-			for d in convertible_leaves:
+			convertible_leaves = frappe.db.sql(""" SELECT `name`, leave_name, leave_code FROM `tabLeave Type` WHERE convertible = 1 """, as_dict=True)
+			for lv in convertible_leaves:
 				total_amt = 0
-				balances = frappe.db.sql("""SELECT * FROM `tabLeave Balance` WHERE employee = %(employee)s AND leave_type = %(leave_type)s  """,{ 
-					"employee": self.employee,
-					"leave_type": d.leave_name,
-				}, as_dict=True)
-				for b in balances:
-					if (getdate(self.from_year) <= getdate(b.from_date) <= getdate(self.to_year)) or (getdate(self.from_year) <= getdate(b.to_date) <= getdate(self.to_year)):
-						credits = (b.credits - b.used_credits)
-						total_amt += rates.get('daily_rate') * (credits)
-						if total_amt:
-							register.append({
-								"transaction_type": "LC",
-								"description": "Convertible "+ str(b.leave_type) +"", 
-								"type": "Add",
-								"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(credits)+" Credit/s",
-								"amount": total_amt,
-								"manually_encoded": 0,
-							})
+				valid_entry = {}
+				less_entry = {}
+				total_balance = 0
+				lb_entries = frappe.db.sql(""" SELECT * FROM `tabLB Entry` WHERE `employee` = %s AND (`leave_type` = %s OR `deduct_credits_to` = %s) ORDER BY `from_date` ASC """, (emp.name, lv.name, lv.name), as_dict=1)
+				for d in lb_entries:
+					if d.balance_type == "Add":
+						if lv.name == d.leave_type:
+							if d.name not in valid_entry:
+								valid_entry[d.name] = {
+									"credits": d.credits,
+									"from": getdate(d.from_date),
+									"to": getdate(d.to_date),
+								}
+					else:
+						if d.deduct_credits_to == lv.name:
+							if d.name not in less_entry:
+								less_entry[d.name] = {
+									"used": 0,
+									"credits": d.credits,
+									"from": getdate(d.from_date),
+									"to": getdate(d.to_date),
+								}
+
+				for vl in valid_entry:
+					to_less = 0
+					for le in less_entry:
+						if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
+							if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+								to_less += less_entry[le]['credits']
+								less_entry[le]['used'] = 1
+					valid_entry[vl]['credits'] -= to_less
+					if (( valid_entry[vl]['from'] <= getdate(self.from_year) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_year) <= valid_entry[vl]['to'] ))\
+					or (( getdate(self.from_year) <= valid_entry[vl]['from'] <= getdate(self.to_year) ) or ( getdate(self.from_year) <= valid_entry[vl]['to'] <= getdate(self.to_year) )):
+						total_balance += valid_entry[vl]['credits']
+				
+				if total_balance <= 0:
+					total_balance = 0
+
+				total_amt += rates.get('daily_rate') * (total_balance)
+				if total_amt:
+					register.append({
+						"transaction_type": "LC",
+						"description": "Convertible "+ str(d.leave_type) +"", 
+						"type": "Add",
+						"remarks": ""+ str( flt(rates.get('daily_rate'), 8) ) +" x "+ str(total_balance)+" Credit/s",
+						"amount": total_amt,
+						"manually_encoded": 0,
+					})
 
 				entry["pres_total_tax"] += total_amt
 				entry["net_pay"] += total_amt

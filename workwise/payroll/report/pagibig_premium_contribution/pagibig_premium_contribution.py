@@ -10,7 +10,7 @@ from operator import itemgetter
 
 def execute(filters=None):
 	columns = get_columns(filters)
-	transaction_type = ['HDMF', 'HDMFE']
+	transaction_type = ['HDMF', 'HDMFE', 'HDMFM']
 	employee_list, gov_map = get_employees(filters,transaction_type)
 	final_employee, final_employer, final_total = 0, 0, 0
 
@@ -56,14 +56,21 @@ def execute(filters=None):
 		}
 
 		hdmf_total = 0
+		emp_contri = 0
 		for trans in transaction_type:
 			sss_amount = gov_map[emp][trans]
+			if trans == "HDMFM" or trans == "HDMF":
+				emp_contri += sss_amount
 			hdmf_total += sss_amount
 			row[trans] = sss_amount
+			
+		row["HDMF"] = emp_contri
+
 
 		if hdmf_total > 0:
 			final_employee += flt(gov_map[emp]["HDMF"])
 			final_employer += flt(gov_map[emp]["HDMFE"])
+			final_employee += flt(gov_map[emp]["HDMFM"])
 			final_total += hdmf_total
 			row['total_HDMF'] = format_precision(hdmf_total, filters.value_precision)
 		entries.append(row)

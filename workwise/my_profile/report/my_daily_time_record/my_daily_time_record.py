@@ -9,7 +9,7 @@ from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, 
-get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,change_sched,get_template_map)
+get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,change_sched,get_template_map, processed_def_sched)
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -166,18 +166,28 @@ def get_data(filters):
 	shift_map = get_shift_map()
 	if employees:
 		data = []
+		adjustment = 0
+		monthly_approval_cutoffs = 0
 		if filters.month and filters.year and not filters.payroll_period:
 			pay_from = str(int(filters.month) + 1)+"-01-"+filters.year
 			pay_to = str(int(filters.month) + 1)+"-"+str(calendar.monthrange(int(filters.year), int(filters.month) + 1)[1])+"-"+filters.year
 			pay_from = getdate(str(pay_from))
 			pay_to = getdate(str(pay_to))
+
 		if filters.payroll_period:
 			pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "approval_cutoff"])
 
 		employee_list = convert_to_list(employees)
 		template_map = get_template_map()
 		shift_map = get_shift_map()
-		emp_map = init_employee_map(employees, filters.employee, filters.company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+
+		if filters.show_adjusted:
+			adjustment = 1
+		if filters.month and filters.year and not filters.payroll_period:
+			monthly_approval_cutoffs = 1
+
+		emp_map = init_employee_map(employees, filters.employee, filters.company, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
+
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			complete_sched(emp_dict, pay_from, pay_to, template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
@@ -185,11 +195,11 @@ def get_data(filters):
 				processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
 				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
-				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
-					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'))
+				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), 
+					entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'), entry)
 				get_sorted_card(entry, cards_in, cards_out)
-				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
-					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'))
+				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), emp_dict.get('ots'), 
+					emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
 
 				entry['break'] = convert_secs(filters, entry['break'])
 				totals['break'] += entry['break']

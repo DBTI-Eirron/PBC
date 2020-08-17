@@ -20,13 +20,11 @@ def get_data(filters):
 	data = []
 	data_entry = {}
 	employees = get_employees(filters)
-
+	emp_count = 0
 	if filters.include_header:
-		emp_count = 0
 		total_amount_paid = 0
 		for e in employees:
 			total_amount_paid += e.amount_paid
-			emp_count += 1
 
 		company = frappe.db.sql("""SELECT TC.sss_id,TC.phone, TA.address_title, TA.city, TA.pincode FROM `tabCompany` TC LEFT JOIN `tabDynamic Link` DL 
 			ON TC.`name` = DL.link_name LEFT JOIN `tabAddress` TA ON DL.parent = TA.`name` LIMIT 1 """, as_dict=True)
@@ -56,19 +54,6 @@ def get_data(filters):
 				"remarks": ""
 			},
 			{
-				"sss_id": "Total Number of Employees",
-				"last_name": emp_count,
-				"first_name": "Total Penalty",
-				"middle_initial": format_precision(0, filters.value_precision),
-				"loan_type": "Total Amount Paid",
-				"loan_date": format_precision(total_amount_paid, filters.value_precision),
-				"loan_amount": "",
-				"penalty": "",
-				"amount_paid": "",
-				"ampsdg": "",
-				"remarks": ""
-			},
-			{
 				"sss_id": "Employee SSS Number",
 				"last_name": "Employee Last Name",
 				"first_name": "Employee First Name",
@@ -85,8 +70,11 @@ def get_data(filters):
 
 	included_loan = []
 	total_loan_amount = 0.00
+	total_paid_amount = 0.00
+	row = []
 	for emp in employees: 
 		if emp['employee'] not in data_entry:
+			emp_count += 1
 			data_entry[emp['employee']] = {
 				"sss_id": emp['sss_id'],
 				"last_name": emp['last_name'],
@@ -108,7 +96,8 @@ def get_data(filters):
 			included_loan.append(emp.linked_document)
 
 	for dat in data_entry:
-		row = {
+		total_paid_amount += data_entry[dat]['amount_paid']
+		row.append({
 			"sss_id": data_entry[dat]['sss_id'],
 			"last_name": data_entry[dat]['last_name'],
 			"first_name": data_entry[dat]['first_name'],
@@ -120,10 +109,29 @@ def get_data(filters):
 			"amount_paid": format_align_right(format_precision(data_entry[dat]['amount_paid'], filters.value_precision)),
 			"ampsdg": format_align_right(format_precision(data_entry[dat]['ampsdg'], filters.value_precision)),
 			"remarks": data_entry[dat]['remarks'],
-		}
-		data.append(row)
-	data = sorted(data, key = lambda k:k['last_name'])
-	data.append({"sss_id": "Total", "loan_amount": format_align_right(format_precision(total_loan_amount, filters.value_precision))})
+		})
+	row = sorted(row, key = lambda k:k['last_name'])
+	for r in row:
+		data.append(r)
+	if filters.include_header:
+		data.append({
+			"sss_id": "Total Number of Employees",
+			"last_name": emp_count,
+			"first_name": "Total Penalty",
+			"middle_initial": format_precision(0, filters.value_precision),
+			"loan_type": "Total Amount Paid",
+			"loan_date": format_precision(total_amount_paid, filters.value_precision),
+			"loan_amount": "",
+			"penalty": "",
+			"amount_paid": "",
+			"ampsdg": "",
+			"remarks": ""
+		})
+	data.append({
+				"sss_id": "Total", 
+				"loan_amount": format_align_right(format_precision(total_loan_amount, filters.value_precision)), 
+				"amount_paid": format_align_right(format_precision(total_paid_amount, filters.value_precision)) if not filters.include_header else ""
+				})
 
 	return data
 

@@ -11,14 +11,19 @@ from frappe.model.document import Document
 from workwise.time_keeping.attendance_utils import get_schedule, get_ob_list
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, get_overrides, change_owner, get_levelled_approval, 
-	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs, validate_approver_userperm, validate_cutoff_approval_date)
+	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs, validate_approver_userperm, validate_cutoff_approval_date, get_employee_details)
 
 class CompensatoryTimeOff(Document):
 	def validate(self):
+		get_employee_details(self)
+		validate_inactive_employee(self)
+		clear_approval_history(self)
+		grant_head_subordinate_access(self)
 		self.clear_fields()
 		self.file_validate_cto()
 		self.use_validate_cto()
 		self.validate_strict_cto()
+		change_owner(self)
 
 	def before_submit(self):
 		validate_approve_own_application(self)
@@ -29,7 +34,7 @@ class CompensatoryTimeOff(Document):
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
 		self.validate_strict_cto()
@@ -38,7 +43,7 @@ class CompensatoryTimeOff(Document):
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 		#validate_approver_userperm(self)
-		#validate_cutoff_approval_date(self)
+		validate_cutoff_approval_date(self)
 		if self.workflow_state == "Approved":
 			if frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
 				self.use_deduct_cto()
@@ -103,6 +108,8 @@ class CompensatoryTimeOff(Document):
 							if a.from_hrs <= total_hours <= a.to_hrs:
 								self.break_hours = flt(a.break_mins, 2)/60
 								break
+				else:
+					self.break_hours = None
 
 	def chk_holiday(self, target_date):
 		holiday_tag  = 0
