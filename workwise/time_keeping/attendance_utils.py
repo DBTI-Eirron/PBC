@@ -4,7 +4,7 @@ from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money,
 from frappe import _
 from datetime import timedelta, date
 
-def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp, tla):
+def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp, tla=None):
 	if dtrp:
 		for dt in dtrp:
 			if dt['target_date'] == entry['target_date']:
@@ -12,12 +12,12 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 				if dt['name'] not in entry['dtrp_links']:
 					entry['dtrp_links'].append(dt['name'])
 
-	if tla:
-		for tl in tla:
-			if tl['target_date'] == entry['target_date']:
-				entry['is_tla'] = 1
-				if tl['name'] not in entry['tla_links']:
-					entry['tla_links'].append(tl['name'])
+	#if tla:
+	#	for tl in tla:
+	#		if tl['target_date'] == entry['target_date']:
+	#			entry['is_tla'] = 1
+	#			if tl['name'] not in entry['tla_links']:
+	#				entry['tla_links'].append(tl['name'])
 
 	for over in overrides:
 		if over['target_date'] == entry['target_date']:
@@ -1653,8 +1653,8 @@ def get_links(entry):
 	for d in entry.get('dtrp_links'):
 		entry["links"] += "<span class='label label-success'><a href='/desk#Form/DTR Problem Application/"+d+"'> "+d+" </a></span>"
 
-	for d in entry.get('tla_links'):
-		entry["links"] += "<span class='label label-success'><a href='/desk#Form/Timelogs Application/"+d+"'> "+d+" </a></span>"
+	#for d in entry.get('tla_links'):
+	#	entry["links"] += "<span class='label label-success'><a href='/desk#Form/Timelogs Application/"+d+"'> "+d+" </a></span>"
 
 	return entry
 
@@ -2025,62 +2025,62 @@ def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard
 				"card_type": tc.card_type
 			})
 
-	if tla:
-		no_card_in, no_card_out, no_break_out, no_break_in = 1, 1, 1, 1
-		for tl in tla:
-			time_req = get_datetime(str(getdate(tl['target_date']))+" "+str(tl['request']))
-			if tl['type'] == 'Time In':
-				card_type = 0
-			if tl['type'] == 'Time Out':
-				card_type = 1
-			if tl['type'] == 'Break In':
-				card_type = 3
-			if tl['type'] == 'Break Out':
-				card_type = 2
+	#if tla:
+	#	no_card_in, no_card_out, no_break_out, no_break_in = 1, 1, 1, 1
+	#	for tl in tla:
+	#		time_req = get_datetime(str(getdate(tl['target_date']))+" "+str(tl['request']))
+	#		if tl['type'] == 'Time In':
+	#			card_type = 0
+	#		if tl['type'] == 'Time Out':
+	#			card_type = 1
+	#		if tl['type'] == 'Break In':
+	#			card_type = 3
+	#		if tl['type'] == 'Break Out':
+	#			card_type = 2
 
-			for c_in in cards_in:
-				if pre_shift <= time_req <= max_preshift and card_type == c_in['card_type']:
-					c_in['card_name'] = tl['name']
-					c_in['card_date'] = tl['target_date']
-					c_in['card_time'] = tl['request']
-					c_in['card_datetime'] = time_req
-					c_in['card_type'] = card_type
+	#		for c_in in cards_in:
+	#			if pre_shift <= time_req <= max_preshift and card_type == c_in['card_type']:
+	#				c_in['card_name'] = tl['name']
+	#				c_in['card_date'] = tl['target_date']
+	#				c_in['card_time'] = tl['request']
+	#				c_in['card_datetime'] = time_req
+	#				c_in['card_type'] = card_type
 
-					if card_type == 0:
-						no_card_in = 0
-					if card_type == 2:
-						no_break_out = 0
+	#				if card_type == 0:
+	#					no_card_in = 0
+	#				if card_type == 2:
+	#					no_break_out = 0
 
-			for c_out in cards_out:
-				if post_shift <= time_req <= max_postshift and card_type == c_out['card_type']:
-					c_out['card_name'] = tl['name']
-					c_out['card_date'] = tl['target_date']
-					c_out['card_time'] = tl['request']
-					c_out['card_datetime'] = time_req
-					c_out['card_type'] = card_type
+	#		for c_out in cards_out:
+	#			if post_shift <= time_req <= max_postshift and card_type == c_out['card_type']:
+	#				c_out['card_name'] = tl['name']
+	#				c_out['card_date'] = tl['target_date']
+	#				c_out['card_time'] = tl['request']
+	#				c_out['card_datetime'] = time_req
+	#				c_out['card_type'] = card_type
 
-					if card_type == 1:
-						no_card_out = 0
-					if card_type == 3:
-						no_break_in = 0
+	#				if card_type == 1:
+	#					no_card_out = 0
+	#				if card_type == 3:
+	#					no_break_in = 0
 
-			if no_card_in == 1 or no_break_out == 1:
-				if pre_shift <= time_req <= max_preshift and tl['type'] in ['Time In', 'Break Out']:
-					cards_in.append({
-						"card_name": tl['name'],
-						"card_time": tl['request'],
-						"card_datetime": time_req,
-						"card_type": card_type,
-					})
+	#		if no_card_in == 1 or no_break_out == 1:
+	#			if pre_shift <= time_req <= max_preshift and tl['type'] in ['Time In', 'Break Out']:
+	#				cards_in.append({
+	#					"card_name": tl['name'],
+	#					"card_time": tl['request'],
+	#					"card_datetime": time_req,
+	#					"card_type": card_type,
+	#				})
 
-			if no_card_out == 1 or no_break_in == 1:
-				if post_shift <= time_req <= max_postshift and tl['type'] in ['Time Out', 'Break In']:
-					cards_out.append({
-						"card_name": tl['name'],
-						"card_time": tl['request'],
-						"card_datetime": time_req,
-						"card_type": card_type,
-					})
+	#		if no_card_out == 1 or no_break_in == 1:
+	#			if post_shift <= time_req <= max_postshift and tl['type'] in ['Time Out', 'Break In']:
+	#				cards_out.append({
+	#					"card_name": tl['name'],
+	#					"card_time": tl['request'],
+	#					"card_datetime": time_req,
+	#					"card_type": card_type,
+	#				})
 
 	no_card_in, no_card_out, no_break_out, no_break_in = 1, 1, 1, 1
 	for dt in dtrp:
@@ -2191,7 +2191,7 @@ def insert_overtime(entry):
 	entry['ut_links'] = None
 	entry['cto_links'] = None
 	entry['dtrp_links'] = None
-	entry['tla_links'] = None
+	#entry['tla_links'] = None
 
 def get_defaults(emp, sched, shift_map, overrides):
 	post_shift_date = getdate(sched['target_date'])
@@ -2306,7 +2306,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"ut_links": [],
 		"cto_links": [],
 		"dtrp_links": [],
-		"tla_links": [],
+		#"tla_links": [],
 		#SHIFT POLICIES
 		"graceperiod_late": shift_map[sched['work_shift']]['graceperiod_late'],
 		"straight_ot": shift_map[sched['work_shift']]['straight_ot'],
@@ -2353,7 +2353,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 				"wss": [],
 				"csa": [],
 				"dtrp": [],
-				"tla": [],
+				#"tla": [],
 			})
 		)
 
@@ -2371,7 +2371,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_csa(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
 	get_all_dtrp(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
-	get_all_tla(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
+	#get_all_tla(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
 
 	return emp_map
 
@@ -2716,39 +2716,39 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 				xml = max(multi_dtrp[m][ml][mlt], key=lambda x:x['approved_on'])
 				emp_map[m].dtrp.append(xml)
 
-def get_all_tla(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
-	conditions_list = []
-	multi_tla = {}
-	if employee:
-		conditions_list.append("TA.employee='"+ cstr(employee) +"'")
-	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+#def get_all_tla(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+#	conditions_list = []
+#	multi_tla = {}
+#	if employee:
+#		conditions_list.append("TA.employee='"+ cstr(employee) +"'")
+#	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 
-	tla_apps = frappe.db.sql("""SELECT TA.employee, TAT.location, TAT.cost_center, TA.`approved_on`, TA.`name`,
-		TAT.target_date, TAT.type, TAT.request FROM `tabTimelogs Application` TA
-		INNER JOIN `tabTimelogs Application Table` TAT ON TA.`name` = TAT.parent 
-		WHERE TAT.target_date >= %s AND TAT.target_date <= %s AND TA.docstatus = 1 
-		AND TA.workflow_state = 'Approved' {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+#	tla_apps = frappe.db.sql("""SELECT TA.employee, TAT.location, TAT.cost_center, TA.`approved_on`, TA.`name`,
+#		TAT.target_date, TAT.type, TAT.request FROM `tabTimelogs Application` TA
+#		INNER JOIN `tabTimelogs Application Table` TAT ON TA.`name` = TAT.parent 
+#		WHERE TAT.target_date >= %s AND TAT.target_date <= %s AND TA.docstatus = 1 
+#		AND TA.workflow_state = 'Approved' {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
-	for d in tla_apps:
-		if d.employee in emp_map:
-			if d.employee not in multi_tla:
-				multi_tla[d.employee] = {}
+#	for d in tla_apps:
+#		if d.employee in emp_map:
+#			if d.employee not in multi_tla:
+#				multi_tla[d.employee] = {}
 
-			if d.target_date not in multi_tla[d.employee]:
-				multi_tla[d.employee][d.target_date] = {}
+#			if d.target_date not in multi_tla[d.employee]:
+#				multi_tla[d.employee][d.target_date] = {}
 
-			if d.type not in multi_tla[d.employee][d.target_date]:
-				multi_tla[d.employee][d.target_date][d.type] = []
+#			if d.type not in multi_tla[d.employee][d.target_date]:
+#				multi_tla[d.employee][d.target_date][d.type] = []
 
-			multi_tla[d.employee][d.target_date][d.type].append(d)
+#			multi_tla[d.employee][d.target_date][d.type].append(d)
 
-	for m in multi_tla:
-		for ml in multi_tla[m]:
-			for mlt in multi_tla[m][ml]:
-				xml = max(multi_tla[m][ml][mlt], key=lambda x:x['approved_on'])
-				emp_map[m].tla.append(xml)
+#	for m in multi_tla:
+#		for ml in multi_tla[m]:
+#			for mlt in multi_tla[m][ml]:
+#				xml = max(multi_tla[m][ml][mlt], key=lambda x:x['approved_on'])
+#				emp_map[m].tla.append(xml)
 
-	return tla_apps
+#	return tla_apps
 
 def complete_sched(emp_dict, pay_from, pay_to, template_map):
 	pay_from = getdate(pay_from)
