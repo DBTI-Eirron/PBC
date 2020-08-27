@@ -225,3 +225,38 @@ def format_precision(figure, precision):
 
 def format_align_right(figure):
 	return '<div align="right">'+str( figure )+'</div>'
+
+def get_ot_class_map():
+	ot_class_map = {}
+	ot = frappe.db.sql(""" SELECT OTR.`name`, OTR.`transaction_type`, OTR.`ot_code`, OTR.`ot_rate`, OTR.`daily_ot_rate`, ORC.`rate_class`, ORC.`rate_type`,ORC.`rate` 
+		FROM `tabOvertime Rates` OTR INNER JOIN `tabOT Rate Class` ORC ON OTR.`name` = ORC.parent """, as_dict=1)
+	for t in ot:
+		if t.ot_code not in ot_class_map:
+			ot_class_map[t.ot_code] = {}
+		if t.rate_class not in ot_class_map[t.ot_code]:
+			ot_class_map[t.ot_code][t.rate_class]= {}
+		ot_class_map[t.ot_code][t.rate_class][t.rate_type] = {
+			"rate": t.rate,
+			"transaction_type": t.transaction_type if t.transaction_type else "OT",
+		}
+	return ot_class_map
+def get_rateclass_map():
+	rateclass_map = {}
+	rateclass = frappe.db.sql(""" SELECT * FROM `tabRate Classification` """, as_dict=1)
+	otrateclass = frappe.db.sql(""" SELECT * FROM `tabOT Rate Class` """, as_dict=1)
+
+	for rc in rateclass:
+		rateclass_map[rc.name] = {
+			"early_nd": rc.early_nd,
+			"lt_nd": rc.lt_nd,
+			"otrate_class": [],
+		}
+
+	for ot in otrateclass:
+		if ot.rate_class in rateclass_map:
+			rateclass_map[rc.name]['otrate_class'].append({
+				"rate_type": ot.rate_type,
+				"rate": ot.rate,
+			})
+
+	return rateclass_map
