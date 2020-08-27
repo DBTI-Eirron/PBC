@@ -4,7 +4,7 @@ from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money,
 from frappe import _
 from datetime import timedelta, date
 
-def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp, tla=None):
+def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp, tla):
 	if dtrp:
 		for dt in dtrp:
 			if dt['target_date'] == entry['target_date']:
@@ -12,12 +12,12 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 				if dt['name'] not in entry['dtrp_links']:
 					entry['dtrp_links'].append(dt['name'])
 
-	#if tla:
-	#	for tl in tla:
-	#		if tl['target_date'] == entry['target_date']:
-	#			entry['is_tla'] = 1
-	#			if tl['name'] not in entry['tla_links']:
-	#				entry['tla_links'].append(tl['name'])
+	if tla:
+		for tl in tla:
+			if tl['target_date'] == entry['target_date']:
+				entry['is_tla'] = 1
+				if tl['name'] not in entry['tla_links']:
+					entry['tla_links'].append(tl['name'])
 
 	for over in overrides:
 		if over['target_date'] == entry['target_date']:
@@ -187,6 +187,8 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	entry['late_list'] = []
 	entry['ut_list'] = []
 	entry['cto_list'] = []
+	entry['late_deduction'] = 0
+	entry['late_without_int'] = 0
 	get_late(entry)
 	get_overtime(entry, ots)
 	get_undertime(entry)
@@ -262,7 +264,9 @@ def get_overtime(entry, ot_apps):
 	nd_start = None
 	nd_end = None
 	nd_early_start = None
+	total_ot_earlynd, total_ot_latend = 0, 0
 	strict_logs = frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs')
+	ded_late_ot = frappe.db.get_single_value('Timekeeping Settings', 'ded_late_ot')
 	to_hrs, from_hrs, break_mins = 0, 0, 0
 	entry["ot_card_in"], entry["ot_card_out"], entry["ot_ob_in"], entry["ot_ob_out"] = "","","",""
 
@@ -278,15 +282,15 @@ def get_overtime(entry, ot_apps):
 	if ot_apps:
 		counter = 0
 		for d in ot_apps:
-			counter+=1
 			ot_int_start = None
 			per_time_with_ot = []
-			is_break_deducted = 0
+			is_break_deducted, is_nd_break_deducted = 0, 0
 			ot_hrs, ot_nd, ot_normal, org_ot_normal = 0, 0, 0, 0
 			ot_log_list, ots = [], []
 			log_used = 0
 
 			if getdate(d.get('target_date')) == entry.get('target_date'):
+				counter += 1
 				entry['ot_links'].append(d.get("name")) 
 				linked_ot = d.name
 				ot_in = get_datetime( str(d.from_date) +" "+ str(d.from_time))
@@ -315,13 +319,28 @@ def get_overtime(entry, ot_apps):
 
 				
 				#get OT Start Deduct Late
-				if entry.get('ot_deduct_late') and not entry.get('is_flexible'):
+				ot_filed = abs((ot_in - ot_out).total_seconds()) 
+				if entry.get('ot_deduct_late') and not entry.get('is_flexible') and not entry.get('dn_ot_late'):
 					if entry.get('is_restday') < 1:
 						if entry.get('is_holiday'):
 							if entry.get('ot_dedlt_ho'):
-								ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ) )
+								ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ))
+								if ded_late_ot:
+									entry['late_deduction'] = entry['late']
+									entry['late'] -= ot_filed
+									if entry.get('late') < 0:
+										entry['late_deduction'] = ot_filed
+
+
 						else:
 							ot_in = add_to_date(ot_in, hours=( entry.get('late') / 60 / 60 ))
+							if ded_late_ot:
+								entry['late_deduction'] = entry['late']
+								entry['late'] -= ot_filed
+								if entry.get('late') < 0:
+									entry['late_deduction'] = ot_filed
+						if entry.get('late') < 0:
+							entry['late'] = 0
 
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('ot_strict_logs'):
@@ -448,7 +467,6 @@ def get_overtime(entry, ot_apps):
 							"ot_in": ot_in,
 						 	"ot_out": ot_out
 						})
-
 				for o in per_time_with_ot:
 					ot_in = o['ot_in']
 					ot_out = o['ot_out']
@@ -503,32 +521,126 @@ def get_overtime(entry, ot_apps):
 	
 					#Get ND OT and Calculate ND OT From Start to End
 					if ot_nd_start and ot_nd_end and ot_nd_start < ot_nd_end:
-						ot_nd = abs((ot_nd_start - ot_nd_end).total_seconds())
-	
+						ot_nd = abs((ot_nd_start - ot_nd_end).total_seconds())	
+
+					otndbrk = 0
+					ot_nd_user_brk = 0
 					if nd_early_start:
 						#Get early ND OT
+						early_out =  None
 						if ot_in < nd_early_start:
 							if ot_out > nd_early_start:
 								ot_nd = abs((ot_in - nd_early_start).total_seconds())
+								early_out = get_datetime(nd_early_start)
 							else:
 								ot_nd = abs((get_datetime(ot_in) - get_datetime(ot_out)).total_seconds())
-
+								early_out = get_datetime(ot_out)
+							ot_earlynd, ot_latend = get_early_and_late_nd(entry, ot_in, ot_out, otndbrk, 1)
+							if ot_earlynd:
+								total_ot_earlynd += ot_earlynd
+							if ot_latend:
+								total_ot_latend += ot_latend
 
 					if d.break_hrs:
 						to_hrs, from_hrs, break_mins = frappe.db.get_value("Overtime Application", d['name'], ["to_hrs", "from_hrs", "break_mins"])
 						if is_break_deducted != 1:
 							if flt(from_hrs, 8) * 60 * 60 <= ot_normal <= flt(to_hrs, 8) * 60 * 60:
 								total_brk += flt(break_mins, 8) * 60
+								is_break_deducted = 1
+						if is_nd_break_deducted !=1:
 							if flt(from_hrs, 8) * 60 * 60 <= ot_nd <= flt(to_hrs, 8) * 60 * 60:
 								ot_nd -= flt(break_mins, 8) * 60
-							is_break_deducted = 1
+								otndbrk += flt(break_mins, 8) * 60
+								is_nd_break_deducted = 1
 
-					total_ot += ot_normal
-					total_ot_nd += ot_nd
+					if entry.get('nd_start') and entry.get('nd_end'):
+						nd_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) )
+						nd_end = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
+						if entry.get('nd_start') > entry.get('nd_end'):
+							nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )
 					
+					if ot_nd_start and ot_nd_end:
+						ot_earlynd, ot_latend = get_early_and_late_nd(entry, ot_nd_start, ot_nd_end, 0, 1)
+						if ot_earlynd:
+							total_ot_earlynd += ot_earlynd
+							ot_nd_user_brk = 1
+						if ot_latend:
+							total_ot_latend += ot_latend
+							ot_nd_user_brk = 1
+
+					#OT ND break
+					if otndbrk:
+						ot_late_deduct = 0
+						if ot_latend:
+							ot_late_deduct =  ot_latend - otndbrk
+							if ot_late_deduct >= 0:
+								total_ot_latend -= otndbrk
+							else: 
+								total_ot_latend -= ot_latend
+								total_ot_earlynd += ot_late_deduct
+
+						else:
+							if ot_earlynd:
+								ot_late_deduct =  ot_earlynd - otndbrk
+								if ot_late_deduct >= 0:
+									total_ot_earlynd -= otndbrk
+								else: 
+									total_ot_earlynd -= ot_earlynd
+
+						if total_ot_earlynd < 0:
+							total_ot_earlynd = 0
+
+					if ot_nd_user_brk == 1:
+						otndbrk = 0
+					total_ot_nd += ot_nd
+
+				total_ot += ot_normal
+
 		# REDUCE BREAK HRS ON REGULAR OT
 		if total_brk:
 			total_ot -= total_brk
+		# Deduct Late In total OT HOURS
+		if entry.get('ot_deduct_late') and not entry.get('is_flexible') and entry.get('dn_ot_late') and not entry['is_holiday']:
+			if entry.get('is_restday') < 1:
+				total_ot_deducted = total_ot
+				if entry.get('is_holiday'):
+					if entry.get('ot_dedlt_ho'):
+						total_ot -= entry['late']
+						total_ot_nd -= entry['late']
+						total_ot_latend -= entry['late']
+						if total_ot_latend < 0:
+							total_ot_earlynd -= abs(total_ot_latend)
+							total_ot_latend = 0
+							if  total_ot_earlynd < 0:
+								total_ot_earlynd = 0
+						if total_ot < 0:
+							total_ot = 0
+						if total_ot_nd < 0:
+							total_ot_nd = 0
+
+						total_ot_deducted -= total_ot
+						if ded_late_ot:
+							entry['late'] -= total_ot_deducted
+				else:
+					total_ot_nd -= entry['late']
+					total_ot -= entry['late']
+					total_ot_latend -= entry['late']
+					if total_ot_latend < 0:
+						total_ot_earlynd -= abs(total_ot_latend)
+						total_ot_latend = 0
+						if  total_ot_earlynd < 0:
+							total_ot_earlynd = 0
+					if total_ot < 0:
+						total_ot = 0
+					if total_ot_nd < 0:
+						total_ot_nd = 0
+					total_ot_deducted -= total_ot
+					if ded_late_ot:
+						entry['late'] -= total_ot_deducted
+				if entry.get('late') < 0:
+					entry['late'] = 0
+				entry['late_deduction'] = total_ot_deducted
+
 
 		# GET REGULAR OT
 		if total_ot > 0:
@@ -565,10 +677,14 @@ def get_overtime(entry, ot_apps):
 				"ot_type": "OT_ND",
 				"ot_code": ot_nd_code,
 				"ot_hrs": total_ot_nd  / 60 / 60,
+				'early_nd': total_ot_earlynd / 60 / 60,
+				'late_nd': total_ot_latend / 60 / 60,
 				#"linked_ot": d.name,
 				"ot_tag": "",
 			})
 			entry['overtime_nd'] = total_ot_nd
+			entry['ot_early_nd'] = total_ot_earlynd
+			entry['ot_late_nd'] = total_ot_latend
 
 		# GET EXCESS OT
 		if total_ot > 28800:
@@ -653,6 +769,7 @@ def get_ndiff(entry):
 
 		card_in = entry.get('card_in')
 		card_out = entry.get('card_out')
+		ded_late_ot = frappe.db.get_single_value('Timekeeping Settings', 'ded_late_ot')
 
 		#OB Triggers for nightdiff
 		if entry.get('ob_stat') == 1:
@@ -676,12 +793,43 @@ def get_ndiff(entry):
 				if entry.get('ob_out') > entry.get('card_out'):
 					card_out = entry.get('ob_out')
 
+		#Get ND late with interval
+		nd_late = abs((get_datetime(card_in)- get_datetime(entry["time_in"])).total_seconds())
+		if entry['late_interval'] and entry.get('late'):
+			if entry.get('lt_int_rup'):
+					lt_start = entry.get('late_interval') * 60
+					lt_end = entry.get('late_interval') * 60
+			
+					while nd_late != lt_end:
+						if nd_late <= lt_start:
+							nd_late = lt_start
+							break
+						if lt_start < entry.get('late') <= lt_end:
+							nd_late = lt_end
+							break
+						lt_start = lt_end
+						lt_end += entry.get('late_interval') * 60
+
+			else:
+				nd_late = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
+			card_in = add_to_date(get_datetime(entry["time_in"]), hours=((nd_late /60 / 60)))
+
 		#check shift if eligible for nightdiff based from time in and time out:
 		min_nd, max_nd, nd_pro = get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
+		if entry.get('ot_deduct_late') and not entry.get('is_flexible') and entry['late_deduction']:
+			if entry.get('is_restday') < 1:
+				if ded_late_ot:
+					card_in = add_to_date(get_datetime(card_in), hours=( -(entry['late_deduction']/60/60)))
+
+				if card_in < entry.get('time_in'):
+					card_in = entry['time_in']
+				
 		if card_in and card_out and nd_pro == 1:
 			nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, card_out, card_in)
 			if get_nd:
 				entry['nightdiff'] = abs((nd_out - nd_in).total_seconds())
+				if not entry['is_holiday']:
+					entry['earlynightdiff'], entry['latenightdiff'] = get_early_and_late_nd(entry, nd_in, nd_out)
 
 		#early nightdiff No need for early nightdiff ND should be insided shift
 		if card_in and card_out:
@@ -690,10 +838,126 @@ def get_ndiff(entry):
 				if get_datetime(entry.get('card_in')) < nd_early_start:
 					if get_datetime(entry.get('card_in')) < get_datetime(entry.get('time_in')):
 						entry['nightdiff'] = (abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())) + entry['nightdiff']
-					else:
-						entry['nightdiff'] = (abs(( get_datetime(entry.get('card_in')) - nd_early_start ).total_seconds())) + entry['nightdiff']
+						if not entry['is_holiday']:
+							early_diff, late_diff = get_early_and_late_nd(entry, entry['time_in'], nd_early_start)
+							if early_diff:
+								entry['earlynightdiff'] += early_diff
+							if late_diff:
+								entry['latenightdiff'] += late_diff							
 
 	return entry
+
+def get_early_and_late_nd(entry, nd_in, nd_out, brk_hrs=None, from_ot=0):
+	#Get ND Rate Class
+	earlynightdiff, latenightdiff = 0, 0
+	end_in, end_out, lnd_in, lnd_out = None, None, None, None
+	end_hrs, lnd_hrs = 0, 0
+	today_end_in = get_datetime(str(entry.get('target_date')) +" 00:00")
+	today_end_out = get_datetime(str(entry.get('target_date')) +" 06:00")
+	rc_end_in = get_datetime(str(entry.get('target_date')) +" 22:00")
+	rc_end_out = get_datetime(str(add_days(getdate(entry['target_date']), 1)) +" 06:00")
+	rc_lnd_in = get_datetime(str(entry.get('target_date')) +" 18:00")
+	rc_lnd_out = get_datetime(str(entry.get('target_date')) +" 22:00")
+	
+	#if from_ot and nd_in < rc_end_in:
+	#	rc_end_in = get_datetime(str(add_days(getdate(entry['target_date']), -1)) +" 22:00")
+	#	rc_end_out = get_datetime(str(entry.get('target_date')) +" 06:00")
+
+	#END
+	if (nd_in <= rc_end_in <= nd_out) or (nd_in <= rc_end_out <= nd_out):
+		if nd_in < rc_end_in:
+			end_in = rc_end_in
+		if nd_in >= rc_end_in:
+			end_in = nd_in
+
+		if nd_out <= rc_end_out:
+			end_out = nd_out
+		if nd_out > rc_end_out:
+			end_out = rc_end_out
+
+	elif (rc_end_in <= nd_in <= rc_end_out) or (rc_end_in <= nd_out <= rc_end_out):
+		if nd_in < rc_end_in:
+			end_in = rc_end_in
+		if nd_in >= rc_end_in:
+			end_in = nd_in
+
+		if nd_out <= rc_end_out:
+			end_out = nd_out
+		if nd_out > rc_end_out:
+			end_out = rc_end_out
+
+	if end_in and end_out:
+		earlynightdiff = abs(( end_out - end_in ).total_seconds())
+
+	#Today END
+	end_in, end_out = None, None
+	if (nd_in <= today_end_in <= nd_out) or (nd_in <= today_end_out <= nd_out):
+		if nd_in < today_end_in:
+			end_in = today_end_in
+		if nd_in >= today_end_in:
+			end_in = nd_in
+
+		if nd_out <= today_end_out:
+			end_out = nd_out
+		if nd_out > today_end_out:
+			end_out = today_end_out
+
+	elif (today_end_in <= nd_in <= today_end_out) or (today_end_in <= nd_out <= today_end_out):
+		if nd_in < today_end_in:
+			end_in = today_end_in
+		if nd_in >= today_end_in:
+			end_in = nd_in
+
+		if nd_out <= today_end_out:
+			end_out = nd_out
+		if nd_out > today_end_out:
+			end_out = today_end_out
+
+	if end_in and end_out:
+		earlynightdiff += abs(( end_out - end_in ).total_seconds())
+
+	#LND
+	if (nd_in <= rc_lnd_in <= nd_out) or (nd_in <= rc_lnd_out <= nd_out):
+		if nd_in < rc_lnd_in:
+			lnd_in = rc_lnd_in
+		if nd_in >= rc_lnd_in:
+			lnd_in = nd_in
+
+		if nd_out <= rc_lnd_out:
+			lnd_out = nd_out
+		if nd_out > rc_lnd_out:
+			lnd_out = rc_lnd_out
+
+	elif (rc_lnd_in <= nd_in <= rc_lnd_out) or (rc_lnd_in <= nd_out <= rc_lnd_out):
+		if nd_in < rc_lnd_in:
+			lnd_in = rc_lnd_in
+		if nd_in >= rc_lnd_in:
+			lnd_in = nd_in
+
+		if nd_out <= rc_lnd_out:
+			lnd_out = nd_out
+		if nd_out > rc_lnd_out:
+			lnd_out = rc_lnd_out
+
+	if lnd_in and lnd_out:
+		latenightdiff = abs(( lnd_out - lnd_in ).total_seconds())
+
+	if brk_hrs:
+		if latenightdiff:
+			latenightdiff =  latenightdiff - brk_hrs
+
+			if latenightdiff < 0:
+				if earlynightdiff:
+					earlynightdiff -= latenightdiff
+				latenightdiff = 0
+		else:
+			if earlynightdiff:
+				earlynightdiff =  earlynightdiff - brk_hrs
+
+		if earlynightdiff < 0:
+			earlynightdiff = 0
+
+	return earlynightdiff, latenightdiff
 
 def get_ndiff_min_max(_start, _end, _out, _in):
 
@@ -846,8 +1110,23 @@ def get_late(entry):
 				entry['work'] -= b_diff.total_seconds()
 				entry['break'] -= b_diff.total_seconds()
 
+	entry['late_without_int'] = entry['late'] 
 	if entry.get('late_interval'):
-		entry['late'] = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
+		if entry.get('lt_int_rup'):
+			if entry.get('late'):
+				lt_start = entry.get('late_interval') * 60
+				lt_end = entry.get('late_interval') * 60
+				while entry.get('late') != lt_end:
+					if entry.get('late') <= lt_start:
+						entry['late'] = lt_start
+						break
+					if lt_start < entry.get('late') <= lt_end:
+						entry['late'] = lt_end
+						break
+					lt_start = lt_end
+					lt_end += entry.get('late_interval') * 60
+		else:
+			entry['late'] = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
 	
 	return entry
 
@@ -1218,7 +1497,8 @@ def get_flexible(entry, obs):
 					
 					if entry.get('ut_interval'):
 						ut = (entry.get('worker_secs') - diff) 
-						ut = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
+						if entry.get('ut_interval'):
+							ut = (entry.get('ut_interval') * 60) * int( ut / (entry.get('ut_interval') * 60))
 					else:
 						ut = (entry.get('worker_secs') - diff) 
 					
@@ -1653,8 +1933,8 @@ def get_links(entry):
 	for d in entry.get('dtrp_links'):
 		entry["links"] += "<span class='label label-success'><a href='/desk#Form/DTR Problem Application/"+d+"'> "+d+" </a></span>"
 
-	#for d in entry.get('tla_links'):
-	#	entry["links"] += "<span class='label label-success'><a href='/desk#Form/Timelogs Application/"+d+"'> "+d+" </a></span>"
+	for d in entry.get('tla_links'):
+		entry["links"] += "<span class='label label-success'><a href='/desk#Form/Timelogs Application/"+d+"'> "+d+" </a></span>"
 
 	return entry
 
@@ -2025,62 +2305,62 @@ def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard
 				"card_type": tc.card_type
 			})
 
-	#if tla:
-	#	no_card_in, no_card_out, no_break_out, no_break_in = 1, 1, 1, 1
-	#	for tl in tla:
-	#		time_req = get_datetime(str(getdate(tl['target_date']))+" "+str(tl['request']))
-	#		if tl['type'] == 'Time In':
-	#			card_type = 0
-	#		if tl['type'] == 'Time Out':
-	#			card_type = 1
-	#		if tl['type'] == 'Break In':
-	#			card_type = 3
-	#		if tl['type'] == 'Break Out':
-	#			card_type = 2
+	if tla:
+		no_card_in, no_card_out, no_break_out, no_break_in = 1, 1, 1, 1
+		for tl in tla:
+			time_req = get_datetime(str(getdate(tl['target_date']))+" "+str(tl['request']))
+			if tl['type'] == 'Time In':
+				card_type = 0
+			if tl['type'] == 'Time Out':
+				card_type = 1
+			if tl['type'] == 'Break In':
+				card_type = 3
+			if tl['type'] == 'Break Out':
+				card_type = 2
 
-	#		for c_in in cards_in:
-	#			if pre_shift <= time_req <= max_preshift and card_type == c_in['card_type']:
-	#				c_in['card_name'] = tl['name']
-	#				c_in['card_date'] = tl['target_date']
-	#				c_in['card_time'] = tl['request']
-	#				c_in['card_datetime'] = time_req
-	#				c_in['card_type'] = card_type
+			for c_in in cards_in:
+				if pre_shift <= time_req <= max_preshift and card_type == c_in['card_type']:
+					c_in['card_name'] = tl['name']
+					c_in['card_date'] = tl['target_date']
+					c_in['card_time'] = tl['request']
+					c_in['card_datetime'] = time_req
+					c_in['card_type'] = card_type
 
-	#				if card_type == 0:
-	#					no_card_in = 0
-	#				if card_type == 2:
-	#					no_break_out = 0
+					if card_type == 0:
+						no_card_in = 0
+					if card_type == 2:
+						no_break_out = 0
 
-	#		for c_out in cards_out:
-	#			if post_shift <= time_req <= max_postshift and card_type == c_out['card_type']:
-	#				c_out['card_name'] = tl['name']
-	#				c_out['card_date'] = tl['target_date']
-	#				c_out['card_time'] = tl['request']
-	#				c_out['card_datetime'] = time_req
-	#				c_out['card_type'] = card_type
+			for c_out in cards_out:
+				if post_shift <= time_req <= max_postshift and card_type == c_out['card_type']:
+					c_out['card_name'] = tl['name']
+					c_out['card_date'] = tl['target_date']
+					c_out['card_time'] = tl['request']
+					c_out['card_datetime'] = time_req
+					c_out['card_type'] = card_type
 
-	#				if card_type == 1:
-	#					no_card_out = 0
-	#				if card_type == 3:
-	#					no_break_in = 0
+					if card_type == 1:
+						no_card_out = 0
+					if card_type == 3:
+						no_break_in = 0
 
-	#		if no_card_in == 1 or no_break_out == 1:
-	#			if pre_shift <= time_req <= max_preshift and tl['type'] in ['Time In', 'Break Out']:
-	#				cards_in.append({
-	#					"card_name": tl['name'],
-	#					"card_time": tl['request'],
-	#					"card_datetime": time_req,
-	#					"card_type": card_type,
-	#				})
+			if no_card_in == 1 or no_break_out == 1:
+				if pre_shift <= time_req <= max_preshift and tl['type'] in ['Time In', 'Break Out']:
+					cards_in.append({
+						"card_name": tl['name'],
+						"card_time": tl['request'],
+						"card_datetime": time_req,
+						"card_type": card_type,
+					})
 
-	#		if no_card_out == 1 or no_break_in == 1:
-	#			if post_shift <= time_req <= max_postshift and tl['type'] in ['Time Out', 'Break In']:
-	#				cards_out.append({
-	#					"card_name": tl['name'],
-	#					"card_time": tl['request'],
-	#					"card_datetime": time_req,
-	#					"card_type": card_type,
-	#				})
+			if no_card_out == 1 or no_break_in == 1:
+				if post_shift <= time_req <= max_postshift and tl['type'] in ['Time Out', 'Break In']:
+					cards_out.append({
+						"card_name": tl['name'],
+						"card_time": tl['request'],
+						"card_datetime": time_req,
+						"card_type": card_type,
+					})
 
 	no_card_in, no_card_out, no_break_out, no_break_in = 1, 1, 1, 1
 	for dt in dtrp:
@@ -2191,7 +2471,7 @@ def insert_overtime(entry):
 	entry['ut_links'] = None
 	entry['cto_links'] = None
 	entry['dtrp_links'] = None
-	#entry['tla_links'] = None
+	entry['tla_links'] = None
 
 def get_defaults(emp, sched, shift_map, overrides):
 	post_shift_date = getdate(sched['target_date'])
@@ -2255,6 +2535,8 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"linked_ot": "",
 		"overtime": 0.0,
 		"overtime_nd": 0.0,
+		"ot_early_nd": 0.0,
+		"ot_late_nd": 0.0,
 		"overtime_ex": 0.0,
 		"ot_in": "",
 		"ot_out": "",
@@ -2298,6 +2580,9 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"suspension": 0,
 		"suspension_start": "",
 		"suspension_end": "",
+		#ND Rate Class
+		"earlynightdiff": 0,
+		"latenightdiff": 0,
 		#LINKs
 		"lv_links": [],
 		"ot_links": [],
@@ -2306,7 +2591,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"ut_links": [],
 		"cto_links": [],
 		"dtrp_links": [],
-		#"tla_links": [],
+		"tla_links": [],
 		#SHIFT POLICIES
 		"graceperiod_late": shift_map[sched['work_shift']]['graceperiod_late'],
 		"straight_ot": shift_map[sched['work_shift']]['straight_ot'],
@@ -2322,10 +2607,12 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"ot_strict_logs": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs'), 8),
 		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
 		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho'),
+		"dn_ot_late": frappe.db.get_single_value('Timekeeping Settings', 'dn_ot_late'),
 		"at_work_rdho": frappe.db.get_single_value('Timekeeping Settings', 'at_work_rdho'),
 		"mo_abho": frappe.db.get_single_value('Timekeeping Settings', 'mo_abho'),
 		"ab_regho": frappe.db.get_single_value('Timekeeping Settings', 'ab_regho'),
 		"ext_deduct": frappe.db.get_single_value('Timekeeping Settings', 'ext_deduct'),
+		"lt_int_rup": frappe.db.get_single_value('Timekeeping Settings', 'lt_int_rup'),
 	}
 	
 	return entry
@@ -2353,7 +2640,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 				"wss": [],
 				"csa": [],
 				"dtrp": [],
-				#"tla": [],
+				"tla": [],
 			})
 		)
 
@@ -2371,7 +2658,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_csa(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
 	get_all_dtrp(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
-	#get_all_tla(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
+	get_all_tla(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
 
 	return emp_map
 
@@ -2716,39 +3003,39 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 				xml = max(multi_dtrp[m][ml][mlt], key=lambda x:x['approved_on'])
 				emp_map[m].dtrp.append(xml)
 
-#def get_all_tla(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
-#	conditions_list = []
-#	multi_tla = {}
-#	if employee:
-#		conditions_list.append("TA.employee='"+ cstr(employee) +"'")
-#	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
+def get_all_tla(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment):
+	conditions_list = []
+	multi_tla = {}
+	if employee:
+		conditions_list.append("TA.employee='"+ cstr(employee) +"'")
+	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 
-#	tla_apps = frappe.db.sql("""SELECT TA.employee, TAT.location, TAT.cost_center, TA.`approved_on`, TA.`name`,
-#		TAT.target_date, TAT.type, TAT.request FROM `tabTimelogs Application` TA
-#		INNER JOIN `tabTimelogs Application Table` TAT ON TA.`name` = TAT.parent 
-#		WHERE TAT.target_date >= %s AND TAT.target_date <= %s AND TA.docstatus = 1 
-#		AND TA.workflow_state = 'Approved' {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+	tla_apps = frappe.db.sql("""SELECT TA.employee, TAT.location, TAT.cost_center, TA.`approved_on`, TA.`name`,
+		TAT.target_date, TAT.type, TAT.request FROM `tabTimelogs Application` TA
+		INNER JOIN `tabTimelogs Application Table` TAT ON TA.`name` = TAT.parent 
+		WHERE TAT.target_date >= %s AND TAT.target_date <= %s AND TA.docstatus = 1 
+		AND TA.workflow_state = 'Approved' {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
-#	for d in tla_apps:
-#		if d.employee in emp_map:
-#			if d.employee not in multi_tla:
-#				multi_tla[d.employee] = {}
+	for d in tla_apps:
+		if d.employee in emp_map:
+			if d.employee not in multi_tla:
+				multi_tla[d.employee] = {}
 
-#			if d.target_date not in multi_tla[d.employee]:
-#				multi_tla[d.employee][d.target_date] = {}
+			if d.target_date not in multi_tla[d.employee]:
+				multi_tla[d.employee][d.target_date] = {}
 
-#			if d.type not in multi_tla[d.employee][d.target_date]:
-#				multi_tla[d.employee][d.target_date][d.type] = []
+			if d.type not in multi_tla[d.employee][d.target_date]:
+				multi_tla[d.employee][d.target_date][d.type] = []
 
-#			multi_tla[d.employee][d.target_date][d.type].append(d)
+			multi_tla[d.employee][d.target_date][d.type].append(d)
 
-#	for m in multi_tla:
-#		for ml in multi_tla[m]:
-#			for mlt in multi_tla[m][ml]:
-#				xml = max(multi_tla[m][ml][mlt], key=lambda x:x['approved_on'])
-#				emp_map[m].tla.append(xml)
+	for m in multi_tla:
+		for ml in multi_tla[m]:
+			for mlt in multi_tla[m][ml]:
+				xml = max(multi_tla[m][ml][mlt], key=lambda x:x['approved_on'])
+				emp_map[m].tla.append(xml)
 
-#	return tla_apps
+	return tla_apps
 
 def complete_sched(emp_dict, pay_from, pay_to, template_map):
 	pay_from = getdate(pay_from)
@@ -2788,13 +3075,12 @@ def change_sched(emp_dict, completed_schedules, csa):
 def processed_def_sched(employee, pay_from, pay_to, completed_schedules):
 	att_reg = frappe.db.sql(""" SELECT AR.`employee`, AR.`target_date`, AR.`work_shift`, AR.`is_default_schedule` FROM `tabAttendance Register` AR 
 		WHERE AR.`target_date` >= %s AND AR.`target_date` <= %s """,(pay_from, pay_to), as_dict=1)
+
 	for d in completed_schedules:
 		for ar in att_reg:
 			if (ar.employee == employee) and (ar.is_default_schedule) and (not d['is_change_schedule']):
 				if ar['target_date'] == d['target_date']:
 					d['work_shift'] = ar['work_shift']
-
-
 
 def daterange(start_date, end_date):
     for n in range( int((end_date - start_date).days) + 1):
