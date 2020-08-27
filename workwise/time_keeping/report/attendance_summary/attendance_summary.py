@@ -103,6 +103,27 @@ def get_columns(filters):
 			"fieldtype": "Float",
 			"width": 60
 		},
+	]
+
+	if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
+		early_nd_name = frappe.db.get_single_value('Payroll Settings', 'end_name')
+		late_nd_name = frappe.db.get_single_value('Payroll Settings', 'lnd_name')
+		columns += [
+			{
+				"fieldname": "earlynightdiff",
+				"label": _("END") if not early_nd_name else early_nd_name,
+				"fieldtype": "Float",
+				"width": 60
+			},
+			{
+				"fieldname": "latenightdiff",
+				"label": _("LND") if not late_nd_name else late_nd_name,
+				"fieldtype": "Float",
+				"width": 60
+			},
+		]
+
+	columns += [
 		{
 			"fieldname": "undertime",
 			"label": _("UT"),
@@ -175,9 +196,13 @@ def get_data(filters):
 		'late': 0,
 		'undertime': 0,
 		'overtime': 0,
-		'overtime_nd': 0, 
+		'overtime_nd': 0,
+		'ot_early_nd': 0,
+		'ot_late_nd': 0,
 		'overtime_ex': 0, 
 		'nightdiff': 0,
+		'earlynightdiff': 0,
+		'latenightdiff': 0,
 		'cto': 0,
 	}
 
@@ -198,7 +223,7 @@ def get_data(filters):
 					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'))
 				get_sorted_card(entry, cards_in, cards_out)
 				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
-					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'))
+					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
 
 				entry['break'] = convert_secs(filters, entry['break'])
 				totals['break'] += entry['break']
@@ -214,6 +239,12 @@ def get_data(filters):
 				totals['overtime_ex'] += entry['overtime_ex']
 				entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
 				totals['nightdiff'] += entry['nightdiff']
+				if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
+					entry['earlynightdiff'] = convert_secs(filters, entry['earlynightdiff'])
+					totals['earlynightdiff'] += entry['earlynightdiff']
+					entry['latenightdiff'] = convert_secs(filters, entry['latenightdiff'])
+					totals['latenightdiff'] += entry['latenightdiff']
+
 				entry['undertime'] = convert_secs(filters, entry['undertime'])
 				totals['undertime'] += entry['undertime']			
 				entry['cto'] = convert_secs(filters, entry['cto'])
