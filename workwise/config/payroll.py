@@ -95,6 +95,10 @@ def get_data():
 					"type": "doctype",
 					"name": "Bank Remittance Setup",
 				},
+				{
+					"type": "doctype",
+					"name": "Rate Classification",
+				},
 			]
 		},
 		{
@@ -153,6 +157,11 @@ def get_data():
 				},{
 					"type": "report",
 					"name": "Hold Salaries Report",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "ER Share Journal Entry",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
 				},{
