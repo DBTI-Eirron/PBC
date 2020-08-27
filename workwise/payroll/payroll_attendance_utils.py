@@ -65,4 +65,4 @@ def absent_backup(at, opt):
 				absent += ( at.work_hours / 2 ) * flt(rates.get('hourly_rate'), 8) if at.is_halfday == 1 else ( at.work_hours ) * flt(rates.get('hourly_rate'), 8)
 				absent_days += 0.5 if at.is_halfday == 1 else 1
 				AT_days += 0.5 if at.is_halfday == 1 else 1
-				test.append(_(""+cstr(at.target_date)+" "+cstr(absent_days)+""))	
+				test.append(_(""+cstr(at.target_date)+" "+cstr(absent_days)+""))
