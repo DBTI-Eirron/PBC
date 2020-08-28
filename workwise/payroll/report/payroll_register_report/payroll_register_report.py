@@ -262,7 +262,7 @@ def get_employees(filters):
 		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PR.period = %(period)s
 			AND PR.on_hold = 0
-			AND TE.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+			AND PR.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
 				"employee": filters.employee,
@@ -277,7 +277,7 @@ def get_conditions(filters):
 		conditions.append("PR.employee=%(employee)s")
 
 	if filters.get("location"):
-		conditions.append("TE.`location`=%(location)s")
+		conditions.append("PR.`location`=%(location)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 
