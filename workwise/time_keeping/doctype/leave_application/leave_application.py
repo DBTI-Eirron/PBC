@@ -172,7 +172,7 @@ class LeaveApplication(Document):
 		holiday_tag  = 0
 		location = frappe.get_value("Employee", self.employee, "location")
 
-		holiday = frappe.db.sql("""SELECT `name` FROM `tabHoliday` WHERE holiday_date = %s 
+		holiday = frappe.db.sql("""SELECT `name`, location FROM `tabHoliday` WHERE holiday_date = %s 
 			AND company = %s """, (getdate(target_date), self.company), as_dict=True)
 
 		if holiday:
