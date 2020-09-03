@@ -508,7 +508,7 @@ class AdjustmentProcessing(Document):
 						if at['is_holiday'] == 1 and is_uho == 1 and (not at['is_ob']) and not at['is_restday']:
 							#if present not UHO
 							if emp.get("rate_type") != "Daily Rate":
-								if at['work'] and (not at['is_lwop']) and (not at['absent']) and (not at['is_restday']) and (not at['is_halfday']):
+								if at['work'] and (not at['is_lwop']) and (not at['is_absent']) and (not at['is_restday']) and (not at['is_halfday']):
 									is_uho = 0
 								elif header.get('ex_uho_spnw') and at['is_sp_holiday']:
 									is_uho = 0								
