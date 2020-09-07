@@ -1242,20 +1242,37 @@ def get_undertime(entry):
 
 	if entry['ut_from'] and entry['ut_to']:
 		additional_undertime = 0
+		start, end = entry['ut_from'], entry['ut_to']
+		has_undertime = 0
+		
 		if entry['card_in'] and entry['card_out'] or entry['ob_stat']:
-			for ut in entry['ut_list']: 
-				if not (get_datetime(ut['from_time']) >= get_datetime(entry['ut_to']) or get_datetime(ut['to_time']) <= get_datetime(entry['ut_from'])):
-					if get_datetime(ut['from_time']) > get_datetime(entry['ut_from']):
-						additional_undertime += abs((entry['ut_from'] - ut['from_time']).total_seconds())
-						ut['from_time'] = entry['ut_from']
+			if not get_datetime(start) >= get_datetime(entry['time_out']) and not get_datetime(end) <= get_datetime(entry['time_in']) and not get_datetime(start) >= get_datetime(end):
+				for ut in entry['ut_list']:
+					if get_datetime(entry['ut_from']) < get_datetime(entry["time_in"]):
+						start =  get_datetime(entry["time_in"])
 
-					if get_datetime(ut['to_time']) < get_datetime(entry['ut_to']):
-						additional_undertime += abs((ut['from_time'] - entry['ut_to']).total_seconds())
-						ut['to_time'] = entry['ut_to']
+					if get_datetime(entry['ut_to']) > get_datetime(entry["time_out"]):
+						end =  get_datetime(entry["time_out"])
 
-		if additional_undertime == 0:
-			additional_undertime =+  abs((entry['ut_from'] - entry['ut_to']).total_seconds())
+					if get_datetime(ut['to_time']) == get_datetime(entry['break_start']):
+						end =  get_datetime(entry["break_start"])
+					if not get_datetime(ut['from_time']) > get_datetime(end) and not get_datetime(ut['to_time']) < get_datetime(start) and not  get_datetime(ut['to_time']) == get_datetime(entry['break_end']):
+						current_ut = abs((ut['to_time'] - ut['from_time']).total_seconds())
+						
+						if get_datetime(ut['from_time']) < get_datetime(start):
+							start = ut['from_time'] 
 
+						if get_datetime(ut['to_time']) > get_datetime(end):
+							end = ut['to_time']
+							
+						new_ut = abs((end - start).total_seconds())
+						additional_undertime += abs(new_ut - current_ut)
+					if get_datetime(ut['from_time']) == get_datetime(start) and get_datetime(ut['to_time']) == get_datetime(end):
+						has_undertime = 1
+
+		if additional_undertime == 0 and has_undertime == 0:
+			if not (get_datetime(start) >= get_datetime(entry['time_out']) or get_datetime(end) <= get_datetime(entry['time_in']) or get_datetime(start) >= get_datetime(end)):
+				additional_undertime =+  abs((entry['ut_from'] - entry['ut_to']).total_seconds())
 		entry['undertime'] += additional_undertime
 
 	if entry.get('ut_interval'):
