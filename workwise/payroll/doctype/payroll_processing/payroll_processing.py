@@ -441,7 +441,7 @@ class PayrollProcessing(Document):
 				if self.frequency == '2nd' and emp.get('sss_freq') == '2nd':
 					target_amt = header.get('govt_basic') + header.get('sss_inc') - header.get('sss_ded')
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('sss_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('sss_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('sss_inc') - header.get('sss_ded')
 
 					if header.get("govt_use_old"):
@@ -466,7 +466,7 @@ class PayrollProcessing(Document):
 						if header.get("govt_use_old"):
 							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_sss_inc'), 8)) - flt(header.get('prev_sss_ded'), 8)
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('sss_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('sss_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
 						if self.frequency == '1st' and emp.get('sss_freq') in ['Both', 'All']:
 							target_amt = (rates.get('monthly_rate')/2) + header.get('sss_inc') - header.get('sss_ded')
@@ -566,7 +566,7 @@ class PayrollProcessing(Document):
 				if self.frequency == '2nd' and emp.get('phic_freq') == '2nd':
 					target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('phic_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('phic_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('phic_inc') - header.get('phic_ded')
 
 					if header.get("govt_use_old"):
@@ -591,7 +591,7 @@ class PayrollProcessing(Document):
 						if header.get("govt_use_old"):
 							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_phic_inc'), 8)) - flt(header.get('prev_phic_ded'), 8)
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('phic_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('phic_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
 						if self.frequency == '1st' and emp.get('phic_freq') in ['Both', 'All']:
 							target_amt = (rates.get('monthly_rate')/2) + header.get('phic_inc') - header.get('phic_ded')
@@ -714,7 +714,7 @@ class PayrollProcessing(Document):
 				if self.frequency == '2nd' and emp.get('hdmf_freq') == '2nd':
 					target_amt = header.get('govt_basic') + header.get('hdmf_inc') - header.get('hdmf_ded')
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('hdmf_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('hdmf_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('hdmf_inc') - header.get('hdmf_ded')
 
 					if header.get("govt_use_old"):
@@ -739,7 +739,7 @@ class PayrollProcessing(Document):
 						if header.get("govt_use_old"):
 							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_hdmf_inc'), 8)) - flt(header.get('prev_hdmf_ded'), 8)
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('hdmf_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('hdmf_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_hdmf_inc') + header.get('hdmf_inc')) - (header.get('prev_hdmf_ded') + header.get('hdmf_ded'))
 						if self.frequency == '1st' and emp.get('hdmf_freq') in ['Both', 'All']:
 							target_amt = (rates.get('monthly_rate')/2) + header.get('hdmf_inc') - header.get('hdmf_ded')
