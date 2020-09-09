@@ -927,4 +927,17 @@ def fix_lbentry_fromdate():
 		oldlb = frappe.db.sql(""" SELECT `name`, `from_date`, `to_date` FROM `tabLeave Balance` WHERE `employee`=%s AND `to_date`=%s AND `leave_type`=%s """,(lb.employee, lb.to_date, lb.leave_type), as_dict=1)
 		if oldlb:
 			frappe.db.sql(""" UPDATE `tabLB Entry` SET from_date=%s WHERE `employee`=%s AND `to_date`=%s AND `leave_type`=%s AND created_from = 'Execute Script' """,(oldlb[0].from_date, lb.employee, lb.to_date, lb.leave_type), as_dict=1)
+
+def fix_lbentry_fromdate_partial():
+	#frappe.db.sql(""" UPDATE `tabLB Entry` SET from_date=DATE(creation) """)
+	#frappe.db.sql(""" DELETE FROM `tabLB Entry` wHERE created_from = 'Execute Script' """)
+	#frappe.db.sql(""" UPDATE `tabLB Entry` SET from_date=DATE(creation) WHERE created_from IN ('LB Scheduler - Carry Over', 'LB Scheduler') """)
+	frappe.db.sql(""" UPDATE `tabLB Entry` LB JOIN `tabLeave Application` LA ON LB.`linked_document`=LA.`name` SET LB.`from_date`=LA.`from_date` WHERE LB.`created_from` = 'Leave Application' """)
+	#frappe.db.sql(""" DELETE FROM `tabLB Entry` wHERE created_from = 'Execute Script' """)
+
+	#lbentries = frappe.db.sql(""" SELECT `name`, `employee`, `from_date`, `to_date`, `leave_type` FROM `tabLB Entry` WHERE created_from = 'Execute Script' """, as_dict=1)	
+	#for lb in lbentries:
+	#	oldlb = frappe.db.sql(""" SELECT `name`, `from_date`, `to_date` FROM `tabLeave Balance` WHERE `employee`=%s AND `to_date`=%s AND `leave_type`=%s """,(lb.employee, lb.to_date, lb.leave_type), as_dict=1)
+	#	if oldlb:
+	#		frappe.db.sql(""" UPDATE `tabLB Entry` SET from_date=%s WHERE `employee`=%s AND `to_date`=%s AND `leave_type`=%s AND created_from = 'Execute Script' """,(oldlb[0].from_date, lb.employee, lb.to_date, lb.leave_type), as_dict=1)
 			
