@@ -296,7 +296,7 @@ class LeaveApplication(Document):
 			conditions = " AND LT.is_second_half=%(is_second_half)s"
 
 		leave_sched = frappe.db.sql(""" SELECT DISTINCT LA.`name` FROM `tabLeave Application Table` LT INNER JOIN `tabLeave Application` LA ON LT.`parent`=LA.`name` 
-		  	WHERE LA.docstatus = 1 AND LA.`employee` = %(employee)s AND LT.`leave_date` = %(leave_date)s AND LA.`name` != %(leave_app)s {conditions}""".format(conditions=conditions),
+		  	WHERE LA.docstatus = 1 AND LA.`employee` = %(employee)s AND LT.`leave_date` = %(leave_date)s AND LT.`is_excluded` = 0 AND LA.`name` != %(leave_app)s {conditions}""".format(conditions=conditions),
 			({ 
 				"employee": self.employee,
 				"leave_date": leave_date,
@@ -375,7 +375,10 @@ class LeaveApplication(Document):
 		if not deduct_to:
 			deduct_to = self.leave_type
 		
-		lb_entries = frappe.db.sql(""" SELECT * FROM `tabLB Entry` WHERE `employee` = %s AND (`leave_type` = %s OR `deduct_credits_to` = %s) ORDER BY `from_date` ASC """, (self.employee, self.leave_type, self.leave_type), as_dict=1)
+		lb_entries = frappe.db.sql(""" SELECT * FROM `tabLB Entry` WHERE `employee` = %s AND 
+			(`leave_type` = %s OR `deduct_credits_to` = %s) AND `company` = %s ORDER BY `from_date` 
+			ASC """, (self.employee, self.leave_type, self.leave_type, self.company), as_dict=1)
+
 		for d in lb_entries:
 			if d.balance_type == "Add":
 				if self.leave_type == d.leave_type:
@@ -399,11 +402,15 @@ class LeaveApplication(Document):
 			to_less = 0
 			for le in less_entry:
 				if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
-					if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+					#if ( less_entry[le]['from'] <= getdate(self.from_date) <= less_entry[le]['to'] ) or ( less_entry[le]['from'] <= getdate(self.to_date) <= less_entry[le]['to'] )\
+					#or ( getdate(self.from_date) <= less_entry[le]['from'] <= getdate(self.to_date) ) or ( getdate(self.from_date) <= less_entry[le]['to'] <= getdate(self.to_date) ):
+					if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] )\
+					or ( less_entry[le]['from'] <= less_entry[le]['from'] <= less_entry[le]['to'] ) or ( less_entry[le]['from'] <= less_entry[le]['to'] <= less_entry[le]['to'] ):
 						to_less += less_entry[le]['credits']
 						less_entry[le]['used'] = 1
 			valid_entry[vl]['credits'] -= to_less
-			if ( valid_entry[vl]['from'] <= getdate(self.from_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ):
+			if ( valid_entry[vl]['from'] <= getdate(self.from_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] )\
+			or ( getdate(self.from_date) <= valid_entry[vl]['from'] <= getdate(self.to_date) ) or ( getdate(self.from_date) <= valid_entry[vl]['to'] <= getdate(self.to_date) ):
 				total_balance += valid_entry[vl]['credits']
 				from_balance += cstr(vl)
 
