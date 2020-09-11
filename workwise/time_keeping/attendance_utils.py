@@ -2249,7 +2249,7 @@ def get_ot_list(employee, from_date, to_date, approval_cutoff, adjustment):
 def get_ut_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
 
-	ut_apps = frappe.db.sql("""SELECT `name`, from_time, to_time, from_date,, to_date, target_date FROM `tabUndertime Application` 
+	ut_apps = frappe.db.sql("""SELECT `name`, from_time, to_time, from_date, to_date, target_date FROM `tabUndertime Application` 
 		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s 
 		AND from_date <= %s {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 
