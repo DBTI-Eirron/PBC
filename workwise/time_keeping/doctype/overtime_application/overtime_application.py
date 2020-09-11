@@ -198,7 +198,24 @@ class OvertimeApplication(Document):
 
 	def get_employeee_actual_logs(self):
 		#get_timelogs_reference
-		actual_logs = get_actual_logs(self.employee, getdate(self.target_date), getdate(self.target_date))
+		self.actual_in = None
+		self.actual_out = None
+		override = frappe.db.sql(""" SELECT time_in, time_out FROM `tabOverride List`
+			WHERE target_date = %s and employee = %s  """,(self.target_date, self.employee), as_dict=True)
+		ob_apps = frappe.db.sql("""SELECT OBAT.target_date, OBAT.date, OBAT.to_date,OBAT.from_time, OBAT.to_time 
+			FROM `tabOfficial Business Application Table` OBAT
+			INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name` INNER JOIN `tabPayroll Period` PP ON OBA.`company` = PP.`company`
+			WHERE OBA.workflow_state = 'Approved' AND OBAT.target_date = %s AND OBAT.is_excluded = 0 AND OBA.approved_on <= PP.approval_cutoff  and OBA.employee = %s
+			AND OBAT.`target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to` """, (self.target_date, self.employee), as_dict=1)
+		actual_logs = get_actual_logs(self.employee, getdate(self.target_date), getdate(self.target_date), 1)
+
+		dtrp_apps = frappe.db.sql("""SELECT DA.`name`,DT.`type`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`
+			FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` 
+			WHERE DA.`workflow_state` = 'Approved' AND DA.`employee` = %s
+			AND DA.`target_date` = %s
+			ORDER BY card_datetime """, (self.employee, self.target_date), as_dict=1)
+		
 		if actual_logs:
 			if actual_logs[0]["card_in"]:
 				self.actual_in = actual_logs[0]["card_in"]
@@ -208,9 +225,29 @@ class OvertimeApplication(Document):
 				self.actual_out = actual_logs[0]["card_out"]
 			else:
 				self.actual_out = None
-		else:
-			self.actual_in = None
-			self.actual_out = None
+
+		if override:
+			for o in override:
+				if o.time_in:
+					self.actual_in = o.time_in
+
+				if o.time_out:
+					self.actual_out = o.time_out
+	
+		if ob_apps:
+			for ob in ob_apps:
+				ob_in = get_datetime( str(ob.date)+" "+ str(ob.from_time))
+				ob_out = get_datetime( str(ob.to_date)+" "+ str(ob.to_time))
+				if self.actual_in:
+					if get_datetime(ob_in)< get_datetime(self.actual_in):
+						self.actual_in = ob_in
+				else:
+					self.actual_in = ob_in
+				if self.actual_out:
+					if get_datetime(ob_out)> get_datetime(self.actual_out):
+						self.actual_out = ob_out
+				else:
+					self.actual_out = ob_out
 
 	def validate_duplicate_ot_application(self):
 		application = frappe.db.sql(""" SELECT `name`, to_date, to_time, from_date, from_time FROM `tabOvertime Application` WHERE `docstatus` = 1 AND `employee` = %s AND `target_date` = %s  """,(self.employee, self.target_date), as_dict=True)
