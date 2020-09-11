@@ -89,7 +89,7 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 
 	if uts:
 		for ut in uts:
-			if ut['from_date'] == entry['target_date']:
+			if ut['target_date'] == entry['target_date']:
 				entry['ut_links'].append(ut.name)
 				entry['ut_from'] = get_datetime( str(ut.from_date)+" "+ str(ut.from_time))
 				entry['ut_to'] = get_datetime(str(ut.to_date) +" "+str(ut.to_time))
@@ -1239,7 +1239,6 @@ def get_undertime(entry):
 	#	entry['undertime'] = 0
 
 	#entry['undertime'], entry['ut_list'] = cto_reduction(entry['undertime'], entry['ut_list'])
-
 	if entry['ut_from'] and entry['ut_to']:
 		additional_undertime = 0
 		start, end = entry['ut_from'], entry['ut_to']
@@ -1274,7 +1273,7 @@ def get_undertime(entry):
 			if not (get_datetime(start) >= get_datetime(entry['time_out']) or get_datetime(end) <= get_datetime(entry['time_in']) or get_datetime(start) >= get_datetime(end)):
 				additional_undertime =+  abs((entry['ut_from'] - entry['ut_to']).total_seconds())
 		entry['undertime'] += additional_undertime
-
+	
 	if entry.get('ut_interval'):
 		entry['undertime'] = (entry.get('ut_interval') * 60) * int( entry.get('undertime') / (entry.get('ut_interval') * 60))
 
@@ -2132,7 +2131,7 @@ def get_schedule(employee, pay_from, pay_to):
 
 	return schedule
 
-def get_actual_logs(employee, pay_from, pay_to):
+def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 	result = []
 	schedule = get_schedule(employee, pay_from, pay_to)
 	for sched in schedule:
@@ -2156,8 +2155,13 @@ def get_actual_logs(employee, pay_from, pay_to):
 			dtrp_list = []
 			emp_bioid = frappe.db.get_value("Employee", employee, "biometrics_id")
 			timecards = get_timecard_list(emp_bioid, sched['target_date'], sched['target_date'] + datetime.timedelta(days=1))
+			dtrp_list = get_dtrp_list(employee, sched['target_date'], sched['target_date'] + datetime.timedelta(days=1), None, 0)
+			
+			#For OT App aCTUAL LOG
+			if ot_app and not timecards:
+				timecards = dtrp_list
+
 			if timecards:
-				dtrp_list = get_dtrp_list(employee, sched['target_date'], sched['target_date'] + datetime.timedelta(days=1), None, 0)
 				cards_in, cards_out = get_card_within(entry['pre_shift'], entry['end_preshift'], entry['post_shift'], entry['end_postshift'], timecards, dtrp_list)
 				get_sorted_card(entry, cards_in, cards_out)
 				result.append(entry)
@@ -2245,7 +2249,7 @@ def get_ot_list(employee, from_date, to_date, approval_cutoff, adjustment):
 def get_ut_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	by_adjustment = "" if adjustment == 1 else "AND approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
 
-	ut_apps = frappe.db.sql("""SELECT `name`, from_time, to_time, from_date FROM `tabUndertime Application` 
+	ut_apps = frappe.db.sql("""SELECT `name`, from_time, to_time, from_date, to_date, target_date FROM `tabUndertime Application` 
 		WHERE workflow_state = 'Approved' AND employee = %s AND from_date >= %s 
 		AND from_date <= %s {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 
@@ -2842,14 +2846,14 @@ def get_all_uts(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 	if monthly_approval_cutoffs and not adjustment:
-		undertimes = frappe.db.sql("""SELECT UA.`name`, UA.employee, UA.from_time, UA.to_time, UA.from_date, UA.to_date FROM `tabUndertime Application` UA
+		undertimes = frappe.db.sql("""SELECT UA.`name`, UA.employee, UA.from_time, UA.to_time, UA.from_date, UA.to_date, UA.target_date FROM `tabUndertime Application` UA
 			INNER JOIN `tabPayroll Period` PP ON UA.`company` = PP.`company`
 			WHERE UA.workflow_state = 'Approved' AND UA.from_date >= %s AND UA.from_date <= %s 
 			AND UA.approved_on <= PP.approval_cutoff AND UA.`target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to` 
 			{conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	else:
-		undertimes = frappe.db.sql("""SELECT `name`, employee, from_time, to_time, from_date, to_date FROM `tabUndertime Application` 
+		undertimes = frappe.db.sql("""SELECT `name`, employee, from_time, to_time, from_date, to_date, target_date FROM `tabUndertime Application` 
 			WHERE workflow_state = 'Approved' AND from_date >= %s 
 			AND from_date <= %s {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
