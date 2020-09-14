@@ -3,7 +3,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, copy
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, cstr
 from frappe import _
 from frappe.model.document import Document
@@ -27,38 +27,36 @@ class BatchEntry(Document):
 			frappe.throw(_("Transaction Type is not Active"))
 
 	def remove_duplicates(self):
+		existing_row = []
 		unique_emp = []
 		unique_entries = []
 		not_in_sensitivity = []
 		total_amount = 0
-		for d in self.employees:
-			if d.employee not in unique_emp:
+		shit = self.employees
+		for d in shit:
+			if d.employee not in existing_row:
+				existing_row.append(d.employee)
+				newobj = copy.copy(d)
+
 				amt = 0
-				if not d.amount:
+				if not newobj.amount:
 					amt = self.rate
 				else:
-					amt = d.amount
-				
+					amt = newobj.amount
+
 				allow_row = 1
-				if self.sensitivity_level and d.sensitivity_level != self.sensitivity_level:
+				if self.sensitivity_level and newobj.sensitivity_level != self.sensitivity_level:
 					allow_row = 0
-					not_in_sensitivity.append(str(d.employee)+": "+cstr(d.employee_name)+" Amount: "+str(flt(amt, 2)))
+					not_in_sensitivity.append(str(newobj.employee)+": "+cstr(newobj.employee_name)+" Amount: "+str(flt(amt, 2)))
 
 				if allow_row:
-					unique_emp.append(d.employee)
-					i = {
-						"employee": d.employee,
-						"employee_name": cstr(d.employee_name),
-						"amount": flt(amt),
-						"sensitivity_level": d.sensitivity_level if self.sensitivity_level else None,
-					}	
-					unique_entries.append(i)
+					unique_emp.append(newobj.employee)
+					newobj.amount = flt(amt)
+					newobj.sensitivity_level = d.sensitivity_level if self.sensitivity_level else None
 					total_amount += flt(amt)
+				unique_entries.append(newobj)
 
-		self.set('employees', [])
-		for ue in unique_entries:
-			row = self.append('employees', {})
-			row.update(ue)
+		self.employees = unique_entries
 		self.total_amount = total_amount
 
 		if not_in_sensitivity:
@@ -136,7 +134,6 @@ class BatchEntry(Document):
 						"amount": flt(self.rate),
 						"sensitivity_level": d.sensitivity if self.sensitivity_level else None,
 					}
-				
 					entries.append(row);
 
 				for d in entries:
