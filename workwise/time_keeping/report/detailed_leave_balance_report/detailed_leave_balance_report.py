@@ -178,7 +178,7 @@ def get_data(filters):
 						if ( vl['from_date'] <= le['from_date'] <= vl['to_date'] ) or ( vl['from_date'] <= le['to_date'] <= vl['to_date'] ):
 							to_less += le['credits']
 				 			le['included'] = 1
-						included_less.append(le)
+							included_less.append(le)
 			vl['credits'] -= to_less
 			if ( ( vl['from_date'] <= getdate(filters.from_date) <= vl['to_date'] ) or ( vl['from_date'] <= getdate(filters.to_date) <= vl['to_date'] ) )\
 			or ( ( getdate(filters.from_date) <= vl['from_date'] <= getdate(filters.to_date) ) or ( getdate(filters.from_date) <= vl['to_date'] <= getdate(filters.to_date) ) ):
