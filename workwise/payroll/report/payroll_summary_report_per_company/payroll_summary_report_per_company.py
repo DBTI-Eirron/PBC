@@ -53,8 +53,8 @@ def get_data(filters):
 
 def get_values(company,from_date,to_date):
 	final_amount = final_head = 0
-	amount = frappe.db.sql("""SELECT SUM(PR.net_payroll) as amount FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` E ON PR.employee = E.name WHERE PR.company = %s AND PR.posting_date BETWEEN %s AND %s"""+add_conditions(),(company,from_date,to_date),as_dict=True)
-	head_count = frappe.db.sql("""SELECT COUNT(PR.`name`) as head_count FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` E ON PR.employee = E.name WHERE PR.company = %s AND PR.posting_date BETWEEN %s AND %s"""+add_conditions(),(company,from_date,to_date),as_dict=True)
+	amount = frappe.db.sql("""SELECT SUM(PR.net_payroll) as amount FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` E ON PR.employee = E.name WHERE PR.company = %s AND PR.net_payroll >= 0 AND PR.posting_date BETWEEN %s AND %s"""+add_conditions(),(company,from_date,to_date),as_dict=True)
+	head_count = frappe.db.sql("""SELECT COUNT(PR.`name`) as head_count FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` E ON PR.employee = E.name WHERE PR.company = %s AND PR.net_payroll >= 0 AND PR.posting_date BETWEEN %s AND %s"""+add_conditions(),(company,from_date,to_date),as_dict=True)
 	if amount[0].amount:
 		final_amount = amount[0].amount
 	if head_count[0].head_count:
