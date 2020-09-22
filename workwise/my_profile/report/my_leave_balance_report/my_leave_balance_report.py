@@ -67,6 +67,7 @@ def get_data(filters):
 				if (( ad_from <= getdate(from_date) <= ad_to ) or ( ad_from <= getdate(to_date) <= ad_to )) \
 				or (( getdate(from_date) <= ad_from <= getdate(to_date) ) or ( getdate(from_date) <= ad_to <= getdate(to_date) )):
 					sub_entry['credits'] += ad_cred
+					sub_entry['credit_balance'] += ad_cred
 					for le in lb_entries[lt]['less']:
 						le_from = le['from_date']
 						le_to = le['to_date']
@@ -74,15 +75,17 @@ def get_data(filters):
 						le_cred = le['credits']
 
 						if ad_cred > 0 and not le_included:
-							if ( ad_from <= le_from <= ad_to ) or ( ad_from <= le_to <= ad_to ):
+							if (( ad_from <= le_from <= ad_to ) or ( ad_from <= le_to <= ad_to ))\
+							or (( le_from <= ad_from <= le_to ) or ( le_from <= ad_to <= le_to )):
 								to_less += le_cred
 								le['included'] = 1
 								sub_entry['used_credits'] += le_cred
-						ad['credits'] -= to_less
-					if (( ad_from <= getdate(from_date) <= ad_to ) or ( ad_from <= getdate(to_date) <= ad_to )) \
-					or (( getdate(from_date) <= ad_from <= getdate(to_date) ) or ( getdate(from_date) <= ad_to <= getdate(to_date) )):
-						sub_entry['credit_balance'] += ad['credits']
+					ad_cred -= to_less
+					sub_entry['credit_balance'] += ad_cred
 		data.append(sub_entry)
+
+	for d in data:
+		d['credit_balance'] = abs(d['credits'] - d['used_credits'])
 
 	return data
 

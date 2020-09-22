@@ -102,7 +102,7 @@ def get_data(filters):
 
 	leave_balance = frappe.db.sql(""" SELECT LE.*, TE.full_name, TE.`location`
 		FROM `tabLB Entry` LE INNER JOIN `tabEmployee` TE ON LE.`employee` = TE.`name` 
-		LEFT JOIN `tabLocation` LOC ON TE.`location` = LOC.`name`
+		INNER JOIN `tabLocation` LOC ON TE.`location` = LOC.`name`
 		WHERE TE.`company` = %(company)s {conditions} ORDER BY TE.full_name, LE.creation DESC """.format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	#Init Data
@@ -147,8 +147,10 @@ def get_data(filters):
 				})
 
 	#Process Data
+	all_included_less = []
 	for dt in data_entry:
 		for vl in data_entry[dt]['add_entry']:
+			included_less = []
 			if ( ( vl['from_date'] <= getdate(filters.from_date) <= vl['to_date'] ) or ( vl['from_date'] <= getdate(filters.to_date) <= vl['to_date'] ) )\
 			or ( ( getdate(filters.from_date) <= vl['from_date'] <= getdate(filters.to_date) ) or ( getdate(filters.from_date) <= vl['to_date'] <= getdate(filters.to_date) ) ):
 				if dt not in data_result:
@@ -169,24 +171,26 @@ def get_data(filters):
 					"application": vl['application'],
 				})
 
-			to_less = 0
-			included_less = []
-			for le in data_entry[dt]['less_entry']:
-				if ( ( le['from_date'] <= getdate(filters.from_date) <= le['to_date'] ) or ( le['from_date'] <= getdate(filters.to_date) <= le['to_date'] ) )\
-				or ( ( getdate(filters.from_date) <= le['from_date'] <= getdate(filters.to_date) ) or ( getdate(filters.from_date) <= le['to_date'] <= getdate(filters.to_date) ) ):
-					if (vl['credits'] > 0) and (not le['included']):
-						if ( vl['from_date'] <= le['from_date'] <= vl['to_date'] ) or ( vl['from_date'] <= le['to_date'] <= vl['to_date'] ):
+				to_less = 0
+				for le in data_entry[dt]['less_entry']:
+					#if ( ( le['from_date'] <= getdate(filters.from_date) <= le['to_date'] ) or ( le['from_date'] <= getdate(filters.to_date) <= le['to_date'] ) )\
+					#or ( ( getdate(filters.from_date) <= le['from_date'] <= getdate(filters.to_date) ) or ( getdate(filters.from_date) <= le['to_date'] <= getdate(filters.to_date) ) ):
+					if (vl['credits'] > 0) and not le['included']:
+						if (( vl['from_date'] <= le['from_date'] <= vl['to_date'] ) or ( vl['from_date'] <= le['to_date'] <= vl['to_date'] )) \
+						or (( le['from_date'] <= vl['from_date'] <= le['to_date'] ) or ( le['from_date'] <= vl['to_date'] <= le['to_date'] )):
 							to_less += le['credits']
 				 			le['included'] = 1
-							included_less.append(le)
-			vl['credits'] -= to_less
-			if ( ( vl['from_date'] <= getdate(filters.from_date) <= vl['to_date'] ) or ( vl['from_date'] <= getdate(filters.to_date) <= vl['to_date'] ) )\
-			or ( ( getdate(filters.from_date) <= vl['from_date'] <= getdate(filters.to_date) ) or ( getdate(filters.from_date) <= vl['to_date'] <= getdate(filters.to_date) ) ):
+				 			if le not in all_included_less:
+								included_less.append(le)
+								all_included_less.append(le)
+				vl['credits'] -= to_less
+				#if ( ( vl['from_date'] <= getdate(filters.from_date) <= vl['to_date'] ) or ( vl['from_date'] <= getdate(filters.to_date) <= vl['to_date'] ) )\
+				#or ( ( getdate(filters.from_date) <= vl['from_date'] <= getdate(filters.to_date) ) or ( getdate(filters.from_date) <= vl['to_date'] <= getdate(filters.to_date) ) ):
 				data_result[dt]['valid_credits'] += vl['credits']
-				
-			for inc in included_less:
-				if dt in data_result:
-					data_result[dt]['entry'].append(inc)
+
+				for inc in included_less:
+					if dt in data_result:
+						data_result[dt]['entry'].append(inc)
 
 	#Generate Data
 	for dat in sorted( data_result.items(), key=lambda k: [k[1][s] for s in sorted_by] ):
@@ -232,6 +236,6 @@ def get_conditions(filters):
 		conditions.append("TE.`location`=%(location)s")
 
 	if filters.get("leave_type"):
-		conditions.append("LE.`leave_type`=%(leave_type)s")
+		conditions.append("(LE.`leave_type`=%(leave_type)s OR LE.`deduct_credits_to`=%(leave_type)s)")
 
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 

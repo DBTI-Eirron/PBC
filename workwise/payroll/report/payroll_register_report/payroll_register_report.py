@@ -120,8 +120,12 @@ def execute(filters=None):
 					if totals[columns[x]['fieldname']] <= 0:
 						del columns[x]
 						if filters.include_header:
-							for y,d in enumerate(data[3:]):
-								del data[y+3][x]
+							row_num = 3
+							if filters.location:
+								row_num = 4
+								
+							for y,d in enumerate(data[row_num:]):
+								del data[y+row_num][x]
 						else:
 							for y,d in enumerate(data):
 								del data[y][x]
