@@ -940,4 +940,71 @@ def fix_lbentry_fromdate_partial():
 	#	oldlb = frappe.db.sql(""" SELECT `name`, `from_date`, `to_date` FROM `tabLeave Balance` WHERE `employee`=%s AND `to_date`=%s AND `leave_type`=%s """,(lb.employee, lb.to_date, lb.leave_type), as_dict=1)
 	#	if oldlb:
 	#		frappe.db.sql(""" UPDATE `tabLB Entry` SET from_date=%s WHERE `employee`=%s AND `to_date`=%s AND `leave_type`=%s AND created_from = 'Execute Script' """,(oldlb[0].from_date, lb.employee, lb.to_date, lb.leave_type), as_dict=1)
-			
+
+def cto_multi_file():
+	old_ctos = frappe.db.sql(""" SELECT * FROM `tabCompensatory Time Off` WHERE `name` NOT IN (SELECT `parent` FROM `tabCompensatory Time Off Targets`) """, as_dict=1)
+
+	if old_ctos:
+		for old in old_ctos:
+			if old.type == "File":
+				cto_table = frappe.new_doc("Compensatory Time Off Targets")
+				cto_table.update({
+					'parent': old.name,
+					'target_date': old.file_target_date,
+					'is_previous': old.is_previous,
+					'from_date': old.file_from_date,
+					'to_date': old.file_to_date,
+					'from_time': old.file_from_time,
+					'to_time': old.file_to_time,
+					'break_hours': old.break_hours,
+					'cto_hours': old.total_hours,
+					'credits_earned': old.credits_earned,
+					'credits_used': old.credits_used,
+					'balance': old.balance,
+					'actual_in': old.file_actual_in,
+					'actual_out': old.file_actual_out,
+				})
+				cto_table.flags.ignore_permissions = True
+				cto_table.flags.ignore_validate = True
+				cto_table.insert()
+
+			if old.type == "Use":
+				row = {
+					'parent': old.name,
+					'target_date': old.file_target_date,
+					'is_previous': old.is_previous,
+					'from_date': old.file_from_date,
+					'to_date': old.file_to_date,
+					'from_time': old.file_from_time,
+					'to_time': old.file_to_time,
+					'filed_cto': old.filed_cto,
+					'break_hours': old.break_hours,
+					'cto_hours': old.total_hours,
+					'credits_earned': old.credits_earned,
+					#'required_credits': ,
+					#'actual_in': ,
+					#'actual_out': ,
+				}
+				
+			frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET 
+				`total_credits_earned`= %(total_credits_earned)s,
+				`total_required_credits`= %(total_required_credits)s,
+				`total_credits_used`= %(total_credits_used)s,
+				`total_break_hours`= %(total_break_hours)s,
+				`total_hours`= %(total_hours)s,
+				`total_balance`= %(total_balance)s WHERE `name` = %(name)s """,{
+				'total_credits_earned': old.credits_earned,
+				'total_required_credits': old.required_credits,
+				'total_credits_used': old.credits_used,
+				'total_break_hours': old.break_hours,
+				'total_hours': old.total_hours,
+				'total_balance': old.balance,
+				'name': old.name,
+			}, as_dict=True)
+
+def add_approved_on_and_by():
+	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application"]
+	for app in application_type_list:
+		table = "`tab"+app+"`"
+		table = str(table)
+		frappe.db.sql(""" UPDATE """+table+""" SET approved_on = modified, approved_by = modified_by WHERE docstatus = 1 AND (approved_on IS NULL OR approved_on = '') AND (approved_by IS NULL OR approved_by = '') """)
