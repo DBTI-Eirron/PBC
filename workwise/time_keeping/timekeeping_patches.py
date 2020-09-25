@@ -1008,3 +1008,11 @@ def add_approved_on_and_by():
 		table = "`tab"+app+"`"
 		table = str(table)
 		frappe.db.sql(""" UPDATE """+table+""" SET approved_on = modified, approved_by = modified_by WHERE docstatus = 1 AND (approved_on IS NULL OR approved_on = '') AND (approved_by IS NULL OR approved_by = '') """)
+
+def update_failed_approved_docstatus():
+	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application"]
+	for app in application_type_list:
+		table = "`tab"+app+"`"
+		table = str(table)
+
+		frappe.db.sql(""" UPDATE """+table+""" SET docstatus = 1 WHERE docstatus = 0 AND workflow_state = 'Approved' """)
