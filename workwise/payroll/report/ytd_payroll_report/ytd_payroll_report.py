@@ -41,7 +41,7 @@ def execute(filters=None):
 			for reg in employee_dict[emp]:
 				if getdate(reg['posting_date']) >= getdate(from_date) and getdate(reg['posting_date']) <= getdate(to_date):
 					if reg['gross_payroll'] > 0:
-						period_amount += flt(reg['gross_payroll'], 2)
+						period_amount += flt(reg['gross_payroll'])
 					
 			total_grosspay += period_amount
 			row[p] = format_precision(period_amount, filters.value_precision)
@@ -101,13 +101,20 @@ def get_employees(filters):
 	from_date = str(filters.year)+"-01-01"
 	to_date = str(filters.year)+"-12-"+str(calendar.monthrange(int(filters.year), 12)[1])
 
+	join_conditions = ""
+	if frappe.session.user != "Administrator":
+		join_conditions += "INNER JOIN `tabEmployee` TE ON PR.`employee`=TE.`name`"
+	if filters.get("department"):
+		join_conditions += "INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`"
+
 	employees = frappe.db.sql(""" SELECT PR.employee, PR.employee_name, PR.posting_date, PR.gross_payroll, PR.period 
 		FROM `tabPayroll Register` PR 
-		INNER JOIN `tabEmployee` TE ON PR.`employee`=TE.`name`
-		INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+		{join_conditions}
 		WHERE PR.company = %(company)s AND PR.on_hold = 0
-		AND (PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s)
-		{conditions} ORDER BY TE.full_name """.format(conditions=get_conditions(filters)), { 
+		AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s
+		{conditions} ORDER BY PR.employee_name """.format(
+			join_conditions=join_conditions,
+			conditions=get_conditions(filters)), { 
 			'from_date': str(getdate(from_date)),
 			'to_date': str(getdate(to_date)),
 			'company': filters.company,
