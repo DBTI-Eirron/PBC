@@ -47,6 +47,12 @@ def get_data():
 					"doctype": "Attendance Register",	
 					"is_query_report": True
 				},
+				{
+					"type": "report",
+					"name": "My Leave Balance Report",
+					"doctype": "LB Entry",	
+					"is_query_report": True
+				},
 			]
 		},
 	]

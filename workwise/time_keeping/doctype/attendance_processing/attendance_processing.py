@@ -17,7 +17,7 @@ from workwise.time_keeping.application_utils import get_user_fullname
 class AttendanceProcessing(Document):
 	def get_employees(self):
 		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.biometrics_id, TE.company, TE.location, TE.is_attendance_base, 
-			TE.no_hours, TE.rate_type, TE.default_schedule, TE.department, DEPT.`lft`
+			TE.no_hours, TE.rate_type, TE.default_schedule, TE.department, DEPT.`lft`, TE.cost_center
 			FROM `tabEmployee` TE
 			LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 			WHERE TE.company = %(company)s 
@@ -103,11 +103,11 @@ class AttendanceProcessing(Document):
 				change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 				for sched in emp_dict['schedules']:
 					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
-					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
-						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'))
+					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), 
+						entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'), entry)
 					get_sorted_card(entry, cards_in, cards_out)
-					get_attendance(entry, emp_dict.get('overrides'), emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
-						emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'))
+					get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), emp_dict.get('ots'), 
+						emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
 					
 					entry['break'] = self.convert_secs(entry['break'])
 					entry['work'] = self.convert_secs(entry['work'])
@@ -117,7 +117,11 @@ class AttendanceProcessing(Document):
 					entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
 					entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
 					entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
+					entry['earlynightdiff'] = self.convert_secs(entry['earlynightdiff'])
+					entry['latenightdiff'] = self.convert_secs(entry['latenightdiff'])
 					entry['cto'] = self.convert_secs(entry['cto'])
+					entry['ot_early_nd'] = self.convert_secs(entry['ot_early_nd'])
+					entry['ot_late_nd'] = self.convert_secs(entry['ot_late_nd'])
 					ot_list.extend(entry.get('ot_list'))
 					insert_overtime(entry)
 					reg_list.append(entry)
@@ -167,6 +171,8 @@ class AttendanceProcessing(Document):
 					"target_date": ot.get('target_date'),
 					"ot_code": ot.get('ot_code'),	
 					"hrs": ot.get('ot_hrs'),
+					"early_nd": ot.get('early_nd'),
+					"late_nd": ot.get('late_nd'),
 					"linked_ot": ot.get('linked_ot'),
 				})
 				otdoc.flags.ignore_mandatory = True
@@ -177,6 +183,7 @@ class AttendanceProcessing(Document):
 				row = {
 					'employee': reg['employee'],
 					'employee_name': frappe.db.get_value("Employee", reg['employee'], ["full_name"]),
+					'cost_center': reg['cost_center'],
 					'target_date': reg['target_date'],
 					'work_shift': reg['work_shift'],
 					'work_hours': reg['work_hours'],
@@ -187,6 +194,8 @@ class AttendanceProcessing(Document):
 					'overtime_nd': reg['overtime_nd'],
 					'overtime_ex': reg['overtime_ex'],
 					'nightdiff': reg['nightdiff'],
+					'earlynightdiff': reg['earlynightdiff'],
+					'latenightdiff': reg['latenightdiff'],
 					'undertime': reg['undertime'],
 					'cto': reg['cto'],
 					'linked_leave': reg['linked_leave'],
@@ -208,6 +217,8 @@ class AttendanceProcessing(Document):
 					'is_default_schedule': reg['is_default_schedule'],
 					'is_change_schedule': reg['is_change_schedule'],
 					'has_issue': "",
+					'ot_early_nd': reg['ot_early_nd'],
+					'ot_late_nd': reg['ot_late_nd'],
 					'card_in': reg['card_in'],
 					'card_out': reg['card_out'],
 					'tags': reg['tags'],

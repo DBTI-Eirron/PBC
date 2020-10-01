@@ -15,6 +15,7 @@ from workwise.time_keeping.timekeeping_task import validate_create_lbentry
 
 class EmployeeMovement(Document):
 	def validate(self):
+		self.clear_fields()
 		self.get_sensitivity_level()
 		if self.movement_type in ["Job Rotation", "Retirement", "Resignation", "Regularization", "Transfer", "Termination", "Salary Adjustment", "Extension of Services"]:
 			validate_inactive_employee(self)
@@ -27,6 +28,10 @@ class EmployeeMovement(Document):
 
 	def on_cancel(self):
 		self.revert_movement()
+
+	def clear_fields(self):
+		self.old_approvers = None
+		self.new_approvers = None
 
 	def get_sensitivity_level(self):
 		self.sensitivity_level = frappe.db.get_value("Employee", self.employee, 'sensitivity')
@@ -170,16 +175,17 @@ class EmployeeMovement(Document):
 				"department": self.new_department if self.new_department else self.current_department,
 				"location": self.new_location if self.new_location else self.current_location,
 			})
+
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
 
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"company": self.current_company,
-					"department": self.current_department,
-					"location": self.current_location,
-				})
+				"company": self.current_company,
+				"department": self.current_department,
+				"location": self.current_location,
+			})
 			self.revert_employee(emp)
 			self.cmd_salary_adjustment(process=process)
 
@@ -191,10 +197,10 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"employment_status": "Terminated",
-					"is_active": 0,
-					"date_terminated": getdate(self.effective_on),
-				})
+				"employment_status": "Terminated",
+				"is_active": 0,
+				"date_terminated": getdate(self.effective_on),
+			})
 			self.save_employee(emp)
 
 
@@ -220,6 +226,7 @@ class EmployeeMovement(Document):
 					"min_take_home": flt(self.new_minimum_take_home, 2) if self.new_minimum_take_home else flt(self.current_minimum_take_home, 2),
 					"is_attendance_base": self.new_attendance_base if self.new_attendance_base else self.current_attendance_base,
 					"cost_center": self.new_cost_center if self.new_cost_center else self.current_cost_center,
+					"rate_class": self.new_rate_classification,
 				})
 			self.save_employee(emp)
 
@@ -231,6 +238,7 @@ class EmployeeMovement(Document):
 					"min_take_home": flt(self.current_minimum_take_home, 2),
 					"is_attendance_base": self.current_attendance_base,
 					"cost_center": self.current_cost_center,
+					"rate_class": self.current_rate_classification,
 				})
 			self.revert_employee(emp)
 

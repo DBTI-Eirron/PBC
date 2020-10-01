@@ -100,6 +100,27 @@ def get_columns(filters):
 			"fieldtype": "Float",
 			"width": 60
 		},
+	]
+
+	if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
+		early_nd_name = frappe.db.get_single_value('Payroll Settings', 'end_name')
+		late_nd_name = frappe.db.get_single_value('Payroll Settings', 'lnd_name')
+		columns += [
+			{
+				"fieldname": "earlynightdiff",
+				"label": _("END") if not early_nd_name else early_nd_name,
+				"fieldtype": "Float",
+				"width": 60
+			},
+			{
+				"fieldname": "latenightdiff",
+				"label": _("LND") if not late_nd_name else late_nd_name,
+				"fieldtype": "Float",
+				"width": 60
+			},
+		]
+	
+	columns += [
 		{
 			"fieldname": "cto",
 			"label": _("CTO"),
@@ -148,6 +169,7 @@ def get_data(filters):
 	pay_from, pay_to, schedule = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "schedule"])
 	emp_map = init_employee_map(filters, pay_from, pay_to, schedule)
 	grand_work, grand_break, grand_late, grand_ot, grand_otnd, grand_otex, grand_ut, grand_nd, grand_cto = 0, 0, 0, 0, 0, 0, 0, 0, 0
+	grand_end, grand_lnd = 0, 0
 	data.append({
 		"target_date":"<b>Company: </b>"+filters.company+"",
 	})
@@ -183,6 +205,9 @@ def get_data(filters):
 				emp_dict['sub_nightdiff'] += r.nightdiff
 				emp_dict['sub_cto'] += r.cto
 				emp_dict['sub_undertime'] += r.undertime
+				if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
+					emp_dict['sub_earlynightdiff'] += r['earlynightdiff']
+					emp_dict['sub_latenightdiff'] += r['latenightdiff']
 				data.append(r)
 
 			grand_work += emp_dict['sub_work']
@@ -194,6 +219,8 @@ def get_data(filters):
 			grand_nd += emp_dict['sub_nightdiff']
 			grand_cto += emp_dict['sub_cto']
 			grand_ut += emp_dict['sub_undertime']
+			grand_end += emp_dict['sub_earlynightdiff']
+			grand_lnd += emp_dict['sub_latenightdiff']
 			data.append({
 				"target_date": _("TOTAL"),
 				"work": emp_dict['sub_work'],
@@ -205,6 +232,8 @@ def get_data(filters):
 				"nightdiff": emp_dict['sub_nightdiff'],
 				"cto": emp_dict['sub_cto'],
 				"undertime": emp_dict['sub_undertime'],
+				"earlynightdiff": emp_dict['sub_earlynightdiff'],
+				"latenightdiff": emp_dict['sub_latenightdiff'],
 			})
 			data.append({})
 
@@ -219,6 +248,8 @@ def get_data(filters):
 		"nightdiff": grand_nd,
 		"cto": grand_cto,
 		"undertime": grand_ut,
+		"earlynightdiff": grand_end,
+		"latenightdiff": grand_lnd,
 	})
 
 	return data
@@ -247,6 +278,8 @@ def init_employee_map(filters, pay_from, pay_to, schedule):
 				"sub_nightdiff": 0.0,
 				"sub_cto": 0.0,
 				"sub_undertime": 0.0,
+				"sub_earlynightdiff": 0.0,
+				"sub_latenightdiff": 0.0,
 			})
 		)
 

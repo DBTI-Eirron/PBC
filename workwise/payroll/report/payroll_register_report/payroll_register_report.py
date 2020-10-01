@@ -120,8 +120,12 @@ def execute(filters=None):
 					if totals[columns[x]['fieldname']] <= 0:
 						del columns[x]
 						if filters.include_header:
-							for y,d in enumerate(data[3:]):
-								del data[y+3][x]
+							row_num = 3
+							if filters.location:
+								row_num = 4
+								
+							for y,d in enumerate(data[row_num:]):
+								del data[y+row_num][x]
 						else:
 							for y,d in enumerate(data):
 								del data[y][x]
@@ -262,7 +266,7 @@ def get_employees(filters):
 		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PR.period = %(period)s
 			AND PR.on_hold = 0
-			AND TE.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+			AND PR.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 				"period": filters.payroll_period,
 				"company": filters.company,
 				"employee": filters.employee,
@@ -277,7 +281,7 @@ def get_conditions(filters):
 		conditions.append("PR.employee=%(employee)s")
 
 	if filters.get("location"):
-		conditions.append("TE.`location`=%(location)s")
+		conditions.append("PR.`location`=%(location)s")
 
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 

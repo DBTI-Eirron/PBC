@@ -31,6 +31,7 @@ cur_frm.add_fetch('employee', 'rate_type', 'new_rate_type');
 //cur_frm.add_fetch('employee', 'rate', 'new_rate');
 //cur_frm.add_fetch('employee', 'min_take_home', 'new_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'new_attendance_base');
+cur_frm.add_fetch('employee', 'rate_class', 'current_rate_classification');
 
 frappe.ui.form.on('Employee Movement', {
 	onload: function(frm) {

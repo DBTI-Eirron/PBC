@@ -1,7 +1,7 @@
 {
  "allow_copy": 0, 
  "allow_guest_to_view": 0, 
- "allow_import": 0, 
+ "allow_import": 1, 
  "allow_rename": 0, 
  "autoname": "LBE.#####", 
  "beta": 0, 
@@ -573,7 +573,7 @@
  "issingle": 0, 
  "istable": 0, 
  "max_attachments": 0, 
- "modified": "2020-06-17 12:11:10.528521", 
+ "modified": "2020-09-09 17:51:15.099906", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "LB Entry", 

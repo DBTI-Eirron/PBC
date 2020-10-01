@@ -8,7 +8,7 @@ import frappe
 from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money
 from frappe import _
 from frappe.model.document import Document
-from workwise.payroll.payroll_utils import get_adjustment_settings, get_rates, get_sss_table, get_sss_amount, get_hdmf_table, get_hdmf_amount
+from workwise.payroll.payroll_utils import get_adjustment_settings, get_rates, get_sss_table, get_sss_amount, get_hdmf_table, get_hdmf_amount, get_rateclass_map, get_ot_class_map
 from workwise.payroll.weekly_utils import get_weekly_prev_map, get_weekly_basis
 from workwise.payroll.loans_utils import get_loans_map, get_employee_loan, update_loans
 from workwise.payroll.payroll_attendance_utils import get_absent_days
@@ -16,7 +16,7 @@ from workwise.time_keeping.application_utils import validate_inactive_employee
 
 class PayrollProcessing(Document):
 	def get_employees(self):
-		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.location, TE.company, TE.total_yr_days, TE.rate_type, TE.rate, 
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.location, TE.company, TE.total_yr_days, TE.rate_type, TE.rate, TE.rate_class, 
 			TE.payroll_schedule, TE.min_take_home, TE.mth_percentage, TE.cost_center, TE.no_hours, TE.is_active,
 			TE.sss_mode, TE.sss_manual, TE.sss_freq, TE.phic_mode, TE.phic_manual, TE.phic_freq, TE.hdmf_mode, TE.hdmf_manual, TE.hdmf_freq, TE.whtax_mode, 
 			TE.whtax_manual, TE.whtax_freq, TE.is_attendance_base, TE.ignore_late, TE.ignore_nd, TE.ignore_ut, TE.on_hold, TE.sensitivity
@@ -92,6 +92,8 @@ class PayrollProcessing(Document):
 		hdmf_table = get_hdmf_table()	
 		tr_map = self.get_transaction_map()
 		ot_map = self.get_overtime_map()
+		ot_class_map = get_ot_class_map()
+		rateclass_map = get_rateclass_map()
 		adj_settings = get_adjustment_settings()
 		previous_period = self.get_previous_period()
 		dis_dho_tran = frappe.db.get_single_value('Payroll Settings', 'disable_dho_tran')
@@ -101,6 +103,9 @@ class PayrollProcessing(Document):
 		hd_lwop_as_uho = frappe.db.get_single_value('Payroll Settings', 'hd_lwop_as_uho')
 		ex_uho_spnw = frappe.db.get_single_value('Payroll Settings', 'ex_uho_spnw')
 		mo_amt_smdl = frappe.db.get_single_value('Payroll Settings', 'mo_amt_smdl')
+		sss_smdl = frappe.db.get_single_value('Payroll Settings', 'sss_smdl')
+		phic_smdl = frappe.db.get_single_value('Payroll Settings', 'phic_smdl')
+		hdmf_smdl = frappe.db.get_single_value('Payroll Settings', 'hdmf_smdl')
 		hd_no_uho = frappe.db.get_single_value('Payroll Settings', 'hd_no_uho')
 		ignore_uho = frappe.db.get_single_value('Payroll Settings', 'ignore_uho')
 		phic_mo_basis = frappe.db.get_single_value('Payroll Settings', 'phic_mo_basis')
@@ -112,6 +117,8 @@ class PayrollProcessing(Document):
 		mo_abho = frappe.db.get_single_value('Timekeeping Settings', 'mo_abho')
 		disable_pdhord = frappe.db.get_single_value('Payroll Settings', 'disable_pdhord')
 		rec_pre_ph = frappe.db.get_single_value('Payroll Settings', 'rec_pre_ph')
+		ot_rate_class = frappe.db.get_single_value('Payroll Settings', 'ot_rate_class')
+		nd_rate_class = frappe.db.get_single_value('Payroll Settings', 'nd_rate_class')
 
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
@@ -210,6 +217,9 @@ class PayrollProcessing(Document):
 						'hd_lwop_as_uho': hd_lwop_as_uho,
 						'ex_uho_spnw': ex_uho_spnw,
 						'mo_amt_smdl': mo_amt_smdl,
+						'sss_smdl': sss_smdl,
+						'phic_smdl': phic_smdl,
+						'hdmf_smdl': hdmf_smdl,
 						'hd_no_uho': hd_no_uho,
 						'ignore_uho': ignore_uho,
 						'phic_mo_basis': phic_mo_basis,
@@ -224,6 +234,11 @@ class PayrollProcessing(Document):
 						'dis_dho_tran': dis_dho_tran,
 						'dho' : dho,
 						'rec_pre_ph' : rec_pre_ph,
+						'ot_rate_class': ot_rate_class,
+						'nd_rate_class': nd_rate_class,
+						#Other
+						'daily_basic': 0,
+						'paying_cc': [],
 					}
 					
 					#Calculate Rates and Previous Entries
@@ -231,7 +246,7 @@ class PayrollProcessing(Document):
 					self.get_previous(emp, header)
 
 					#Calculate Basic Entries
-					self.get_attendance(emp, rates, header, register, ot_map)
+					self.get_attendance(emp, rates, header, register, ot_map, ot_class_map, rateclass_map)
 					self.get_basic(emp, rates, header, register)
 					self.get_recurring(emp, rates, header, register)
 					self.get_batch(emp, rates, header, register)
@@ -255,7 +270,7 @@ class PayrollProcessing(Document):
 					pr = frappe.new_doc("Payroll Register")
 					pr.update(header)
 					for d in register:
-						if d['amount'] > 0:
+						if d['amount'] > 0 and d.get('pay_code') in tr_map:
 							pr.append("payroll_register_entries", {
 								"pay_type": tr_map[d.get('pay_code')]['type'],
 								"pay_code": d.get('pay_code'),
@@ -266,7 +281,7 @@ class PayrollProcessing(Document):
 								"account": tr_map[d.get('pay_code')]['account'],
 								"linked_document": d.get('linked_document'),
 								"linked_doctype": d.get('linked_doctype'),
-								"cost_center": emp.cost_center,
+								"cost_center": d.get('cost_center') if d.get('cost_center') else emp.cost_center,
 								"is_taxable": tr_map[d.get('pay_code')]['is_taxable'],
 								"is_bonus": tr_map[d.get('pay_code')]['is_bonus'],
 							})
@@ -313,7 +328,7 @@ class PayrollProcessing(Document):
 
 	def calculate_basic_header(self, register, header, tr_map):
 		for d in register:
-			if d.get('amount') > 0:	
+			if d.get('amount') > 0 and d.get('pay_code') in tr_map:	
 				if tr_map[d.get("pay_code")]['type'] == 'Income':
 					header['total_income'] += d.get('amount')
 					
@@ -394,6 +409,7 @@ class PayrollProcessing(Document):
 				rates['monthly_rate'] = rates.get('monthly_rate')
 			else:
 				rates['monthly_rate'] = amt
+				rates['monthly_rate'] = header['daily_basic']
 
 		elif emp.get('payroll_schedule') == "Weekly":
 			amt = rates.get('weekly_rate')
@@ -409,7 +425,8 @@ class PayrollProcessing(Document):
 				amt += flt(rates.get('daily_rate'), 8) * header.get('paid_holidays')
 				
 		header['basic'] = amt
-		register.append({"pay_code": "BS", "amount": amt})
+		if emp.get('rate_type') != "Daily Rate":
+			register.append({"pay_code": "BS", "amount": amt})
 
 	def get_sss(self, emp, rates, header, register, tr_map, sss_table, weekly_prev_map):
 		sss_register = []
@@ -424,7 +441,7 @@ class PayrollProcessing(Document):
 				if self.frequency == '2nd' and emp.get('sss_freq') == '2nd':
 					target_amt = header.get('govt_basic') + header.get('sss_inc') - header.get('sss_ded')
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('sss_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('sss_inc') - header.get('sss_ded')
 
 					if header.get("govt_use_old"):
@@ -449,7 +466,7 @@ class PayrollProcessing(Document):
 						if header.get("govt_use_old"):
 							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_sss_inc'), 8)) - flt(header.get('prev_sss_ded'), 8)
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('sss_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
 						if self.frequency == '1st' and emp.get('sss_freq') in ['Both', 'All']:
 							target_amt = (rates.get('monthly_rate')/2) + header.get('sss_inc') - header.get('sss_ded')
@@ -549,7 +566,7 @@ class PayrollProcessing(Document):
 				if self.frequency == '2nd' and emp.get('phic_freq') == '2nd':
 					target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('phic_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('phic_inc') - header.get('phic_ded')
 
 					if header.get("govt_use_old"):
@@ -574,7 +591,7 @@ class PayrollProcessing(Document):
 						if header.get("govt_use_old"):
 							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_phic_inc'), 8)) - flt(header.get('prev_phic_ded'), 8)
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('phic_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
 						if self.frequency == '1st' and emp.get('phic_freq') in ['Both', 'All']:
 							target_amt = (rates.get('monthly_rate')/2) + header.get('phic_inc') - header.get('phic_ded')
@@ -697,7 +714,7 @@ class PayrollProcessing(Document):
 				if self.frequency == '2nd' and emp.get('hdmf_freq') == '2nd':
 					target_amt = header.get('govt_basic') + header.get('hdmf_inc') - header.get('hdmf_ded')
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('hdmf_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('hdmf_inc') - header.get('hdmf_ded')
 
 					if header.get("govt_use_old"):
@@ -722,7 +739,7 @@ class PayrollProcessing(Document):
 						if header.get("govt_use_old"):
 							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_hdmf_inc'), 8)) - flt(header.get('prev_hdmf_ded'), 8)
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('hdmf_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_hdmf_inc') + header.get('hdmf_inc')) - (header.get('prev_hdmf_ded') + header.get('hdmf_ded'))
 						if self.frequency == '1st' and emp.get('hdmf_freq') in ['Both', 'All']:
 							target_amt = (rates.get('monthly_rate')/2) + header.get('hdmf_inc') - header.get('hdmf_ded')
@@ -1229,61 +1246,79 @@ class PayrollProcessing(Document):
 
 		return hourly_rate
 
-	def get_attendance(self, emp, rates, header, register, ot_map):
+	def get_attendance(self, emp, rates, header, register, ot_map, ot_class_map, rateclass_map):
 		attendance_register = []
 		overtimes_register = []
 		if emp.get('is_attendance_base') > 0:
-			late, overtime, undertime, absent, nightdiff, cto, cto_days, work_days, absent_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
-			unpaid_holiday, prev_lwop, prev_absent, is_uho, leave_days, nwho_days, total_work  =  0, 0 ,0, 0, 0, 0, 0
-			pho_days, uho_days, dl_days = 0, 0, 0.0
-			dho_amount = 0
-			hourly_basic, no_previous = 0, 0
-			prev_day_work, prev_half, prev_lwop, prev_lv_status = 0, 0, 0, 0
-			ho_paid = 0
-			prev_holiday, holiday_work = 0, 0 
-			cur_suc_hol_wout_before, before_holiday_work, before_sp_work = 0, 0, 0 
-			test = []
-			paid_leave = 0
-
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
 
-			overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
-				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), self.attendance_from, self.attendance_to), as_dict=1)
+			#overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
+			#	WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), self.attendance_from, self.attendance_to), as_dict=1)
 			
 			#Get Overtime
 			unique_ot = ["00000000"]
 			ot_register = []
-			overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
+			overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot, early_nd, late_nd FROM `tabOvertime` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), self.attendance_from, self.attendance_to), as_dict=1)
 			
 			#Get OT registers
 			for ot in overtime_list:
+				ot_code = "00000000"
 				if ot.ot_code in ot_map:
+					ot_code = ot.ot_code
 					if ot.ot_code not in unique_ot:
 						unique_ot.append(ot.ot_code)
 
 					if emp.get("rate_type") == "Daily Rate":
 						amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['daily_rate'] / 100)
+						if header.get('ot_rate_class') and emp.get('rate_class'):
+							if emp.get('rate_class') in ot_class_map[ot.get('ot_code')] and emp.get('rate_type') in ot_class_map[ot.get('ot_code')][emp.get('rate_class')]:
+								amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100)
 					else:
 						amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+						if header.get('ot_rate_class') and emp.get('rate_class'):
+							if emp.get('rate_class') in ot_class_map[ot.get('ot_code')] and emp.get('rate_type') in ot_class_map[ot.get('ot_code')][emp.get('rate_class')]:
+								amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100)
 
-					ot_register.append({
-						"ot_code": ot.ot_code,
-						"hrs": flt( ot.hrs, 8),
-						"amount": amount, 
-					})
-				else:
-					if emp.get("rate_type") == "Daily Rate":
-						amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['daily_rate'] / 100)
-					else:
-						amount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+					if ot.get('ot_code')[-1:] in [1, '1'] and header['nd_rate_class'] and emp.rate_class:
+						baseamount, lnd_baseamount, end_baseamount = 0, 0, 0
+						if emp.get("rate_type") == "Daily Rate":
+							baseamount = rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['daily_rate'] / 100)
+							if header.get('ot_rate_class') and emp.get('rate_class'):
+								if emp.get('rate_class') in ot_class_map[ot.get('ot_code')] and emp.get('rate_type') in ot_class_map[ot.get('ot_code')][emp.get('rate_class')]:									
+									#if ot.early_nd:
+									#	end_baseamount = flt( ot.early_nd, 8) * rates.get('hourly_rate') * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100)
+									#if ot.late_nd:
+									#	lnd_baseamount = flt( ot.late_nd, 8) * rates.get('hourly_rate') * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100)
+									baseamount = 0
+									end_baseamount = rates.get('hourly_rate') * flt( ot.early_nd, 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
+									lnd_baseamount = rates.get('hourly_rate') * flt( ot.late_nd, 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
+							else:
+								baseamount = 0
+								end_baseamount = rates.get('hourly_rate') * flt( ot.early_nd, 8) * (ot_map[ot.get('ot_code')]['daily_rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
+								lnd_baseamount = rates.get('hourly_rate') * flt( ot.late_nd, 8) * (ot_map[ot.get('ot_code')]['daily_rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
+						else:
+							baseamount = rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
+							if header.get('ot_rate_class') and emp.get('rate_class'):
+								if emp.get('rate_class') in ot_class_map[ot.get('ot_code')] and emp.get('rate_type') in ot_class_map[ot.get('ot_code')][emp.get('rate_class')]:
+									#baseamount = flt( ot.hrs, 8) * rates.get('hourly_rate') * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')]['Monthly Rate']['rate'] / 100)
+									#end_baseamount = flt( ot.early_nd, 8) * rates.get('hourly_rate') * (rateclass_map[emp.rate_class]['early_nd'] / 100)
+									#lnd_baseamount = flt( ot.late_nd, 8) * rates.get('hourly_rate') * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
+									baseamount = 0
+									end_baseamount = rates.get('hourly_rate') * flt( ot.early_nd, 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
+									lnd_baseamount = rates.get('hourly_rate') * flt( ot.late_nd, 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
+							else:
+								baseamount = 0
+								end_baseamount = rates.get('hourly_rate') * flt( ot.early_nd, 8) * (ot_map[ot.get('ot_code')]['rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
+								lnd_baseamount = rates.get('hourly_rate') * flt( ot.late_nd, 8) * (ot_map[ot.get('ot_code')]['rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
+						amount = baseamount + end_baseamount + lnd_baseamount
 
-					ot_register.append({
-						"ot_code": "00000000", 
-						"hrs": flt( ot.hrs, 8),
-						"amount": amount, 
-					})
+				ot_register.append({
+					"ot_code": ot_code,
+					"hrs": flt( ot.hrs, 8),
+					"amount": amount, 
+				})
 
 			#Merge all OT Types based on Unique OT and create attendance registers
 			for uot in unique_ot:
@@ -1299,10 +1334,16 @@ class PayrollProcessing(Document):
 						"pay_time": flt(merge_hrs, 8),
 						"amount": flt(merge_amount, 8) 
 					})
+			
 			suc_list = []
 			if attendance:
+				total_cto_days, total_work_days, total_absent_days, total_present_days, total_pho_days, total_hourly_basic, total_nwho_days, total_dl_days = 0, 0, 0, 0, 0, 0, 0, 0
+				cur_suc_hol_wout_before, before_holiday_work, before_sp_work = 0, 0, 0
+				is_uho, no_previous, dho_amount, work_hrs, paid_leave, total_work = 0, 0, 0, 0, 0, 0
 				for at in attendance:
-					WK_days, AT_days = 0, 0
+					cto_days, work_days, absent_days, present_days, pho_days, hourly_basic, nwho_days = 0, 0, 0, 0, 0, 0, 0
+					basic_salary, absent, late, undertime, unpaid_holiday, cto, nightdiff = 0, 0, 0, 0, 0, 0, 0
+					dl_days, pho_days, uho_days = 0, 0, 0
 					if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
 						no_previous = 1
 						if at.is_absent or at.is_lwop:
@@ -1325,15 +1366,12 @@ class PayrollProcessing(Document):
 								else:
 									before_holiday_work = 0
 									before_sp_work = 0
-
 					else:
 						if getdate(at.target_date) == getdate(self.attendance_from):
 							if no_previous == 0:
 								is_uho = 1
 
-
 						if not at.is_restday:
-							WK_days += 1
 							work_days += 1
 
 						if at.is_holiday and at.work <= 0:
@@ -1345,18 +1383,29 @@ class PayrollProcessing(Document):
 						if at.undertime > 0:
 							undertime += flt(at.undertime, 8) * flt(rates.get('hourly_rate'), 8)
 
-						if at.nightdiff:
-							nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
+						#Get ND
+						nd_with_rateclass = 0
+						if header['nd_rate_class'] and emp.rate_class:
+							nd_with_rateclass = 1
+
+						if nd_with_rateclass:
+							if at.earlynightdiff:
+								nightdiff += at.earlynightdiff * (rateclass_map[emp.rate_class]['early_nd'] / 100) * rates.get('hourly_rate')
+
+							if at.latenightdiff:
+								nightdiff += at.latenightdiff * (rateclass_map[emp.rate_class]['lt_nd'] / 100) * rates.get('hourly_rate')
+						else:
+							if at.nightdiff:
+								nightdiff += at.nightdiff * 0.10 * rates.get('hourly_rate')
 
 						#GET ABSENT
 						AT = get_absent_days(at, header)
 						if AT > 0:
 							absent += ( at.work_hours * flt(AT, 8) ) * flt(rates.get('hourly_rate'), 8) #get total absent amount
 							absent_days += AT #add to employee total absent days
-							AT_days += AT #add to current day total absent days
+							#AT_days += AT #add to current day total absent days
 							#test.append(_(""+cstr(at.target_date)+" "+cstr(absent_days)+" "+cstr(at.work_hours * flt(AT, 8))+" "+cstr(flt(rates.get('hourly_rate'), 8))+"")) #test script for absent
 							
-						
 						if at.cto:
 							max_cto = 0
 							max_cto += at.undertime
@@ -1450,7 +1499,6 @@ class PayrollProcessing(Document):
 										dho_amount += flt(rates.get('daily_rate'), 8)*1
 										register.append({"pay_code": header.get('dho'), "amount": dho_amount})
 									
-	
 						if ho_paid == 1:
 							pho_days += ho_paid
 						
@@ -1469,7 +1517,7 @@ class PayrollProcessing(Document):
 						if at.is_holiday == 1 and is_uho == 1 and (not at.is_ob) and not at.is_restday:
 							#if present not UHO
 							if emp.get("rate_type") != "Daily Rate":
-								if at.work and (not at.is_lwop) and (not at.absent) and (not at.is_restday) and (not at.is_halfday):
+								if at.work and (not at.is_lwop) and (not at.is_absent) and (not at.is_restday) and (not at.is_halfday):
 									is_uho = 0
 								elif header.get('ex_uho_spnw') and at.is_sp_holiday:
 									is_uho = 0								
@@ -1481,7 +1529,7 @@ class PayrollProcessing(Document):
 											unpaid_holiday += at.work_hours * flt(rates.get('hourly_rate'), 8)
 										if header.get('uho_ab_days') == 1:
 											absent_days += 1
-											AT_days += 1
+											#AT_days += 1
 						suc_list.append({"Date": at.target_date, "NO": is_uho})
 						#check if this attendance is lwop or absent for next attendance
 						if is_uho == 1:
@@ -1542,7 +1590,7 @@ class PayrollProcessing(Document):
 								is_uho = 0
 
 						if emp.get("rate_type") == "Hourly Rate":
-							hour_bs = ((WK_days - AT_days) * at.work_hours) * flt(rates.get('hourly_rate'), 8)
+							hour_bs = ((work_days - absent_days) * at.work_hours) * flt(rates.get('hourly_rate'), 8)
 							hourly_basic += hour_bs
 
 						#Check if employee has attendance
@@ -1588,59 +1636,128 @@ class PayrollProcessing(Document):
 								before_holiday_work = 1
 							else:
 								before_holiday_work = 0
+
+						#Get Presentdays and Daily Rate should have no absent
+						if emp.get("rate_type") == "Daily Rate":
+							absent = 0
+							present_days = dl_days
+						else:
+							present_days =  work_days - absent_days
+
+						if emp.get("rate_type") == "Daily Rate":
+							absent = 0
+
+						if header.get('ignore_uho'):
+							unpaid_holiday = 0
+
+						if emp.get('ignore_late'):
+							late = 0
+
+						if emp.get('ignore_ut'):
+							undertime = 0
+
+						if emp.get('ignore_nd') or header.get('ignore_nd'):
+							nightdiff = 0
+
+						cost_center = emp.get("cost_center")
+						if at.cost_center:
+							cost_center = at.cost_center
+						 
+						if emp.get("rate_type") == "Daily Rate":
+							basic_salary = (((dl_days + pho_days) - uho_days) * at.work_hours) * flt(rates.get('hourly_rate'), 8)
+							work_hrs += ((dl_days) * at.work_hours)
+
+						total_cto_days += cto_days
+						total_work_days += work_days
+						total_absent_days += absent_days
+						total_present_days += present_days
+						total_pho_days += pho_days
+						total_hourly_basic += hourly_basic
+						total_nwho_days += nwho_days
+						total_dl_days += dl_days
+
+						attendance_register.append({
+							"BS": basic_salary,
+							"AT": absent,
+							"LT": late,
+							"UT": undertime,
+							"UHO": unpaid_holiday,
+							"CTO": cto,
+							"ND": nightdiff,
+							"cost_center": cost_center,
+						})
 						
 						# Save work For Next Day in Attendace Processing
 				header['no_attendance'] = 1
 				#frappe.throw(_(suc_list))
-				if total_work > 0 or paid_leave > 0 or cto_days > 0:
+				if total_work > 0 or paid_leave > 0 or total_cto_days > 0:
 					header['no_attendance'] = 0
 				if emp.get("rate_type") == "Daily Rate":
-					if dl_days > 0:
+					if total_dl_days > 0:
 						header['no_attendance'] = 0
 
-				#Get Presentdays and Daily Rate should have no absent
-				if emp.get("rate_type") == "Daily Rate":
-					absent = 0
-					present_days = dl_days
-				else:
-					present_days =  work_days - absent_days
-
-				if header.get('ignore_uho'):
-					unpaid_holiday = 0	
-
-				if emp.get('ignore_late'):
-					late = 0
-
-				if emp.get('ignore_ut'):
-					undertime = 0
-
-				if emp.get('ignore_nd') or header.get('ignore_nd'):
-					nightdiff = 0
-				
-				attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
-				attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
-				attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
+				#attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })
+				#attendance_register.append({"pay_code": "CTO", "amount": flt(cto, 8) })
+				#attendance_register.append({"pay_code": "UHO", "amount": flt(unpaid_holiday, 8) })
 				#attendance_register.append({"pay_code": "OT", "amount": flt(overtime, 8) })
-				attendance_register.append({"pay_code": "ND", "amount": flt(nightdiff, 8) })
-				attendance_register.append({"pay_code": "LT", "amount": flt(late, 8) })
-				attendance_register.append({"pay_code": "UT", "amount": flt(undertime, 8) })
+				#attendance_register.append({"pay_code": "ND", "amount": flt(nightdiff, 8) })
+				#attendance_register.append({"pay_code": "LT", "amount": flt(late, 8) })
+				#attendance_register.append({"pay_code": "UT", "amount": flt(undertime, 8) })
 				
-				for d in attendance_register:
-					register.append(d)
-
+				#for d in attendance_register:
+				#	register.append(d)
+				self.create_attendance_registers(header, register, attendance_register)
 				for otr in overtimes_register:
 					register.append(otr)
 
-				header['cto_days'] = cto_days
-				header['work_days'] = work_days
-				header['absent_days'] = absent_days
-				header['present_days'] = present_days
-				header['paid_holidays'] = pho_days
-				header['hourly_basic'] = hourly_basic
-				header['nwho_days'] = nwho_days
+				header['cto_days'] = total_cto_days
+				header['work_days'] = total_work_days
+				header['absent_days'] = total_absent_days
+				header['present_days'] = total_present_days
+				header['paid_holidays'] = total_pho_days
+				header['hourly_basic'] = total_hourly_basic
+				header['nwho_days'] = total_nwho_days
 			else:
 				header['no_attendance'] = 1
-			
+
+	def create_attendance_registers(self, header, register, attendance):
+		cc_list = []
+		basic = 0
+		paying_cc = []
+		#get unique cost centers
+		for atc in attendance:
+			if atc['cost_center'] not in cc_list:
+				cc_list.append(atc['cost_center'])
+
+		for cc in cc_list:
+			BS, AT, LT, UT, UHO, ND, CTO = 0, 0, 0, 0, 0, 0, 0
+			for d in attendance:
+				if d['cost_center'] == cc:
+					basic += d['BS']
+					BS += d['BS']
+					AT += d['AT']
+					LT += d['LT']
+					UT += d['UT']
+					UHO += d['UHO']
+					ND += d['ND']
+					CTO += d['CTO']
+
+					if d['BS'] > 0:
+						paying_cc.append(cc)
+
+			#Create Registers per Cost Centers
+			register.append({"pay_code": "BS", "amount": flt(BS, 8), "cost_center": cc })
+			register.append({"pay_code": "AT", "amount": flt(AT, 8), "cost_center": cc })
+			register.append({"pay_code": "LT", "amount": flt(LT, 8), "cost_center": cc })
+			register.append({"pay_code": "UT", "amount": flt(UT, 8), "cost_center": cc })
+			register.append({"pay_code": "UHO", "amount": flt(UHO, 8), "cost_center": cc })
+			register.append({"pay_code": "ND", "amount": flt(ND, 8), "cost_center": cc })
+			register.append({"pay_code": "CTO", "amount": flt(CTO, 8), "cost_center": cc })
+		
+		#set daily rate employee basic rate
+		header['daily_basic'] = basic 
+		#remove duplicate paying cc
+		#header['paying_cc'] = list(dict.fromkeys(paying_cc))			
 
 	def get_transaction_map(self):
 		tr_map = {}
