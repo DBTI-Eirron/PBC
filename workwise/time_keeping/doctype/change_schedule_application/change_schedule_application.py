@@ -16,6 +16,7 @@ class ChangeScheduleApplication(Document):
 		#emp_app = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 		#if emp_app < 1:
 		#	self.change_sched()
+		validate_approve_own_application(self)
 		change_owner(self)
 		self.get_recipients()
 		get_approver_and_date(self)

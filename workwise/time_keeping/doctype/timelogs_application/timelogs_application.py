@@ -38,20 +38,30 @@ class TimelogsApplication(Document):
 		get_cancelled_by_and_date(self)
 
 	def validate_fields(self):
+		location_list = []
+		cost_center_list = []
+
 		bio_id = frappe.get_value('Employee', self.employee, 'biometrics_id')
 		if not bio_id:
 			frappe.throw(_("<b>Timelogs Application: {0}</b><hr> Employee {1} has no Biometrics ID").format(self.name, self.employee_name))
+
 		location = frappe.db.sql("""SELECT `name` FROM `tabLocation` WHERE `company` = %s """, (self.company), as_dict=True)
+		for loc in location:
+			location_list.append(loc.name)
+
 		cost_center = frappe.db.sql("""SELECT `name` FROM `tabCost Center` WHERE `company` = %s """, (self.company), as_dict=True)
-		if self.location not in location:
-			frappe.throw(_("Invalid Location: "+self.location))
-		if self.cost_center not in cost_center:
-			frappe.throw(_("Invalid Cost Center: "+self.cost_center))
+		for cos in cost_center:
+			cost_center_list.append(cos.name)
+
+		if self.location and self.location not in location_list:
+			frappe.throw(_( "Invalid Location: "+str(self.location) ))
+		if self.cost_center and self.cost_center not in cost_center_list:
+			frappe.throw(_( "Invalid Cost Center: "+str(self.cost_center) ))
 		for t in self.timelogs:
-			if t.location not in location:
-				frappe.throw(_("Invalid Location: "+t.location))
-			if t.location not in location:
-				frappe.throw(_("Invalid Cost Center: "+t.cost_center))
+			if t.location and t.location not in location_list:	
+				frappe.throw(_( "Invalid Location: "+str(t.location) ))
+			if t.location and t.location not in location_list:
+				frappe.throw(_( "Invalid Cost Center: "+str(t.cost_center) ))
 
 	def get_current_timecard(self):
 		#location = frappe.get_value('Employee', self.employee, 'location')
