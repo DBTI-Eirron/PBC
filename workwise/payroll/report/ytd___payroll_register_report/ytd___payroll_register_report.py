@@ -37,80 +37,86 @@ def execute(filters=None):
 			deduction_total.append(0)
 
 		for emp in employee_list:
-			# rates = get_rates(emp)
-			# period_type = frappe.get_value('Payroll Period', filters.payroll_period, 'schedule')
-			# if period_type == 'Weekly':
-			# 	rate = flt(rates['weekly_rate'])
-			# elif period_type == 'Semi-Monthly':
-			# 	rate = flt(rates['semi_rate'])
-			# elif period_type == 'Monthly':
-			# 	rate = flt(rates['monthly_rate'])
-			# final_rate = emp.min_take_home if emp.mth_percentage == 0 else rate * (emp.min_take_home/100)
-			# if final_rate <= emp.net_payroll:
-			row = [emp, employee_list[emp]['employee_name'], employee_list[emp]['present_days']]
+			row = {
+				'employee': emp,
+				'employee_name': employee_list[emp]['employee_name'],
+				'present_days': employee_list[emp]['present_days'],
+			}
 			total_present += employee_list[emp]['present_days']
 			total_income = 0.00
 			i = 0
 			for income in income_types:
 				income_amount = flt(income_map.get(emp, {}).get(income), 8)
-				total_income += flt(income_amount, 8)
 				income_total[i] += flt(income_amount, 8)
-				row.append(format_precision(income_amount, filters.value_precision))
+				row[income] = format_precision(income_amount, filters.value_precision)
 				i += 1
+			total_income += flt(employee_list[emp]['total_income'], 8)
 
 			total_deduction = 0.00
 			i = 0
 			for deduction in deduction_types:
 				deduction_amount = flt(deduction_map.get(emp, {}).get(deduction), 8)
-				total_deduction += flt(deduction_amount, 8)
 				deduction_total[i] += flt(deduction_amount, 8)
-				row.append(format_precision(deduction_amount, filters.value_precision))
+				row[deduction] = format_precision(deduction_amount, filters.value_precision)
 				i += 1
+			total_deduction += flt(employee_list[emp]['total_deduction'], 8)
 
-			total_payroll = flt(total_income, 8) - flt(total_deduction, 8)
+			total_payroll = flt(employee_list[emp]['net_payroll'], 8)
 			if total_payroll < 0:
 				total_payroll = 0.00
-			row += [format_precision(total_income, filters.value_precision), format_precision(total_deduction, filters.value_precision), format_precision(total_payroll, filters.value_precision)]
-			dtotal_income += total_income
-			dtotal_deduction += total_deduction
-			dtotal_payroll += total_payroll
+			
+			row['total_income'] = format_precision(total_income, filters.value_precision)
+			row['total_deduction'] = format_precision(total_deduction, filters.value_precision)
+			row['total_payroll'] = format_precision(total_payroll, filters.value_precision)
+
+			dtotal_income += flt(employee_list[emp]['total_income'], 8)
+			dtotal_deduction += flt(employee_list[emp]['total_deduction'], 8)
+			dtotal_payroll += flt(employee_list[emp]['net_payroll'], 8)
 			data.append(row)
-		total_row = ["<b> Total</b>","",total_present]
+
+		total_row = {
+			'employee': '<b> Total</b>',
+			'employee_name': '',
+			'present_days': total_present,
+		}
 		if filters.hide_zero:
 			i = 0
 			for income in income_types:
 				if income_total[i] > 0:
-					total_row.append(format_precision(income_total[i], filters.value_precision))
+					total_row[income] = format_precision(income_total[i], filters.value_precision)
 					i += 1
 				else:
 					del columns[i+3]
 					del income_total[i]
 					for d in data:
-						del d[i+3]
+						del d[income]
 						
 			inlen = i
 			i = 0
 			for deduction in deduction_types:
 				if deduction_total[i] > 0:
-					total_row.append(format_precision(deduction_total[i], filters.value_precision))
+					total_row[deduction] = format_precision(deduction_total[i], filters.value_precision)
 					i += 1
 				else:
 					del columns[i+inlen+3]
 					del deduction_total[i]
 					for d in data:
-						del d[i+inlen+3]
+						del d[deduction]
 		else:
 			i = 0
 			for income in income_types:
-				total_row.append(format_precision(income_total[i], filters.value_precision))
+				total_row[income] = format_precision(income_total[i], filters.value_precision)
 				i += 1
 
 			i = 0
 			for deduction in deduction_types:
-				total_row.append(format_precision(deduction_total[i], filters.value_precision))
+				total_row[deduction] = format_precision(deduction_total[i], filters.value_precision)
 				i += 1
 
-		total_row += [format_precision(dtotal_income, filters.value_precision), format_precision(dtotal_deduction, filters.value_precision), format_precision(dtotal_payroll, filters.value_precision)]
+		data = sorted(data, key=lambda k: k['employee_name'])
+		total_row['total_income'] = format_precision(dtotal_income, filters.value_precision)
+		total_row['total_deduction'] = format_precision(dtotal_deduction, filters.value_precision)
+		total_row['total_payroll'] = format_precision(dtotal_payroll, filters.value_precision)
 		data.append(total_row)
 
 	return columns, data
@@ -192,40 +198,45 @@ def get_columns(filters,employee_list):
 
 	return columns, income_types, deduction_types
 
-def get_employees(filters,from_date,to_date):
+def get_employees(filters, from_date, to_date):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT PR.employee, PR.employee_name, PR.present_days
+		employees = frappe.db.sql("""SELECT PR.employee, PR.employee_name, PR.present_days, PR.total_income, PR.total_deduction, PR.net_payroll
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
-			AND PR.on_hold = 0
-			AND PR.posting_date BETWEEN %(from_date)s AND %(to_date)s
-			AND PR.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
-				"from_date": from_date,
-				"to_date": to_date,
-				"company": filters.company,
-				"user": cur_user,
-				"employee": filters.employee,
-				"location": filters.location,
-			}, as_dict=1)
+		AND PR.on_hold = 0
+		AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s
+		AND PR.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+			"from_date": from_date,
+			"to_date": to_date,
+			"company": filters.company,
+			"user": cur_user,
+			"employee": filters.employee,
+			"location": filters.location,
+		}, as_dict=1)
 	else:
-		employees = frappe.db.sql("""SELECT PR.employee, PR.employee_name, PR.present_days
-		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
-		WHERE PR.posting_date BETWEEN %(from_date)s AND %(to_date)s
-			AND PR.on_hold = 0
-			AND TE.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
-				"from_date": from_date,
-				"to_date": to_date,
-				"company": filters.company,
-				"employee": filters.employee,
-				"location": filters.location
-			}, as_dict=1)
+		employees = frappe.db.sql("""SELECT PR.employee, PR.employee_name, PR.present_days, PR.total_income, PR.total_deduction, PR.net_payroll
+		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
+		WHERE PR.on_hold = 0
+		AND (PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s)
+		AND PR.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
+			"from_date": from_date,
+			"to_date": to_date,
+			"company": filters.company,
+			"employee": filters.employee,
+			"location": filters.location
+		}, as_dict=1)
 
 	employee_map = {}
 	for emp in employees:
 		if emp.employee not in employee_map:
-			employee_map.setdefault(emp.employee, frappe._dict({'employee_name':emp.employee_name, 'present_days':0.0}))
+			employee_map.setdefault(emp.employee, frappe._dict({'employee_name':emp.employee_name, 'present_days':0.0, 'total_income':0.0, 'total_deduction':0.0, 'net_payroll': 0.00}))
 		employee_map[emp.employee]['present_days'] += emp.present_days
+		employee_map[emp.employee]['total_income'] += emp.total_income
+		employee_map[emp.employee]['total_deduction'] += emp.total_deduction
+		if emp.net_payroll > 0:
+			employee_map[emp.employee]['net_payroll'] += emp.net_payroll
+
 	return employee_map
 
 def get_conditions(filters):
