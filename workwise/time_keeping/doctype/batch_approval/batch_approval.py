@@ -214,9 +214,9 @@ class BatchApproval(Document):
 				#		"to_date": getdate(self.to_date),
 				#		"cur_user": cur_user,
 				#	}, as_dict=True)
-
+				wf_state_list = ["Approved", "Approval in Progress", "Cancelled", "Draft", "Rejected"]
 				appfilters = {
-					"workflow_state": ["not in", "Approved", "Approval in Progress"], 
+					"workflow_state": ["not in", wf_state_list], 
 					appfilterdate: [">=", str(getdate(self.from_date))], 
 					appfilterdate: ["<=", str(getdate(self.to_date))]
 				}
