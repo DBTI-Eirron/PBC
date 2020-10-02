@@ -8,7 +8,7 @@ from frappe import _, msgprint
 
 def execute(filters=None):
 	if not filters: filters = frappe._dict({})
-	employee_list = get_employees(filters)
+	employee_dict, employee_list = get_employees(filters)
 	from_date, to_date = "", ""
 	months = [ "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" ]
 	
@@ -19,21 +19,45 @@ def execute(filters=None):
 		return columns, employee_list
 
 	data = []
+	total_row = {
+		'employee': '<b>Total</b>',
+		'employee_name': "",
+		'net_pay': 0.00,
+	}
 	for emp in employee_list:
 		month_count = 0
-		row = [emp.name, emp.full_name]
+
+		row = {
+			'employee': emp,
+			'employee_name': frappe.db.get_value("Employee", emp, "full_name"),
+		}
 
 		total_grosspay = 0
 		for p in months:
+			period_amount = 0
 			month_count += 1
 			from_date = str(filters.year)+"-"+str(month_count)+"-01"
 			to_date = str(filters.year)+"-"+str(month_count)+"-"+str(calendar.monthrange(int(filters.year), int(month_count))[1])
-
-			period_amount = get_period_map(filters, emp.name, from_date, to_date)
+			for reg in employee_dict[emp]:
+				if getdate(reg['posting_date']) >= getdate(from_date) and getdate(reg['posting_date']) <= getdate(to_date):
+					if reg['gross_payroll'] > 0:
+						period_amount += flt(reg['gross_payroll'])
+					
 			total_grosspay += period_amount
-			row.append(format_precision(period_amount, filters.value_precision))
-		row += [format_precision(total_grosspay, filters.value_precision)]
+			row[p] = format_precision(period_amount, filters.value_precision)
+
+			if p not in total_row:
+				total_row[p] = 0.00
+			total_row[p] += period_amount
+
+		row['net_pay'] = format_precision(total_grosspay, filters.value_precision)
+		total_row['net_pay'] += total_grosspay
 		data.append(row)
+
+	for pm in months:
+		total_row[pm] = format_precision(total_row[pm], filters.value_precision)
+	total_row['net_pay'] = format_precision(total_row['net_pay'], filters.value_precision)
+	data.append(total_row)
 
 	return columns, data
 
@@ -71,15 +95,41 @@ def get_columns(employee_list, months):
 	return columns
 
 def get_employees(filters):
-	employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.first_name, TE.middle_name, TE.last_name, TE.sensitivity
-	 	FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
-		WHERE TE.company = %(company)s {conditions} ORDER BY TE.full_name """.format(conditions=get_conditions(filters)), { 
-			"company": filters.company,
-			"employee": filters.employee,
-			"department": filters.department
-		}, as_dict=1)
+	employee_list = []
+	employee_dict = {}
 
-	return employees
+	from_date = str(filters.year)+"-01-01"
+	to_date = str(filters.year)+"-12-"+str(calendar.monthrange(int(filters.year), 12)[1])
+
+	join_conditions = ""
+	if frappe.session.user != "Administrator":
+		join_conditions += "INNER JOIN `tabEmployee` TE ON PR.`employee`=TE.`name`"
+	if filters.get("department"):
+		join_conditions += "INNER JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`"
+
+	employees = frappe.db.sql(""" SELECT PR.employee, PR.employee_name, PR.posting_date, PR.gross_payroll, PR.period 
+		FROM `tabPayroll Register` PR 
+		{join_conditions}
+		WHERE PR.company = %(company)s AND PR.on_hold = 0
+		AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s
+		{conditions} ORDER BY PR.employee_name """.format(
+			join_conditions=join_conditions,
+			conditions=get_conditions(filters)), { 
+			'from_date': str(getdate(from_date)),
+			'to_date': str(getdate(to_date)),
+			'company': filters.company,
+			'employee': filters.employee,
+		}, as_dict=True)
+
+	for emp in employees:
+		if emp.employee not in employee_list:
+			employee_list.append(emp.employee)
+
+		if emp.employee not in employee_dict:
+			employee_dict[emp.employee] = []
+		employee_dict[emp.employee].append(emp)
+
+	return employee_dict, employee_list
 	
 def get_period_map(filters, emp, from_date, to_date):
 	amount = 0.00
@@ -98,7 +148,7 @@ def get_conditions(filters):
 		conditions.append(_("TE.`sensitivity` IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
 
 	if filters.employee:
-		conditions.append("TE.`name`=%(employee)s")
+		conditions.append("PR.`employee`=%(employee)s")
 
 	if filters.get("department"):
 		lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
