@@ -146,6 +146,7 @@ class BatchApproval(Document):
 		record_list = []
 		appfields = ["name", "posting_date", "employee"]
 		appfilterdate = "posting_date"
+		based_on_date = ""
 
 		if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
 			additional_fields += ", AP.total_hrs"
@@ -156,30 +157,35 @@ class BatchApproval(Document):
 			if self.based_on == "Target Date":
 				filter_date = "AP.from_date"
 				appfilterdate = "from_date"
+				based_on_date = "from_date"
 		if self.application_type == "Undertime Application":
 			additional_fields += ", AP.from_date"
 			appfields.extend(["from_date"])
 			if self.based_on == "Target Date":	
 				filter_date = "AP.from_date"
 				appfilterdate = "from_date"
+				based_on_date = "from_date"
 		if self.application_type == "Excuse Tardiness Application":
 			additional_fields += ", AP.date"
 			appfields.extend(["date"])
 			if self.based_on == "Target Date":	
 				filter_date = "AP.date"
 				appfilterdate = "date"
+				based_on_date = "date"
 		if self.application_type in ["DTR Problem Application"]:
 			additional_fields += ", AP.target_date"
 			appfields.extend(["target_date"])
 			if self.based_on == "Target Date":	
 				filter_date = "AP.target_date"
 				appfilterdate = "target_date"
+				based_on_date = "target_date"
 		if self.application_type == "Compensatory Time Off":
 			additional_fields += ", AP.`date`, AP.use_date, AP.`type`, AP.use_total_hours, AP.total_hours, AP.use_target_date, AP.file_target_date"
 			appfields.extend(["date", "use_date", "type", "use_total_hours", "total_hours", "use_target_date", "file_target_date"])
 			if self.based_on == "Target Date":	
 				filter_date = "(AP.use_target_date  BETWEEN %(from_date)s AND %(to_date)s) or AP.file_target_date"
 				appfilterdate = "file_target_date"
+				based_on_date = "file_target_date"
 
 		if not any(elem in ["Administrator", "Admin Approver"] for elem in frappe.get_roles(cur_user)):
 			enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
@@ -200,27 +206,30 @@ class BatchApproval(Document):
 						"cur_user": cur_user,
 				}, as_dict=True)
 			else:
-				#record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
-				#		FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` 
-				#		WHERE (AP.`workflow_state` = "Pending" OR AP.`workflow_state` = "Approval in Progress")
-				#		AND ("""+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s) 
-				#		
-				#		{conditions} 
-				#		AND TE.company = %(company)s 
-				#	""".format(conditions=self.sql_select_filters()),{ 
-				#		"company": self.company,
-				#		"employee": self.employee,
-				#		"from_date": getdate(self.from_date),
-				#		"to_date": getdate(self.to_date),
-				#		"cur_user": cur_user,
-				#	}, as_dict=True)
-				wf_state_list = ["Approved", "Approval in Progress", "Cancelled", "Draft", "Rejected"]
-				appfilters = {
-					"workflow_state": ["not in", wf_state_list], 
-					appfilterdate: [">=", str(getdate(self.from_date))], 
-					appfilterdate: ["<=", str(getdate(self.to_date))]
-				}
-				record = frappe.get_list(self.application_type, filters=appfilters, fields=appfields)
+				record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
+						FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` 
+						WHERE (AP.`workflow_state` = "Pending" OR AP.`workflow_state` = "Approval in Progress")
+						AND ("""+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s) 
+						
+						{conditions} 
+						AND TE.company = %(company)s 
+					""".format(conditions=self.sql_select_filters()),{ 
+						"company": self.company,
+						"employee": self.employee,
+						"from_date": getdate(self.from_date),
+						"to_date": getdate(self.to_date),
+						"cur_user": cur_user,
+					}, as_dict=True)
+				#wf_state_list = ["Approved", "Approval in Progress", "Cancelled", "Draft", "Rejected"]
+				#f self.based_on == "Target Date":
+				#	appfields[1] = based_on_date
+				
+				#appfilters = {
+				#	"workflow_state": ["not in", wf_state_list], 
+				#	appfilterdate: [">=", str(getdate(self.from_date))], 
+				#	appfilterdate: ["<=", str(getdate(self.to_date))]
+				#}
+				#record = frappe.get_list(self.application_type, filters=appfilters, fields=appfields)
 		else:
 			record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
 					FROM """+table+""" AP JOIN `tabEmployee` TE 
