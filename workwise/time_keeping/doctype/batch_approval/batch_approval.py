@@ -18,7 +18,7 @@ class BatchApproval(Document):
 		self.validate_entires()
 
 	def validate_entires(self):
-		record = self.sql_query()
+		record = self.get_data()
 
 		record_list = []
 		for a in record:
@@ -51,50 +51,12 @@ class BatchApproval(Document):
 
 	def map_applications_on_table(self):
 		self.set('batch_table', [])
-		record = self.sql_query()
+		record = self.get_data()
 
 		entries = []
 		for a in record:
-			total_hours = ""
-			from_date = ""
-			to_date = ""
-
-			if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
-				total_hours = flt(a.total_hrs, 2)
-			if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application", "Change Schedule Application"]:
-				from_date = a.from_date
-				to_date = a.to_date
-			if self.application_type == "Undertime Application":
-				from_date = a.from_date
-				to_date = a.from_date
-			if self.application_type == "Excuse Tardiness Application":
-				from_date = a.date
-				to_date = a.date
-			if self.application_type == "DTR Problem Application":
-				from_date = a.target_date
-				to_date = a.target_date
-			if self.application_type == "Compensatory Time Off":
-				if a.type == "File":
-					from_date = a.date
-					to_date = a.date
-					total_hours = flt(a.total_hours, 2)
-				else:
-					from_date = a.use_date
-					to_date = a.use_date
-					total_hours = flt(a.use_total_hours, 2)
-
-			row = {
-				"apptype": self.application_type,
-				"application": a.name,
-				"date": a.posting_date,
-				"from_date": from_date,
-				"to_date": to_date,
-				"total_hours": total_hours,
-				"employee": a.employee,
-				"employee_name": a.full_name,
-				"action": "Approved"
-			}
-			entries.append(row);
+			a['action'] = 'Approved'
+			entries.append(a)
 
 		for d in entries:
 			row = self.append('batch_table', {})
@@ -138,128 +100,132 @@ class BatchApproval(Document):
 
 		return "AND {}".format(" AND ".join(conditions)) if conditions else ""
 
-	def sql_query(self):
-		cur_user = frappe.session.user
-		table = "`tab"+self.application_type+"`"
-		additional_fields = ""
-		filter_date = "AP.`posting_date`"
-		record_list = []
-		appfields = ["name", "posting_date", "employee"]
+	def get_filter_date(self):
 		appfilterdate = "posting_date"
-		based_on_date = ""
 
-		if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application"]:
-			additional_fields += ", AP.total_hrs"
-			appfields.append("total_hrs")
-		if self.application_type in ["Overtime Application", "Official Business Application", "Leave Application", "Change Schedule Application"]:
-			additional_fields += ", AP.from_date, AP.to_date"
-			appfields.extend(["from_date", "to_date"])
-			if self.based_on == "Target Date":
-				filter_date = "AP.from_date"
-				appfilterdate = "from_date"
-				based_on_date = "from_date"
-		if self.application_type == "Undertime Application":
-			additional_fields += ", AP.from_date"
-			appfields.extend(["from_date"])
-			if self.based_on == "Target Date":	
-				filter_date = "AP.from_date"
-				appfilterdate = "from_date"
-				based_on_date = "from_date"
-		if self.application_type == "Excuse Tardiness Application":
-			additional_fields += ", AP.date"
-			appfields.extend(["date"])
-			if self.based_on == "Target Date":	
-				filter_date = "AP.date"
-				appfilterdate = "date"
-				based_on_date = "date"
-		if self.application_type in ["DTR Problem Application"]:
-			additional_fields += ", AP.target_date"
-			appfields.extend(["target_date"])
-			if self.based_on == "Target Date":	
-				filter_date = "AP.target_date"
+		if self.based_on == "Target Date":
+			if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application", 
+				"Change Schedule Application", "DTR Problem Application", "Timelogs Application"]:
 				appfilterdate = "target_date"
-				based_on_date = "target_date"
-		if self.application_type == "Compensatory Time Off":
-			additional_fields += ", AP.`date`, AP.use_date, AP.`type`, AP.use_total_hours, AP.total_hours, AP.use_target_date, AP.file_target_date"
-			appfields.extend(["date", "use_date", "type", "use_total_hours", "total_hours", "use_target_date", "file_target_date"])
-			if self.based_on == "Target Date":	
-				filter_date = "(AP.use_target_date  BETWEEN %(from_date)s AND %(to_date)s) or AP.file_target_date"
+
+			if self.application_type in ["Leave Application"]:
+				appfilterdate = "leave_date"
+
+			if self.application_type in ["Excuse Tardiness Application"]:
+				appfilterdate = "date"
+
+			if self.application_type in ["Compensatory Time Off (Use)"]:
+				appfilterdate = "use_target_date"
+
+			if self.application_type in ["Compensatory Time Off (File)"]:
 				appfilterdate = "file_target_date"
-				based_on_date = "file_target_date"
 
-		if not any(elem in ["Administrator", "Admin Approver"] for elem in frappe.get_roles(cur_user)):
-			enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
-			if enable_employee_approvers > 0:
-				record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name` """+additional_fields+""" 
-						FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` 
-						WHERE ( AP.`workflow_state` = "Pending" OR AP.`workflow_state` = "Approval in Progress" ) 
-						AND ( """+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s ) 
-						AND TE.`name` IN ( SELECT `for_value` FROM `tabUser Permission` WHERE `allow` = "Employee" AND `user` = %(cur_user)s ) {conditions} 
-						AND TE.company = %(company)s
-						AND AP.`employee` IN (SELECT DISTINCT AE.`parent` FROM `tabEmployee` ET INNER JOIN `tabEmployee Approvers` AE ON ET.`name`=AE.`approver` WHERE ET.user_id = %(cur_user)s AND (AE.`application`=%(application)s OR AE.`application`="All") AND AE.`level` = AP.`last_approval_level`+1)
-					""".format(conditions=self.sql_select_filters()),{ 
-						"company": self.company,
-						"employee": self.employee,
-						"from_date": getdate(self.from_date),
-						"to_date": getdate(self.to_date),
-						"application": self.application_type,
-						"cur_user": cur_user,
-				}, as_dict=True)
+		return appfilterdate
+
+	def get_data(self):
+		final_result = []
+		result = None
+		application_list = [self.application_type]
+		cur_user = frappe.session.user
+		application_type = self.application_type
+		appfilterdate = self.get_filter_date()
+
+		if self.application_type in ["Compensatory Time Off"]:
+			application_list = ["Compensatory Time Off (Use)", "Compensatory Time Off (File)"]
+
+		for app in application_list:
+			if app == "Compensatory Time Off (File)":
+				appfilterdate = "file_target_date"
+			if app == "Compensatory Time Off (Use)":
+				appfilterdate = "use_target_date"
+
+			appfilters = [
+				["workflow_state", "in", ["Pending", "Approval in Progress"]],
+				[appfilterdate, ">=", str(getdate(self.from_date))],
+				[appfilterdate, "<=", str(getdate(self.to_date))]
+			]
+
+			if app == "Compensatory Time Off (File)":
+				appfilters.append(["type", "in", "File"])
+				app = "Compensatory Time Off"
+
+			if app == "Compensatory Time Off (Use)":
+				appfilters.append(["type", "in", "Use"])
+				app = "Compensatory Time Off"
+
+			if not any(elem in ["Administrator", "Admin Approver"] for elem in frappe.get_roles(cur_user)):
+				result = frappe.get_list(app, filters=appfilters, fields=['name'])
 			else:
-				record = frappe.db.sql(""" SELECT DISTINCT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
-						FROM """+table+""" AP JOIN `tabEmployee` TE ON AP.`employee` = TE.`name` 
-						WHERE (AP.`workflow_state` = "Pending" OR AP.`workflow_state` = "Approval in Progress")
-						AND ("""+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s) 
-						
-						{conditions} 
-						AND TE.company = %(company)s 
-					""".format(conditions=self.sql_select_filters()),{ 
-						"company": self.company,
-						"employee": self.employee,
-						"from_date": getdate(self.from_date),
-						"to_date": getdate(self.to_date),
-						"cur_user": cur_user,
-					}, as_dict=True)
-				#wf_state_list = ["Approved", "Approval in Progress", "Cancelled", "Draft", "Rejected"]
-				#f self.based_on == "Target Date":
-				#	appfields[1] = based_on_date
-				
-				#appfilters = {
-				#	"workflow_state": ["not in", wf_state_list], 
-				#	appfilterdate: [">=", str(getdate(self.from_date))], 
-				#	appfilterdate: ["<=", str(getdate(self.to_date))]
-				#}
-				#record = frappe.get_list(self.application_type, filters=appfilters, fields=appfields)
-		else:
-			record = frappe.db.sql("""SELECT AP.`name`, AP.`posting_date`, AP.`employee`, TE.`full_name`"""+additional_fields+""" 
-					FROM """+table+""" AP JOIN `tabEmployee` TE 
-					WHERE AP.`employee` = TE.`name` 
-					AND (AP.`workflow_state` = "Pending" OR AP.`workflow_state` = "Approval in Progress")
-					AND ("""+filter_date+""" BETWEEN %(from_date)s AND %(to_date)s) 
-					{conditions}
-					AND TE.company = %(company)s 
-				""".format(conditions=self.sql_select_filters()),{ 
-					"company": self.company,
-					"employee": self.employee,
-					"from_date": getdate(self.from_date),
-					"to_date": getdate(self.to_date),
-				}, as_dict=True)
+				result = frappe.get_all(app, filters=appfilters)
 
-		if self.application_type == "Compensatory Time Off": 
-			if record and self.based_on == "Target Date":
-				for c in record:
-					#frappe.throw(_(c.name))
-					if c.type == "Use":
-						if not getdate(self.from_date) <= getdate(c['use_target_date']) <= getdate(self.to_date):
-							record_list.append(c)
-							record.remove(c)
-							
-					if c.get('type') == "File":
-						if not getdate(self.from_date) <= getdate(c.file_target_date) <= getdate(self.to_date):
-							record_list.append(c)
-							record.remove(c)
+			if result:
+				for res in result:
+					#init row
+					row = {}
+					row["apptype"] = None
+					row["application"] = None
+					row["date"] = None
+					row["from_date"] = None
+					row["to_date"] = None
+					row["total_hours"] = None
+					row["employee"] = None
+					row["employee_name"] = None
 
-		for rc in record:
-			rc["full_name"] = frappe.db.get_value("Employee", rc['employee'], ["full_name"])
+					#Define Row
+					row["apptype"] = application_type
+					row["application"] = res['name']
+					doc = frappe.get_doc(application_type, res['name'])
+					row["employee"] = doc.employee
+					row["date"] = doc.posting_date
 
-		return record
+					if application_type in ["Leave Application"]:
+						row["from_date"] = doc.from_date
+						row["to_date"] = doc.to_date
+
+					if application_type in ["Overtime Application"]:
+						row["from_date"] = doc.from_date
+						row["to_date"] = doc.to_date
+						row["total_hours"] = doc.total_hrs
+
+					if application_type in ["Official Business Application"]:
+						row["from_date"] = doc.from_date
+						row["to_date"] = doc.to_date
+						row["total_hours"] = doc.total_hrs
+
+					if application_type in ["Change Schedule Application"]:
+						row["from_date"] = doc.from_date
+						row["to_date"] = doc.to_date
+
+					if application_type in ["Excuse Tardiness Application"]:
+						row["from_date"] = doc.date
+						row["to_date"] = doc.date
+
+					if application_type in ["Undertime Application"]:
+						row["from_date"] = doc.from_date
+						row["to_date"] = doc.to_date
+						row["total_hours"] = doc.total_hrs
+
+					if application_type in ["DTR Problem Application"]:
+						row["from_date"] = doc.target_date
+						row["to_date"] = doc.target_date
+
+					if application_type in ["Compensatory Time Off"]:
+						if doc.type == "File":
+							row["from_date"] = doc.file_from_date
+							row["to_date"] = doc.file_to_date
+							row["total_hours"] = doc.total_hours
+
+						if doc.type == "Use":
+							row["from_date"] = doc.use_from_date
+							row["to_date"] = doc.use_to_date
+							row["total_hours"] = doc.use_total_hours
+
+					if application_type in ["Timelogs Application"]:
+						row["from_date"] = doc.target_date
+						row["to_date"] = doc.target_date
+
+					row["employee_name"] = frappe.db.get_value("Employee", row["employee"], ["full_name"])
+					
+					final_result.append(row)
+
+		return final_result
