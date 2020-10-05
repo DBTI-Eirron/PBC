@@ -101,6 +101,18 @@ def get_columns(employee_list):
 			"fieldtype": "Data",
 			"width": 140
 		},
+		{
+			"fieldname": "income_cto",
+			"label": _("Income CTO"),
+			"fieldtype": "Data",
+			"width": 140
+		},
+		{
+			"fieldname": "deduction_cto",
+			"label": _("Deduction CTO"),
+			"fieldtype": "Data",
+			"width": 140
+		},
 	]
 
 	return columns
@@ -130,6 +142,8 @@ def get_data(filters, columns):
 			"total_deduction_late": 0,
 			"total_income_ut": 0,
 			"total_deduction_ut": 0,
+			"total_income_cto": 0,
+			"total_deduction_cto": 0,
 		}
 
 		for reg in register:
@@ -145,6 +159,8 @@ def get_data(filters, columns):
 			deduction_late = 0
 			income_ut = 0
 			deduction_ut = 0
+			income_cto = 0
+			deduction_cto = 0
 
 			if reg.absent < 0:
 				income_absent = flt(abs(reg.absent))
@@ -188,7 +204,14 @@ def get_data(filters, columns):
 				deduction_ut = flt(abs(reg.undertime))
 				totals['total_deduction_ut'] += flt(abs(reg.undertime))
 
-			emp_total = flt(income_absent) + flt(deduction_absent) + flt(income_uh) + flt(deduction_uh) + flt(income_ot) + flt(deduction_ot) + flt(income_nd) + flt(deduction_nd) + flt(income_late) + flt(deduction_late) + flt(income_ut) + flt(deduction_ut)
+			if reg.compensatory < 0:
+				deduction_cto = flt(abs(reg.compensatory))
+				totals['total_deduction_cto'] += flt(abs(reg.compensatory))
+			else:
+				income_cto = flt(abs(reg.compensatory))
+				totals['total_income_cto'] += flt(abs(reg.compensatory))
+
+			emp_total = flt(income_absent) + flt(deduction_absent) + flt(income_uh) + flt(deduction_uh) + flt(income_ot) + flt(deduction_ot) + flt(income_nd) + flt(deduction_nd) + flt(income_late) + flt(deduction_late) + flt(income_ut) + flt(deduction_ut)+ flt(income_cto) + flt(deduction_cto)
 			if emp_total > 1:
 				row = {
 					"employee": reg.employee,
@@ -205,15 +228,17 @@ def get_data(filters, columns):
 					"deduction_late": format_precision(deduction_late, filters.value_precision),
 					"income_ut": format_precision(income_ut, filters.value_precision),
 					"deduction_ut": format_precision(deduction_ut, filters.value_precision),
+					"income_cto": format_precision(income_cto, filters.value_precision),
+					"deduction_cto": format_precision(deduction_cto, filters.value_precision),
 				}
 				data.append(row)
 			
 		if filters.hide_zero == 1:
 			i = 2
-			for tot in ["total_income_absent", "total_deduction_absent", "total_income_uh", "total_deduction_uh", "total_income_ot", "total_deduction_ot", "total_income_nd", "total_deduction_nd", "total_income_late", "total_deduction_late", "total_income_ut", "total_deduction_ut"]:
+			for tot in ["total_income_absent", "total_deduction_absent", "total_income_uh", "total_deduction_uh", "total_income_ot", "total_deduction_ot", "total_income_nd", "total_deduction_nd", "total_income_late", "total_deduction_late", "total_income_ut", "total_deduction_ut", "total_income_cto", "total_deduction_cto"]:
 				if totals[tot] < 1:
 					del columns[i]
-					for d in data:
+					for d in data:	
 						del d[cstr(tot)[6:]]
 					i -= 1
 				i += 1
