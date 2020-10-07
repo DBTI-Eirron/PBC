@@ -22,7 +22,7 @@ class BatchApproval(Document):
 
 		record_list = []
 		for a in record:
-			record_list.append(a.name);
+			record_list.append(a['application'])
 
 		entries = []
 		for b in self.get("batch_table"):
@@ -38,7 +38,7 @@ class BatchApproval(Document):
 					"employee_name": b.employee_name,
 					"action": b.action
 				}
-				entries.append(row);
+				entries.append(row)
 
 		self.set('batch_table', [])
 		for d in entries:
