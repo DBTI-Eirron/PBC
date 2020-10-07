@@ -119,6 +119,7 @@ class PayrollProcessing(Document):
 		rec_pre_ph = frappe.db.get_single_value('Payroll Settings', 'rec_pre_ph')
 		ot_rate_class = frappe.db.get_single_value('Payroll Settings', 'ot_rate_class')
 		nd_rate_class = frappe.db.get_single_value('Payroll Settings', 'nd_rate_class')
+		ws_pho = frappe.db.get_single_value('Payroll Settings', 'ws_pho')
 
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
@@ -236,6 +237,7 @@ class PayrollProcessing(Document):
 						'rec_pre_ph' : rec_pre_ph,
 						'ot_rate_class': ot_rate_class,
 						'nd_rate_class': nd_rate_class,
+						'ws_pho': ws_pho,
 						#Other
 						'daily_basic': 0,
 						'paying_cc': [],
@@ -1337,6 +1339,8 @@ class PayrollProcessing(Document):
 			
 			suc_list = []
 			if attendance:
+				ws_halfday_tags = ["1sthalf Work Suspension", "2ndhalf Work Suspension"]
+				ws_wholeday_tag = ["Work Suspension"]
 				total_cto_days, total_work_days, total_absent_days, total_present_days, total_pho_days, total_hourly_basic, total_nwho_days, total_dl_days = 0, 0, 0, 0, 0, 0, 0, 0
 				cur_suc_hol_wout_before, before_holiday_work, before_sp_work = 0, 0, 0
 				is_uho, no_previous, dho_amount, work_hrs, paid_leave, total_work = 0, 0, 0, 0, 0, 0
@@ -1420,7 +1424,6 @@ class PayrollProcessing(Document):
 								cto += ( max_cto ) * flt(rates.get('hourly_rate'), 8)
 							else:
 								cto += ( at.cto ) * flt(rates.get('hourly_rate'), 8)
-
 							if at.is_absent == 1:
 								if at.is_halfday == 1 and max_cto >= (at.work_hours / 2):
 									cto_days += 0.5
@@ -1463,25 +1466,49 @@ class PayrollProcessing(Document):
 								if (not at.is_sp_holiday) and ho_paid == 0 and header.get('ignore_uho'):
 									ho_paid = 1 
 									dh_exemption = 1
+
+								if header.get("ws_pho"):
+									for ws in ws_wholeday_tag:
+										if ws in at['tags']:
+											ho_paid = 1
 									
 							else: 
 								if dl_absent == 0 and (not at.is_restday):
 									if at.is_halfday:
 										dl_days += 0.5
+										if header.get("ws_pho"):
+											if at['lv_status'] == 2 and "2ndhalf Work Suspension" in at['tags']:
+												dl_days += 0.5
+											elif at['lv_status'] == 3 and "1sthalf Work Suspension" in at['tags']:
+												dl_days += 0.5
 									else:
 										dl_days += 1
 
 							#check if lwop halfday
-							if dl_absent == 1 and at.is_lwop:
+							if dl_absent == 1:
 								# if lwop halfday plus half day
-								if at.lv_status > 1:
+								if at.lv_status > 1 and at.is_lwop:
 									if at.is_halfday: #if lwop halfday with absent halfday absent is wholeday absent
 										if at.work:
 											dl_days += 0.5
 										else:
 											dl_days += 0
+										if header.get("ws_pho"):
+											if at['lv_status'] == 2 and "2ndhalf Work Suspension" in at['tags']:
+												dl_days += 0.5
+											elif at['lv_status'] == 3 and "1sthalf Work Suspension" in at['tags']:
+												dl_days += 0.5
 									else:
 										dl_days += 0.5
+
+								elif at.is_halfday:
+									if at.work or at.cto:
+										dl_days += 0.5
+
+						if header.get("ws_pho"):
+							for ws in ws_wholeday_tag:
+								if ws in at['tags']:
+									is_uho = 0
 
 						#double holiday
 						if at.is_db_holiday:
@@ -1576,6 +1603,10 @@ class PayrollProcessing(Document):
 										if at.is_absent:
 											is_uho = 1
 
+								if at.is_halfday:
+									if at.work or at.cto:
+										is_uho = 0
+
 							#If Halfday is LWOP but not absent with setting
 							if header.get('hd_lwop_as_uho') == 1 and at.is_lwop:
 								if (at.lv_status == 2 or at.lv_status == 3) and (not at.is_absent):
@@ -1636,7 +1667,35 @@ class PayrollProcessing(Document):
 								before_holiday_work = 1
 							else:
 								before_holiday_work = 0
-
+						have_ws_tag = 0
+						for wsw in ws_wholeday_tag:
+							if wsw in at.tags:
+								for wsh in ws_halfday_tags:
+									if wsh in at.tags:
+										have_ws_tag = 1
+								if not have_ws_tag:
+									is_uho = 1
+						if header.get("ws_pho"):
+							for wsw in ws_wholeday_tag:
+								if wsw in at.tags:
+									ws_count = 0
+									for wsh in ws_halfday_tags:
+										if wsh in at.tags:
+											ws_count +=1
+											if at.is_halfday == 1 and at.cto >= (at.work_hours / 2):
+												ws_count = 0
+												break
+											#Monthly Lwop Policy
+											if emp.get("rate_type") != "Daily Rate":
+												if at.is_halfday == 1 and at.lv_status == 2 and "2ndhalf Work Suspension" in ws_halfday_tags:
+													ws_count = 0
+													break
+												if at.is_halfday == 1 and at.lv_status == 3 and "1sthalf Work Suspension" in ws_halfday_tags:
+													ws_count = 0
+													break
+									if ws_count == 0 or ws_count == 2:
+										before_sp_work = 1
+										is_uho = 0
 						#Get Presentdays and Daily Rate should have no absent
 						if emp.get("rate_type") == "Daily Rate":
 							absent = 0
