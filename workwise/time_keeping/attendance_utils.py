@@ -829,11 +829,60 @@ def get_ndiff(entry):
 
 		#Get ND late with interval
 		nd_late = abs((get_datetime(card_in)- get_datetime(entry["time_in"])).total_seconds())
-		if entry['late_interval'] and entry.get('late'):
+		if entry['is_flexible'] and entry['flexible_type'] != "In-Out":
+
+			flex_start = entry.get('card_in')
+			flex_end = entry.get('card_out')
+			if entry.get('ob_stat') == 1:
+				if entry.get('ob_in') < entry.get('card_in'):
+					flex_start = entry.get('ob_in')
+				if entry.get('ob_out') > entry.get('card_out'):
+					flex_end = entry.get('ob_out')
+
+			late_point = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')))
+			if late_point and flex_start:
+				if flex_start > late_point:
+					if entry.get('grace'):
+						if flex_start > (late_point + datetime.timedelta(minutes=entry.get('grace'))):
+							if entry['graceperiod_late']:
+									#late computaion will start from grace period
+								entry['late'] = ( flex_start - (late_point + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+								flex_start = late_point
+							else:
+								entry['late'] = (flex_start - late_point).total_seconds()
+								flex_start = late_point
+
+						else:
+							#late computaion will start from flex start
+							entry['late'] = 0
+							flex_start = late_point
+
+					else:
+						entry['late'] = (flex_start - late_point ).total_seconds()
+						flex_start = late_point
+
+					if entry['late_interval'] and entry.get('late'):
+						if entry.get('lt_int_rup'):
+							lt_start = entry.get('late_interval') * 60
+							lt_end = entry.get('late_interval') * 60
+							while entry['late'] != lt_end:
+								if entry['late'] <= lt_start:
+									entry['late'] = lt_start
+									break
+								if lt_start < entry.get('late') <= lt_end:
+									entry['late'] = lt_end
+									break
+								lt_start = lt_end
+								lt_end += entry.get('late_interval') * 60
+						else:
+							entry['late'] = (entry.get('late_interval') * 60) * int( entry['late'] / (entry.get('late_interval') * 60))
+						flex_start = add_to_date(get_datetime(late_point), hours=((entry['late'] /60 / 60)))
+					card_in = flex_start
+
+		elif entry['late_interval'] and entry.get('late'):
 			if entry.get('lt_int_rup'):
 				lt_start = entry.get('late_interval') * 60
 				lt_end = entry.get('late_interval') * 60
-			
 				while nd_late != lt_end:
 					if nd_late <= lt_start:
 						nd_late = lt_start
@@ -843,10 +892,10 @@ def get_ndiff(entry):
 						break
 					lt_start = lt_end
 					lt_end += entry.get('late_interval') * 60
-
 			else:
-				nd_late = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
+				nd_late = (entry.get('late_interval') * 60) * int( nd_late / (entry.get('late_interval') * 60))
 			card_in = add_to_date(get_datetime(entry["time_in"]), hours=((nd_late /60 / 60)))
+
 
 		#check shift if eligible for nightdiff based from time in and time out:
 		min_nd, max_nd, nd_pro = get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
@@ -1570,6 +1619,7 @@ def get_flexible(entry, obs):
 				#gete late base from flexible start time
 				flex_start = entry.get('card_in')
 				flex_end = entry.get('card_out')
+				nd_late = abs((get_datetime(flex_start)- get_datetime(entry["time_in"])).total_seconds())
 
 				if entry.get('ob_stat') == 1:
 					if entry.get('ob_in') < entry.get('card_in'):
@@ -1577,21 +1627,34 @@ def get_flexible(entry, obs):
 
 					if entry.get('ob_out') > entry.get('card_out'):
 						flex_end = entry.get('ob_out')
-				flex = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
-				if flex:
-					if flex_start > ( flex + datetime.timedelta(minutes=entry.get('grace'))):
-						if entry['graceperiod_late']:
-							entry['late'] = ( flex_start - (flex + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
-							flex_start = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
+				#late point if the flex start is beyond this point consider as late.
+				late_point = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
+
+				#calculate late
+				if late_point:
+					if flex_start > late_point:
+						if entry.get('grace'):
+							if flex_start > (late_point + datetime.timedelta(minutes=entry.get('grace'))):
+								if entry['graceperiod_late']:
+									#late computaion will start from grace period
+									entry['late'] = ( flex_start - (late_point + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+									flex_start = late_point
+								else:
+									#late computaion will start from flex start
+									entry['late'] = ( flex_start - (late_point) ).total_seconds()
+									flex_start = late_point
+							else:
+								#if there is no late computed with grace period, set flex start to late point
+								flex_start = late_point
 						else:
-							entry['late'] = ( flex_start - flex ).total_seconds()
-							flex_start = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
+							nd_late = (entry.get('late_interval') * 60) * int( nd_late / (entry.get('late_interval') * 60))
+							entry['late'] = (flex_start - late_point ).total_seconds()
+							flex_start = late_point
 
 				if get_datetime(flex_end) >= get_datetime(entry.get('break_end')):
 					diff_break = entry.get('break_mins') * 60
 				#always reduce break mins
 				diff = abs( (flex_start - flex_end).total_seconds())  - (diff_break) + flex_ob_time
-
 				#if getdate("2020-01-13") == getdate(entry['target_date']):
 				#	frappe.throw(_("{0} {1}").format(flex_start, flex_end))
 
@@ -1609,6 +1672,24 @@ def get_flexible(entry, obs):
 					
 					entry['undertime'] = ut
 					entry['work'] = entry.get('worker_secs') - ut
+				if entry['late']:
+					if entry.get('late_interval'):
+						if entry.get('lt_int_rup'):
+							if entry.get('late'):
+								lt_start = entry.get('late_interval') * 60
+								lt_end = entry.get('late_interval') * 60
+								while entry.get('late') != lt_end:
+									if entry.get('late') <= lt_start:
+										entry['late'] = lt_start
+										break
+									if lt_start < entry.get('late') <= lt_end:
+										entry['late'] = lt_end
+										break
+									lt_start = lt_end
+									lt_end += entry.get('late_interval') * 60
+						else:
+							entry['late'] = (entry.get('late_interval') * 60) * int( entry['late'] / (entry.get('late_interval') * 60))
+					entry['work'] -= entry['late']
 
 				if entry.get('lv_status') == 2:
 					lv = (entry.get('worker_secs') / 2)
