@@ -20,11 +20,15 @@ frappe.ui.form.on('Overtime Application', {
 
 	from_date: function(frm) {
 		frm.trigger("calculate_totals");
+	},
+	from_date: function(frm) {
 		frm.trigger("update_target_date");
 	},
 
 	to_date: function(frm) {
 		frm.trigger("calculate_totals");
+	},
+	to_date: function(frm) {
 		frm.trigger("update_target_date");
 	},
 
