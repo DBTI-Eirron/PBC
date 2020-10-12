@@ -21,7 +21,7 @@ def get_absent_days(at, opt):
 		else:
 			if at['is_lwop'] == 1 and at['lv_status'] > 1: #if lwop is 1st half or 2nd half
 				AT = 0.5 
-				if at.is_absent:
+				if at['is_absent']:
 					AT = 1
 									
 			else: 
