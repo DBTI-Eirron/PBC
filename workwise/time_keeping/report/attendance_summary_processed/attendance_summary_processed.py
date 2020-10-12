@@ -320,6 +320,11 @@ def get_conditions(filters, schedule):
 	if not filters.ignore_payroll_schedule:
 		conditions.append(_("TE.payroll_schedule='"+_(cstr(schedule))+"'"))
 
+	strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+	if strict_period_group:
+		period_group = frappe.db.get_value("Payroll Period", filters.payroll_period, ["period_group"])
+		conditions.append("TE.period_group='{0}'".format(period_group))
+
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 def get_result_as_list(data, filters):
