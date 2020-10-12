@@ -509,10 +509,11 @@ def get_conditions(filters):
 	if filters.get("show_active"):
 		conditions.append("TE.is_active=1")
 
-	strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
-	if strict_period_group:
-		period_group = frappe.db.get_value("Payroll Period", filters.payroll_period, ["period_group"])
-		conditions.append("TE.period_group='{0}'".format(period_group))
+#	strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+#	if strict_period_group:
+#		period_group = frappe.db.get_value("Payroll Period", filters.payroll_period, ["period_group"])
+#		if period_group:
+#			conditions.append("TE.period_group='{0}'".format(period_group))
 
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
