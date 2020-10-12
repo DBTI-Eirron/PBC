@@ -19,6 +19,7 @@ frappe.ui.form.on('Adjustment Processing', {
 		frm.add_fetch("period", "payroll_date", "payroll_date");	
 		frm.add_fetch("period", "schedule", "schedule");
 		frm.add_fetch("period", "payroll_year", "payroll_year");
+		frm.add_fetch("period", "period_group", "period_group");
 	},
 
 	refresh: function(frm) {
