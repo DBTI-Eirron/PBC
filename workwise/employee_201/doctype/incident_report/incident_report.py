@@ -17,7 +17,6 @@ class IncidentReport(Document):
 
 	def on_submit(self):
 		self.make_memo()
-		self.send_email()
 
 	def validate_datetime(self):
 		if self.date_time_offense and get_datetime(self.date_time_offense) > get_datetime(today()):

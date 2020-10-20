@@ -22,7 +22,6 @@ class OvertimeApplication(Document):
 		self.update_target_date()
 		self.validate_date()
 		self.get_autobreak_hrs()
-		self.calculate_totals()
 		change_owner(self)
 		self.get_recipients()
 		self.validate_overtime()
@@ -83,6 +82,7 @@ class OvertimeApplication(Document):
 			self.target_date = target_date
 
 		self.get_employeee_actual_logs()
+		self.calculate_totals()
 
 	def validate_date(self):
 		from_date = datetime.datetime.strptime(str(self.from_date) + ' ' + str(self.from_time), '%Y-%m-%d %H:%M:%S').date()
@@ -108,6 +108,7 @@ class OvertimeApplication(Document):
 		else:
 			total_hrs = datetimediff_hrs(from_date, to_date, "%Y-%m-%d %H:%M:%S")
 			self.total_hrs = total_hrs
+		return self.total_hrs
 
 	def get_autobreak_hrs(self):
 		has_break = 0

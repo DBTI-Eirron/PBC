@@ -366,9 +366,8 @@ class LeaveApplication(Document):
 
 	def get_leave_balance(self):
 		valid_entry = {}
-		data_entry = {}
 		less_entry = {}
-		from_balance = []
+		from_balance = ""
 		add, less, total_balance = 0, 0, 0
 		min_date = None
 		deduct_to = frappe.get_value("Leave Type", self.leave_type, "deduct_to")
@@ -379,69 +378,57 @@ class LeaveApplication(Document):
 			(`leave_type` = %s OR `deduct_credits_to` = %s) AND `company` = %s ORDER BY `from_date` 
 			ASC """, (self.employee, self.leave_type, self.leave_type, self.company), as_dict=1)
 
-		#Init Data
-		for lv in lb_entries:
-			doc_nam = cstr(lv.employee)+cstr(lv.leave_type)
-			if lv.balance_type == 'Less':
-				doc_nam = cstr(lv.employee)+cstr(lv.deduct_credits_to)
+		for d in lb_entries:
+			if d.balance_type == "Add":
+				if self.leave_type == d.leave_type:
+					if d.name not in valid_entry:
+						valid_entry[d.name] = {
+							"credits": d.credits,
+							"from": getdate(d.from_date),
+							"to": getdate(d.to_date),
+							"used": 0,
+						}
+			else:
+				if d.deduct_credits_to == self.leave_type:
+					if d.name not in less_entry:
+						less_entry[d.name] = {
+							"used": 0,
+							"credits": d.credits,
+							"from": getdate(d.from_date),
+							"to": getdate(d.to_date),
+						}
 
-			if doc_nam not in data_entry:
-				data_entry[doc_nam] = {
-					"employee_name": cstr(lv.full_name),
-					"location": lv.location,
-					"valid_credits": 0,
-					"add_entry": [],
-					"less_entry": [],
-				}
-
-			if lv.balance_type == "Add":
-				data_entry[doc_nam]['add_entry'].append({
-					"type": "Add",
-					"creation": lv.creation,
-					"credits": lv.credits,
-					"from_date": getdate(lv.from_date),
-					"to_date": getdate(lv.to_date),
-					"leave_type": lv.leave_type,
-					"deduct_credits_to": None,
-					"application": None,
-					"name": lv.name,
-				})
+		have_lbentry = 0
+		for vl in valid_entry:
+			for le in less_entry:
+				to_less = 0
+				if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
+					if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+						if less_entry[le]['credits'] > valid_entry[vl]['credits']:
+							to_less += valid_entry[vl]['credits']
+							less_entry[le]['credits'] -= valid_entry[vl]['credits']
+						else:
+							to_less += less_entry[le]['credits']
+							less_entry[le]['used'] = 1
+					valid_entry[vl]['credits'] -= to_less
+			if getdate(valid_entry[vl]['from']) <= getdate(self.from_date) and getdate(valid_entry[vl]['to']) >= getdate(self.to_date) and valid_entry[vl]['credits'] > 0:
+				if total_balance < self.total_leave_days:
+					from_balance += cstr(vl)
+				total_balance += valid_entry[vl]['credits']
+				valid_entry[vl]['used'] = 1
+				have_lbentry = 1
 				
-			if lv.balance_type == "Less":
-				data_entry[doc_nam]['less_entry'].append({
-					"type": "Less",
-					"creation": lv.creation,
-					"credits": lv.credits,
-					"from_date": getdate(lv.from_date),
-					"to_date": getdate(lv.to_date),
-					"leave_type": lv.leave_type,
-					"deduct_credits_to": lv.deduct_credits_to,
-					"application": lv.linked_document,
-					"included": 0,
-				})
+		if have_lbentry == 1:
+			for vl in valid_entry:
+				if valid_entry[vl]['used'] == 0 and valid_entry[vl]['credits'] > 0:
+					if ( valid_entry[vl]['from'] <= getdate(self.from_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] )\
+					or ( getdate(self.from_date) <= valid_entry[vl]['from'] <= getdate(self.to_date) ) or ( getdate(self.from_date) <= valid_entry[vl]['to'] <= getdate(self.to_date) ):
+						if total_balance < self.total_leave_days:
+							from_balance += cstr(vl)
+						total_balance += valid_entry[vl]['credits']
+						valid_entry[vl]['used'] = 1
 
-		#Process Data
-		all_included_less = []
-		for dt in data_entry:
-			for vl in data_entry[dt]['add_entry']:
-				included_less = []
-				if ( ( vl['from_date'] <= getdate(self.from_date) <= vl['to_date'] ) or ( vl['from_date'] <= getdate(self.to_date) <= vl['to_date'] ) )\
-				or ( ( getdate(self.from_date) <= vl['from_date'] <= getdate(self.to_date) ) or ( getdate(self.from_date) <= vl['to_date'] <= getdate(self.to_date) ) ):
-					to_less = 0
-					for le in data_entry[dt]['less_entry']:
-						if (vl['credits'] > 0) and not le['included']:
-							if (( vl['from_date'] <= le['from_date'] <= vl['to_date'] ) or ( vl['from_date'] <= le['to_date'] <= vl['to_date'] )) \
-							or (( le['from_date'] <= vl['from_date'] <= le['to_date'] ) or ( le['from_date'] <= vl['to_date'] <= le['to_date'] )):
-								to_less += le['credits']
-					 			le['included'] = 1
-					 			if le not in all_included_less:
-									included_less.append(le)
-									all_included_less.append(le)
-					vl['credits'] -= to_less
-					total_balance += vl['credits']
-					from_balance.append(cstr(vl['name']))
-
-		self.from_balance = ', '.join(from_balance)
+		self.from_balance = from_balance
 		if total_balance <= 0:
 			total_balance = 0
 		self.leave_balance = total_balance

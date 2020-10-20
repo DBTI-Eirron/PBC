@@ -173,15 +173,22 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 				entry["lv_status"] = 1
 			if lv_whole["half_lwop"] > 1:
 				entry["lv_status"] = 1
-
+	already_wholeday_suspended = 0
 	for ws in wss:
 		if getdate(ws.suspension_date) == getdate(entry['target_date']):	
 			if ws.suspension_start and ws.suspension_end:
-				entry['suspension'] = 1
+				if not entry['suspension']:
+					entry['suspension'] = 1
 				if ws.suspension_start  >= entry['break_end']:
+					if entry['suspension'] == 2:
+						entry['suspension'] = 1
+						break
 					entry['suspension'] = 3
 				else:	
 					if ws.suspension_end <= entry['break_end']:
+						if entry['suspension'] == 3:
+							entry['suspension'] = 1
+							break
 						entry['suspension'] = 2
 
 	entry['late_list'] = []
@@ -241,17 +248,44 @@ def get_work(entry):
 			entry['work'] = 0
 
 	else:
+		start = None
+		end = None
 		if entry.get('card_in') and entry.get('card_out'):
 			entry['work'] = (entry.get('work_hours') * 60) * 60
+			if entry['suspension']:
+				if entry['suspension'] == 1:
+					entry['work'] = 0
+				if entry['suspension'] == 2:
+					if entry.get('card_in') < entry.get('break_start'):
+						if entry.get('card_out') < entry.get('break_start'):
+							entry['work'] = abs((entry.get('card_in') - entry.get('card_out')).total_seconds())
+						else:
+							entry['work'] = abs((entry.get('card_in') - entry.get('break_start')).total_seconds())
+					else:
+						entry['work'] = 0
+				if entry['suspension'] == 3:
+					if entry.get('card_out') > entry.get('break_end'):
+						if entry.get('card_in') > entry.get('break_end'):
+							entry['work'] = abs((entry.get('card_in') - entry.get('card_out')).total_seconds())
+						else:
+							entry['work'] = abs((entry.get('break_end') - entry.get('card_out')).total_seconds())
+					else:
+						entry['work'] = 0
 		else:
 			if entry.get('ob_stat') == 1:
-				entry['work'] = (entry.get('work_hours') * 60) * 60
-				if entry["is_halfday"] == 1:
-					entry['work'] = entry['work'] / 2
+				if entry['suspension'] == 1:
+					entry['work'] = 0
+				else:
+					entry['work'] = (entry.get('work_hours') * 60) * 60
+					if entry["is_halfday"] == 1:
+						entry['work'] = entry['work'] / 2
 			if entry.get('ob_stat') > 1 and not entry['card_in'] and not entry['card_out']:
 				if not entry["lv_status"]:
-					entry['work'] = (entry.get('work_hours') * 60) * 60
-					entry['work'] = entry['work'] / 2
+					if entry.get('ob_stat') == entry['suspension']:
+						entry['work'] = 0
+					else:
+						entry['work'] = (entry.get('work_hours') * 60) * 60
+						entry['work'] = entry['work'] / 2
 
 	return entry
 
@@ -758,7 +792,7 @@ def get_ot(ot_in=None ,ot_out=None, start=None, end=None, bound=None, restday=No
 
 def get_ndiff(entry):
 
-	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_value("Employee", entry['employee'], "ignore_nd"):
+	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_value("Employee", entry['employee'], "ignore_nd") and not entry['is_restday']:
 		#get ND start and end
 		nd_start, nd_end  = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) ), get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
 		if entry.get('nd_start') > entry.get('nd_end'):
@@ -795,24 +829,73 @@ def get_ndiff(entry):
 
 		#Get ND late with interval
 		nd_late = abs((get_datetime(card_in)- get_datetime(entry["time_in"])).total_seconds())
-		if entry['late_interval'] and entry.get('late'):
-			if entry.get('lt_int_rup'):
-					lt_start = entry.get('late_interval') * 60
-					lt_end = entry.get('late_interval') * 60
-			
-					while nd_late != lt_end:
-						if nd_late <= lt_start:
-							nd_late = lt_start
-							break
-						if lt_start < entry.get('late') <= lt_end:
-							nd_late = lt_end
-							break
-						lt_start = lt_end
-						lt_end += entry.get('late_interval') * 60
+		if entry['is_flexible'] and entry['flexible_type'] != "In-Out":
 
+			flex_start = entry.get('card_in')
+			flex_end = entry.get('card_out')
+			if entry.get('ob_stat') == 1:
+				if entry.get('ob_in') < entry.get('card_in'):
+					flex_start = entry.get('ob_in')
+				if entry.get('ob_out') > entry.get('card_out'):
+					flex_end = entry.get('ob_out')
+
+			late_point = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')))
+			if late_point and flex_start:
+				if flex_start > late_point:
+					if entry.get('grace'):
+						if flex_start > (late_point + datetime.timedelta(minutes=entry.get('grace'))):
+							if entry['graceperiod_late']:
+									#late computaion will start from grace period
+								entry['late'] = ( flex_start - (late_point + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+								flex_start = late_point
+							else:
+								entry['late'] = (flex_start - late_point).total_seconds()
+								flex_start = late_point
+
+						else:
+							#late computaion will start from flex start
+							entry['late'] = 0
+							flex_start = late_point
+
+					else:
+						entry['late'] = (flex_start - late_point ).total_seconds()
+						flex_start = late_point
+
+					if entry['late_interval'] and entry.get('late'):
+						if entry.get('lt_int_rup'):
+							lt_start = entry.get('late_interval') * 60
+							lt_end = entry.get('late_interval') * 60
+							while entry['late'] != lt_end:
+								if entry['late'] <= lt_start:
+									entry['late'] = lt_start
+									break
+								if lt_start < entry.get('late') <= lt_end:
+									entry['late'] = lt_end
+									break
+								lt_start = lt_end
+								lt_end += entry.get('late_interval') * 60
+						else:
+							entry['late'] = (entry.get('late_interval') * 60) * int( entry['late'] / (entry.get('late_interval') * 60))
+						flex_start = add_to_date(get_datetime(late_point), hours=((entry['late'] /60 / 60)))
+					card_in = flex_start
+
+		elif entry['late_interval'] and entry.get('late'):
+			if entry.get('lt_int_rup'):
+				lt_start = entry.get('late_interval') * 60
+				lt_end = entry.get('late_interval') * 60
+				while nd_late != lt_end:
+					if nd_late <= lt_start:
+						nd_late = lt_start
+						break
+					if lt_start < entry.get('late') <= lt_end:
+						nd_late = lt_end
+						break
+					lt_start = lt_end
+					lt_end += entry.get('late_interval') * 60
 			else:
-				nd_late = (entry.get('late_interval') * 60) * int( entry.get('late') / (entry.get('late_interval') * 60))
+				nd_late = (entry.get('late_interval') * 60) * int( nd_late / (entry.get('late_interval') * 60))
 			card_in = add_to_date(get_datetime(entry["time_in"]), hours=((nd_late /60 / 60)))
+
 
 		#check shift if eligible for nightdiff based from time in and time out:
 		min_nd, max_nd, nd_pro = get_ndiff_min_max(nd_start, nd_end, entry.get('time_out'), entry.get('time_in'))
@@ -1239,6 +1322,7 @@ def get_undertime(entry):
 	#	entry['undertime'] = 0
 
 	#entry['undertime'], entry['ut_list'] = cto_reduction(entry['undertime'], entry['ut_list'])
+
 	if entry['ut_from'] and entry['ut_to']:
 		additional_undertime = 0
 		start, end = entry['ut_from'], entry['ut_to']
@@ -1273,7 +1357,7 @@ def get_undertime(entry):
 			if not (get_datetime(start) >= get_datetime(entry['time_out']) or get_datetime(end) <= get_datetime(entry['time_in']) or get_datetime(start) >= get_datetime(end)):
 				additional_undertime =+  abs((entry['ut_from'] - entry['ut_to']).total_seconds())
 		entry['undertime'] += additional_undertime
-	
+
 	if entry.get('ut_interval'):
 		entry['undertime'] = (entry.get('ut_interval') * 60) * int( entry.get('undertime') / (entry.get('ut_interval') * 60))
 
@@ -1450,6 +1534,7 @@ def get_absent(entry):
 			entry["is_absent"] = 1
 			entry["is_halfday"] = 1
 
+
 	if not entry.get('card_out') and not entry.get('is_restday') and not entry.get('is_holiday') and not entry.get('lv_status') and not entry.get('ob_stat'):
 		entry["work"] = 0
 		entry["late"] = 0
@@ -1534,6 +1619,7 @@ def get_flexible(entry, obs):
 				#gete late base from flexible start time
 				flex_start = entry.get('card_in')
 				flex_end = entry.get('card_out')
+				nd_late = abs((get_datetime(flex_start)- get_datetime(entry["time_in"])).total_seconds())
 
 				if entry.get('ob_stat') == 1:
 					if entry.get('ob_in') < entry.get('card_in'):
@@ -1541,21 +1627,34 @@ def get_flexible(entry, obs):
 
 					if entry.get('ob_out') > entry.get('card_out'):
 						flex_end = entry.get('ob_out')
-				flex = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
-				if flex:
-					if flex_start > ( flex + datetime.timedelta(minutes=entry.get('grace'))):
-						if entry['graceperiod_late']:
-							entry['late'] = ( flex_start - (flex + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
-							flex_start = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
+				#late point if the flex start is beyond this point consider as late.
+				late_point = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
+
+				#calculate late
+				if late_point:
+					if flex_start > late_point:
+						if entry.get('grace'):
+							if flex_start > (late_point + datetime.timedelta(minutes=entry.get('grace'))):
+								if entry['graceperiod_late']:
+									#late computaion will start from grace period
+									entry['late'] = ( flex_start - (late_point + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+									flex_start = late_point
+								else:
+									#late computaion will start from flex start
+									entry['late'] = ( flex_start - (late_point) ).total_seconds()
+									flex_start = late_point
+							else:
+								#if there is no late computed with grace period, set flex start to late point
+								flex_start = late_point
 						else:
-							entry['late'] = ( flex_start - flex ).total_seconds()
-							flex_start = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
+							nd_late = (entry.get('late_interval') * 60) * int( nd_late / (entry.get('late_interval') * 60))
+							entry['late'] = (flex_start - late_point ).total_seconds()
+							flex_start = late_point
 
 				if get_datetime(flex_end) >= get_datetime(entry.get('break_end')):
 					diff_break = entry.get('break_mins') * 60
 				#always reduce break mins
 				diff = abs( (flex_start - flex_end).total_seconds())  - (diff_break) + flex_ob_time
-
 				#if getdate("2020-01-13") == getdate(entry['target_date']):
 				#	frappe.throw(_("{0} {1}").format(flex_start, flex_end))
 
@@ -1573,6 +1672,24 @@ def get_flexible(entry, obs):
 					
 					entry['undertime'] = ut
 					entry['work'] = entry.get('worker_secs') - ut
+				if entry['late']:
+					if entry.get('late_interval'):
+						if entry.get('lt_int_rup'):
+							if entry.get('late'):
+								lt_start = entry.get('late_interval') * 60
+								lt_end = entry.get('late_interval') * 60
+								while entry.get('late') != lt_end:
+									if entry.get('late') <= lt_start:
+										entry['late'] = lt_start
+										break
+									if lt_start < entry.get('late') <= lt_end:
+										entry['late'] = lt_end
+										break
+									lt_start = lt_end
+									lt_end += entry.get('late_interval') * 60
+						else:
+							entry['late'] = (entry.get('late_interval') * 60) * int( entry['late'] / (entry.get('late_interval') * 60))
+					entry['work'] -= entry['late']
 
 				if entry.get('lv_status') == 2:
 					lv = (entry.get('worker_secs') / 2)
@@ -1618,12 +1735,15 @@ def get_final_processing(entry):
 								exc_start = get_datetime(lt['from_time'])
 							else: 
 								exc_start = get_datetime(et['from_time'])
+								entry['late_list'].append({'from_time': lt['from_time'], 'to_time': et['from_time']})
 	
 							if lt.get('to_time') < et.get('to_time'):
 								exc_end = get_datetime(lt['to_time'])
 							else: 
 								exc_end = get_datetime(et['to_time'])
-							
+								entry['late_list'].append({'from_time': et['from_time'], 'to_time': lt['from_time']})
+
+							entry['late_list'].remove(lt)
 							entry['late'] -= abs((exc_end - exc_start).total_seconds())
 							if entry['late'] < 0:
 								entry['late'] = 0
@@ -1631,20 +1751,46 @@ def get_final_processing(entry):
 				if et['type'] == "Undertime":
 					for ut in entry['ut_list']:
 						if not (get_datetime(ut['from_time']) >= get_datetime(et['to_time']) or get_datetime(ut['to_time']) <= get_datetime(et['from_time'])):
-	
+							
 							if get_datetime(ut['from_time']) > get_datetime(et['from_time']):
 								exc_start = get_datetime(ut['from_time'])
 							else: 
 								exc_start = get_datetime(et['from_time'])
+								entry['ut_list'].append({'from_time': ut['from_time'], 'to_time': et['from_time']})
 	
 							if ut.get('to_time') < et.get('to_time'):
 								exc_end = get_datetime(ut['to_time'])
 							else: 
 								exc_end = get_datetime(et['to_time'])
+								entry['ut_list'].append({'from_time': et['from_time'], 'to_time': ut['from_time']})
+							entry['ut_list'].remove(ut)
 	
 							entry['undertime'] -= abs((exc_end - exc_start).total_seconds())
 							if entry['undertime'] < 0:
 								entry['undertime'] = 0
+		#suspension
+		if entry['suspension'] == 1:
+			entry['undertime'] = 0
+			entry['late'] = 0
+		if entry['suspension'] == 2:
+			for lt in entry['late_list']:
+				if get_datetime(entry['time_in']) <= get_datetime(lt['from_time']) and get_datetime(entry['break_end']) >= get_datetime(lt['to_time']):
+					if get_datetime(lt['to_time']) > get_datetime(entry['break_start']):
+						lt['to_time'] = entry['break_start']
+					entry['late'] -= abs((lt['to_time'] - lt['from_time']).total_seconds())
+			for ut in entry['ut_list']:
+				if get_datetime(entry['time_in']) <= get_datetime(ut['from_time']) and get_datetime(entry['break_end']) >= get_datetime(ut['to_time']):
+					if get_datetime(ut['to_time']) > get_datetime(entry['break_start']):
+						ut['to_time'] = entry['break_start']
+					entry['undertime'] -= abs((ut['to_time'] - ut['from_time']).total_seconds())
+		if entry['suspension'] == 3:
+			for lt in entry['late_list']:
+				if get_datetime(entry['break_end']) <= get_datetime(lt['from_time']) and get_datetime(entry['time_out']) >= get_datetime(lt['to_time']):
+					entry['late'] -= abs((lt['to_time'] - lt['from_time']).total_seconds())
+			for ut in entry['ut_list']:
+				if get_datetime(entry['break_end']) <= get_datetime(ut['from_time']) and get_datetime(entry['time_out']) >= get_datetime(ut['to_time']):
+					entry['undertime'] -= abs((ut['to_time'] - ut['from_time']).total_seconds())
+
 	
 		if entry['work'] < 0: 
 			entry['work'] = 0
@@ -1816,6 +1962,15 @@ def get_final_processing(entry):
 				entry["work"] = (entry.get('work_hours') * 60 * 60) / 2
 				entry["late"] = 0
 				entry["undertime"] = 0
+
+	ws_pho = frappe.db.get_single_value('Payroll Settings', 'ws_pho')
+	if ws_pho:
+		if entry.get('lv_status') == 2 and entry.get('suspension') == 3:
+			entry["is_halfday"] = 1
+			entry["is_absent"] = 0
+		if entry.get('lv_status') == 3 and entry.get('suspension') == 2:
+			entry["is_halfday"] = 1
+			entry["is_absent"] = 0
 
 	#work suspension if card in and not cardout
 	if entry.get('card_in') and not entry.get('card_out'):
@@ -2258,7 +2413,7 @@ def get_ut_list(employee, from_date, to_date, approval_cutoff, adjustment):
 def get_cto_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	by_adjustment = ""
 
-	cto_apps = frappe.db.sql("""SELECT `name`, use_total_hours, use_target_date FROM `tabCompensatory Time Off` 
+	cto_apps = frappe.db.sql("""SELECT `name`, use_total_hours, use_target_date FROM `tabCompensatory Time Off`
 		WHERE workflow_state = 'Approved' AND employee = %s AND use_target_date >= %s AND use_target_date <= %s
 		AND `type` = 'Use' {by_adjustment} """.format( by_adjustment=by_adjustment ), (employee, from_date, to_date), as_dict=1)
 	
@@ -2872,14 +3027,13 @@ def get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 
 	if monthly_approval_cutoffs and not adjustment:
-		compensatory = frappe.db.sql("""SELECT CTO.`name`, CTO.employee, CTO.use_total_hours, CTO.use_target_date, CTO.use_from_date, CTO.use_to_date, CTO.use_fromtime, CTO.use_totime 
+		compensatory = frappe.db.sql("""SELECT CTO.`name`, CTO.employee, CTO.use_total_hours, CTO.use_target_date, CTO.use_from_date, CTO.use_to_date, CTO.use_fromtime, CTO.use_totime
 			FROM `tabCompensatory Time Off`  CTO INNER JOIN `tabPayroll Period` PP ON CTO.`company` = PP.`company`
 			WHERE CTO.workflow_state = 'Approved' AND CTO.use_target_date >= %s AND CTO.use_target_date <= %s
 			AND CTO.`type` = 'Use' AND CTO.approved_on <= PP.approval_cutoff 
 			AND CTO.`use_target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to`{conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
-
 	else:
-		compensatory = frappe.db.sql("""SELECT `name`, employee, use_total_hours, use_target_date, use_from_date, use_to_date, use_fromtime, use_totime FROM `tabCompensatory Time Off` 
+		compensatory = frappe.db.sql("""SELECT `name`, employee, use_total_hours, use_target_date, use_from_date, use_to_date, use_fromtime, use_totime FROM `tabCompensatory Time Off`
 			WHERE workflow_state = 'Approved' AND use_target_date >= %s AND use_target_date <= %s
 			AND `type` = 'Use' {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 	

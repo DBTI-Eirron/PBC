@@ -9,6 +9,7 @@ def get_absent_days(at, opt):
 	#check monthy rate settings 'opt' for options or setttings
 	mo_abho = opt.get('mo_abho') #Monthly Rate Absent on Special Holiday
 	ab_regho = opt.get('ab_regho') #Absent on Regular Holiday
+	ws_pho = opt.get('ws_pho')
 
 	#if absent or is leave without pay
 	if ( at['is_absent'] == 1 or at['is_lwop'] == 1 or at['is_halfday'] == 1):
@@ -20,13 +21,18 @@ def get_absent_days(at, opt):
 		else:
 			if at['is_lwop'] == 1 and at['lv_status'] > 1: #if lwop is 1st half or 2nd half
 				AT = 0.5 
-				if at.is_absent:
+				if at['is_absent']:
 					AT = 1
 									
 			else: 
 				#if absent only no lwop, set to whole day
 				#but if with halfday tag set it to halfday 0.5
 				AT = 0.5 if at['is_halfday'] == 1 else 1
+				if ws_pho:
+					if at['lv_status'] == 2 and "2ndhalf Work Suspension" in at['tags']:
+						AT = 0
+					if at['lv_status'] == 3 and "1sthalf Work Suspension" in at['tags']:
+						AT = 0
 
 	return AT
 

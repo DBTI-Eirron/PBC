@@ -374,14 +374,20 @@ def get_data(filters, columns):
 		if reg.undertime > 0:
 			data_register[reg.employee_id]["ut"] += reg.undertime
 		if "Sick Leave" in reg.leave_name and reg.lv_status > 0:
-			lv = frappe.db.get_value("Leave Application", reg.linked_leave, "total_leave_days")
-			data_register[reg.employee_id]["sl"] += flt(reg.work_hours, 2) * flt(lv, 2)
+			if reg.lv_status > 1:
+				data_register[reg.employee_id]["sl"] += flt(reg.work_hours, 2) * .5
+			if reg.lv_status == 1:
+				data_register[reg.employee_id]["sl"] += flt(reg.work_hours, 2) * 1
 		if "Vacation Leave" in reg.leave_name and reg.lv_status > 0:
-			lv = frappe.db.get_value("Leave Application", reg.linked_leave, "total_leave_days")
-			data_register[reg.employee_id]["vl"] += flt(reg.work_hours, 2) * flt(lv, 2)
+			if reg.lv_status > 1:
+				data_register[reg.employee_id]["vl"] += flt(reg.work_hours, 2) * .5
+			if reg.lv_status == 1:
+				data_register[reg.employee_id]["vl"] += flt(reg.work_hours, 2) * 1
 		if "Birthday Leave" in reg.leave_name and reg.lv_status > 0:
-			lv = frappe.db.get_value("Leave Application", reg.linked_leave, "total_leave_days")
-			data_register[reg.employee_id]["bl"] += flt(reg.work_hours, 2) * flt(lv, 2)
+			if reg.lv_status > 1:
+				data_register[reg.employee_id]["bl"] += flt(reg.work_hours, 2) * .5
+			if reg.lv_status == 1:
+				data_register[reg.employee_id]["bl"] += flt(reg.work_hours, 2) * 1
 		if reg.cto > 0:
 			data_register[reg.employee_id]["cto"] += reg.cto
 		if reg.overtime_ex > 0 and not reg.is_restday > 0 and not reg.is_sp_holiday > 0  and not reg.is_holiday > 0:
@@ -502,6 +508,12 @@ def get_conditions(filters):
 
 	if filters.get("show_active"):
 		conditions.append("TE.is_active=1")
+
+#	strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+#	if strict_period_group:
+#		period_group = frappe.db.get_value("Payroll Period", filters.payroll_period, ["period_group"])
+#		if period_group:
+#			conditions.append("TE.period_group='{0}'".format(period_group))
 
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 

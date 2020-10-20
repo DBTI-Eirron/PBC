@@ -213,8 +213,8 @@ class AdjustmentProcessing(Document):
 				"undertime":  adjustment.get('UT') - processed.get('UT'),
 				"compensatory":  adjustment.get('CTO') - processed.get('CTO'),
 			}
-			if emp_dict['rate_type'] == "Daily Rate" and adjustment.get('ab_days') != processed.get('ab_days'):
-				ab_days = adjustment.get('ab_days') - processed.get('ab_days')
+			if emp_dict['rate_type'] == "Daily Rate" and adjustment.get('absent_days') != processed.get('absent_days'):
+				ab_days = adjustment.get('absent_days') - processed.get('absent_days')
 				reg['absent'] = flt(rates.get('daily_rate'), 8) * ab_days			
 
 			if reg.get('absent') or reg.get('unpaid_holiday') or reg.get('overtime') or reg.get('nightdiff') or reg.get('late') or reg.get('undertime') or reg.get('compensatory'):
@@ -237,7 +237,7 @@ class AdjustmentProcessing(Document):
 			frappe.throw(_("You cannot process Employee {0}: {1}, due to Date Hired").format(emp['name'], emp['full_name']))
 
 		rates = get_rates(emp)
-		attendance_result = { "AT": 0.0, "UHO": 0.0, "OT": 0.0, "ND": 0.0, "LT": 0.0, "UT": 0.0, "CTO": 0.0 }
+		attendance_result = { "AT": 0.0, "UHO": 0.0, "OT": 0.0, "ND": 0.0, "LT": 0.0, "UT": 0.0, "CTO": 0.0, "absent_days": 0 }
 		overtimes_register = []
 		if emp.get('is_attendance_base') > 0 and getdate(emp.get('date_hired')) < getdate(attendance_to):
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho, cto, cto_days = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0
@@ -282,12 +282,16 @@ class AdjustmentProcessing(Document):
 									#if ot.late_nd:
 									#	lnd_baseamount = flt( ot.late_nd, 8) * rates.get('hourly_rate') * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100)
 									baseamount = 0
-									end_baseamount = rates.get('hourly_rate') * flt( ot.early_nd, 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
-									lnd_baseamount = rates.get('hourly_rate') * flt( ot.late_nd, 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
+									if 'early_nd' in rateclass_map[emp.rate_class]:
+										end_baseamount = rates.get('hourly_rate') * flt( ot['early_nd'], 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
+									if 'lt_nd' in rateclass_map[emp.rate_class]:
+										lnd_baseamount = rates.get('hourly_rate') * flt( ot['late_nd'], 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')][emp.get('rate_type')]['rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
 							else:
 								baseamount = 0
-								end_baseamount = rates.get('hourly_rate') * flt( ot.early_nd, 8) * (ot_map[ot.get('ot_code')]['daily_rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
-								lnd_baseamount = rates.get('hourly_rate') * flt( ot.late_nd, 8) * (ot_map[ot.get('ot_code')]['daily_rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
+								if 'early_nd' in rateclass_map[emp.rate_class]:
+									end_baseamount = rates.get('hourly_rate') * flt( ot['early_nd'], 8) * (ot_map[ot.get('ot_code')]['daily_rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
+								if 'lt_nd' in rateclass_map[emp.rate_class]:
+									lnd_baseamount = rates.get('hourly_rate') * flt( ot['late_nd'], 8) * (ot_map[ot.get('ot_code')]['daily_rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
 						else:
 							baseamount = rates.get('hourly_rate') * (ot_map[ot.get('ot_code')]['rate'] / 100)
 							if header.get('ot_rate_class') and emp.get('rate_class'):
@@ -296,12 +300,16 @@ class AdjustmentProcessing(Document):
 									#end_baseamount = flt( ot.early_nd, 8) * rates.get('hourly_rate') * (rateclass_map[emp.rate_class]['early_nd'] / 100)
 									#lnd_baseamount = flt( ot.late_nd, 8) * rates.get('hourly_rate') * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
 									baseamount = 0
-									end_baseamount = rates.get('hourly_rate') * flt( ot.early_nd, 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')]['Monthly Rate']['rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
-									lnd_baseamount = rates.get('hourly_rate') * flt( ot.late_nd, 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')]['Monthly Rate']['rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
+									if 'early_nd' in rateclass_map[emp.rate_class]:
+										end_baseamount = rates.get('hourly_rate') * flt( ot['early_nd'], 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')]['Monthly Rate']['rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
+									if 'lt_nd' in rateclass_map[emp.rate_class]:
+										lnd_baseamount = rates.get('hourly_rate') * flt( ot['late_nd'], 8) * (ot_class_map[ot.get('ot_code')][emp.get('rate_class')]['Monthly Rate']['rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
 							else:
 								baseamount = 0
-								end_baseamount = rates.get('hourly_rate') * flt( ot.early_nd, 8) * (ot_map[ot.get('ot_code')]['rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
-								lnd_baseamount = rates.get('hourly_rate') * flt( ot.late_nd, 8) * (ot_map[ot.get('ot_code')]['rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
+								if 'early_nd' in rateclass_map[emp.rate_class]:
+									end_baseamount = rates.get('hourly_rate') * flt( ot['early_nd'], 8) * (ot_map[ot.get('ot_code')]['rate'] / 100) * (rateclass_map[emp.rate_class]['early_nd'] / 100)
+								if 'lt_nd' in rateclass_map[emp.rate_class]:
+									lnd_baseamount = rates.get('hourly_rate') * flt( ot['late_nd'], 8) * (ot_map[ot.get('ot_code')]['rate'] / 100) * (rateclass_map[emp.rate_class]['lt_nd'] / 100)
 						amount = baseamount + end_baseamount + lnd_baseamount
 
 				ot_register.append({
@@ -713,10 +721,11 @@ class AdjustmentProcessing(Document):
 					#"LT": flt(late, 8), 
 					#"UT":flt(undertime, 8), 
 					#"CTO":flt(cto, 8), 
-					"ab_days": total_absent_days, 
+					"absent_days": total_absent_days, 
 					"wk_days": total_work_days 
 				})
-
+				header["absent_days"] = total_absent_days
+				attendance_result["absent_days"] = total_absent_days
 				#attendance_result.update({ "ab": flt(absent, 8), "uho": flt(unpaid_holiday, 8), "ot": flt(overtime, 8), "nd": flt(nightdiff, 8), "lt": flt(late, 8), "ut":flt(undertime, 8), "cto":flt(cto, 8), "ab_days": absent_days, "wk_days": work_days })
 			else:
 				header['no_attendance'] = 1
