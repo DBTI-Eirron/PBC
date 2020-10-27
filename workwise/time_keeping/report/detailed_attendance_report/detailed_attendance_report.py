@@ -282,7 +282,7 @@ def get_result_as_list(data, filters):
 def get_register(filters, pay_from, pay_to):
 	register = frappe.db.sql("""SELECT AR.*, TE.`name` as employee_id, TE.`full_name`, TE.`location` 
 		FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.`employee` = TE.`name`
-		WHERE TE.`company` = %(company)s AND TE.`is_attendance_base` = 1 AND target_date >= %(from_date)s AND target_date <= %(to_date)s {conditions}
+		WHERE TE.`company` = %(company)s AND TE.`is_attendance_base` = 1 AND AR.target_date >= %(from_date)s AND AR.target_date <= %(to_date)s {conditions}
 		GROUP BY AR.`name` ORDER BY TE.`full_name` ASC""".format(conditions=get_conditions(filters)), {
 		"company": filters.company,
 		"location": filters.location,
@@ -509,11 +509,10 @@ def get_conditions(filters):
 	if filters.get("show_active"):
 		conditions.append("TE.is_active=1")
 
-#	strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
-#	if strict_period_group:
-#		period_group = frappe.db.get_value("Payroll Period", filters.payroll_period, ["period_group"])
-#		if period_group:
-#			conditions.append("TE.period_group='{0}'".format(period_group))
+	strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+	if strict_period_group:
+		period_group = frappe.db.get_value("Payroll Period", filters.payroll_period, ["period_group"])
+		conditions.append("TE.period_group='{0}'".format(period_group))
 
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 

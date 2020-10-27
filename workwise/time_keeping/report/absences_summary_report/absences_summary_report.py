@@ -103,4 +103,7 @@ def get_conditions(filters):
 	if filters.get("show_active"):
 		conditions.append("TE.is_active=1")
 
+	if filters.get("period_group"):
+		conditions.append("TE.`period_group`='{0}'".format(filters.get("period_group")))
+
 	return "AND {}".format(" AND ".join(conditions)) if conditions else ""

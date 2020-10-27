@@ -36,6 +36,12 @@ frappe.query_reports["Absences Summary Report"] = {
 			"options": "Department",
 		},
 		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group",
+		},
+		{
 			"fieldname": "show_active",
 			"label": __("Show Active Only"),
 			"fieldtype": "Check",
