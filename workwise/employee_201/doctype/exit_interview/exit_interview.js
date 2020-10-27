@@ -26,7 +26,7 @@ frappe.ui.form.on('Exit Interview', {
 
 workwise.exit_interview.make_movement = function(frm) {
 	frappe.model.open_mapped_doc({
-		method: "workwise.hr.doctype.exit_interview.exit_interview.make_movement",
+		method: "workwise.employee_201.doctype.exit_interview.exit_interview.make_movement",
 		frm: frm
 	});
 };

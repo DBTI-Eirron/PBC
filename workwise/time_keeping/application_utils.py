@@ -130,6 +130,7 @@ def level_of_approval_next_level(self, approver_level, highest_level, req_level)
 def validate_cutoff_approval_date(self):
 	if self.workflow_state == "Approved":
 		cutoff_list = []
+		approvals_cutoff = None
 		target_date, from_date, to_date = None, None, None
 		approved_on = getdate(self.approved_on)
 		if self.doctype in ['Leave Application', 'Overtime Application', 'Official Business Application', 'Change Schedule Application']:
@@ -137,12 +138,8 @@ def validate_cutoff_approval_date(self):
 			to_date = self.to_date
 
 		if self.doctype in ['Compensatory Time Off']:
-			if self.type == 'Use':
-				from_date = self.use_from_date
-				to_date = self.use_to_date
-			if self.type == 'File':
-				from_date = self.file_from_date
-				to_date = self.file_to_date
+			from_date = self.from_date
+			to_date = self.to_date
 
 		if self.doctype in ['Excuse Tardiness Application']:
 			target_date = self.date
@@ -152,6 +149,13 @@ def validate_cutoff_approval_date(self):
 
 		if self.doctype in ['DTR Problem Application']:
 			target_date = self.target_date
+
+		if self.doctype in ['Timelogs Application']:
+			if self.timelogs:
+				targets = []
+				for d in self.timelogs:
+					targets.append(d.target_date)
+				target_date = max(targets)
 
 		if target_date:
 			approvals_cutoff = frappe.db.sql("""SELECT MAX(`approval_cutoff`) as `approval_cutoff` FROM `tabPayroll Period` WHERE `company` = %s AND %s BETWEEN `attendance_from` AND `attendance_to` """,(self.company, target_date), as_dict=1)
