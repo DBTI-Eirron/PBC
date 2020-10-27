@@ -238,4 +238,7 @@ def get_conditions(filters):
 	if filters.get("leave_type"):
 		conditions.append("(LE.`leave_type`=%(leave_type)s OR LE.`deduct_credits_to`=%(leave_type)s)")
 
+	if filters.get("period_group"):
+		conditions.append("TE.period_group='{0}'".format(filters.get("period_group")))
+
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
