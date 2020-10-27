@@ -42,5 +42,11 @@ frappe.query_reports["DTR Problem Summary Report"] = {
 			"fieldtype": "Link",
 			"options": "Employee",
 		},
+		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group",
+		},
 	]
 };

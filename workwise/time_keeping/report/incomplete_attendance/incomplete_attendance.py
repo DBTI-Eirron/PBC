@@ -141,6 +141,9 @@ def get_conditions(filters):
 	if filters.get("company"):
 		conditions.append("TE.`company`='{0}'".format(filters.company))
 
+	if filters.get("period_group"):
+		conditions.append("TE.`period_group`='{0}'".format(filters.get("period_group")))
+
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 
 def get_result_as_list(data, filters):

@@ -27,7 +27,12 @@ frappe.query_reports["Perfect Attendance"] = {
 			"default": frappe.datetime.get_today(),
 			"reqd": 1,
 			"width": "60px"
-		}
-
+		},
+		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group",
+		},
 	]
 }

@@ -40,5 +40,11 @@ frappe.query_reports["Tardiness Summary Report"] = {
 			"default": "Mins",
 			"reqd": 1
 		},
+		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group",
+		},
 	]
 }

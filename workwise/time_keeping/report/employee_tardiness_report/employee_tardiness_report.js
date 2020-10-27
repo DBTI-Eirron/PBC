@@ -44,7 +44,13 @@ frappe.query_reports["Employee Tardiness Report"] = {
 			],
 			"default": "Hrs",
 			"reqd": 1
-		}
+		},
+		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group",
+		},
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {
 		if (columnDef.df.fieldname=="account") {

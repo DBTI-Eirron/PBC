@@ -125,8 +125,16 @@ def get_employees(filters):
 	return employees
 
 def get_period(filters):
-	date_from, date_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
-	period = frappe.db.sql("""SELECT `employee`, work, is_restday, is_absent, is_lwop, is_halfday FROM `tabAttendance Register` WHERE `target_date` BETWEEN %s AND %s""", (date_from, date_to), as_dict=True)
+	conditions = ""
+
+	date_from, date_to, period_group = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "period_group"])
+	strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+	if strict_period_group:
+		conditions = "AND TE.period_group='{0}'".format(period_group)
+
+	period = frappe.db.sql("""SELECT AR.`employee`, AR.work, AR.is_restday, AR.is_absent, AR.is_lwop, AR.is_halfday 
+		FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.`employee`=TE.`name`
+		WHERE (AR.`target_date` BETWEEN %s AND %s) {conditions} """.format(conditions=conditions),(date_from, date_to), as_dict=True)
 
 	return period
 

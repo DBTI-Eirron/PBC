@@ -25,6 +25,12 @@ def get_data(filters):
 				'type':res.type,
 				'requested':res.request
 			})
+
+	strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+	if filters.get("period_group") and strict_period_group:
+		period_group = frappe.db.get_value("Payroll Period", filters.payroll_period, ["period_group"])
+		if not period_group:
+			data = []
 			
 	return data
 
@@ -65,16 +71,25 @@ def get_employee(filters):
 	query = "SELECT TE.`name`, TE.`full_name` FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name` WHERE TE.docstatus = 0"
 	if filters.employee:
 		query = query + " AND TE.`name` = '"+filters.employee+"'"
-	else:
-		if filters.company:
-			query = query + " AND TE.company = '"+filters.company+"'"
-		if filters.location:
-			query = query + " AND TE.location = '"+filters.location+"'"
-		if filters.department:
-			lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
-			query = query + " AND ( DEPT.`lft` BETWEEN '{0}' AND '{1}' )".format(lft, rgt)
-		if filters.position_title:
-			query = query + " AND TE.position_title = '"+filters.position_title+"'"
+
+	if filters.company:
+		query = query + " AND TE.company = '"+filters.company+"'"
+	if filters.location:
+		query = query + " AND TE.location = '"+filters.location+"'"
+	if filters.department:
+		lft, rgt = frappe.db.get_value("Department", filters.department, ["lft", "rgt"])
+		query = query + " AND ( DEPT.`lft` BETWEEN '{0}' AND '{1}' )".format(lft, rgt)
+	if filters.position_title:
+		query = query + " AND TE.position_title = '"+filters.position_title+"'"
+
+	strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+	if strict_period_group:
+		period_group = frappe.db.get_value("Payroll Period", filters.payroll_period, ["period_group"])
+		query += "AND TE.period_group='{0}'".format(period_group)
+
+	if filters.get("period_group"):
+		query += "AND TE.`period_group`='{0}'".format(filters.get("period_group"))
+
 	employees = frappe.db.sql(query,as_dict=True)
 
 	return employees

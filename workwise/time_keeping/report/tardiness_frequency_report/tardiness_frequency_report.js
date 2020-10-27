@@ -29,6 +29,12 @@ frappe.query_reports["Tardiness Frequency Report"] = {
 			"fieldtype": "Link",
 			"options": "Employee"
 		},
+		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group",
+		},
 	]
 }
 
