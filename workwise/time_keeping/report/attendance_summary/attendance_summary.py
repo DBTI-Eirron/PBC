@@ -215,7 +215,7 @@ def get_data(filters):
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			complete_sched(emp_dict, pay_from, pay_to, template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
-			if filters.show_adjusted:
+			if not filters.show_adjusted:
 				processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
 				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
