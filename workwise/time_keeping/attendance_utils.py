@@ -196,6 +196,7 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	entry['cto_list'] = []
 	entry['late_deduction'] = 0
 	entry['late_without_int'] = 0
+	entry['flex_in_out'] = []
 	get_late(entry)
 	get_overtime(entry, ots)
 	get_undertime(entry)
@@ -1371,10 +1372,12 @@ def get_cto(entry, cto):
 			cto_log_list = []
 			cto_fromtime = None
 			cto_totime = None
+			break_has_deducted = 0
 			if d['use_target_date'] == entry['target_date']:
 				entry['cto_links'].append(d.name)
 				cto_fromtime = get_datetime( str(d.use_from_date) +" "+ str(d.use_fromtime))
 				cto_totime = get_datetime( str(d.use_to_date) +" "+ str(d.use_totime))
+
 				if not (cto_fromtime >= entry.get('break_end') or cto_totime <= entry.get('break_start')):
 					if cto_fromtime < entry.get('break_start') and cto_totime > entry.get('break_end'):
 						cto_log_list.append({'start': cto_fromtime, 'end': entry.get('break_start')})
@@ -1382,28 +1385,55 @@ def get_cto(entry, cto):
 					else:
 						if cto_fromtime < entry.get('break_start'):
 							cto_log_list.append({'start': cto_fromtime, 'end': entry.get('break_start')})
+
 						if cto_totime > entry.get('break_end'):
 							cto_log_list.append({'start': entry.get('break_end'), 'end': cto_totime})
-
 				else:
 					cto_log_list.append({'start': cto_fromtime, 'end': cto_totime})
-
 				if cto_log_list:
 					for ct in cto_log_list:
+						cto_logs = []
+						cto_logs.append({"start": ct['start'], "end": ct['end']})
+
 						if entry["late"]:
 							for l in entry["late_list"]:
 								start, end = None, None
-								if not (ct['start'] > l['to_time'] or ct['end'] < l['from_time']):
-									if ct['start'] > l['from_time']:
-										start = ct['start']
-									else:
-										start = l['from_time']
-									if ct['end'] < l['to_time']:
-										end = ct['end']
-									else:
-										end = l['to_time']
-									entry['cto'] += abs((start - end).total_seconds())
+								cto = 0
+								late = entry["late"]
+								if not (entry['is_flexible'] and entry.get('flexible_type') == "In-Out"):
+									if not (ct['start'] >= l['to_time'] or ct['end'] <= l['from_time']):
+										if ct['start'] > l['from_time']:
+											start = ct['start']
+										else:
+											start = l['from_time']
+										if ct['end'] < l['to_time']:
+											end = ct['end']
+										else:
+											end = l['to_time']
+										entry['cto'] += abs((start - end).total_seconds())
+									elif entry['is_flexible'] and entry.get('flexible_type') == "Standard":
+										if ct['end'] > entry['time_out']:
+											cto += abs((ct['end'] - entry['time_out']).total_seconds())
+										if cto > entry["late"]:
+											entry['cto'] += entry["late"]
+										if cto <= entry["late"]:
+											entry['cto'] += cto
+
 						if entry["undertime"]:
+							ut_start = None
+							ut_end = None
+
+							for u in entry["ut_list"]:
+								if not ut_start:
+									ut_start = u['from_time']
+									ut_end = u['to_time']
+								else:
+									if not (ut_start > u['to_time'] or ut_end < u['from_time']):
+										if ut_start <= u['from_time'] < ut_end < u['to_time']:
+											u['from_time'] = ut_end
+										if u['from_time'] <= ut_start < u['to_time'] < ut_end:
+											u['to_time'] = ut_start
+
 							for ut in entry["ut_list"]:
 								start, end = None, None
 								if not (ct['start'] > ut['to_time'] or ct['end'] < ut['from_time']):
@@ -1417,45 +1447,116 @@ def get_cto(entry, cto):
 										end = ut['to_time']
 									entry['cto'] += abs((start - end).total_seconds())
 
-						if entry["is_absent"]:
-							entry['cto'] = d.use_total_hours * 60 * 60
-							if cto_fromtime < entry.get('time_in') < cto_totime: 
-								entry['cto'] -= abs((cto_fromtime - entry.get('time_in')).total_seconds())
-							if cto_fromtime < entry.get('time_out') < cto_totime: 
-								entry['cto'] -= abs((entry.get('time_out') - cto_totime).total_seconds())
-							if entry["lv_status"] == 1:
-								entry['cto'] = 0
-							if entry["lv_status"] == 2:
-								if not (ct['start'] > entry.get('time_out') or ct['end'] < entry.get('break_end')):
-									if ct['start'] > entry.get('break_end'):
-										start = ct['start']
-									else:
-										start = entry.get('break_end')
-									if ct['end'] < entry.get('time_out'):
-										end = ct['end']
-									else:
-										end = entry.get('time_out')
-									entry['cto'] = abs((start - end).total_seconds())
-									break
+							if entry['is_flexible']:
+								late_point = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
+								if entry.get('flexible_type') == "In-Out":
+									for f in entry['flex_in_out']:
+										for cl in cto_logs:
+											if get_datetime(cl['start']) < get_datetime(f['from_time']) or get_datetime(cl['end']) > get_datetime(f['to_time']):
+												if get_datetime(cl['start']) < get_datetime(f['from_time']):
+													if get_datetime(cl['end']) > get_datetime(f['from_time']):
+														if get_datetime(cl['end']) > get_datetime(f['to_time']):
+															cl['end'] = f['from_time']
+															cto_logs.append({"start":f['to_time'] , "end": cl['end']})
+														else:
+															cl['end'] = f['from_time']
+												elif get_datetime(cl['end']) > get_datetime(f['to_time']):
+													if get_datetime(cl['start']) < get_datetime(f['to_time']):
+														cl['start'] = f['to_time']
 								else:
-									entry['cto'] -=  abs((entry.get('time_in') - entry.get('break_start')).total_seconds())
-		
-							if entry["lv_status"] == 3:
-								if not (ct['start'] > entry.get('break_start') or ct['end'] < entry.get('time_in')):
-									if ct['start'] > entry.get('time_in'):
-										start = ct['start']
-									else:
-										start = entry.get('time_in')
-									if ct['end'] < entry.get('break_start'):
-										end = ct['end']
-									else:
-										end = entry.get('break_start')
-									entry['cto'] = abs((start - end).total_seconds())
-									break
-								else:
-									entry['cto'] -=  abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
-							break
+									for cl in cto_logs:
+										if get_datetime(cl['end']) > get_datetime(late_point):
+											if get_datetime(cl['start']) < get_datetime(late_point):
+												cl['start'] = late_point
+											if entry['flex_in_out']:
+												for f in entry['flex_in_out']:
+													if get_datetime(cl['end']) > get_datetime(f['to_time']):
+														if get_datetime(cl['start']) < get_datetime(f['to_time']):
+															cl['start'] = f['to_time']
+														if get_datetime(cl['end']) > get_datetime(entry['time_out']):
+															cl['end'] = entry['time_out']
+													else:
+														cl['end'] = cl['start']
+										else:
+											cl['end'] = cl['start']
+								for c in cto_logs:
+									entry['cto'] += abs((c['start'] - c['end']).total_seconds())
 
+						if entry["is_absent"]:
+							if entry['is_flexible']:
+								for c in cto_logs:
+									entry['cto'] += abs((c['start'] - c['end']).total_seconds())
+								if entry['cto']:
+									if entry['cto'] > entry['worker_secs']:
+										entry['cto'] = entry['worker_secs']
+
+							else:
+								if (cto_fromtime <= entry.get('time_in') <= cto_totime) or (cto_fromtime <= entry.get('time_out') <= cto_totime)\
+								or (entry.get('time_in') <= cto_fromtime <= entry.get('time_out')) or (entry.get('time_in') <= cto_totime <= entry.get('time_out')):
+#									entry['cto'] = d.use_total_hours * 60 * 60
+#									if d.use_total_hours * 60 * 60 > entry['work_hours']:
+#										entry['cto'] = entry['work_hours'] * 60 * 60
+
+									ctofrom = cto_fromtime
+									ctoto = cto_totime
+									total_cto_hours = abs((ctofrom - ctoto).total_seconds())
+									if cto_fromtime < entry.get('time_in'):
+										ctofrom = entry.get('time_in')
+									if cto_totime > entry.get('time_out'):
+										ctoto = entry.get('time_out')
+									entry['cto'] += abs((ctofrom - ctoto).total_seconds())
+									deducted_break = abs(total_cto_hours - entry['cto'])
+									d.break_hours = ((d.break_hours) * 60 * 60) - deducted_break
+									d.break_hours = d.break_hours / 60 / 60
+									if d.break_hours  < 0:
+										d.break_hours = 0		
+
+#									breakin = None
+#									breakout = None
+#									if (ctofrom <= entry.get('break_start') <= ctoto):
+#										breakin = entry.get('break_start')
+#									if (ctofrom <= entry.get('break_end') <= ctoto):
+#										breakout = entry.get('break_end')
+#									if breakin and breakout:
+#										entry['cto'] -= abs((breakin - breakout).total_seconds())
+
+								if entry["lv_status"] == 1:
+									entry['cto'] = 0
+								if entry["lv_status"] == 2:
+									if not (ct['start'] > entry.get('time_out') or ct['end'] < entry.get('break_end')):
+										if ct['start'] > entry.get('break_end'):
+											start = ct['start']
+										else:
+											start = entry.get('break_end')
+										if ct['end'] < entry.get('time_out'):
+											end = ct['end']
+										else:
+											end = entry.get('time_out')
+										entry['cto'] = abs((start - end).total_seconds())
+										break
+									else:
+										entry['cto'] -=  abs((entry.get('time_in') - entry.get('break_start')).total_seconds())
+
+								if entry["lv_status"] == 3:
+									if not (ct['start'] > entry.get('break_start') or ct['end'] < entry.get('time_in')):
+										if ct['start'] > entry.get('time_in'):
+											start = ct['start']
+										else:
+											start = entry.get('time_in')
+										if ct['end'] < entry.get('break_start'):
+											end = ct['end']
+										else:
+											end = entry.get('break_start')
+										entry['cto'] = abs((start - end).total_seconds())
+										break
+									else:
+										entry['cto'] -=  abs((entry.get('break_end') - entry.get('time_out')).total_seconds())
+
+								if entry['cto']:
+									entry['cto'] -= flt(d.break_hours, 2) * 60 * 60
+									if entry['cto'] > entry['work_hours'] * 60 * 60:
+										entry['cto'] = entry['work_hours'] * 60 * 60
+								break
 	return entry
 
 def get_absent(entry):
@@ -1567,6 +1668,8 @@ def get_flexible(entry, obs):
 		less_break = 0
 		diff_break = 0
 		lv = 0
+		entry["late_list"] = []
+		entry["ut_list"] = []
 
 		if entry.get('ob_in') and entry.get('ob_out'):
 			flex_ob_time = abs((entry.get('ob_in') - entry.get('ob_out')).total_seconds())
@@ -1582,6 +1685,8 @@ def get_flexible(entry, obs):
 						less_break = 0
 
 				flex_ob_time -= less_break
+			entry['flex_in_out'].append({"from_time":  entry.get('ob_in') , "to_time": entry.get('ob_out')})
+
 		if entry.get('card_in') and entry.get('card_out'):
 			#Reset Flexible values
 			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
@@ -1612,6 +1717,7 @@ def get_flexible(entry, obs):
 					if ut < 0:
 						ut = 0
 
+					entry['flex_in_out'].append({"from_time":  entry.get('card_in'), "to_time": entry.get('card_in')})
 					entry['late'] = 0
 					entry['undertime'] = ut
 					entry['work'] = entry.get('worker_secs') - (ut + lv)
@@ -1631,6 +1737,7 @@ def get_flexible(entry, obs):
 				late_point = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')) )
 
 				#calculate late
+				entry['flex_in_out'].append({"from_time":  entry.get('card_in'), "to_time": entry.get('card_in')})
 				if late_point:
 					if flex_start > late_point:
 						if entry.get('grace'):
@@ -1638,10 +1745,12 @@ def get_flexible(entry, obs):
 								if entry['graceperiod_late']:
 									#late computaion will start from grace period
 									entry['late'] = ( flex_start - (late_point + datetime.timedelta(minutes=entry.get('grace'))) ).total_seconds()
+									entry['late_list'].append({'from_time': late_point + datetime.timedelta(minutes=entry.get('grace')), 'to_time': flex_start})
 									flex_start = late_point
 								else:
 									#late computaion will start from flex start
 									entry['late'] = ( flex_start - (late_point) ).total_seconds()
+									entry['late_list'].append({'from_time': late_point, 'to_time': flex_start})
 									flex_start = late_point
 							else:
 								#if there is no late computed with grace period, set flex start to late point
@@ -1649,15 +1758,17 @@ def get_flexible(entry, obs):
 						else:
 							nd_late = (entry.get('late_interval') * 60) * int( nd_late / (entry.get('late_interval') * 60))
 							entry['late'] = (flex_start - late_point ).total_seconds()
+							entry['late_list'].append({'from_time': late_point, 'to_time': flex_start})
 							flex_start = late_point
 
 				if get_datetime(flex_end) >= get_datetime(entry.get('break_end')):
 					diff_break = entry.get('break_mins') * 60
 				#always reduce break mins
 				diff = abs( (flex_start - flex_end).total_seconds())  - (diff_break) + flex_ob_time
+
 				#if getdate("2020-01-13") == getdate(entry['target_date']):
 				#	frappe.throw(_("{0} {1}").format(flex_start, flex_end))
-
+				entry['flex_in_out'].append({"from_time":  flex_start, "to_time": flex_end})
 				#Get Undertime
 				if entry.get('lv_status') > 1:
 					diff += (entry.get('worker_secs') / 2)
@@ -3027,15 +3138,20 @@ def get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 
 	if monthly_approval_cutoffs and not adjustment:
-		compensatory = frappe.db.sql("""SELECT CTO.`name`, CTO.employee, CTO.use_total_hours, CTO.use_target_date, CTO.use_from_date, CTO.use_to_date, CTO.use_fromtime, CTO.use_totime
-			FROM `tabCompensatory Time Off`  CTO INNER JOIN `tabPayroll Period` PP ON CTO.`company` = PP.`company`
-			WHERE CTO.workflow_state = 'Approved' AND CTO.use_target_date >= %s AND CTO.use_target_date <= %s
+		compensatory = frappe.db.sql("""SELECT CTO.`name`, CTO.employee, CTT.cto_hours as use_total_hours, CTT.target_date as use_target_date, 
+			CTT.from_date as use_from_date, CTT.to_date as use_to_date, CTT.from_time as use_fromtime, CTT.to_time as use_totime, CTT.break_hours
+			FROM `tabCompensatory Time Off` CTO 
+			INNER JOIN `tabCompensatory Time Off Targets` CTT ON CTO.`name` = CTT.`parent`
+			INNER JOIN `tabPayroll Period` PP ON CTO.`company` = PP.`company`
+			WHERE CTO.workflow_state = 'Approved' AND CTT.target_date >= %s AND CTT.target_date <= %s
 			AND CTO.`type` = 'Use' AND CTO.approved_on <= PP.approval_cutoff 
-			AND CTO.`use_target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to`{conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+			AND CTT.`target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to`{conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 	else:
-		compensatory = frappe.db.sql("""SELECT `name`, employee, use_total_hours, use_target_date, use_from_date, use_to_date, use_fromtime, use_totime FROM `tabCompensatory Time Off`
-			WHERE workflow_state = 'Approved' AND use_target_date >= %s AND use_target_date <= %s
-			AND `type` = 'Use' {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+		compensatory = frappe.db.sql("""SELECT CTO.`name`, CTO.employee, CTT.cto_hours as use_total_hours, CTT.target_date as use_target_date, 
+			CTT.from_date as use_from_date, CTT.to_date as use_to_date, CTT.from_time as use_fromtime, CTT.to_time as use_totime, CTT.break_hours
+			FROM `tabCompensatory Time Off` CTO INNER JOIN `tabCompensatory Time Off Targets` CTT ON CTO.`name` = CTT.`parent`
+			WHERE CTO.workflow_state = 'Approved' AND CTT.target_date >= %s AND CTT.target_date <= %s
+			AND CTO.`type` = 'Use' {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 	
 	for d in compensatory:
 		if d.employee in emp_map:
