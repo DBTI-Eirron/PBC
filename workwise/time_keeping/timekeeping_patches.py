@@ -1099,7 +1099,7 @@ def update_leave_date():
 			        "is_excluded": 0
 			    }
 
-			    leave_application_table.append(info);
+				leave_application_table.append(info);
 		
 			entries = sorted(list(leave_application_table), 
 				key=lambda k: k['leave_date'])		    
