@@ -24,6 +24,9 @@ class CompensatoryTimeOff(Document):
 		self.validate_cto_sumary()
 		change_owner(self)
 
+	def on_update(self):
+		validate_reject_cancel_own_application(self)
+
 	def before_submit(self):
 		validate_approve_own_application(self)
 		if not frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):

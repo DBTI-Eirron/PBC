@@ -30,6 +30,9 @@ class LeaveApplication(Document):
 		change_owner(self)
 		self.get_recipients()
 
+	def on_update(self):
+		validate_reject_cancel_own_application(self)
+
 	def on_submit(self):
 		self.set_lwop()
 		validate_approve_own_application(self)

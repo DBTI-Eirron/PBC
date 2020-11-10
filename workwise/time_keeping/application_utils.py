@@ -41,17 +41,18 @@ def validate_approve_own_application(self):
 		cur_user = frappe.session.user
 		if not "Administrator" in frappe.get_roles(cur_user):
 			user_id = frappe.get_value("Employee", self.employee, "user_id")
-			if user_id == frappe.session.user:
+			if str(user_id).lower() == str(cur_user).lower():
 				frappe.throw(_("Not Allowed to Approved own Application"))
 
 def validate_reject_cancel_own_application(self):
 	enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
 	if enable_employee_approvers < 1:
-		cur_user = frappe.session.user
-		if not "Administrator" in frappe.get_roles(cur_user):
-			user_id = frappe.get_value("Employee", self.employee, "user_id")
-			if user_id == frappe.session.user:
-				frappe.throw(_("You cannot reject or cancel your own application"))
+		if self.workflow_state == "Rejected" or self.workflow_state == "Cancelled":
+			cur_user = frappe.session.user
+			if not "Administrator" in frappe.get_roles(cur_user):
+				user_id = frappe.get_value("Employee", self.employee, "user_id")
+				if str(user_id).lower() == str(cur_user).lower():
+					frappe.throw(_("You cannot reject or cancel your own application"))
 
 def validate_inactive_employee(self):
 	is_active = frappe.get_value("Employee", self.employee, "is_active")
