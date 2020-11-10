@@ -1098,7 +1098,7 @@ def update_leave_date():
 			        "is_halfday": 0,
 			        "is_excluded": 0
 			    }
-		    
+
 			    leave_application_table.append(info);
 		
 			entries = sorted(list(leave_application_table), 
@@ -1257,3 +1257,7 @@ def update_leave_date():
 			lb.insert()
 			l.db_set("linked_lb_entry", lb.name)
 
+def update_old_loan_application_frequency_method():
+	frappe.db.sql("""UPDATE `tabLoan Application` SET first_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='1st' """)
+	frappe.db.sql("""UPDATE `tabLoan Application` SET second_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='2nd' """)
+	frappe.db.sql("""UPDATE `tabLoan Application` SET second_frequency=1, fourth_fifth_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='Both' """)
