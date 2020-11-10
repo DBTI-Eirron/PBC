@@ -32,6 +32,9 @@ class OfficialBusinessApplication(Document):
 		#validate_approver_userperm(self)
 		validate_cutoff_approval_date(self)
 
+	def on_update(self):
+		validate_reject_cancel_own_application(self)
+
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)

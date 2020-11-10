@@ -30,6 +30,9 @@ class ChangeScheduleApplication(Document):
 	#		if self.workflow_state == "Approved":
 	#			self.change_sched()
 
+	def on_update(self):
+		validate_reject_cancel_own_application(self)
+
 	def before_update_after_submit(self):
 		get_levelled_approval(self)
 		get_approver_email_list(self, 'before_update_after_submit')
