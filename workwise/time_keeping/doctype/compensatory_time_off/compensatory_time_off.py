@@ -389,7 +389,7 @@ def get_total_credits_earned(**entry):
 
 	cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 	if cto_validity > 0:
-		current_credits_condition += " AND ('{0}' BETWEEN CTT.`target_date` AND DATE_SUB(CTT.`target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) ".format(str(getdate(entry['target_date'])))
+		current_credits_condition += " AND ('"+str(getdate(entry['target_date']))+"' BETWEEN CTT.`target_date` AND DATE_SUB(CTT.`target_date`, INTERVAL -"+cto_validity+" DAY)) "
 
 	cto_zero_out = frappe.db.get_single_value('Timekeeping Settings', 'cto_zero_out')
 	if cto_zero_out:
@@ -398,14 +398,15 @@ def get_total_credits_earned(**entry):
 		year_end = getdate(cstr(nowyear)+'-12-'+'31')
 		current_credits_condition += " AND (CTT.`target_date` BETWEEN '{0}' AND '{1}') ".format(cstr(year_start), cstr(year_end))
 
-	current_credits = frappe.db.sql(""" SELECT CTT.`name`, CTT.`credits_earned` - CTT.`credits_used` as cred_balance, CTT.`target_date` 
+	current_credits = frappe.db.sql(""" SELECT CTT.`name`, CTT.`credits_earned` - CTT.`credits_used` as cred_balance, CTT.`target_date`
 		FROM `tabCompensatory Time Off Targets` CTT JOIN `tabCompensatory Time Off` CTO ON CTT.`parent`=CTO.`name`
 		WHERE CTO.`type`="File" AND CTO.`employee`=%(employee)s AND CTO.`docstatus` = 1 AND CTO.`workflow_state` = "Approved"
 		AND ((CTT.`credits_earned`-CTT.`credits_used`) > 0) AND CTT.`target_date` <= %(target_date)s {conditions} ORDER BY CTT.`target_date` ASC """.format(conditions=current_credits_condition),{
 		"employee": entry['employee'],
 		"target_date": getdate(entry['target_date']),
+		"cto_validity": cto_validity
 	}, as_dict=True)
-
+	
 	if current_credits:
 		for d in current_credits:
 			credits_earned += d.cred_balance
