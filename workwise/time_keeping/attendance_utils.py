@@ -676,6 +676,14 @@ def get_overtime(entry, ot_apps):
 					entry['late'] = 0
 				entry['late_deduction'] = total_ot_deducted
 
+		#Minimum OT (Mins)
+		min_ot_mins = frappe.db.get_single_value('Timekeeping Settings', 'min_ot_mins')
+		if min_ot_mins > 0:
+			if flt(total_ot/60, 8) < flt(min_ot_mins, 8):
+				total_ot = 0
+
+			if flt(total_ot_nd/60, 8) < flt(min_ot_mins, 8):
+				total_ot_nd = 0
 
 		# GET REGULAR OT
 		if total_ot > 0:
