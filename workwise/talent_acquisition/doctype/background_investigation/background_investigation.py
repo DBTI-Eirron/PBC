@@ -32,14 +32,15 @@ def make_offer(source_name, target_doc=None):
 		applicant = frappe.db.sql(""" SELECT * FROM `tabJob Applicant` WHERE `name` = %s LIMIT 1""", source_doc.applicant, as_dict=1)
 		
 		for d in applicant:
-			job_level, department = frappe.db.get_value("Position Title", d.apply_for, ["job_level","department"])
-			head = frappe.db.get_value("Department", department, "head")
-			head_name = frappe.db.get_value("Employee", head, "full_name")
-			
-			target_doc.position_title = d.apply_for
-			target_doc.job_level = job_level
-			target_doc.department_head = head
-			target_doc.head_name = head_name
+			if d.apply_for:
+				job_level, department = frappe.db.get_value("Position Title", d.apply_for, ["job_level", "department"])
+				head = frappe.db.get_value("Department", department, "head")
+				head_name = frappe.db.get_value("Employee", head, "full_name")
+				
+				target_doc.position_title = d.apply_for
+				target_doc.job_level = job_level
+				target_doc.department_head = head
+				target_doc.head_name = head_name
 
 	doclist = get_mapped_doc("Background Investigation", source_name, {
 		"Background Investigation": {
