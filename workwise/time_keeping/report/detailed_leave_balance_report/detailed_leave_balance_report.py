@@ -213,7 +213,7 @@ def get_data(filters):
 		
 		if dat[1]["entry"]:
 			data.append({
-				"employee_name": "",
+				"employee_name": dat[1]["employee_name"],
 				"leave_type": "<b>Remaining Balance",
 				"credits": dat[1]["valid_credits"] if dat[1]["valid_credits"] > 0 else 0,
 				"type": "</b>",
