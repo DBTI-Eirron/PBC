@@ -436,3 +436,27 @@ def create_lb_entry_logs(entry):
 	})
 	logs.flags.ignore_permissions = True
 	logs.save()
+
+def holiday_recurring_yearly():
+	now_date = nowdate()
+	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
+
+	if now_date.day == 01 and now_date.month == 01:
+		holidays = frappe.db.sql(""" SELECT * FROM `tabHoliday` WHERE recurring_yearly = 1 AND YEAR(holiday_date) = %s """,(now_date.year-1), as_dict=1)
+		if holidays:
+			for ho in holidays:
+				new_ho = frappe.new_doc("Holiday")
+				new_ho.update({
+					"holiday_name": ho.holiday_name,
+					"holiday_date": getdate(addYears(ho.holiday_date, 1)),
+					"is_special": ho.is_special,
+					"recurring_yearly": ho.recurring_yearly,
+					"description": ho.description,
+					"company": ho.company,
+					"location": ho.location,
+				})
+				new_ho.flags.ignore_permissions = True
+				try:
+					new_ho.save()
+				except Exception as e:
+					pass
