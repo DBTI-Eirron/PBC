@@ -47,7 +47,7 @@ class AnnualizationProcessing(Document):
 				PRE.pay_code, PRE.entry_type, PRE.is_taxable, PRE.amount, PR.bonus, PR.monthly_rate, PR.daily_rate FROM `tabPayroll Register Entries` PRE
 			INNER JOIN `tabPayroll Register` PR ON PR.`name` = PRE.`parent`
 			INNER JOIN `tabPayroll Period` PP ON PR.period = PP.`name`
-			WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s {conditions} 
+			WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s AND PR.on_hold = 0 {conditions} 
 			AND PP.payroll_year = %(payroll_year)s  """.format( conditions=self.get_conditions() ),
 				({ 
 					"company": self.company,
@@ -75,7 +75,7 @@ class AnnualizationProcessing(Document):
 	def get_lastpay(self, from_year, to_year):
 		lastpay = frappe.db.sql("""SELECT employee, LPR.transaction_type, LPR.amount, LPR.type FROM  `tabLast Pay Entry` LPE 
 			INNER JOIN `tabLast Pay Register` LPR ON LPR.parent = LPE.`name`
-			WHERE payroll_year = %(payroll_year)s {conditions} """.format( conditions=self.get_reg_conditions() ),
+			WHERE payroll_year = %(payroll_year)s AND remarks != 'On Hold Payroll' {conditions} """.format( conditions=self.get_reg_conditions() ),
 				({ 
 					"company": self.company,
 					"schedule": self.payroll_schedule,
@@ -155,7 +155,7 @@ class AnnualizationProcessing(Document):
 							emp_map[reg.employee].nt_other += reg.amount if _type == "Income" else -(reg.amount)
 
 						#TAXABLE BASIC SALARY
-						if (btype == "Basic" or btype == "Contribution") and is_tax: #Contribution Reduce Taxable Basic
+						if (btype == "Basic") and is_tax: #Contribution Reduce Taxable Basic
 							emp_map[reg.employee].t_basic += reg.amount if _type == "Income" else -(reg.amount)
 
 						if (btype == "Representation") and is_tax:
@@ -184,6 +184,9 @@ class AnnualizationProcessing(Document):
 
 						if (btype == "Overtime") and is_tax:
 							emp_map[reg.employee].t_overtime += reg.amount if _type == "Income" else -(reg.amount)
+
+						if (btype == "Night Differential") and is_tax:
+							emp_map[reg.employee].t_nightdiff += reg.amount if _type == "Income" else -(reg.amount)	
 
 						if (btype == "Other Regular A") and is_tax:
 							emp_map[reg.employee].t_other_a += reg.amount if _type == "Income" else -(reg.amount)
@@ -280,7 +283,7 @@ class AnnualizationProcessing(Document):
 							emp_map[lp.employee].nt_other += lp.amount if _type == "Add" else -(lp.amount)
 
 						#TAXABLE BASIC SALARY
-						if (btype == "Basic" or btype == "Contribution") and is_tax: #Contribution Reduce Taxable Basic
+						if (btype == "Basic") and is_tax: #Contribution Reduce Taxable Basic
 							emp_map[lp.employee].t_basic += lp.amount if _type == "Add" else -(lp.amount)
 
 						if (btype == "Representation") and is_tax:
@@ -309,6 +312,9 @@ class AnnualizationProcessing(Document):
 
 						if (btype == "Overtime") and is_tax:
 							emp_map[lp.employee].t_overtime += lp.amount if _type == "Add" else -(lp.amount)
+
+						if (btype == "Night Differential") and is_tax:
+							emp_map[lp.employee]. t_nightdiff += lp.amount if _type == "Add" else -(lp.amount)
 
 						if (btype == "Other Regular A") and is_tax:
 							emp_map[lp.employee].t_other_a += lp.amount if _type == "Add" else -(lp.amount)
@@ -390,8 +396,6 @@ class AnnualizationProcessing(Document):
 			emp_dict.gross_compensation = emp_dict.non_taxable_total + emp_dict.taxable_total
 			emp_dict['item_19'] = emp_dict.gross_compensation
 
-
-
 			#PREVIOUS TOTALS
 			emp_dict.prev_non_taxable_total = (emp_dict.pnt_basic + emp_dict.pnt_holiday + emp_dict.pnt_overtime + emp_dict.pnt_nightdiff + emp_dict.pnt_hazard + 
 				emp_dict.pnt_benefits + emp_dict.pnt_demi + emp_dict.pnt_contrib + emp_dict.pnt_other)
@@ -431,16 +435,24 @@ class AnnualizationProcessing(Document):
 				emp_dict.minimum_wage = 0
 
 			if emp_dict.minimum_wage == 1:
+				#load new values for MWE
+				new_basic  = emp_dict.t_basic + emp_dict.nt_basic
+				new_hazard = emp_dict.t_hazard + emp_dict.nt_hazard
+				new_overtime = emp_dict.t_overtime + emp_dict.nt_overtime
+				new_nightdiff = emp_dict.t_nightdiff + emp_dict.nt_nightdiff
+
 				#transfer field values
-				emp_dict.nt_basic  = emp_dict.t_basic 
-				emp_dict.nt_hazard = emp_dict.t_hazard 
-				emp_dict.nt_overtime = emp_dict.t_overtime
-				emp_dict['item_20'] = emp_dict.non_taxable_total + emp_dict.t_basic + emp_dict.t_hazard + emp_dict.t_overtime
+				emp_dict.nt_basic = new_basic
+				emp_dict.nt_hazard = new_hazard 
+				emp_dict.nt_overtime = new_overtime
+				emp_dict.nt_nightdiff = new_nightdiff
+				emp_dict['item_20'] = emp_dict.non_taxable_total + new_basic + new_hazard + new_overtime + new_nightdiff
 				#emp_dict.non_taxable_total += emp_dict.taxable_total
 				#zero out transfered fields
 				emp_dict.t_basic = 0
 				emp_dict.t_hazard = 0
 				emp_dict.t_overtime = 0
+				emp_dict.t_nightdiff = 0
 				#emp_dict.taxable_total = 0
 			else:
 				emp_dict['item_20'] = emp_dict.non_taxable_total
@@ -526,6 +538,7 @@ class AnnualizationProcessing(Document):
 					"t_benefits": 0,
 					"t_hazard": 0,
 					"t_overtime": 0,
+					"t_nightdiff": 0,
 					"t_other_a": 0,
 					"t_other_b": 0,
 					"t_other_sa": 0,
