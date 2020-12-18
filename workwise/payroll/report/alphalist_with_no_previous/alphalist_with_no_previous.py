@@ -55,7 +55,7 @@ def get_data(filters, registers):
 			"6a": '{:0,.2f}'.format( 0.0 ),
 			"5":  '{:0,.2f}'.format( flt(d.taxable_total,8) ),
 			"6b": '{:0,.2f}'.format( flt(d.tax_due,8) ),
-			"7": '{:0,.2f}'.format(  flt(d.tax_withheld,8) ),
+			"7": '{:0,.2f}'.format(  flt(d.withheld_nov,8) ),
 			"8a": '{:0,.2f}'.format( flt(d.adj_amount_withheld,8) ),
 			"8b": '{:0,.2f}'.format( flt(d.adj_over_withheld,8) ),
 			"9": '{:0,.2f}'.format( flt(d.adj_withheld,8) ),
