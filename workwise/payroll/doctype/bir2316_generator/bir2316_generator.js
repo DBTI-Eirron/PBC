@@ -18,7 +18,7 @@ frappe.ui.form.on('BIR2316 Generator', {
 				doctype_name: "BIR2316 Generator"
 			},
 			callback: function(r) {
-				var filter1 = new String("TE.company ='"+frm.doc.company+"'"); 	
+				var filter1 = new String("TE.company ='"+frm.doc.company+"' AND AR.payroll_year='"+frm.doc.year+"'"); 	
 				if (frm.doc.employee){
 					filter1 += " AND TE.name ='"+frm.doc.employee+"'";
 				}
