@@ -27,8 +27,10 @@ class AnnualizationProcessing(Document):
 
 	def get_employee(self, from_year, to_year):
 		employees = frappe.db.sql("""SELECT TE.`name`, TE.tin, TE.full_name, TE.company, TE.tin, TE.date_hired, TE.date_retired, TE.date_resigned, 
-			TE.date_terminated, TE.date_contract_ended, TE.sensitivity 
-			FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name` 
+			TE.date_terminated, TE.date_contract_ended, TE.sensitivity , 
+			(SELECT COUNT(`name`) FROM `tabEmployee External Work History` WHERE parent = TE.`name`) as has_prev
+			FROM `tabEmployee` TE 
+			LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 			WHERE TE.company = %(company)s 
 			AND TE.payroll_schedule = %(schedule)s AND TE.date_hired < %(to_year)s {conditions} 
 			ORDER BY TE.full_name ASC """.format( conditions=self.get_employee_conditions() ),
@@ -349,8 +351,8 @@ class AnnualizationProcessing(Document):
 
 			emp_dict.from_date = getdate(from_year)
 			emp_dict.to_date = getdate(to_year)
-			if getdate(emp_dict.date_hired) > getdate(from_year):
-				emp_dict.from_date = getdate(emp_dict.date_hired)
+			if getdate(emp_dict.date_hired) > getdate(from_year) and emp_dict.has_prev > 0:
+					emp_dict.from_date = getdate(emp_dict.date_hired)
 
 			if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired or emp_dict.date_contract_ended:
 				if getdate(emp_dict.date_terminated) <= getdate(to_year):
@@ -480,6 +482,7 @@ class AnnualizationProcessing(Document):
 					"date_hired": emp.date_hired,
 					"from_date": None,
 					"to_date": None,
+					"has_prev":emp.has_prev,
 					#TERMINATION DATES
 					"date_terminated": emp.date_terminated,
 					"date_resigned": emp.date_resigned,
@@ -639,3 +642,4 @@ class AnnualizationProcessing(Document):
 			log += log_list
 
 		return log
+
