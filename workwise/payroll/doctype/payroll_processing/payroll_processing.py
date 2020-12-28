@@ -526,6 +526,8 @@ class PayrollProcessing(Document):
 							amt = amt - header.get('prev_sss_amt')
 							if amt < 1:
 								amt = 0
+							if amt >= sss:
+								amt = 0
 
 						#For ER
 						if l.upper() == 'SSSE' and header.get('prev_sss_er_amt') and emp.get('sss_freq') in ["Both", "All"]:
