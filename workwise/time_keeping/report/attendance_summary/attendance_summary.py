@@ -273,3 +273,27 @@ def convert_to_list(dic):
 	for d in dic:
 		data.append(d.name)
 	return data
+
+@frappe.whitelist()
+def get_current_period():
+	period_today = None
+	if frappe.db.get_single_value('Timekeeping Settings', 'cur_period_attendance_summary'):
+		employee = frappe.db.sql(""" SELECT `name`, `user_id`, `company`, `payroll_schedule`, `period_group` FROM `tabEmployee` 
+			WHERE user_id = %s AND user_id != "" AND user_id is not null LIMIT 1""",( frappe.session.user ), as_dict=1)
+		if employee:
+			periods = frappe.db.sql("""SELECT `name`, `period_group` FROM `tabPayroll Period` WHERE `status` = 'Open'
+				AND (%(date_today)s BETWEEN `attendance_from` AND `attendance_to`) 
+				AND `company` = %(company)s AND `schedule` = %(schedule)s """,{ 
+					"date_today": nowdate(),
+					"company": employee[0].company,
+					"schedule": employee[0].payroll_schedule,
+					"period_group": employee[0].period_group
+				}, as_dict=True)
+			if periods:
+				if periods[0].period_group:
+					if employee[0].period_group and employee[0].period_group == periods[0].period_group:
+						period_today = periods[0].name
+				else:
+					period_today = periods[0].name
+
+	return period_today
