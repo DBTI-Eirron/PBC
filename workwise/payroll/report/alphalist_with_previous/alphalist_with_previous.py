@@ -42,7 +42,7 @@ def get_data(filters, registers):
 			"1": seq,
 			"2": d.tax_id,
 			"3": d.employee_name,
-			"4a": '{:0,.2f}'.format( flt(d.gross_compensation,8) ),
+			"4a": '{:0,.2f}'.format( flt(d.prev_gross_compensation + d.gross_compensation,8) ),
 			"4b": '{:0,.2f}'.format( flt(d.pnt_benefits,8) ), #prev_ntax_benefits
 			"4c": '{:0,.2f}'.format( flt(d.pnt_demi,8) ), #prev_ntax_demi
 			"4d": '{:0,.2f}'.format( flt(d.pnt_contrib,8) ), #prev_ntax_contrib
@@ -172,7 +172,7 @@ def get_headers(filters, data):
 		"4p": "<b> TAXABLE </b>",
 		"4t": "<b> TOTAL </b>",
 		"6a": "<b> TAX WITHHELD </b>",
-		"7a": "<b> YEAR END ADJUSTMENT </b>",
+		"7a": "<b> YEAR END ADJUSTMENT (10a or 10b) </b>",
 	})
 
 	data.append({
@@ -295,6 +295,9 @@ def get_headers(filters, data):
 		"5":  "<b> (5) </b>",
 		"6a": "<b> (6a) </b>",
 		"6b":  "<b> (6b) </b>",
+		"7a": "<b> (7a)=(5)-(6a+6b) </b>",
+		"7b": "<b> (7b)=(6a+6b)-(5) </b>",
+		"8": "<b> (8)=(6b+7a)or(6b-7b) </b>",
 	})
 
 def get_columns(filters):
