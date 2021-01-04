@@ -151,7 +151,7 @@ class AnnualizationProcessing(Document):
 							emp_map[reg.employee].total_hazard += reg.amount if _type == "Income" else -(reg.amount)
 
 						if btype == "Other":
-							emp_map[reg.employee].total_other += -(reg.amount) if _type == "Income" else reg.amount
+							emp_map[reg.employee].total_other += reg.amount if _type == "Income" else -(reg.amount)
 
 						if btype == "Representation":
 							emp_map[reg.employee].total_represent += reg.amount if _type == "Income" else -(reg.amount)
@@ -289,7 +289,7 @@ class AnnualizationProcessing(Document):
 							emp_map[lp.employee].total_hazard += lp.amount if _type == "Income" else -(lp.amount)
 
 						if btype == "Other":
-							emp_map[lp.employee].total_other += -(lp.amount) if _type == "Income" else lp.amount
+							emp_map[reg.employee].total_other += reg.amount if _type == "Income" else -(reg.amount)
 
 						if btype == "Representation":
 							emp_map[lp.employee].total_represent += lp.amount if _type == "Income" else -(lp.amount)
