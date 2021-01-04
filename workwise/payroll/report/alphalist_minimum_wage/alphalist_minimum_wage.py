@@ -42,33 +42,49 @@ def get_data(filters, registers):
 			"1": seq,
 			"2": d.tax_id,
 			"3": d.employee_name,
-			"4a": '{:0,.2f}'.format( flt(d.gross_compensation,8) ),
-			"4b": '{:0,.2f}'.format( flt(d.pnt_benefits,8) ), #prev_ntax_benefits
-			"4c": '{:0,.2f}'.format( flt(d.pnt_demi,8) ), #prev_ntax_demi
-			"4d": '{:0,.2f}'.format( flt(d.pnt_contrib,8) ), #prev_ntax_contrib
-			"4e": '{:0,.2f}'.format( flt(d.pnt_other,8) ), #prev salaries and other forms of compensation
-			"4f": '{:0,.2f}'.format( flt(d.prev_non_taxable_total,8) ), #prev_ntax_total
-			"4g": '{:0,.2f}'.format( flt(d.pt_basic,8) ),
-			"4h": '{:0,.2f}'.format( flt(d.pt_benefits,8) ), #prev_tax_benefits
-			"4i": '{:0,.2f}'.format( flt(prev_taxable_compensation,8) ), #prev_tax_other
-			"4j": '{:0,.2f}'.format( flt(d.prev_taxable_total,8) ), #prev_tax_total
-			"4k": '{:0,.2f}'.format( flt(d.nt_benefits,8) ),
-			"4l": '{:0,.2f}'.format( flt(d.nt_demi,8) ),
-			"4m": '{:0,.2f}'.format( flt(d.nt_contrib,8) ),
-			"4n": '{:0,.2f}'.format( flt(d.nt_other,8) ),
-			"4o": '{:0,.2f}'.format( flt(d.non_taxable_total,8) ),  
-			"4p": '{:0,.2f}'.format( flt(d.t_basic,8) ),
-			"4q": '{:0,.2f}'.format( flt(d.t_benefits,8) ),
-			"4r": '{:0,.2f}'.format( flt(taxable_compensation,8) ),
-			"4s": '{:0,.2f}'.format( flt(d.taxable_total,8) ),
-			"4t": '{:0,.2f}'.format( flt((d.taxable_total + d.prev_taxable_total),8) ), #grand_tax_total
-			"7": '{:0,.2f}'.format( flt(0.0,8) ), #grand_tax_total
-			"5": '{:0,.2f}'.format( flt(d.tax_due,8) ),
-			"6a": '{:0,.2f}'.format( flt(d.prev_withheld_nov, 8)),
-			"6b": '{:0,.2f}'.format( flt(d.withheld_nov,8) ),
-			"7a": '{:0,.2f}'.format( flt(d.adj_amount_withheld,8) ),
-			"7b": '{:0,.2f}'.format( flt(d.adj_over_withheld,8) ),
-			"8": '{:0,.2f}'.format( flt(d.adj_withheld,8) ),
+			"5a": '{:0,.2f}'.format( flt(d.prev_gross_compensation,8) ),
+			"5b": '{:0,.2f}'.format( flt(d.pnt_basic,8) ), 
+			"5c": '{:0,.2f}'.format( flt(d.pnt_holiday,8) ), 
+			"5d": '{:0,.2f}'.format( flt(d.pnt_overtime,8) ),
+			"5e": '{:0,.2f}'.format( flt(d.pnt_nightdiff,8) ),
+			"5f": '{:0,.2f}'.format( flt(d.pnt_hazard,8) ),
+			"5g": '{:0,.2f}'.format( flt(d.pnt_benefits,8) ),
+			"5h": '{:0,.2f}'.format( flt(d.pnt_demi,8) ),
+			"5i": '{:0,.2f}'.format( flt(d.pnt_contrib,8) ),
+			"5j": '{:0,.2f}'.format( flt(d.pnt_other,8) ),
+			"5k": '{:0,.2f}'.format( flt(d.prev_non_taxable_total,8) ),
+
+			"5l": '{:0,.2f}'.format( flt(d.t_benefits,8) ),
+			"5m": '{:0,.2f}'.format( flt(prev_taxable_compensation,8) ),
+			"5n": '{:0,.2f}'.format( flt(d.t_benefits + prev_taxable_compensation,8) ),
+
+			"5o":  d.from_date,  
+			"5p":  d.to_date,
+
+			"5q": '{:0,.2f}'.format( flt(d.gross_compensation,8) ),
+			"5r": '{:0,.2f}'.format( flt( 0,8) ),
+			"5s": '{:0,.2f}'.format( flt( 0,8) ),
+			"5t": '{:0,.2f}'.format( flt( 0,8) ),
+			"5u": '{:0,.2f}'.format( flt( d.factor, 8) ),
+			"5v": '{:0,.2f}'.format( flt( d.nt_holiday,8) ),
+			"5w": '{:0,.2f}'.format( flt( d.nt_overtime,8) ),
+			"5x": '{:0,.2f}'.format( flt( d.nt_nightdiff,8) ),
+			"5y": '{:0,.2f}'.format( flt( d.nt_hazard,8) ),
+			"5z": '{:0,.2f}'.format( flt( d.nt_benefits,8) ),
+			"5aa": '{:0,.2f}'.format( flt( d.nt_demi,8) ),
+			"5ab": '{:0,.2f}'.format( flt( d.nt_contrib,8) ),
+			"5ac": '{:0,.2f}'.format( flt( d.nt_other,8) ),
+			"5ad": '{:0,.2f}'.format( flt( d.t_benefits) ),
+			"5ae": '{:0,.2f}'.format( flt( taxable_compensation) ),
+			"5af": '{:0,.2f}'.format( flt( taxable_compensation + d.t_benefits,8) ),
+			"5ag": '{:0,.2f}'.format( flt( ( d.t_benefits + prev_taxable_compensation + taxable_compensation + d.t_benefits,8) )),
+			"6": '{:0,.2f}'.format( flt(0.0,8) ),
+			"7": '{:0,.2f}'.format( flt(d.tax_due,8) ),
+			"8a": '{:0,.2f}'.format( flt(d.prev_withheld_nov, 8)),
+			"8b": '{:0,.2f}'.format( flt(d.withheld_nov,8) ),
+			"9a": '{:0,.2f}'.format( flt(d.adj_amount_withheld,8) ),
+			"9b": '{:0,.2f}'.format( flt(d.adj_over_withheld,8) ),
+			"10": '{:0,.2f}'.format( flt(d.adj_withheld,8) ),
 		})
 
 	return data
@@ -96,35 +112,48 @@ def get_result_as_list(data, filters):
 			d.get("2"),
 			d.get("3"), 
 			# PREVIOUS EMPLOYER
-			d.get("4a"),
-			d.get("4b"),
-			d.get("4c"),
-			d.get("4d"),
-			d.get("4e"),
-			d.get("4f"),
-			d.get("4g"),
-			d.get("4h"),
-			d.get("4i"),
-			d.get("4j"),
+			d.get("4"),
+			d.get("5a"),
+			d.get("5b"),
+			d.get("5c"),
+			d.get("5d"),
+			d.get("5e"),
+			d.get("5f"),
+			d.get("5g"),
+			d.get("5h"),
+			d.get("5i"),
+			d.get("5j"),
 			# PRESENT EMPLOYER
-			d.get("4k"),
-			d.get("4l"),
-			d.get("4m"),
-			d.get("4n"),
-			d.get("4o"),
-			d.get("4p"),
-			d.get("4q"),
-			d.get("4r"),
-			d.get("4s"),
-			d.get("4t"),
+			d.get("5k"),
+			d.get("5l"),
+			d.get("5m"),
+			d.get("5n"),
+			d.get("5o"),
+			d.get("5p"),
+			d.get("5q"),
+			d.get("5r"),
+			d.get("5s"),
+			d.get("5t"),
+			d.get("5u"),
+			d.get("5v"),
+			d.get("5w"),
+			d.get("5x"),
+			d.get("5y"),
+			d.get("5z"),
+			d.get("5aa"),
+			d.get("5ab"),
+			d.get("5ac"),
+			d.get("5ad"),
+			d.get("5ae"),
+			d.get("5ag"),
 			# TOTALS
+			d.get("6"),
 			d.get("7"),
-			d.get("5"),
-			d.get("6a"),
-			d.get("6b"),
-			d.get("7a"),
-			d.get("7b"),
-			d.get("8"),
+			d.get("8a"),
+			d.get("8b"),
+			d.get("9a"),
+			d.get("9b"),
+			d.get("10"),
 		]
 
 		result.append(row)
@@ -157,110 +186,149 @@ def get_headers(filters, data):
 	})	
 	data.append({})
 	data.append({
-		"4a": "<b> (4) GROSS COMPENSATION INCOME </b>",
+		"5a": "<b> (5) GROSS COMPENSATION INCOME </b>",
+		"5o": "<b> (5) GROSS COMPENSATION INCOME </b>",
 	})
 
 	data.append({
-		"4b": "<b> PREVIOUS EMPLOYER </b>",
-		"4k": "<b> PRESENT EMPLOYER </b>",
+		"5a": "<b> PREVIOUS EMPLOYER </b>",
+		"5o": "<b> PRESENT EMPLOYER </b>",
 	})
 
 	data.append({
-		"4b": "<b> NON-TAXABLE </b>",
-		"4g": "<b> TAXABLE </b>",
-		"4k": "<b> NON-TAXABLE </b>",
-		"4p": "<b> TAXABLE </b>",
-		"4t": "<b> TOTAL </b>",
-		"6a": "<b> TAX WITHHELD </b>",
-		"7a": "<b> YEAR END ADJUSTMENT </b>",
+		"5a": "<b> NON-TAXABLE </b>",
+		"5l": "<b> TAXABLE </b>",
+		"5o": "<b> NON-TAXABLE </b>",
+		"5ad": "<b> TAXABLE </b>",
+		"5af": "<b> TOTAL </b>",
+		"5ag": "<b> TOTAL COMPENSATION </b>",
+		"8a": "<b> TAX WITHHELD </b>",
+		"9a": "<b> YEAR END ADJUSTMENT </b>",
 	})
 
 	data.append({
 		"1": "<b> SEQ </b>",
 		"2": "<b> TAX PAYER </b>",
 		"3": "<b> NAME OF EMPLOYEES </b>",
-		"4a": "<b> GROSS </b>",
-		"4b": "<b> 13th MONTH PAY </b>",
-		"4c": "<b> DE MINIMIS </b>",
-		"4d": "<b> SSS, GSIS, PHIC & </b>",
-		"4e": "<b> SALARIES & OTHER </b>",
-		"4f": "<b> TOTAL </b>",
-		"4g": "<b> BASIC </b>",
-		"4h": "<b> 13th MONTH PAY </b>",
-		"4i": "<b> SALARIES & OTHER </b>",
-		"4j": "<b> TOTAL TAXABLE </b>",
-		"4k": "<b> 13th MONTH PAY </b>",
-		"4l": "<b> DE MINIMIS </b>",
-		"4m": "<b> SSS, GSIS, PHIC & </b>",
-		"4n": "<b> SALARIES & OTHER </b>",
-		"4o": "<b> TOTAL </b>",
-		"4p": "<b> BASIC </b>",
-		"4q": "<b> 13th MONTH PAY </b>",
-		"4r": "<b> SALARIES & OTHER </b>",
-		"4s": "<b> TOTAL </b>",
-		"4t": "<b> TAXABLE </b>",
-		"7": "<b> NET TAXABLE </b>",
-		"5":  "<b> TAX DUE </b>",
-		"6a": "<b> (Jan. - Nov.) </b>",
-		"7a": "<b> AMT WITHHELD </b>",
-		"7b": "<b> OVER </b>",
-		"8": "<b> AMOUNT OF TAX </b>",
+		"4": "<b> REGION NO. </b>",
+		"5a": "<b> GROSS </b>",
+		"5b": "<b> BASIC/ </b>",
+		"5c": "<b> HOLIDAY </b>",
+		"5d": "<b> OVERTIME </b>",
+		"5e": "<b> NIGHT </b>",
+		"5f": "<b> HAZARD </b>",
+		"5g": "<b> 13th MONTH PAY </b>",
+		"5h": "<b> DE MINIMIS </b>",
+		"5i": "<b> SSS, GSIS, PHIC & </b>",
+		"5j": "<b> SALARIES & OTHER </b>",
+		"5k": "<b> TOTAL </b>",
+		"5l": "<b> 13th MONTH PAY </b>",
+		"5m": "<b> SALARIES & OTHER </b>",
+		"5n": "<b> TOTAL TAXABLE </b>",
+		"5q": "<b> GROSS </b>",
+		"5r": "<b> BASIC SMW </b>",
+		"5s": "<b> BASIC SMW </b>",
+		"5t": "<b> BASIC SMW </b>",
+		"5u": "<b> FACTOR USED </b>",
+		"5v": "<b> HOLIDAY </b>",
+		"5w": "<b> OVERTIME </b>",		
+		"5x": "<b> NIGHT </b>",
+		"5y": "<b> HAZARD </b>",
+		"5z": "<b> 13th MONTH PAY </b>",
+
+		"5aa": "<b> DE MINIMIS </b>",
+		"5ab": "<b> SSS, GSIS, PHIC & </b>",
+		"5ac": "<b> SALARIES & OTHER </b>",		
+		"5ad": "<b> 13th MONTH PAY </b>",
+		"5ae": "<b> SALARIES & OTHER </b>",
+		"5af": "<b> COMPENSATION </b>",
+		"5ag": "<b> 13th MONTH PAY </b>",
+
+
+		"6": "<b> NET TAXABLE </b>",
+		"7":  "<b> TAX DUE </b>",
+		"8a": "<b> (Jan. - Nov.) </b>",
+		"9a": "<b> AMT WITHHELD </b>",
+		"9b": "<b> OVER </b>",
+		"10": "<b> AMOUNT OF TAX </b>",
 	})
 
 	data.append({
 		"1": "<b> NO </b>",
 		"2": "<b> IDENTIFICATION </b>",
 		"3": "<b> (Last Name, First Name, Middle Name) </b>",
-		"4a": "<b> COMPENSATION </b>",
-		"4b": "<b> & OTHER BENEFITS </b>",
-		"4c": "<b> BENEFITS </b>",
-		"4d": "<b> PAG-IBIG CONTRIBUTIONS </b>",
-		"4e": "<b> FORMS OF </b>",
-		"4f": "<b> NON-TAXABLE/EXEMPT </b>",
-		"4g": "<b> SALARY </b>",
-		"4h": "<b> & OTHER BENEFITS </b>",
-		"4i": "<b> FORMS OF </b>",
-		"4j": "<b> (PREVIOUS EMPLOYER) </b>",
-		"4k": "<b> & OTHER BENEFITS </b>",
-		"4l": "<b> BENEFITS </b>",
-		"4m": "<b> PAG-IBIG CONTRIBUTIONS </b>",
-		"4n": "<b> FORMS OF </b>",
-		"4o": "<b> NON-TAXABLE/EXEMPT </b>",
-		"4p": "<b> SALARY </b>",
-		"4q": "<b> & OTHER BENEFITS </b>",
-		"4r": "<b> FORMS OF </b>",
-		"4s": "<b> COMPENSATION </b>",
-		"4t": "<b> (PREVIOUS and </b>",
-		"7": "<b> COMPESATION </b>",		
-		"5": "<b> (Jan. - Dec.) </b>",
-		"6a": "<b> PREVIOUS EMPLOYER </b>",
-		"6b": "<b> PRESENT EMPLOYER </b>",
-		"7a": "<b> & PAID FOR IN </b>",
-		"7b": "<b> WITHHELD TAX </b>",
-		"8": "<b> WITHHELD AS </b>",
+		"4": "<b> WHERE </b>",
+		"5a": "<b> COMPENSATION </b>",
+		"5b": "<b> SMW </b>",
+		"5c": "<b> PAY </b>",
+		"5d": "<b> PAY </b>",
+		"5e": "<b> SHIFT </b>",
+		"5f": "<b> PAY </b>",
+		"5g": "<b> & OTHER BENEFITS </b>",
+		"5h": "<b> BENEFITS </b>",
+		"5i": "<b> PAG-IBIG CONTRIBUTIONS </b>",
+		"5j": "<b> FORMS OF </b>",
+		"5k": "<b> NON-TAXABLE/EXEMPT </b>",
+		"5l": "<b> & OTHER BENEFITS </b>",
+		"5m": "<b> FORMS OF </b>",
+		"5n": "<b> (PREVIOUS EMPLOYER) </b>",
+		"5o": "<b> EMPLOYEMENT </b>",
+		"5q": "<b> COMPENSATION </b>",
+		"5r": "<b> PER DAY </b>",
+		"5s": "<b> PER MONTH </b>",
+		"5t": "<b> PER YEAR </b>",
+		"5u": "<b> (NO OF DAYS/YEAR) </b>",
+		"5v": "<b> PAY </b>",
+		"5w": "<b> PAY </b>",		
+		"5x": "<b> SHIFT </b>",
+		"5y": "<b> PAY </b>",
+		"5z": "<b> & OTHER BENEFITS </b>",
+
+
+		"5aa": "<b> BENEFITS </b>",
+		"5ab": "<b> PAG-IBIG CONTRIBUTIONS </b>",
+		"5ac": "<b> FORMS OF </b>",		
+		"5ad": "<b> & OTHER BENEFITS </b>",
+		"5ae": "<b> FORMS OF </b>",
+		"5af": "<b> PRESENT </b>",
+		"5ag": "<b> (PREVIOUS AND </b>",
+
+		"6": "<b> COMPESATION </b>",		
+		"7": "<b> (Jan. - Dec.) </b>",
+		"8a": "<b> PREVIOUS EMPLOYER </b>",
+		"8b": "<b> PRESENT EMPLOYER </b>",
+		"9a": "<b> & PAID FOR IN </b>",
+		"9b": "<b> WITHHELD TAX </b>",
+		"10": "<b> WITHHELD AS </b>",
 	})
 
 	data.append({
 		"2": "<b> NUMBER </b>",
-		"4a": "<b> INCOME </b>",
-		"4d": "<b> AND UNION DUES </b>",
-		"4e": "<b> COMPENSATION </b>",
-		"4f": "<b> COMPENSATION INCOME </b>",
-		"4i": "<b> COMPENSATION </b>",
-		"4m": "<b> AND UNION DUES </b>",
-		"4n": "<b> COMPENSATION </b>",
-		"4o": "<b> COMPENSATION INCOME </b>",
-		"4r": "<b> COMPENSATION </b>",
-		"4s": "<b> (PRESENT EMPLOYERS) </b>",
-		"4t": "<b> PRESENT EMPLOYERS) </b>",
+		"4": "<b> ASSIGNED </b>",
+		"5a": "<b> PREVIOUS </b>",
+		"5e": "<b> DIFFERENTIAL </b>",
+		"5i": "<b> AND UNION DUES </b>",
+		"5j": "<b> COMPENSATION </b>",
+		"5k": "<b> COMPENSATION INCOME </b>",
+		"5m": "<b> COMPENSATION </b>",
+		"5n": "<b> COMPENSATION </b>",
+		"5o": "<b> From </b>",
+		"5p": "<b> To </b>",
+		"5q": "<b> PRESENT </b>",
+		"5x": "<b> DIFFERENTIAL </b>",
+
+		"5ab": "<b> AND UNION DUES </b>",
+		"5ac": "<b> COMPENSATION </b>",		
+		"5ae": "<b> COMPENSATION </b>",
+		"5ag": "<b> PRESENT EMPLOYERS) </b>",
+
 		"7": " <b> INCOME  </b>",
-		"7a": "<b> DECEMBER </b>",
-		"7b": "<b> EMPLOYEE </b>",
-		"8": "<b> ADJUSTED </b>",
+		"9a": "<b> DECEMBER </b>",
+		"97b": "<b> EMPLOYEE </b>",
+		"10": "<b> ADJUSTED </b>",
 	})	
 
 	data.append({
-		"4f": "<b> (PREVIOUS) </b>",
 		"4o": "<b> (PRESENT) </b>",
 	})	
 
@@ -268,33 +336,49 @@ def get_headers(filters, data):
 		"1": _("<b> (1) </b>"),
 		"2": "<b> (2) </b>",
 		"3": "<b> (3) </b>",
-		"4a": "<b> 4(a) </b>",
-		"4b": "<b> 4(b) </b>",
-		"4c": "<b> 4(c) </b>",
-		"4d": "<b> 4(d) </b>",
-		"4e": "<b> 4(e) </b>",
-		"4f": "<b> 4(f) </b>",
-		"4g": "<b> 4(g) </b>",
-		"4h": "<b> 4(h) </b>",
-		"4i": "<b> 4(i) </b>",
-		"4j": "<b> 4(j) </b>",
+		"4": "<b> (4) </b>",
+		"5a": "<b> 5(a) </b>",
+		"5b": "<b> 5(b) </b>",
+		"5c": "<b> 5(c) </b>",
+		"5d": "<b> 5(d) </b>",
+		"5e": "<b> 5(e) </b>",
+		"5f": "<b> 5(f) </b>",
+		"5g": "<b> 5(g) </b>",
+		"5h": "<b> 5(h) </b>",
+		"5i": "<b> 5(i) </b>",
+		"5j": "<b> 5(j) </b>",
+		"5k": "<b> 5(k) </b>",
+		"5l": "<b> 5(l) </b>",
+		"5m": "<b> 5(m) </b>",
+		"5n": "<b> 5(n) </b>",
+		"5o": "<b> 5(o) </b>",
+		"5p": "<b> 5(p) </b>",
+		"5q": "<b> 5(q) </b>",
+		"5r": "<b> 5(r) </b>",
+		"5s": "<b> 5(s) </b>",
+		"5t": "<b> 5(t) </b>",
+		"5u": "<b> 5(u) </b>",
+		"5v": "<b> 5(v) </b>",
+		"5w": "<b> 5(w) </b>",		
+		"5x": "<b> 5(x) </b>",
+		"5y": "<b> 5(y) </b>",
+		"5z": "<b> 5(z) </b>",
 
-		"4k": "<b> 4(k) </b>",
-		"4l": "<b> 4(l) </b>",
-		"4m": "<b> 4(m) </b>",
-		"4n": "<b> 4(n) </b>",
-		"4o": "<b> 4(o) </b>",
-		"4p": "<b> 4(p) </b>",
-		"4q": "<b> 4(q) </b>",
-		"4r": "<b> 4(r) </b>",
-		"4s": "<b> 4(s) </b>",
-		"4t": "<b> 4(t) </b>",
+		"5aa": "<b> 5(aa) </b>",
+		"5ab": "<b> 5(ab) </b>",
+		"5ac": "<b> 5(ac) </b>",
+		"5ad": "<b> 5(ad) </b>",		
+		"5ae": "<b> 5(ae) </b>",
+		"5af": "<b> 5(af) </b>",
+		"5ag": "<b> 5(ag) </b>",		
 
-
-		"7": "<b> (7) </b>",		
-		"5":  "<b> (5) </b>",
-		"6a": "<b> (6a) </b>",
-		"6b":  "<b> (6b) </b>",
+		"6": "<b> (6) </b>",		
+		"7":  "<b> (7) </b>",
+		"8a": "<b> (8a) </b>",		
+		"8b":  "<b> (8b) </b>",
+		"9a": "<b> (9a)=(7)-(8a+8b) </b>",
+		"9b":  "<b> ((9b)=(8a+8b)-(7) </b>",
+		"10": "<b> (10)=(8+9a)or(8b-9b) </b> "
 	})
 
 def get_columns(filters):
@@ -318,121 +402,211 @@ def get_columns(filters):
 			"width": 200
 		},
 		{
-			"fieldname": "4a",
+			"fieldname": "4",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 200
+		},		
+		{
+			"fieldname": "5a",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4b",
+			"fieldname": "5b",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4c",
+			"fieldname": "5c",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4d",
+			"fieldname": "5d",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4e",
+			"fieldname": "5e",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4f",
+			"fieldname": "5f",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4g",
+			"fieldname": "5g",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4h",
+			"fieldname": "5h",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4i",
+			"fieldname": "5i",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4j",
+			"fieldname": "5j",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4k",
+			"fieldname": "5k",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4l",
+			"fieldname": "5l",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4m",
+			"fieldname": "5m",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4n",
+			"fieldname": "5n",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4o",
+			"fieldname": "5o",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4p",
+			"fieldname": "5p",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4q",
+			"fieldname": "5q",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4r",
+			"fieldname": "5r",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4s",
+			"fieldname": "5s",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "4t",
+			"fieldname": "5t",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5u",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},	
+		{
+			"fieldname": "5v",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5w",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5x",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5y",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5z",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5aa",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5ab",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5ac",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5ad",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},
+		{
+			"fieldname": "5ae",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},	
+		{
+			"fieldname": "5af",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},	
+		{
+			"fieldname": "5ag",
+			"label": " ",
+			"fieldtype": "Data",
+			"width": 120
+		},	
+		{
+			"fieldname": "6",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
@@ -444,37 +618,31 @@ def get_columns(filters):
 			"width": 120
 		},
 		{
-			"fieldname": "5",
+			"fieldname": "8a",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "6a",
+			"fieldname": "8b",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "6b",
+			"fieldname": "9a",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "7a",
+			"fieldname": "9b",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
 		},
 		{
-			"fieldname": "7b",
-			"label": " ",
-			"fieldtype": "Data",
-			"width": 120
-		},
-		{
-			"fieldname": "8",
+			"fieldname": "10",
 			"label": " ",
 			"fieldtype": "Data",
 			"width": 120
