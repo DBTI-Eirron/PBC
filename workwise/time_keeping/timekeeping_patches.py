@@ -950,62 +950,87 @@ def cto_multi_file():
 			to_date = None
 			from_time = None
 			to_time = None
+			total_credits_earned = None
+			total_required_credits = None
+			total_credits_used = None
+			total_break_hours = None
+			total_hours = None
+			total_balance = None
 
 			if old.type == "File":
-				cto_table = frappe.new_doc("Compensatory Time Off Targets")
-				cto_table.update({
-					'parentfield': 'cto_targets',
-					'parenttype': 'Compensatory Time Off',
-					'parent': old.name,
-					'target_date': old.file_target_date,
-					'is_previous': old.is_previous,
-					'from_date': old.file_from_date,
-					'to_date': old.file_to_date,
-					'from_time': old.file_from_time,
-					'to_time': old.file_to_time,
-					'break_hours': old.break_hours,
-					'cto_hours': old.total_hours,
-					'credits_earned': old.credits_earned,
-					'credits_used': old.credits_used,
-					'balance': old.balance,
-					'actual_in': old.file_actual_in,
-					'actual_out': old.file_actual_out,
-					#'docstatus': old.docstatus,
-				})
-				cto_table.flags.ignore_permissions = True
-				cto_table.flags.ignore_validate = True
-				cto_table.insert()
-				from_date = old.file_from_date
-				to_date = old.file_to_date
-				from_time = old.file_from_time
-				to_time = old.file_to_time
+				if old.file_target_date and old.file_from_date and old.file_to_date and old.file_from_time and old.file_to_time:
+					cto_table = frappe.new_doc("Compensatory Time Off Targets")
+					cto_table.update({
+						'parentfield': 'cto_targets',
+						'parenttype': 'Compensatory Time Off',
+						'parent': old.name,
+						'target_date': old.file_target_date,
+						'is_previous': old.is_previous,
+						'from_date': old.file_from_date,
+						'to_date': old.file_to_date,
+						'from_time': old.file_from_time,
+						'to_time': old.file_to_time,
+						'break_hours': old.break_hours,
+						'cto_hours': old.total_hours,
+						'credits_earned': old.credits_earned,
+						'credits_used': old.credits_used,
+						'balance': old.balance,
+						'actual_in': old.file_actual_in,
+						'actual_out': old.file_actual_out,
+						#'docstatus': old.docstatus,
+					})
+					cto_table.flags.ignore_permissions = True
+					cto_table.flags.ignore_validate = True
+					cto_table.insert()
+					from_date = old.file_from_date
+					to_date = old.file_to_date
+					from_time = old.file_from_time
+					to_time = old.file_to_time
+					total_credits_earned = old.credits_earned
+					total_required_credits = None
+					total_credits_used = old.credits_used
+					total_break_hours = old.break_hours
+					total_hours = old.total_hours
+					total_balance = old.balance
 
 			if old.type == "Use":
-				cto_table = frappe.new_doc("Compensatory Time Off Targets")
-				cto_table.update({
-					'parentfield': 'cto_targets',
-					'parenttype': 'Compensatory Time Off',
-					'parent': old.name,
-					'target_date': old.use_target_date,
-					'is_previous': old.is_previous,
-					'from_date': old.use_from_date,
-					'to_date': old.use_to_date,
-					'from_time': old.use_fromtime,
-					'to_time': old.use_totime,
-					'filed_cto': old.filed_cto,
-					'break_hours': old.use_break_hours,
-					'cto_hours': old.use_total_hours,
-					'credits_earned': old.total_credits_earned,
-					'required_credits': old.required_credits,
-					#'docstatus': old.docstatus,
-				})
-				cto_table.flags.ignore_permissions = True
-				cto_table.flags.ignore_validate = True
-				cto_table.insert()
-				from_date = old.use_from_date
-				to_date = old.use_to_date
-				from_time = old.use_fromtime
-				to_time = old.use_totime
+				if  old.use_target_date and old.use_from_date and old.use_to_date and old.use_fromtime and old.use_totime:
+					cto_table = frappe.new_doc("Compensatory Time Off Targets")
+					cto_table.update({
+						'parentfield': 'cto_targets',
+						'parenttype': 'Compensatory Time Off',
+						'parent': old.name,
+						'target_date': old.use_target_date,
+						'is_previous': old.is_previous,
+						'from_date': old.use_from_date,
+						'to_date': old.use_to_date,
+						'from_time': old.use_fromtime,
+						'to_time': old.use_totime,
+						'filed_cto': old.filed_cto,
+						'break_hours': old.use_break_hours,
+						'cto_hours': old.use_total_hours,
+						'credits_earned': old.total_credits_earned,
+						'required_credits': old.required_credits,
+						#'docstatus': old.docstatus,
+					})
+					cto_table.flags.ignore_permissions = True
+					cto_table.flags.ignore_validate = True
+					cto_table.insert()
+					from_date = old.use_from_date
+					to_date = old.use_to_date
+					from_time = old.use_fromtime
+					to_time = old.use_totime
+					total_credits_earned = old.total_credits_earned
+					total_required_credits = old.required_credits
+					total_credits_used = old.credits_used
+					total_break_hours = old.use_break_hours
+					total_hours = old.use_total_hours
+					total_balance = old.balance
+
+			if from_date:
+				from_date = getdate(from_date)
+			if to_date:
+				to_date = getdate(to_date)
 				
 			frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET 
 				`from_date` = %(from_date)s,
@@ -1022,12 +1047,12 @@ def cto_multi_file():
 				'to_date': to_date,
 				'from_time': from_time,
 				'to_time': to_time,
-				'total_credits_earned': old.credits_earned,
-				'total_required_credits': old.required_credits,
-				'total_credits_used': old.credits_used,
-				'total_break_hours': old.break_hours,
-				'total_hours': old.total_hours,
-				'total_balance': old.balance,
+				'total_credits_earned': total_credits_earned,
+				'total_required_credits': total_required_credits,
+				'total_credits_used': total_credits_used,
+				'total_break_hours': total_break_hours,
+				'total_hours': total_hours,
+				'total_balance': total_balance,
 				'name': old.name,
 			}, as_dict=True)
 
@@ -1258,6 +1283,12 @@ def update_leave_date():
 			l.db_set("linked_lb_entry", lb.name)
 
 def update_old_loan_application_frequency_method():
+	frappe.db.sql("""UPDATE `tabLoan Application` SET first_frequency=0, second_frequency=0, third_frequency=0, fourth_fifth_frequency=0 """)
+	frappe.db.sql("""UPDATE `tabLoan Application` LA INNER JOIN `tabEmployee` TE ON LA.`employee`=TE.`name` SET LA.payroll_schedule=TE.payroll_schedule WHERE LA.payroll_schedule IS NULL """)
 	frappe.db.sql("""UPDATE `tabLoan Application` SET first_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='1st' """)
 	frappe.db.sql("""UPDATE `tabLoan Application` SET second_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='2nd' """)
-	frappe.db.sql("""UPDATE `tabLoan Application` SET second_frequency=1, fourth_fifth_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='Both' """)
+	frappe.db.sql("""UPDATE `tabLoan Application` SET second_frequency=1, fourth_fifth_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='Both' AND payroll_schedule = 'Weekly' """)
+	frappe.db.sql("""UPDATE `tabLoan Application` SET second_frequency=1, first_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='Both' AND payroll_schedule = 'Semi-Monthly' """)
+
+def worksuspension_to_datetime():
+	frappe.db.sql("""UPDATE `tabWork Suspension` SET to_time=suspension_end, from_time=suspension_start """)
