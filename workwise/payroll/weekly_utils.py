@@ -14,8 +14,12 @@ def get_weekly_prev_map(employees, weekly_set):
 		)
 
 	#Get Previous Data
-	previous_data = frappe.db.sql(""" SELECT employee, frequency, government_basis, taxable_income, gross_payroll, 
-		present_days, work_days, absent_days, govt_income, govt_deduction FROM `tabPayroll Register` 
+	previous_data = frappe.db.sql(""" SELECT employee, frequency, govt_basic as government_basis, taxable_income, gross_payroll, 
+		present_days, work_days, absent_days, govt_income, govt_deduction, 
+		sss_inc, sss_ded, sss_amt as sss, sss_er_amt as ssse, sss_ec_amt as sssc,
+		phic_inc, phic_ded, phic_amt as phic, phic_er_amt as phice, phic_ec_amt as phicc,
+		hdmf_inc, hdmf_ded, hdmf_amt as hdmf, hdmf_er_amt as hdmfe, hdmf_ec_amt as hdmfc, hdmf_manual as hdmfm
+		FROM `tabPayroll Register` 
 		WHERE weekly_set = %s """,( weekly_set ), as_dict=True)
 
 	for d in previous_data:
@@ -24,7 +28,7 @@ def get_weekly_prev_map(employees, weekly_set):
 
 	return data_map
 
-def get_weekly_basis(emp, header, govt_freq, curr_freq, weekly_data, current_basis):
+def get_weekly_basis(govt_type, emp, header, govt_freq, curr_freq, weekly_data, current_basis):
 	government_basis, prev_government_basis, govt_deduction, govt_income, monthly_basis = 0.0, 0.0, 0.0, 0.0, 0.0
 	no_weeks =  header.get('no_weeks')
 	weekly_targets = get_weekly_targets(govt_freq, curr_freq, no_weeks)
@@ -36,6 +40,34 @@ def get_weekly_basis(emp, header, govt_freq, curr_freq, weekly_data, current_bas
 				govt_deduction += d.govt_deduction
 				govt_income += d.govt_income
 
+				freq_passed = 0
+				if no_weeks in ["1", 1]:
+					if d.frequency in ['1st']:
+						freq_passed = 1
+				if no_weeks in ["2", 2]:
+					if d.frequency in ['1st', '2nd']:
+						freq_passed = 1
+				if no_weeks in ["3", 3]:
+					if d.frequency in ['1st', '2nd', '3rd']:
+						freq_passed = 1
+				if no_weeks in ["4", 4]:
+					if d.frequency in ['1st', '2nd', '3rd', '4th']:
+						freq_passed = 1
+				if no_weeks in ["5", 5]:
+					if d.frequency in ['1st', '2nd', '3rd', '4th', '5th']:
+						freq_passed = 1
+
+				if freq_passed:
+					if govt_type == 'sss':
+						prev_government_basis += d.sss_inc
+						prev_government_basis -= d.sss_ded
+					if govt_type == 'phic':
+						prev_government_basis += d.phic_inc
+						prev_government_basis -= d.phic_ded
+					if govt_type == 'hdmf':
+						prev_government_basis += d.hdmf_inc
+						prev_government_basis -= d.hdmf_ded
+
 			if d.frequency != "5th":
 				monthly_basis += d.government_basis
 
@@ -43,21 +75,39 @@ def get_weekly_basis(emp, header, govt_freq, curr_freq, weekly_data, current_bas
 		if no_weeks == "5" and curr_freq == "5th":
 			government_basis = current_basis + prev_government_basis
 		
-		elif curr_freq == "4th":
+		elif curr_freq == "4th" and no_weeks == "4":
 			government_basis = current_basis + prev_government_basis
 
 	elif govt_freq == "Both":
 		if curr_freq == "2nd":
 			government_basis = current_basis + prev_government_basis
 
-		elif no_weeks == "4" and curr_freq == "4th" or curr_freq == "5th":
-			government_basis = current_basis + prev_government_basis								
+		elif no_weeks == "4" and curr_freq == "4th":# or curr_freq == "5th":
+			government_basis = current_basis + prev_government_basis
 
 		elif no_weeks == "5" and curr_freq == "5th":
 			government_basis = current_basis + prev_government_basis
 	
 	elif govt_freq == "All":
-		government_basis = current_basis
+		freq_all_passed = 0
+		if no_weeks in ["1", 1]:
+			if curr_freq in ['1st']:
+				freq_all_passed = 1
+		if no_weeks in ["2", 2]:
+			if curr_freq in ['1st', '2nd']:
+				freq_all_passed = 1
+		if no_weeks in ["3", 3]:
+			if curr_freq in ['1st', '2nd', '3rd']:
+				freq_all_passed = 1
+		if no_weeks in ["4", 4]:
+			if curr_freq in ['1st', '2nd', '3rd', '4th']:
+				freq_all_passed = 1
+		if no_weeks in ["5", 5]:
+			if curr_freq in ['1st', '2nd', '3rd', '4th', '5th']:
+				freq_all_passed = 1
+
+		if freq_all_passed:
+			government_basis = current_basis + prev_government_basis
 
 	if monthly_basis:
 		monthly_basis += current_basis
@@ -74,15 +124,26 @@ def get_weekly_targets(govt_freq, curr_freq, no_weeks):
 
 	elif govt_freq == "Both":
 		if curr_freq == "2nd":
-			targets = "1st"
+			targets = ["1st"]
 
 		elif no_weeks == "4" and curr_freq == "4th":
-			targets = ["3rd"]
+			#targets = ["3rd"]
+			targets = ["1st","2nd","3rd"]
 
 		elif no_weeks == "5" and curr_freq == "5th":
-			targets = ["3rd","4th"]					
+			#targets = ["3rd","4th"]
+			targets = ["1st","2nd","3rd","4th"]
+
+	elif govt_freq == "All":
+		#if curr_freq == "1st":
+		#	targets = ["1st"]
+		if curr_freq == "2nd":
+			targets = ["1st"]
+		if curr_freq == "3rd":
+			targets = ["1st", "2nd"]
+		if curr_freq == "4th":
+			targets = ["1st", "2nd", "3rd"]
+		if curr_freq == "5th":
+			targets = ["1st", "2nd", "3rd", "4th"]
 
 	return targets
-
-
-
