@@ -41,15 +41,18 @@ def get_data(filters, registers):
 			"2": d.tax_id,
 			"3": d.employee_name,
 			"4a": '{:0,.2f}'.format( flt(d.gross_compensation,8) ),
+			#Current Non Taxable
 			"4b": '{:0,.2f}'.format( flt(d.nt_benefits,8) ),
 			"4c": '{:0,.2f}'.format( flt(d.nt_demi,8) ),
 			"4d": '{:0,.2f}'.format( flt(d.nt_contrib,8) ),
-			"4e": '{:0,.2f}'.format( flt(d.nt_other,8) ),
-			"4f": '{:0,.2f}'.format( flt(d.item_20,8) ),  
-			"4g": '{:0,.2f}'.format( flt(d.t_basic,8) ),
+			"4e": '{:0,.2f}'.format( flt(d.nt_basic + d.nt_holiday + d.nt_overtime + d.nt_nightdiff + d.nt_hazard + d.nt_other,8) ),
+			"4f": '{:0,.2f}'.format( flt(d.non_taxable_total, 8) ),
+			#Current Taxable
+			"4g": '{:0,.2f}'.format( flt(d.t_basic, 8) ),
 			"4h": '{:0,.2f}'.format( flt(d.t_benefits,8) ),
 			"4i": '{:0,.2f}'.format( flt(taxable_compensation,8) ),
-			"4j": '{:0,.2f}'.format( flt(d.item_21,8) ),
+			"4j": '{:0,.2f}'.format( flt(d.taxable_total,8) ),
+			#Totals
 			"5a":  "",
 			"5b": '{:0,.2f}'.format( 0.0 ),
 			"6a": '{:0,.2f}'.format( 0.0 ),
