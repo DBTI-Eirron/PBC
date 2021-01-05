@@ -58,7 +58,7 @@ class PayrollProcessing(Document):
 		return "AND {}".format(" AND ".join(conditions)) if conditions else ""
 
 	def validate_period(self, weekly_set):
-		period_stats, company = frappe.db.get_value("Payroll Period", self.period, ["status", "company"])
+		period_stats, company, is_special = frappe.db.get_value("Payroll Period", self.period, ["status", "company", "is_special"])
 		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
 
 		if company != self.company:
@@ -75,6 +75,9 @@ class PayrollProcessing(Document):
 
 		if strict_period_group and not self.period_group:
 			frappe.throw(_("Period Group is required for Payroll Period {0}").format(self.period))
+
+		if is_special:
+			frappe.throw(_("Selected Period is Special"))
 
 	def process_payroll(self):
 		if self.employee:
@@ -120,6 +123,7 @@ class PayrollProcessing(Document):
 		ot_rate_class = frappe.db.get_single_value('Payroll Settings', 'ot_rate_class')
 		nd_rate_class = frappe.db.get_single_value('Payroll Settings', 'nd_rate_class')
 		ws_pho = frappe.db.get_single_value('Payroll Settings', 'ws_pho')
+		#spho_nowork_nopay = frappe.db.get_single_value('Payroll Settings', 'spho_nowork_nopay')
 
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
@@ -238,6 +242,7 @@ class PayrollProcessing(Document):
 						'ot_rate_class': ot_rate_class,
 						'nd_rate_class': nd_rate_class,
 						'ws_pho': ws_pho,
+						#'spho_nowork_nopay': spho_nowork_nopay,
 						#Other
 						'daily_basic': 0,
 						'paying_cc': [],
@@ -500,7 +505,7 @@ class PayrollProcessing(Document):
 						target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
 
 				else:
-					target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(header.get('govt_basic'), 8) )
+					target_amt, monthly_basis = get_weekly_basis('sss', emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(header.get('govt_basic'), 8) )
 
 			if target_amt and emp.get('sss_mode') != "None":
 				#Round target_amt to against SSS table
@@ -570,7 +575,7 @@ class PayrollProcessing(Document):
 				if self.frequency == '2nd' and emp.get('phic_freq') == '2nd':
 					target_amt = header.get('govt_basic') + header.get('phic_inc') - header.get('phic_ded')
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('phic_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('phic_inc') - header.get('phic_ded')
 
 					if header.get("govt_use_old"):
@@ -584,10 +589,10 @@ class PayrollProcessing(Document):
 					if header.get("govt_use_old"):
 						target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8) 
 
-					if emp.get('phic_freq') == '1st':
+					if emp.get('phic_freq') == '1st' and emp.get("rate_type") != "Daily Rate":
 						target_amt = rates.get('monthly_rate') + header.get('phic_inc') - header.get('phic_ded')
 
-					if emp.get('phic_freq') == '2nd':
+					if emp.get('phic_freq') == '2nd' and emp.get("rate_type") != "Daily Rate":
 						if header.get('prev_monthly_rate') != rates.get('monthly_rate') and header.get('prev_monthly_basis') > 0:
 							target_amt = (rates.get('monthly_rate') / 2)+ \
 								(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
@@ -595,12 +600,12 @@ class PayrollProcessing(Document):
 						if header.get("govt_use_old"):
 							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_phic_inc'), 8)) - flt(header.get('prev_phic_ded'), 8)
 
-					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):# and header.get('phic_smdl'):
+					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
 						if self.frequency == '1st' and emp.get('phic_freq') in ['Both', 'All']:
 							target_amt = (rates.get('monthly_rate')/2) + header.get('phic_inc') - header.get('phic_ded')
 
-					if emp.get('phic_mode') == "ME Table" and self.frequency == '2nd':
+					if emp.get('phic_mode') == "ME Table": #and self.frequency == '2nd':
 						target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
 						
 					if header.get('phic_mo_basis') and emp.get('phic_freq') == 'Both':
@@ -630,24 +635,46 @@ class PayrollProcessing(Document):
 								target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
 
 					if emp.get('phic_freq') == 'All':
-						target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
+						freq_all_passed = 0
+						if cint(header.get("no_weeks")) == cint(1):
+							if self.frequency in ['1st']:
+								freq_all_passed = 1
+						if cint(header.get("no_weeks")) == cint(2):
+							if self.frequency in ['1st', '2nd']:
+								freq_all_passed = 1
+						if cint(header.get("no_weeks")) == cint(3):
+							if self.frequency in ['1st', '2nd', '3rd']:
+								freq_all_passed = 1
+						if cint(header.get("no_weeks")) == cint(4):
+							if self.frequency in ['1st', '2nd', '3rd', '4th']:
+								freq_all_passed = 1
+						if cint(header.get("no_weeks")) == cint(5):
+							if self.frequency in ['1st', '2nd', '3rd', '4th', '5th']:
+								freq_all_passed = 1
 
+						if freq_all_passed:
+							target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
 				else:
-					target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(header.get('govt_basic'), 8) )
+					govt_basis = header.get('govt_basic')
+					govt_basis += (header['phic_inc'] - header['phic_ded'])
+					target_amt, monthly_basis = get_weekly_basis('phic', emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(govt_basis, 8) )
 			
 			if target_amt and emp.get('phic_mode') != "None":
-				phic_min_range = 10000
-				phic_max_range = 60000
-				phic_perc = 3
-				phic_min_rate = 150
-				phic_max_rate = 900
+				phic_min_range = 0
+				phic_max_range = 0
+				phic_perc = 0
+				phic_min_rate = 0
+				phic_max_rate = 0
 				payroll_year = frappe.get_value("Payroll Period", self.period, "payroll_year")
-				if payroll_year == '2019':
-					phic_min_range = 10000
-					phic_max_range = 50000
-					phic_perc = 2.75
-					phic_min_rate = 275 / 2
-					phic_max_rate = 1375 / 2
+				phic_table = frappe.db.sql("""SELECT `year`, `minimum`, `premium_rate`, `maximum` FROM `tabPHIC Table` WHERE `year` = %s LIMIT 1""",(payroll_year), as_dict=1 )
+				if phic_table:
+					phic_min_range = flt(phic_table[0].minimum)
+					phic_max_range = flt(phic_table[0].maximum)
+					phic_perc = flt(phic_table[0].premium_rate)
+					phic_min_rate = flt(phic_table[0].minimum) * ((flt(phic_table[0].premium_rate, 8) / 100) / 2)
+					phic_max_rate = flt(phic_table[0].maximum) * ((flt(phic_table[0].premium_rate, 8) / 100) / 2)
+				else:
+					frappe.throw(_('No PHIC setup for year {0}'.format(payroll_year)))
 
 				phic, phice = 0, 0
 				manual = 0
@@ -673,12 +700,49 @@ class PayrollProcessing(Document):
 				for l in phic_list:
 					amt = flt(eval(l), 8)
 
-					if emp.get('payroll_schedule') == "Weekly" and emp.get('phic_freq') == "Both":
-						amt = flt(eval(l), 8) / 2
-					if emp.get('payroll_schedule') == "Weekly" and emp.get('phic_freq') == "All":
-						amt = flt(eval(l), 8) / cint(header.get("no_weeks"))					
+					if emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('phic_freq') in ["Both", "All"]:
+						if emp.get('phic_mode') == "ME Table":
+							amt = abs(flt(eval(l), 8) / 2)
 
-					if emp.get('phic_mode') != "Manual":
+					if emp.get('payroll_schedule') == "Weekly" and emp.get('phic_freq') == "Both":
+						if emp.get('phic_mode') == "ME Table":
+							if self.frequency == '2nd':
+								amt = abs(flt(eval(l), 8) / 2)
+
+						if self.frequency != '2nd':
+							if emp.get('phic_mode') == "ME Table":
+								samt = abs(flt(eval(l), 8) / 2)
+
+							if weekly_prev_map and emp['name'] in weekly_prev_map:
+								prv_sss = filter(lambda dct: dct['frequency'] in ['2nd'], weekly_prev_map[emp['name']]['previous_data'])
+								if prv_sss:
+									amt = abs(flt(eval(l), 8) - prv_sss[0][l])
+								else:
+									if emp.get('phic_mode') == "ME Table":
+										amt = samt
+
+					if emp.get('payroll_schedule') == "Weekly" and emp.get('phic_freq') == "All":
+						if emp.get('phic_mode') == "ME Table":
+							amt = flt(eval(l), 8) / cint(header.get("no_weeks"))
+
+						if emp.get('phic_mode') == "Table":
+							valid_prev = []
+							if self.frequency == "2nd":
+								valid_prev = ["1st"]
+							if self.frequency == "3rd":
+								valid_prev = ["1st", "2nd"]
+							if self.frequency == "4th":
+								valid_prev = ["1st", "2nd", "3rd"]
+							if self.frequency == "5th":
+								valid_prev = ["1st", "2nd", "3rd", "4th"]
+
+							amt = abs(flt(eval(l), 8))
+							prv_phic = filter(lambda dct: dct['frequency'] in valid_prev, weekly_prev_map[emp['name']]['previous_data'])
+							if prv_phic:
+								for prv in prv_phic:
+									amt = abs(amt - prv[l])
+
+					if emp.get('phic_mode') != "Manual" and emp.get('phic_mode') != "ME Table":
 						#For EE
 						if l.upper() == 'PHIC' and header.get('prev_phic_amt') and emp.get('phic_freq') in ["Both", "All"]:
 							amt = amt - header.get('prev_phic_amt')
@@ -775,7 +839,7 @@ class PayrollProcessing(Document):
 						target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
 
 				else:
-					target_amt, monthly_basis = get_weekly_basis(emp, header, emp.get('hdmf_freq'), self.frequency, weekly_prev_map, flt(header.get('govt_basic'), 8) )
+					target_amt, monthly_basis = get_weekly_basis('hdmf', emp, header, emp.get('hdmf_freq'), self.frequency, weekly_prev_map, flt(header.get('govt_basic'), 8) )
 
 			if emp.get('payroll_schedule') == "Weekly" and emp.get('hdmf_mode') in ["ME Table Manual", "Manual"]:
 				target_amt = flt(emp.get("hdmf_manual"), 8)
@@ -1463,8 +1527,10 @@ class PayrollProcessing(Document):
 									elif dl_absent == 1 and (not is_uho) and (not at.is_sp_holiday):
 										if not header.get('ab_regho'): #if not absent on regular HO
 											ho_paid = 1 #paid holiday if absent and not UHO
+									#elif dl_absent == 1 and at.is_sp_holiday and header.get('spho_nowork_nopay'):
+									#	ho_paid = 0 #NO WORK NO PAY
 									elif dl_absent == 0:
-											ho_paid = 1  
+											ho_paid = 1
 								if (not at.is_sp_holiday) and ho_paid == 0 and header.get('ignore_uho'):
 									ho_paid = 1 
 									dh_exemption = 1
@@ -1473,7 +1539,6 @@ class PayrollProcessing(Document):
 									for ws in ws_wholeday_tag:
 										if ws in at['tags']:
 											ho_paid = 1
-									
 							else: 
 								if dl_absent == 0 and (not at.is_restday):
 									if at.is_halfday:
@@ -1845,9 +1910,19 @@ class PayrollProcessing(Document):
 
 	def get_previous_period(self):
 		previous_period = ""
+		conditions = ""
+		period_group = frappe.db.get_value("Payroll Period", self.period, ["period_group"])
+		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+		if period_group and strict_period_group:
+			conditions = "AND period_group='{0}'".format(period_group)
+
 		if self.schedule != "Weekly" and self.frequency != '1st':
-			before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE frequency != "Special" AND company = %s 
-				AND `schedule` = %s AND payroll_date < %s ORDER BY payroll_date DESC LIMIT 1 """,(self.company, self.schedule, self.payroll_date ))
+			before = frappe.db.sql_list(""" SELECT `name` FROM `tabPayroll Period` WHERE frequency != "Special" AND company = %(company)s 
+				AND `schedule` = %(schedule)s AND payroll_date < %(payroll_date)s {conditions} ORDER BY payroll_date DESC LIMIT 1 """.format(conditions=conditions),({ 
+				"company": self.company,
+				"schedule": self.schedule,
+				"payroll_date": self.payroll_date,
+			}))
 			
 			previous_period = before[0] if before else ""
 
