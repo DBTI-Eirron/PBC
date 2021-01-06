@@ -547,31 +547,6 @@ class AnnualizationProcessing(Document):
 				else:
 					emp_dict.t_benefits += emp_dict.total_nightdiff + emp_dict.total_other
 
-			#Get Tax Due
-			taxable = emp_dict.taxable_total + emp_dict.prev_taxable_total
-			table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
-				WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(( taxable ), ( taxable ), 'Yearly'), as_dict=True )
-
-			for t in table:
-				tax_due = (flt( ( taxable ) , 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
-				if t.prescribed > 0:
-					tax_due += flt(t.prescribed, 8)	
-
-			emp_dict.tax_due = tax_due
-			#check if tax is to be refunded or to be paid
-			withheld = emp_dict.tax_due - (emp_dict.tax_withheld + emp_dict.prev_tax_withheld)
-
-			#Set Amount Withheld & Paid for in December
-			emp_dict.adj_amount_withheld = (emp_dict.tax_withheld + emp_dict.prev_tax_withheld) - (emp_dict.withheld_nov + emp_dict.prev_withheld_nov)
-
-			if withheld > 1:
-				emp_dict.adj_withheld = abs(withheld)
-			elif withheld < 0:
-				emp_dict.adj_over_withheld = abs(withheld)
-			else:
-				emp_dict.adj_withheld = 0
-
-
 			#PREVIOUS TOTALS
 			#Previous totals are straight up
 			emp_dict.prev_non_taxable_total = (emp_dict.pnt_basic + emp_dict.pnt_holiday + emp_dict.pnt_overtime + emp_dict.pnt_nightdiff + emp_dict.pnt_hazard + 
@@ -600,6 +575,30 @@ class AnnualizationProcessing(Document):
 			emp_dict['item_19'] = emp_dict.gross_compensation
 
 			emp_dict['item_23'] = emp_dict.item_21 + emp_dict.item_22
+
+			#Get Tax Due
+			taxable = emp_dict.taxable_total + emp_dict.prev_taxable_total
+			table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
+				WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(( taxable ), ( taxable ), 'Yearly'), as_dict=True )
+
+			for t in table:
+				tax_due = (flt( ( taxable ) , 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
+				if t.prescribed > 0:
+					tax_due += flt(t.prescribed, 8)
+
+			emp_dict.tax_due = tax_due
+			#check if tax is to be refunded or to be paid
+			withheld = emp_dict.tax_due - (emp_dict.tax_withheld + emp_dict.prev_tax_withheld)
+
+			#Set Amount Withheld & Paid for in December
+			emp_dict.adj_amount_withheld = (emp_dict.tax_withheld + emp_dict.prev_tax_withheld) - (emp_dict.withheld_nov + emp_dict.prev_withheld_nov)
+
+			if withheld > 1:
+				emp_dict.adj_withheld = abs(withheld)
+			elif withheld < 0:
+				emp_dict.adj_over_withheld = abs(withheld)
+			else:
+				emp_dict.adj_withheld = 0
 
 			if exclude != 1:
 				register = frappe.new_doc("Annualization Register")
