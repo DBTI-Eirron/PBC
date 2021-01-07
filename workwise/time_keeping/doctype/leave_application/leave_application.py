@@ -30,9 +30,6 @@ class LeaveApplication(Document):
 		change_owner(self)
 		self.get_recipients()
 
-	def on_update(self):
-		validate_reject_cancel_own_application(self)
-
 	def on_submit(self):
 		self.set_lwop()
 		validate_approve_own_application(self)
@@ -43,6 +40,9 @@ class LeaveApplication(Document):
 		get_approver_email_list(self, 'on_submit')
 		#validate_approver_userperm(self)
 		validate_cutoff_approval_date(self)
+
+	def on_update(self):
+		validate_reject_cancel_own_application(self)
 
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
@@ -376,14 +376,13 @@ class LeaveApplication(Document):
 		deduct_to = frappe.get_value("Leave Type", self.leave_type, "deduct_to")
 		if not deduct_to:
 			deduct_to = self.leave_type
-		
 		lb_entries = frappe.db.sql(""" SELECT * FROM `tabLB Entry` WHERE `employee` = %s AND 
 			(`leave_type` = %s OR `deduct_credits_to` = %s) AND `company` = %s ORDER BY `from_date` 
-			ASC """, (self.employee, self.leave_type, self.leave_type, self.company), as_dict=1)
+			ASC """, (self.employee, deduct_to, deduct_to, self.company), as_dict=1)
 
 		for d in lb_entries:
 			if d.balance_type == "Add":
-				if self.leave_type == d.leave_type:
+				if deduct_to == d.leave_type:
 					if d.name not in valid_entry:
 						valid_entry[d.name] = {
 							"credits": d.credits,
@@ -392,7 +391,7 @@ class LeaveApplication(Document):
 							"used": 0,
 						}
 			else:
-				if d.deduct_credits_to == self.leave_type:
+				if d.deduct_credits_to == deduct_to:
 					if d.name not in less_entry:
 						less_entry[d.name] = {
 							"used": 0,
@@ -469,6 +468,7 @@ class LeaveApplication(Document):
 	def validate_without_lbentry(self):
 		if self.without_lbentry:
 			frappe.throw(_('You cant cancel Leave Application without LB Entry'))
+
 
 @frappe.whitelist()
 def get_number_of_leave_days(from_date, to_date, half_day=None):
