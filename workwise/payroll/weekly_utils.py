@@ -16,9 +16,24 @@ def get_weekly_prev_map(employees, weekly_set):
 	#Get Previous Data
 	previous_data = frappe.db.sql(""" SELECT employee, frequency, govt_basic as government_basis, taxable_income, gross_payroll, 
 		present_days, work_days, absent_days, govt_income, govt_deduction, 
-		sss_inc, sss_ded, sss_amt as sss, sss_er_amt as ssse, sss_ec_amt as sssc,
-		phic_inc, phic_ded, phic_amt as phic, phic_er_amt as phice, phic_ec_amt as phicc,
-		hdmf_inc, hdmf_ded, hdmf_amt as hdmf, hdmf_er_amt as hdmfe, hdmf_ec_amt as hdmfc, hdmf_manual as hdmfm
+		sss_inc, 
+		sss_ded, 
+		sss_amt as sss, 
+		sss_er_amt as ssse, 
+		sss_ec_amt as sssc,
+		sss_ee_mpf,
+		sss_er_mpf,
+		phic_inc,
+		phic_ded, 
+		phic_amt as phic, 
+		phic_er_amt as phice, 
+		phic_ec_amt as phicc,
+		hdmf_inc, 
+		hdmf_ded, 
+		hdmf_amt as hdmf, 
+		hdmf_er_amt as hdmfe, 
+		hdmf_ec_amt as hdmfc, 
+		hdmf_manual as hdmfm
 		FROM `tabPayroll Register` 
 		WHERE weekly_set = %s """,( weekly_set ), as_dict=True)
 
@@ -30,12 +45,15 @@ def get_weekly_prev_map(employees, weekly_set):
 
 def get_weekly_basis(govt_type, emp, header, govt_freq, curr_freq, weekly_data, current_basis):
 	government_basis, prev_government_basis, govt_deduction, govt_income, monthly_basis = 0.0, 0.0, 0.0, 0.0, 0.0
+	weekly_previous_amts = {}
+	sss, ssse, sssc, sss_ee_mpf, sss_er_mpf = 0.0, 0.0, 0.0, 0.0, 0.0 #used for getting sss data an all previous frequencies
 	no_weeks =  header.get('no_weeks')
 	weekly_targets = get_weekly_targets(govt_freq, curr_freq, no_weeks)
-	
+	test = []
 	if emp.get('name') in weekly_data:
 		for d in weekly_data[emp.get('name')].previous_data:
 			if d.frequency in weekly_targets:
+				test.append(_( ("{0}:{1}").format(d.frequency, ((d.government_basis + d.govt_income) - d.govt_deduction) ) ))
 				prev_government_basis += d.government_basis
 				govt_deduction += d.govt_deduction
 				govt_income += d.govt_income
@@ -58,6 +76,12 @@ def get_weekly_basis(govt_type, emp, header, govt_freq, curr_freq, weekly_data, 
 						freq_passed = 1
 
 				if freq_passed:
+					sss += d.sss
+					ssse += d.ssse
+					sssc += d.sssc
+					sss_ee_mpf += d.sss_ee_mpf
+					sss_er_mpf += d.sss_er_mpf
+
 					if govt_type == 'sss':
 						prev_government_basis += d.sss_inc
 						prev_government_basis -= d.sss_ded
@@ -71,12 +95,15 @@ def get_weekly_basis(govt_type, emp, header, govt_freq, curr_freq, weekly_data, 
 			if d.frequency != "5th":
 				monthly_basis += d.government_basis
 
+	test.append(_( ("{0}:{1}").format(curr_freq, current_basis ) ))
+	#frappe.throw(_( test ))
 	if govt_freq == "2nd":
 		if no_weeks == "5" and curr_freq == "5th":
 			government_basis = current_basis + prev_government_basis
 		
 		elif curr_freq == "4th" and no_weeks == "4":
 			government_basis = current_basis + prev_government_basis
+
 
 	elif govt_freq == "Both":
 		if curr_freq == "2nd":
@@ -111,8 +138,17 @@ def get_weekly_basis(govt_type, emp, header, govt_freq, curr_freq, weekly_data, 
 
 	if monthly_basis:
 		monthly_basis += current_basis
-		
-	return government_basis, monthly_basis
+
+	#used for getting sss,phic,hdmf data an all previous frequencies
+	weekly_previous_amts = {
+		"sss": sss,
+		"ssse": ssse,
+		"sssc": sssc,
+		"sss_ee_mpf": sss_ee_mpf,
+		"sss_er_mpf": sss_er_mpf,
+	}		
+
+	return government_basis, monthly_basis, weekly_previous_amts
 
 def get_weekly_targets(govt_freq, curr_freq, no_weeks):
 	targets = []
