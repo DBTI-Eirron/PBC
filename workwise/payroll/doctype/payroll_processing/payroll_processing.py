@@ -161,6 +161,8 @@ class PayrollProcessing(Document):
 						'sss_amt': 0.0,
 						'sss_er_amt': 0.0,
 						'sss_ec_amt': 0.0,
+						'sss_er_mpf': 0.0,
+						'sss_ee_mpf': 0.0,						
 						'phic_inc': 0.0,
 						'phic_ded': 0.0,
 						'phic_amt': 0.0,
@@ -197,6 +199,8 @@ class PayrollProcessing(Document):
 						'prev_sss_amt': 0.0,
 						'prev_sss_er_amt': 0.0,
 						'prev_sss_ec_amt': 0.0,
+						'prev_sss_ee_mpf': 0.0,
+						'prev_sss_er_mpf': 0.0,
 						'prev_phic_inc': 0.0,
 						'prev_phic_ded': 0.0,
 						'prev_phic_amt': 0.0,
@@ -440,8 +444,8 @@ class PayrollProcessing(Document):
 		
 		if emp.get('sss_mode') != "None":
 			sss_register = []
-			sss_list = ["sss","ssse","sssc"]
-			sss, ssse, sssc = 0, 0, 0
+			sss_list = ["sss","ssse","sssc", "ssseempf", "sssermpf"]
+			sss, ssse, sssc, ssseempf, sssermpf = 0, 0, 0, 0, 0
 			target_amt = 0
 
 			if emp.get('payroll_schedule') == "Monthly" and self.schedule == emp['payroll_schedule']:
@@ -505,14 +509,22 @@ class PayrollProcessing(Document):
 						target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
 
 				else:
-					target_amt, monthly_basis = get_weekly_basis('sss', emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(header.get('govt_basic'), 8) )
+					weekly_govt_basis = (header.get('govt_basic') + header.get('sss_inc')) - header.get('sss_ded')
+					target_amt, monthly_basis, weekly_previous_amts = get_weekly_basis('sss', emp, header, emp.get('sss_freq'), self.frequency, weekly_prev_map, flt(weekly_govt_basis, 8) )
+					#update previous amounts based on weekly set data
+					header['prev_sss_amt'] = weekly_previous_amts['sss']
+					header['prev_sss_er_amt'] = weekly_previous_amts['ssse']
+					header['prev_sss_ec_amt'] = weekly_previous_amts['sssc']
+					header['prev_sss_er_mpf'] = weekly_previous_amts['sss_er_mpf']
+					header['prev_sss_ee_mpf'] = weekly_previous_amts['sss_ee_mpf']
+					
 
 			if target_amt and emp.get('sss_mode') != "None":
 				#Round target_amt to against SSS table
-				sss, ssse, sssc = get_sss_amount(flt(target_amt, 2), sss_table)
+				sss, ssse, sssc, ssseempf, sssermpf = get_sss_amount(flt(target_amt, 2), sss_table)
 
 				if emp.get('sss_mode') == "Manual" and emp.get('sss_manual'):
-					ssse, sssc = 0, 0
+					ssse, sssc, ssseempf, sssermpf = 0, 0, 0, 0
 					sss = emp.get('sss_manual')
 					if emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('sss_freq') in ["Both", "All"]:
 						sss = emp.get('sss_manual') / 2
@@ -520,9 +532,10 @@ class PayrollProcessing(Document):
 				for l in sss_list:
 					amt = flt(eval(l), 8)
 
-					if emp.get('payroll_schedule') == "Weekly" and emp.get('sss_freq') == "Both":
+					if emp.get('payroll_schedule') == "Weekly" and emp.get('sss_mode') == "ME Table" and emp.get('sss_freq') == "Both":
 						amt = flt(eval(l), 8) / 2
-					if emp.get('payroll_schedule') == "Weekly" and emp.get('sss_freq') == "All":
+
+					if emp.get('payroll_schedule') == "Weekly" and emp.get('sss_mode') == "ME Table" and emp.get('sss_freq') == "All":
 						amt = flt(eval(l), 8) / cint(header.get("no_weeks"))					
 
 					if emp.get('sss_mode') != "Manual":
@@ -546,6 +559,18 @@ class PayrollProcessing(Document):
 							if amt < 1:
 								amt = 0
 
+						#For MPF Employer
+						if l.upper() == 'SSSERMPF' and header.get('prev_sss_er_mpf') and emp.get('sss_freq') in ["Both", "All"]:
+							amt = amt - header.get('prev_sss_er_mpf')
+							if amt < 1:
+								amt = 0
+
+						#For MPF Employee
+						if l.upper() == 'SSSEEMPF' and header.get('prev_sss_ee_mpf') and emp.get('sss_freq') in ["Both", "All"]:
+							amt = amt - header.get('prev_sss_ee_mpf')
+							if amt < 1:
+								amt = 0								
+
 					sss_register.append({"pay_code": l.upper(), "amount": amt })
 
 		if emp.get('sss_mode') != "None":
@@ -559,6 +584,12 @@ class PayrollProcessing(Document):
 
 				if d.get('pay_code') == "SSSC" and d.get('amount') > 0:
 					header['sss_ec_amt'] = d.get('amount')
+
+				if d.get('pay_code') == "SSSEEMPF" and d.get('amount') > 0:
+					header['sss_ee_mpf'] = d.get('amount')
+
+				if d.get('pay_code') == "SSSERMPF" and d.get('amount') > 0:
+					header['sss_er_mpf'] = d.get('amount')
 
 				self.calculate_special_header(d, header, tr_map)
 
@@ -657,7 +688,7 @@ class PayrollProcessing(Document):
 				else:
 					govt_basis = header.get('govt_basic')
 					govt_basis += (header['phic_inc'] - header['phic_ded'])
-					target_amt, monthly_basis = get_weekly_basis('phic', emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(govt_basis, 8) )
+					target_amt, monthly_basis, weekly_previous_amts= get_weekly_basis('phic', emp, header, emp.get('phic_freq'), self.frequency, weekly_prev_map, flt(govt_basis, 8) )
 			
 			if target_amt and emp.get('phic_mode') != "None":
 				phic_min_range = 0
@@ -839,7 +870,7 @@ class PayrollProcessing(Document):
 						target_amt = (rates.get('daily_rate') * emp.get('total_yr_days')) / 12
 
 				else:
-					target_amt, monthly_basis = get_weekly_basis('hdmf', emp, header, emp.get('hdmf_freq'), self.frequency, weekly_prev_map, flt(header.get('govt_basic'), 8) )
+					target_amt, monthly_basis, weekly_previous_amts = get_weekly_basis('hdmf', emp, header, emp.get('hdmf_freq'), self.frequency, weekly_prev_map, flt(header.get('govt_basic'), 8) )
 
 			if emp.get('payroll_schedule') == "Weekly" and emp.get('hdmf_mode') in ["ME Table Manual", "Manual"]:
 				target_amt = flt(emp.get("hdmf_manual"), 8)
@@ -1932,7 +1963,7 @@ class PayrollProcessing(Document):
 		if self.schedule != "Weekly":
 			previous = frappe.db.sql(""" SELECT monthly_rate, taxable_income, taxable_deduction, gross_payroll, 
 				present_days, work_days, absent_days, govt_basic,
-				sss_inc, sss_ded, sss_amt, sss_er_amt, sss_ec_amt, 
+				sss_inc, sss_ded, sss_amt, sss_er_amt, sss_ec_amt, sss_er_mpf, sss_ee_mpf,
 				phic_inc, phic_ded, phic_amt, phic_er_amt, phic_ec_amt, 
 				hdmf_inc, hdmf_ded, hdmf_amt, hdmf_manual, hdmf_er_amt, hdmf_ec_amt,
 				whtax_amt
@@ -1946,6 +1977,8 @@ class PayrollProcessing(Document):
 				header['prev_sss_amt'] = flt(d.sss_amt, 8)
 				header['prev_sss_er_amt'] = flt(d.sss_er_amt, 8)
 				header['prev_sss_ec_amt'] = flt(d.sss_ec_amt, 8)
+				header['prev_sss_er_mpf'] = flt(d.sss_er_mpf, 8)
+				header['prev_sss_ee_mpf'] = flt(d.sss_ee_mpf, 8)		
 				header['prev_phic_inc'] = flt(d.phic_inc, 8)
 				header['prev_phic_ded'] = flt(d.phic_ded, 8)
 				header['prev_phic_amt'] = flt(d.phic_amt, 8)
