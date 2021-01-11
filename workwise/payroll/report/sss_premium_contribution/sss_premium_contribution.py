@@ -13,11 +13,11 @@ import os
 def execute(filters=None):
 	columns = get_columns()
 
-	transaction_type = ['SSS', 'SSSE', 'SSSC']
+	transaction_type = ['SSS', 'SSSE', 'SSSC', 'SSSEEMPF', 'SSSERMPF']
 	employee_list, gov_map = get_employees(filters,transaction_type)
 	
 
-	final_employee, final_employer, final_ec, final_total = 0, 0, 0, 0
+	final_employee, final_employer, final_ec, final_total, final_eempf, final_ermpf = 0, 0, 0, 0, 0, 0
 
 	data = []
 	for emp in gov_map:
@@ -33,12 +33,14 @@ def execute(filters=None):
 			final_employee += flt(gov_map[emp]["SSS"])
 			final_employer += flt(gov_map[emp]["SSSE"])
 			final_ec += flt(gov_map[emp]["SSSC"])
+			final_eempf += flt(gov_map[emp]["SSSEEMPF"])
+			final_ermpf += flt(gov_map[emp]["SSSERMPF"])
 			final_total += total_sss
 			row += [format_precision(total_sss, filters.value_precision)]
 			
 		data.append(row)
 	data = sorted(data, key=itemgetter(1))
-	final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_total, filters.value_precision)]
+	final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_eempf, filters.value_precision), format_precision(final_ermpf, filters.value_precision),format_precision(final_total, filters.value_precision)]
 	data.append(final)
 	return columns, data
 
@@ -78,6 +80,18 @@ def get_columns():
 		{
 			"fieldname": "SSSC",
 			"label": _("EC"),
+			"fieldtype": "Data",
+			"width":120
+		},
+		{
+			"fieldname": "SSSEEMPF",
+			"label": _("MPF Employee"),
+			"fieldtype": "Data",
+			"width":120
+		},
+		{
+			"fieldname": "SSSERMPF",
+			"label": _("MPF Employer"),
 			"fieldtype": "Data",
 			"width":120
 		},
