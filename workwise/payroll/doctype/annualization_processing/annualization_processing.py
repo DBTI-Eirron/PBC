@@ -9,6 +9,7 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from frappe import _
 from frappe.model.document import Document
 from workwise.payroll.payroll_utils import get_transaction_map
+from workwise.payroll.payroll_utils import get_rates, get_location_map
 
 class AnnualizationProcessing(Document):
 	def process_annualization(self):
@@ -29,7 +30,7 @@ class AnnualizationProcessing(Document):
 		return self.create_log(ss_list)
 
 	def get_employee(self, from_year, to_year):
-		employees = frappe.db.sql("""SELECT TE.`name`, TE.tin, TE.full_name, TE.company, TE.tin, TE.date_hired, TE.date_retired, TE.date_resigned, 
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.tin, TE.full_name, TE.company, TE.location, TE.mwe_loc, TE.date_hired, TE.date_retired, TE.date_resigned, 
 			TE.date_terminated, TE.date_contract_ended, TE.total_yr_days, TE.no_hours, TE.rate, TE.rate_type, TE.sensitivity, 
 			(SELECT COUNT(`name`) FROM `tabEmployee External Work History` WHERE parent = TE.`name`) as has_prev
 			FROM `tabEmployee` TE 
@@ -187,13 +188,13 @@ class AnnualizationProcessing(Document):
 							emp_map[reg.employee].total_other_sb += reg.amount if _type == "Income" else -(reg.amount)
 
 						#BENEFITS
-						#if btype == "Deminimis":
-						#	emp_map[reg.employee].total_demi += reg.amount if _type == "Income" else -(reg.amount)
-
 						if btype == "13th Month":
 							emp_map[reg.employee].total_benefits += reg.amount if _type == "Income" else -(reg.amount)
 
 						#Deminimis
+						if btype == "Deminimis":
+							emp_map[reg.employee].total_demi += reg.amount if _type == "Income" else -(reg.amount)
+
 						if btype == "Leave Conversion":
 							emp_map[reg.employee].total_conv += reg.amount if _type == "Income" else -(reg.amount)
 
@@ -204,13 +205,22 @@ class AnnualizationProcessing(Document):
 							emp_map[reg.employee].total_rice += reg.amount if _type == "Income" else -(reg.amount)
 
 						if btype == "Uniform":
-							emp_map[reg.employee].total_unifom += reg.amount if _type == "Income" else -(reg.amount)
+							emp_map[reg.employee].total_uniform += reg.amount if _type == "Income" else -(reg.amount)
 
 						if btype == "Actual Medical Assistance":
 							emp_map[reg.employee].total_med_ast += reg.amount if _type == "Income" else -(reg.amount)
 
 						if btype == "Laundry Allowance":
 							emp_map[reg.employee].total_laundry += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Achievement Awards":
+							emp_map[reg.employee].total_awards += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Gifts":
+							emp_map[reg.employee].total_gifts += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Productivity Incentive":
+							emp_map[reg.employee].total_prod += reg.amount if _type == "Income" else -(reg.amount)																					
 
 						#ALWAYS NOT TAXABLE
 						if (btype == "Contribution"): #Contribution is Reversed and Regardless if Taxable or not
@@ -325,13 +335,13 @@ class AnnualizationProcessing(Document):
 							emp_map[lp.employee].total_other_sb += lp.amount if _type == "Income" else -(lp.amount)
 
 						#BENEFITS
-						#if btype == "Deminimis":
-						#	emp_map[lp.employee].total_demi += lp.amount if _type == "Income" else -(lp.amount)
-
 						if btype == "13th Month":
 							emp_map[lp.employee].total_benefits += lp.amount if _type == "Income" else -(lp.amount)
 
 						#Deminimis
+						if btype == "Deminimis":
+							emp_map[lp.employee].total_demi += lp.amount if _type == "Income" else -(lp.amount)
+
 						if btype == "Leave Conversion":
 							emp_map[lp.employee].total_conv += lp.amount if _type == "Income" else -(lp.amount)
 
@@ -342,13 +352,22 @@ class AnnualizationProcessing(Document):
 							emp_map[lp.employee].total_rice += lp.amount if _type == "Income" else -(lp.amount)
 
 						if btype == "Uniform":
-							emp_map[lp.employee].total_unifom += lp.amount if _type == "Income" else -(lp.amount)
+							emp_map[lp.employee].total_uniform += lp.amount if _type == "Income" else -(lp.amount)
 
 						if btype == "Actual Medical Assistance":
 							emp_map[lp.employee].total_med_ast += lp.amount if _type == "Income" else -(lp.amount)
 
 						if btype == "Laundry Allowance":
 							emp_map[lp.employee].total_laundry += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Achievement Awards":
+							emp_map[lp.employee].total_awards += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Gifts":
+							emp_map[lp.employee].total_gifts += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Productivity Incentive":
+							emp_map[lp.employee].total_prod += lp.amount if _type == "Income" else -(lp.amount)							
 
 						#ALWAYS NOT TAXABLE
 						if (btype == "Contribution"): #Contribution is Reversed and Regardless if Taxable or not
@@ -363,6 +382,10 @@ class AnnualizationProcessing(Document):
 	def create_entries(self, employees, registers, previous_bir, lastpay, from_year, to_year, ss_list, tax_nd_birtype, ceiling_month_pay):
 		emp_map = self.get_employee_map(employees)
 		self.get_employee_wise_register(registers, previous_bir, lastpay, emp_map)
+		ceiling_deminimis = frappe.db.get_single_value("Payroll Settings", "ceiling_demi")
+		use_ceiling_demi = frappe.db.get_single_value("Payroll Settings", "use_ceiling_demi")
+		mwe_rate_basis = frappe.db.get_single_value("Payroll Settings", "mwe_rate_basis")
+		loc_map = get_location_map()
 
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			frappe.db.sql("""DELETE FROM `tabAnnualization Register` WHERE employee = %s AND payroll_year = %s """,(emp, self.payroll_year), as_dict=1)
@@ -370,7 +393,7 @@ class AnnualizationProcessing(Document):
 			ntax_total, amt_withheld, over_withheld = 0, 0, 0
 			exclude = 0
 			last_date_list = []
-			rates = self.get_rates(emp_dict.total_yr_days, emp_dict.no_hours, emp_dict.rate, emp_dict.rate_type)
+			rates = get_rates(emp_dict)
 
 			emp_dict.from_date = getdate(from_year)
 			emp_dict.to_date = getdate(to_year)
@@ -404,53 +427,111 @@ class AnnualizationProcessing(Document):
 			#Always reduce Basic to contrib
 			emp_dict.total_basic -= abs(emp_dict.total_contrib)
 
+
 			#get excess deminimis
-			max_conversion = flt(rates['daily_rate'] * 10, 8)
-			excess_conv=0
-			if emp_dict.total_conv > max_conversion:
-				excess_conv = flt(emp_dict.total_conv,8) - flt(max_conversion, 8)
-				nt_conv = max_conversion
-			else:
-				nt_conv = flt(emp_dict.total_conv, 0)
+			if use_ceiling_demi:
+				emp_dict.total_conv=0
+				emp_dict.med_cash=0
+				emp_dict.total_med_cash=0
+				emp_dict.total_rice=0
+				emp_dict.total_uniform=0
+				emp_dict.total_med_ast=0
+				emp_dict.total_laundry=0
+				emp_dict.total_awards=0
+				emp_dict.total_gifts=0
+				emp_dict.total_prod=0
 
-			excess_med_cash=0
-			if emp_dict.total_med_cash > 3000:
-				excess_med_cash = flt(emp_dict.total_med_cash,8) - flt(3000, 8)
-				nt_med_cash = 3000
-			else:
-				nt_med_cash = flt(emp_dict.total_med_cash, 0)
+				excess_cl_demi=0
+				if emp_dict.total_demi > flt(ceiling_deminimis, 8):
+					excess_cl_demi = flt(emp_dict.total_demi,8) - flt(ceiling_deminimis, 8)
+					nt_cl_demi = flt(ceiling_deminimis, 8)
+				else:
+					nt_cl_demi = flt(emp_dict.total_demi, 8)
 
-			excess_rice=0
-			if emp_dict.total_rice > 24000:
-				excess_rice = flt(emp_dict.total_rice,8) - flt(24000, 8)
-				nt_rice = 24000
-			else:
-				nt_rice = flt(emp_dict.total_rice, 0)
-			
-			excess_unifom=0
-			if emp_dict.total_unifom > 6000:
-				excess_unifom = flt(emp_dict.total_unifom,8) - flt(6000, 8)
-				nt_unifom = 6000
-			else:
-				nt_unifom = flt(emp_dict.total_uniform, 0)
+				final_demi = nt_cl_demi
+				total_excess_demi = excess_cl_demi
+				emp_dict.excess_demi = total_excess_demi
 
-			excess_med_ast=0
-			if emp_dict.total_med_ast > 10000:
-				excess_med_ast = flt(emp_dict.total_med_ast,8) - flt(10000, 8)
-				nt_med_ast = 10000
 			else:
-				nt_med_ast = flt(emp_dict.total_med_ast, 0)
+				emp_dict.total_demi = 0
+				max_conversion = flt(rates['daily_rate'] * 10, 8)
+				excess_conv=0
+				if emp_dict.total_conv > max_conversion:
+					excess_conv = flt(emp_dict.total_conv,8) - flt(max_conversion, 8)
+					nt_conv = max_conversion
+				else:
+					nt_conv = flt(emp_dict.total_conv, 0)
 
-			excess_laundry=0
-			if emp_dict.total_laundry > 3600:
-				excess_laundry = flt(emp_dict.total_laundry,8) - flt(3600, 8)
-				nt_laundry = 3600
-			else:
-				nt_laundry = flt(emp_dict.total_laundry	, 0)			
-			
-			final_demi = nt_conv + nt_med_cash + nt_rice + nt_unifom + nt_med_ast + nt_laundry
-			total_excess_demi = excess_conv + excess_med_cash + excess_rice + excess_unifom + excess_med_ast + excess_laundry
-			emp_dict.excess_demi = total_excess_demi
+				excess_med_cash=0
+				if emp_dict.total_med_cash > 3000:
+					excess_med_cash = flt(emp_dict.total_med_cash,8) - flt(3000, 8)
+					nt_med_cash = 3000
+				else:
+					nt_med_cash = flt(emp_dict.total_med_cash, 0)
+
+				excess_rice=0
+				if emp_dict.total_rice > 24000:
+					excess_rice = flt(emp_dict.total_rice,8) - flt(24000, 8)
+					nt_rice = 24000
+				else:
+					nt_rice = flt(emp_dict.total_rice, 0)
+				
+				excess_uniform=0
+				if emp_dict.total_uniform > 6000:
+					excess_uniform = flt(emp_dict.total_uniform,8) - flt(6000, 8)
+					nt_uniform = 6000
+				else:
+					nt_uniform = flt(emp_dict.total_uniform, 0)
+
+				excess_med_ast=0
+				if emp_dict.total_med_ast > 10000:
+					excess_med_ast = flt(emp_dict.total_med_ast,8) - flt(10000, 8)
+					nt_med_ast = 10000
+				else:
+					nt_med_ast = flt(emp_dict.total_med_ast, 0)
+
+				excess_laundry=0
+				if emp_dict.total_laundry > 3600:
+					excess_laundry = flt(emp_dict.total_laundry,8) - flt(3600, 8)
+					nt_laundry = 3600
+				else:
+					nt_laundry = flt(emp_dict.total_laundry	, 0)
+
+				excess_awards=0
+				if emp_dict.total_awards > 10000:
+					excess_awards = flt(emp_dict.total_awards,8) - flt(10000, 8)
+					nt_awards = 10000
+				else:
+					nt_awards = flt(emp_dict.total_awards	, 0)
+
+				excess_gifts=0
+				if emp_dict.total_gifts > 5000:
+					excess_gifts = flt(emp_dict.total_gifts,8) - flt(5000, 8)
+					nt_gifts = 5000
+				else:
+					nt_gifts = flt(emp_dict.total_gifts	, 0)
+
+				excess_prod=0
+				if emp_dict.total_prod > 10000:
+					excess_prod = flt(emp_dict.total_prod,8) - flt(10000, 8)
+					nt_prod = 10000
+				else:
+					nt_prod = flt(emp_dict.total_prod	, 0)												
+				
+
+				emp_dict.ex_conv = excess_conv
+				emp_dict.ex_med_cash = excess_med_cash 
+				emp_dict.ex_rice = excess_rice
+				emp_dict.ex_uniform = excess_uniform 
+				emp_dict.ex_med_ast = excess_med_ast 
+				emp_dict.ex_laundry = excess_laundry 
+				emp_dict.ex_awards = excess_awards 
+				emp_dict.ex_gifts = excess_gifts
+				emp_dict.ex_prod = excess_prod
+				
+				final_demi = nt_conv + nt_med_cash + nt_rice + nt_uniform + nt_med_ast + nt_laundry + nt_awards + nt_gifts + nt_prod
+				total_excess_demi = excess_conv + excess_med_cash + excess_rice + excess_uniform + excess_med_ast + excess_laundry + excess_awards + excess_gifts + excess_prod
+				emp_dict.excess_demi = total_excess_demi
 
 
 			#calculate if other benefits is beyond the ceiling and taxable benefits
@@ -467,11 +548,32 @@ class AnnualizationProcessing(Document):
 				#assign as non taxable
 				nt_combined_benefits = emp_dict.total_benefits + total_excess_demi
 
-			#Check for Taxable data
-			#check for SMW
-			mwe = 0
+			#check for MWE
 			emp_dict.minimum_wage = 0
-			if rates['monthly_rate'] < flt(14006.75, 8):
+			mwe = 0
+			if emp_dict.mwe_loc:
+				location = emp_dict.mwe_loc
+			else:
+				location = emp_dict.location
+
+			if mwe_rate_basis == "Daily Rate":
+				if rates['daily_rate'] < flt(loc_map[location]['min_wage'], 8):
+					mwe = 1
+
+			elif mwe_rate_basis == "Dynamic":
+				if emp_dict.rate_type in ["Daily Rate","Hourly Rate","Weekly Rate"]:
+					if rates['daily_rate'] < flt(loc_map[location]['min_wage'], 8):
+						mwe = 1
+				else:
+					smw = flt(loc_map[location]['min_wage'], 8) * flt(emp_dict.total_yr_days, 8) / 12
+					if rates['monthly_rate'] < smw:
+						mwe = 1
+			else:
+				smw = flt(loc_map[location]['min_wage'], 8) * flt(emp_dict.total_yr_days, 8) / 12
+				if rates['monthly_rate'] < smw:
+					mwe = 1
+
+			if mwe == 1:
 				emp_dict.minimum_wage = 1
 				#Fixed Exempt
 				emp_dict.nt_demi = final_demi
@@ -513,7 +615,6 @@ class AnnualizationProcessing(Document):
 				emp_dict.nt_contrib = emp_dict.total_contrib
 
 				emp_dict.t_basic = emp_dict.total_basic
-				emp_dict.t_holiday = emp_dict.total_holiday
 				emp_dict.t_overtime = emp_dict.total_overtime
 				#emp_dict.t_nightdiff = emp_dict.total_nightdiff no taxable ND in 2316
 				emp_dict.t_hazard = emp_dict.total_hazard
@@ -546,6 +647,8 @@ class AnnualizationProcessing(Document):
 					emp_dict.t_other_sb += emp_dict.total_nightdiff + emp_dict.total_other
 				else:
 					emp_dict.t_benefits += emp_dict.total_nightdiff + emp_dict.total_other
+
+				emp_dict.t_benefits += emp_dict.total_holiday #taxable holiday on taxable add as benefits
 
 			#PREVIOUS TOTALS
 			#Previous totals are straight up
@@ -624,6 +727,8 @@ class AnnualizationProcessing(Document):
 					"no_hours": emp.no_hours,
 					"rate": emp.rate,
 					"rate_type": emp.rate_type,
+					"location": emp.location,
+					"mwe_loc": emp.mwe_loc,
 					#TERMINATION DATES
 					"date_terminated": emp.date_terminated,
 					"date_resigned": emp.date_resigned,
@@ -669,15 +774,27 @@ class AnnualizationProcessing(Document):
 					"nt_conv": 0,
 					"nt_med_cash": 0,
 					"nt_rice":0,
-					"nt_unifom":0,
+					"nt_uniform":0,
 					"nt_laundry":0,
 					"nt_med_ast":0,	
 					"total_conv": 0,				
 					"total_med_cash": 0,
 					"total_rice":0,
-					"total_unifom":0,
+					"total_uniform":0,
 					"total_laundry":0,
 					"total_med_ast":0,
+					"total_awards": 0,
+					"total_gifts": 0,
+					"total_prod": 0,
+					"ex_conv": 0,
+					"ex_med_cash": 0, 
+					"ex_rice": 0,
+					"ex_uniform": 0,
+					"ex_med_ast": 0,
+					"ex_laundry": 0, 
+					"ex_awards": 0, 
+					"ex_gifts": 0, 
+					"ex_prod": 0,
 					"excess_demi":0,
 					#NON-TAXABLE
 					"nt_basic": 0,
@@ -823,48 +940,3 @@ class AnnualizationProcessing(Document):
 			log += log_list
 
 		return log
-
-	def get_rates(self, total_yr_days, no_hours, rate, rate_type):
-		monthly_rate = 0.0
-		hourly_rate = 0.0
-		semi_rate = 0.0
-		daily_rate = 0.0
-		weekly_rate = 0.0
-		if rate > 0 and  total_yr_days > 0 and no_hours > 0:
-			month_days = (flt(total_yr_days, 8) / 12)
-			if rate_type == "Monthly Rate":
-				monthly_rate = flt(rate, 8)
-				semi_rate = flt(rate, 8) / 2
-				daily_rate = flt(rate, 8) / month_days
-				hourly_rate = ( flt(rate, 8) / month_days ) / no_hours
-				weekly_rate = (flt(rate, 8) / month_days) * 7
-
-			elif rate_type == "Hourly Rate":
-				monthly_rate = ( flt(rate, 8) * no_hours ) * month_days
-				semi_rate = ( flt(rate, 8) * no_hours ) * (month_days / 2)
-				daily_rate = flt(rate, 8) * no_hours
-				hourly_rate = flt(rate, 8)
-				weekly_rate = ( flt(rate, 8) * no_hours ) * 7
-
-			elif rate_type == "Daily Rate":
-				monthly_rate = flt(rate, 8) * month_days
-				semi_rate = flt(rate, 8) * (month_days / 2)
-				daily_rate = flt(rate, 8)
-				hourly_rate = flt(rate, 8) / no_hours
-				weekly_rate = flt(rate, 8) * 7
-			
-			elif rate_type == "Weekly Rate":
-				monthly_rate = (flt(rate, 8) / 7) * month_days
-				semi_rate = (flt(rate, 8) / 7) * (month_days / 2)
-				daily_rate = flt(rate, 8) / 7
-				hourly_rate = (flt(rate, 8) / 7) / no_hours
-				weekly_rate = flt(rate, 8)
-
-		return {
-			"monthly_rate": flt(monthly_rate, 8),
-			"semi_rate": flt(semi_rate, 8),
-			"daily_rate": flt(daily_rate, 8),
-			"hourly_rate": flt(hourly_rate, 8),
-			"weekly_rate": flt(weekly_rate, 8)
-		}
-
