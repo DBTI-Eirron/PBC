@@ -41,6 +41,11 @@ frappe.query_reports["SSS Premium Contribution"] = {
 			"default": "2",
 			"reqd": 1
 		},
+		{
+			"fieldname": "mpf",
+			"label": __("Show MPF"),
+			"fieldtype": "Check",
+		},
 	],
 
 	onload: function(report) {
