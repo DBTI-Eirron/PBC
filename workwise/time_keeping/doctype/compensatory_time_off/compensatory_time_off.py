@@ -213,7 +213,7 @@ class CompensatoryTimeOff(Document):
 
 		cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 		if cto_validity > 0:
-			current_credits_condition += " AND ('{0}' BETWEEN CTT.`target_date` AND DATE_SUB(CTT.`target_date`, INTERVAL -"+str(int(cto_validity))+" DAY)) ".format(str(getdate(entry['target_date'])))
+			current_credits_condition += " AND ('{0}' BETWEEN CTT.`target_date` AND DATE_SUB(CTT.`target_date`, INTERVAL -'{1}' DAY)) ".format( str(getdate(entry['target_date'])), str(cto_validity) )
 
 		cto_zero_out = frappe.db.get_single_value('Timekeeping Settings', 'cto_zero_out')
 		if cto_zero_out:
