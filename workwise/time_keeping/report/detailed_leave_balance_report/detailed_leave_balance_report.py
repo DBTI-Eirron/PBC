@@ -213,7 +213,7 @@ def get_data(filters):
 		
 		if dat[1]["entry"]:
 			data.append({
-				"employee_name": "",
+				"employee_name": dat[1]["employee_name"],
 				"leave_type": "<b>Remaining Balance",
 				"credits": dat[1]["valid_credits"] if dat[1]["valid_credits"] > 0 else 0,
 				"type": "</b>",
@@ -237,5 +237,8 @@ def get_conditions(filters):
 
 	if filters.get("leave_type"):
 		conditions.append("(LE.`leave_type`=%(leave_type)s OR LE.`deduct_credits_to`=%(leave_type)s)")
+
+	if filters.get("period_group"):
+		conditions.append("TE.period_group='{0}'".format(filters.get("period_group")))
 
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 

@@ -6,7 +6,7 @@ frappe.ui.form.on('Thirteenth Month Pay Processing', {
 		//Button Style
 		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.backgroundColor ="#81da63";
 		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.height ="30px";
-		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.width ="105px";
+		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.width ="135px";
 		document.querySelectorAll("[data-fieldname='process_payroll']")[1].style.color ="white";
 	},
 	setup: function(frm) {
@@ -18,6 +18,7 @@ frappe.ui.form.on('Thirteenth Month Pay Processing', {
 		frm.add_fetch("period", "payroll_date", "payroll_date");	
 		frm.add_fetch("period", "schedule", "schedule");
 		frm.add_fetch("period", "payroll_year", "payroll_year");
+		frm.add_fetch("period", "period_group", "period_group");
 	},
 	refresh: function(frm) {
 		frm.disable_save();

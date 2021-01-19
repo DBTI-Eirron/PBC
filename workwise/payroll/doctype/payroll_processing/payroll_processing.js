@@ -28,6 +28,7 @@ frappe.ui.form.on('Payroll Processing', {
 			return {
 				filters: {
 					"status": "Open",
+					"is_special": "0",
 					"company": frm.doc.company,
 				}
 			};

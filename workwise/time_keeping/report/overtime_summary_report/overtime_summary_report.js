@@ -28,6 +28,12 @@ frappe.query_reports["Overtime Summary Report"] = {
 			"label": __("To Date"),
 			"fieldtype": "Date",
 			"reqd": 1
-		}
+		},
+		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group",
+		},
 	]
 }

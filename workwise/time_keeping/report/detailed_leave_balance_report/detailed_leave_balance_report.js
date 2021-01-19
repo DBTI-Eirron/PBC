@@ -41,5 +41,11 @@ frappe.query_reports["Detailed Leave Balance Report"] = {
 			"fieldtype": "Link",
 			"options": "Leave Type"
 		},
+		{
+			"fieldname": "period_group",
+			"label": __("Period Group"),
+			"fieldtype": "Link",
+			"options": "Period Group"
+		},
 	]
 }

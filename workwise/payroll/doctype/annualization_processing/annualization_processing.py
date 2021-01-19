@@ -9,26 +9,32 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from frappe import _
 from frappe.model.document import Document
 from workwise.payroll.payroll_utils import get_transaction_map
+from workwise.payroll.payroll_utils import get_rates, get_location_map
 
 class AnnualizationProcessing(Document):
 	def process_annualization(self):
 		ss_list = []
 		self.validate_filters()
 		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
+		tax_nd_birtype = frappe.db.get_single_value("Payroll Settings", "tax_nd_birtype")
+		ceiling_month_pay = frappe.db.get_single_value("Payroll Settings", "ceiling_month_pay")
+
 
 		employees = self.get_employee(from_year, to_year)
 		registers = self.get_registers(from_year, to_year)
 		previous_bir = self.get_previous_bir(from_year, to_year)
 		lastpay = self.get_lastpay(from_year, to_year)
 
-		self.create_entries(employees, registers, previous_bir, lastpay, from_year, to_year, ss_list)
+		self.create_entries(employees, registers, previous_bir, lastpay, from_year, to_year, ss_list, tax_nd_birtype, ceiling_month_pay)
 
 		return self.create_log(ss_list)
 
 	def get_employee(self, from_year, to_year):
-		employees = frappe.db.sql("""SELECT TE.`name`, TE.tin, TE.full_name, TE.company, TE.tin, TE.date_hired, TE.date_retired, TE.date_resigned, 
-			TE.date_terminated, TE.date_contract_ended, TE.sensitivity 
-			FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name` 
+		employees = frappe.db.sql("""SELECT TE.`name`, TE.tin, TE.full_name, TE.company, TE.location, TE.mwe_loc, TE.date_hired, TE.date_retired, TE.date_resigned, 
+			TE.date_terminated, TE.date_contract_ended, TE.total_yr_days, TE.no_hours, TE.rate, TE.rate_type, TE.sensitivity, 
+			(SELECT COUNT(`name`) FROM `tabEmployee External Work History` WHERE parent = TE.`name`) as has_prev
+			FROM `tabEmployee` TE 
+			LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 			WHERE TE.company = %(company)s 
 			AND TE.payroll_schedule = %(schedule)s AND TE.date_hired < %(to_year)s {conditions} 
 			ORDER BY TE.full_name ASC """.format( conditions=self.get_employee_conditions() ),
@@ -47,7 +53,7 @@ class AnnualizationProcessing(Document):
 				PRE.pay_code, PRE.entry_type, PRE.is_taxable, PRE.amount, PR.bonus, PR.monthly_rate, PR.daily_rate FROM `tabPayroll Register Entries` PRE
 			INNER JOIN `tabPayroll Register` PR ON PR.`name` = PRE.`parent`
 			INNER JOIN `tabPayroll Period` PP ON PR.period = PP.`name`
-			WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s {conditions} 
+			WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s AND PR.on_hold = 0 {conditions} 
 			AND PP.payroll_year = %(payroll_year)s  """.format( conditions=self.get_conditions() ),
 				({ 
 					"company": self.company,
@@ -75,7 +81,7 @@ class AnnualizationProcessing(Document):
 	def get_lastpay(self, from_year, to_year):
 		lastpay = frappe.db.sql("""SELECT employee, LPR.transaction_type, LPR.amount, LPR.type FROM  `tabLast Pay Entry` LPE 
 			INNER JOIN `tabLast Pay Register` LPR ON LPR.parent = LPE.`name`
-			WHERE payroll_year = %(payroll_year)s {conditions} """.format( conditions=self.get_reg_conditions() ),
+			WHERE payroll_year = %(payroll_year)s AND remarks != 'On Hold Payroll' {conditions} """.format( conditions=self.get_reg_conditions() ),
 				({ 
 					"company": self.company,
 					"schedule": self.payroll_schedule,
@@ -129,82 +135,105 @@ class AnnualizationProcessing(Document):
 					_type = tr_map[reg.pay_code]['type'] 
 					is_tax = tr_map[reg.pay_code]['is_taxable']
 					if _type != "None":
-						#NON-TAXABlE BASIC 
-						if (btype == "Basic") and not is_tax:
-							emp_map[reg.employee].nt_basic += reg.amount if _type == "Income" else -(reg.amount)
+						#ALWAYS TAXABLES
+						if btype == "Basic":
+							emp_map[reg.employee].total_basic += reg.amount if _type == "Income" else -(reg.amount)
 						
-						if (btype == "Holiday") and not is_tax:
-							emp_map[reg.employee].nt_holiday += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Holiday":
+							emp_map[reg.employee].total_holiday += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Overtime") and not is_tax:
-							emp_map[reg.employee].nt_overtime += reg.amount if _type == "Income" else -(reg.amount)						
+						if btype == "Overtime":
+							emp_map[reg.employee].total_overtime += reg.amount if _type == "Income" else -(reg.amount)					
 
-						if (btype == "Night Differential") and not is_tax:
-							emp_map[reg.employee].nt_nightdiff += reg.amount if _type == "Income" else -(reg.amount)	
+						if btype == "Night Differential":
+							emp_map[reg.employee].total_nightdiff += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Hazard") and not is_tax:
-							emp_map[reg.employee].nt_hazard += reg.amount if _type == "Income" else -(reg.amount)	
+						if btype == "Hazard":
+							emp_map[reg.employee].total_hazard += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Deminimis") and not is_tax:
-							emp_map[reg.employee].nt_demi += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Other":
+							emp_map[reg.employee].total_other += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Contribution"): #Contribution is Reversed and Regardless if Taxable or not
-							emp_map[reg.employee].nt_contrib += -(reg.amount) if _type == "Income" else reg.amount 
+						if btype == "Representation":
+							emp_map[reg.employee].total_represent += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Other") and not is_tax:
-							emp_map[reg.employee].nt_other += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Transportation":
+							emp_map[reg.employee].total_transpo += reg.amount if _type == "Income" else -(reg.amount)
 
-						#TAXABLE BASIC SALARY
-						if (btype == "Basic" or btype == "Contribution") and is_tax: #Contribution Reduce Taxable Basic
-							emp_map[reg.employee].t_basic += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "COLA":
+							emp_map[reg.employee].total_cola += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Representation") and is_tax:
-							emp_map[reg.employee].t_represent += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Housing":
+							emp_map[reg.employee].total_housing += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Transportation") and is_tax:
-							emp_map[reg.employee].t_transpo += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Commission":
+							mp_map[reg.employee].total_comm += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "COLA") and is_tax:
-							emp_map[reg.employee].t_cola += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Profit Sharing":
+							emp_map[reg.employee].total_sharing += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Housing") and is_tax:
-							emp_map[reg.employee].t_housing += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Fees":
+							emp_map[reg.employee].total_fees += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Commission") and is_tax:
-							emp_map[reg.employee].t_comm += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Other Regular A":
+							emp_map[reg.employee].total_other_a += reg.amount if _type == "Income" else -(reg.amount)	
 
-						if (btype == "Profit Sharing") and is_tax:
-							emp_map[reg.employee].t_sharing += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Other Regular B":
+							emp_map[reg.employee].total_other_b += reg.amount if _type == "Income" else -(reg.amount)	
 
-						if (btype == "Fees") and is_tax:
-							emp_map[reg.employee].t_fees += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Other Supplementary A":
+							emp_map[reg.employee].total_other_sa += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Hazard") and is_tax:
-							emp_map[reg.employee].t_hazard += reg.amount if _type == "Income" else -(reg.amount)
-
-						if (btype == "Overtime") and is_tax:
-							emp_map[reg.employee].t_overtime += reg.amount if _type == "Income" else -(reg.amount)
-
-						if (btype == "Other Regular A") and is_tax:
-							emp_map[reg.employee].t_other_a += reg.amount if _type == "Income" else -(reg.amount)
-
-						if (btype == "Other Regular B") and is_tax:
-							emp_map[reg.employee].t_other_b += reg.amount if _type == "Income" else -(reg.amount)
-
-						if (btype == "Other Supplementary A") and is_tax:
-							emp_map[reg.employee].t_other_sa += reg.amount if _type == "Income" else -(reg.amount)
-
-						if (btype == "Other Supplementary B") and is_tax:
-							emp_map[reg.employee].t_other_sb += reg.amount if _type == "Income" else -(reg.amount)
+						if btype == "Other Supplementary B":
+							emp_map[reg.employee].total_other_sb += reg.amount if _type == "Income" else -(reg.amount)
 
 						#BENEFITS
 						if btype == "13th Month":
 							emp_map[reg.employee].total_benefits += reg.amount if _type == "Income" else -(reg.amount)
 
+						#Deminimis
+						if btype == "Deminimis":
+							emp_map[reg.employee].total_demi += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Leave Conversion":
+							emp_map[reg.employee].total_conv += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Medical Cash Allowance":
+							emp_map[reg.employee].total_med_cash += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Rice Subsidy":
+							emp_map[reg.employee].total_rice += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Uniform":
+							emp_map[reg.employee].total_uniform += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Actual Medical Assistance":
+							emp_map[reg.employee].total_med_ast += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Laundry Allowance":
+							emp_map[reg.employee].total_laundry += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Achievement Awards":
+							emp_map[reg.employee].total_awards += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Gifts":
+							emp_map[reg.employee].total_gifts += reg.amount if _type == "Income" else -(reg.amount)
+
+						if btype == "Productivity Incentive":
+							emp_map[reg.employee].total_prod += reg.amount if _type == "Income" else -(reg.amount)																					
+
+						#ALWAYS NOT TAXABLE
+						if (btype == "Contribution"): #Contribution is Reversed and Regardless if Taxable or not
+							emp_map[reg.employee].total_contrib += -(reg.amount) if _type == "Income" else reg.amount 
+
 						#TAX WITHHELD
 						if btype == "TAX":
-							emp_map[reg.employee].tax_withheld += -(reg.amount) if _type == "Income" else reg.amount
-							if first_day_jan <= getdate(reg.posting_date) <= last_day_nov:
+							#get tax witheld jan - dec
+							emp_map[reg.employee].tax_withheld += -(reg.amount) if _type == "Income" else reg.amount 
+							emp_map[reg.employee].total_tax += -(reg.amount) if _type == "Income" else reg.amount
+							
+							#get tax witheld jan - nov
+							if first_day_jan <= getdate(reg.posting_date) <= last_day_nov: 
 								emp_map[reg.employee].withheld_nov += -(reg.amount) if _type == "Income" else reg.amount
 
 		for d in previous_bir:
@@ -241,7 +270,6 @@ class AnnualizationProcessing(Document):
 
 				#withheld
 				emp_map[d.employee].prev_adj_withheld = d.sum_tatwa
-
 				emp_map[d.employee].prev_tax_due = d.sum_td
 				emp_map[d.employee].prev_tax_withheld = d.sum_tatwa
 				emp_map[d.employee].prev_withheld_nov = d.sum_tatwa
@@ -254,85 +282,110 @@ class AnnualizationProcessing(Document):
 					_type = lp.type
 					is_tax = tr_map[lp.transaction_type]['is_taxable']
 					if _type != "None":
-						#NON-TAXABlE BASIC 
-						if (btype == "Basic") and not is_tax:
-							emp_map[lp.employee].nt_basic += lp.amount if _type == "Add" else -(lp.amount)
+						#ALWAYS TAXABLES
+						if btype == "Basic":
+							emp_map[lp.employee].total_basic += lp.amount if _type == "Income" else -(lp.amount)
 						
-						if (btype == "Holiday") and not is_tax:
-							emp_map[lp.employee].nt_holiday += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Holiday":
+							emp_map[lp.employee].total_holiday += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "Overtime") and not is_tax:
-							emp_map[lp.employee].nt_overtime += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Overtime":
+							emp_map[lp.employee].total_overtime += lp.amount if _type == "Income" else -(lp.amount)					
 
-						if (btype == "Night Differential") and not is_tax:
-							emp_map[lp.employee].nt_nightdiff += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Night Differential":
+							emp_map[lp.employee].total_nightdiff += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "Hazard") and not is_tax:
-							emp_map[lp.employee].nt_hazard += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Hazard":
+							emp_map[lp.employee].total_hazard += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "Deminimis") and not is_tax:
-							emp_map[lp.employee].nt_demi += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Other":
+							emp_map[reg.employee].total_other += reg.amount if _type == "Income" else -(reg.amount)
 
-						if (btype == "Contribution"): #Contribution is Reversed and Regardless if Taxable or not
-							emp_map[lp.employee].nt_contrib += -(lp.amount) if _type == "Add" else lp.amount 
+						if btype == "Representation":
+							emp_map[lp.employee].total_represent += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "Other") and not is_tax:
-							emp_map[lp.employee].nt_other += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Transportation":
+							emp_map[lp.employee].total_transpo += lp.amount if _type == "Income" else -(lp.amount)
 
-						#TAXABLE BASIC SALARY
-						if (btype == "Basic" or btype == "Contribution") and is_tax: #Contribution Reduce Taxable Basic
-							emp_map[lp.employee].t_basic += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "COLA":
+							emp_map[lp.employee].total_cola += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "Representation") and is_tax:
-							emp_map[lp.employee].t_represent += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Housing":
+							emp_map[lp.employee].total_housing += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "Transportation") and is_tax:
-							emp_map[lp.employee].t_transpo += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Commission":
+							mp_map[lp.employee].total_comm += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "COLA") and is_tax:
-							emp_map[lp.employee].t_cola += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Profit Sharing":
+							emp_map[lp.employee].total_sharing += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "Housing") and is_tax:
-							emp_map[lp.employee].t_housing += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Fees":
+							emp_map[lp.employee].total_fees += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "Commission") and is_tax:
-							emp_map[lp.employee].t_comm += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Other Regular A":
+							emp_map[lp.employee].total_other_a += lp.amount if _type == "Income" else -(lp.amount)	
 
-						if (btype == "Profit Sharing") and is_tax:
-							emp_map[lp.employee].t_sharing += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Other Regular B":
+							emp_map[lp.employee].total_other_b += lp.amount if _type == "Income" else -(lp.amount)	
 
-						if (btype == "Fees") and is_tax:
-							emp_map[lp.employee].t_fees += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Other Supplementary A":
+							emp_map[lp.employee].total_other_sa += lp.amount if _type == "Income" else -(lp.amount)
 
-						if (btype == "Hazard") and is_tax:
-							emp_map[lp.employee].t_hazard += lp.amount if _type == "Add" else -(lp.amount)
-
-						if (btype == "Overtime") and is_tax:
-							emp_map[lp.employee].t_overtime += lp.amount if _type == "Add" else -(lp.amount)
-
-						if (btype == "Other Regular A") and is_tax:
-							emp_map[lp.employee].t_other_a += lp.amount if _type == "Add" else -(lp.amount)
-
-						if (btype == "Other Regular B") and is_tax:
-							emp_map[lp.employee].t_other_b += lp.amount if _type == "Add" else -(lp.amount)
-
-						if (btype == "Other Supplementary A") and is_tax:
-							emp_map[lp.employee].t_other_sa += lp.amount if _type == "Add" else -(lp.amount)
-
-						if (btype == "Other Supplementary B") and is_tax:
-							emp_map[lp.employee].t_other_sb += lp.amount if _type == "Add" else -(lp.amount)
+						if btype == "Other Supplementary B":
+							emp_map[lp.employee].total_other_sb += lp.amount if _type == "Income" else -(lp.amount)
 
 						#BENEFITS
 						if btype == "13th Month":
-							emp_map[lp.employee].total_benefits += lp.amount if _type == "Add" else -(lp.amount)
+							emp_map[lp.employee].total_benefits += lp.amount if _type == "Income" else -(lp.amount)
+
+						#Deminimis
+						if btype == "Deminimis":
+							emp_map[lp.employee].total_demi += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Leave Conversion":
+							emp_map[lp.employee].total_conv += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Medical Cash Allowance":
+							emp_map[lp.employee].total_med_cash += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Rice Subsidy":
+							emp_map[lp.employee].total_rice += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Uniform":
+							emp_map[lp.employee].total_uniform += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Actual Medical Assistance":
+							emp_map[lp.employee].total_med_ast += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Laundry Allowance":
+							emp_map[lp.employee].total_laundry += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Achievement Awards":
+							emp_map[lp.employee].total_awards += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Gifts":
+							emp_map[lp.employee].total_gifts += lp.amount if _type == "Income" else -(lp.amount)
+
+						if btype == "Productivity Incentive":
+							emp_map[lp.employee].total_prod += lp.amount if _type == "Income" else -(lp.amount)							
+
+						#ALWAYS NOT TAXABLE
+						if (btype == "Contribution"): #Contribution is Reversed and Regardless if Taxable or not
+							emp_map[lp.employee].total_contrib += -(lp.amount) if _type == "Income" else lp.amount 
 
 						#TAX WITHHELD
 						if btype == "TAX":
-							emp_map[lp.employee].tax_withheld += -(lp.amount) if _type == "Add" else lp.amount 
+							emp_map[lp.employee].tax_withheld += -(lp.amount) if _type == "Add" else lp.amount
+							emp_map[lp.employee].total_tax += -(lp.amount) if _type == "Add" else lp.amount
 
-	def create_entries(self, employees, registers, previous_bir, lastpay, from_year, to_year, ss_list):
+
+	def create_entries(self, employees, registers, previous_bir, lastpay, from_year, to_year, ss_list, tax_nd_birtype, ceiling_month_pay):
 		emp_map = self.get_employee_map(employees)
 		self.get_employee_wise_register(registers, previous_bir, lastpay, emp_map)
+		ceiling_deminimis = frappe.db.get_single_value("Payroll Settings", "ceiling_demi")
+		use_ceiling_demi = frappe.db.get_single_value("Payroll Settings", "use_ceiling_demi")
+		mwe_rate_basis = frappe.db.get_single_value("Payroll Settings", "mwe_rate_basis")
+		loc_map = get_location_map()
 
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			frappe.db.sql("""DELETE FROM `tabAnnualization Register` WHERE employee = %s AND payroll_year = %s """,(emp, self.payroll_year), as_dict=1)
@@ -340,11 +393,12 @@ class AnnualizationProcessing(Document):
 			ntax_total, amt_withheld, over_withheld = 0, 0, 0
 			exclude = 0
 			last_date_list = []
+			rates = get_rates(emp_dict)
 
 			emp_dict.from_date = getdate(from_year)
 			emp_dict.to_date = getdate(to_year)
-			if getdate(emp_dict.date_hired) > getdate(from_year):
-				emp_dict.from_date = getdate(emp_dict.date_hired)
+			if getdate(emp_dict.date_hired) > getdate(from_year) and emp_dict.has_prev > 0:
+					emp_dict.from_date = getdate(emp_dict.date_hired)
 
 			if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired or emp_dict.date_contract_ended:
 				if getdate(emp_dict.date_terminated) <= getdate(to_year):
@@ -371,28 +425,233 @@ class AnnualizationProcessing(Document):
 					exclude = 1
 
 			#Always reduce Basic to contrib
-			emp_dict['t_basic'] -= abs(emp_dict['nt_contrib'])
+			emp_dict.total_basic -= abs(emp_dict.total_contrib)
 
-			#calculate if other benefits is beyond the ceiling
-			if emp_dict.total_benefits > 90000:
-				emp_dict.nt_benefits  = 90000
-				emp_dict.t_benefits  = abs(emp_dict.total_benefits - 90000)
+
+			#get excess deminimis
+			if use_ceiling_demi:
+				emp_dict.total_conv=0
+				emp_dict.med_cash=0
+				emp_dict.total_med_cash=0
+				emp_dict.total_rice=0
+				emp_dict.total_uniform=0
+				emp_dict.total_med_ast=0
+				emp_dict.total_laundry=0
+				emp_dict.total_awards=0
+				emp_dict.total_gifts=0
+				emp_dict.total_prod=0
+
+				excess_cl_demi=0
+				if emp_dict.total_demi > flt(ceiling_deminimis, 8):
+					excess_cl_demi = flt(emp_dict.total_demi,8) - flt(ceiling_deminimis, 8)
+					nt_cl_demi = flt(ceiling_deminimis, 8)
+				else:
+					nt_cl_demi = flt(emp_dict.total_demi, 8)
+
+				final_demi = nt_cl_demi
+				total_excess_demi = excess_cl_demi
+				emp_dict.excess_demi = total_excess_demi
+
 			else:
-				emp_dict.nt_benefits = emp_dict.total_benefits
+				emp_dict.total_demi = 0
+				max_conversion = flt(rates['daily_rate'] * 10, 8)
+				excess_conv=0
+				if emp_dict.total_conv > max_conversion:
+					excess_conv = flt(emp_dict.total_conv,8) - flt(max_conversion, 8)
+					nt_conv = max_conversion
+				else:
+					nt_conv = flt(emp_dict.total_conv, 0)
 
-			#CURRENT TOTALS
-			emp_dict.non_taxable_total = (emp_dict.nt_basic + emp_dict.nt_holiday + emp_dict.nt_overtime + emp_dict.nt_nightdiff + emp_dict.nt_hazard + 
-				emp_dict.nt_benefits + emp_dict.nt_demi + emp_dict.nt_contrib + emp_dict.nt_other)
+				excess_med_cash=0
+				if emp_dict.total_med_cash > 3000:
+					excess_med_cash = flt(emp_dict.total_med_cash,8) - flt(3000, 8)
+					nt_med_cash = 3000
+				else:
+					nt_med_cash = flt(emp_dict.total_med_cash, 0)
 
-			emp_dict.taxable_total = (emp_dict.t_basic + emp_dict.t_represent + emp_dict.t_transpo + emp_dict.t_cola + emp_dict.t_housing + emp_dict.t_comm + emp_dict.t_sharing + 
-				emp_dict.t_fees + emp_dict.t_benefits + emp_dict.t_hazard + emp_dict.t_overtime + emp_dict.t_other_a + emp_dict.t_other_b + emp_dict.t_other_sa + emp_dict.t_other_sb)
+				excess_rice=0
+				if emp_dict.total_rice > 24000:
+					excess_rice = flt(emp_dict.total_rice,8) - flt(24000, 8)
+					nt_rice = 24000
+				else:
+					nt_rice = flt(emp_dict.total_rice, 0)
+				
+				excess_uniform=0
+				if emp_dict.total_uniform > 6000:
+					excess_uniform = flt(emp_dict.total_uniform,8) - flt(6000, 8)
+					nt_uniform = 6000
+				else:
+					nt_uniform = flt(emp_dict.total_uniform, 0)
 
-			emp_dict.gross_compensation = emp_dict.non_taxable_total + emp_dict.taxable_total
-			emp_dict['item_19'] = emp_dict.gross_compensation
+				excess_med_ast=0
+				if emp_dict.total_med_ast > 10000:
+					excess_med_ast = flt(emp_dict.total_med_ast,8) - flt(10000, 8)
+					nt_med_ast = 10000
+				else:
+					nt_med_ast = flt(emp_dict.total_med_ast, 0)
+
+				excess_laundry=0
+				if emp_dict.total_laundry > 3600:
+					excess_laundry = flt(emp_dict.total_laundry,8) - flt(3600, 8)
+					nt_laundry = 3600
+				else:
+					nt_laundry = flt(emp_dict.total_laundry	, 0)
+
+				excess_awards=0
+				if emp_dict.total_awards > 10000:
+					excess_awards = flt(emp_dict.total_awards,8) - flt(10000, 8)
+					nt_awards = 10000
+				else:
+					nt_awards = flt(emp_dict.total_awards	, 0)
+
+				excess_gifts=0
+				if emp_dict.total_gifts > 5000:
+					excess_gifts = flt(emp_dict.total_gifts,8) - flt(5000, 8)
+					nt_gifts = 5000
+				else:
+					nt_gifts = flt(emp_dict.total_gifts	, 0)
+
+				excess_prod=0
+				if emp_dict.total_prod > 10000:
+					excess_prod = flt(emp_dict.total_prod,8) - flt(10000, 8)
+					nt_prod = 10000
+				else:
+					nt_prod = flt(emp_dict.total_prod	, 0)												
+				
+
+				emp_dict.ex_conv = excess_conv
+				emp_dict.ex_med_cash = excess_med_cash 
+				emp_dict.ex_rice = excess_rice
+				emp_dict.ex_uniform = excess_uniform 
+				emp_dict.ex_med_ast = excess_med_ast 
+				emp_dict.ex_laundry = excess_laundry 
+				emp_dict.ex_awards = excess_awards 
+				emp_dict.ex_gifts = excess_gifts
+				emp_dict.ex_prod = excess_prod
+				
+				final_demi = nt_conv + nt_med_cash + nt_rice + nt_uniform + nt_med_ast + nt_laundry + nt_awards + nt_gifts + nt_prod
+				total_excess_demi = excess_conv + excess_med_cash + excess_rice + excess_uniform + excess_med_ast + excess_laundry + excess_awards + excess_gifts + excess_prod
+				emp_dict.excess_demi = total_excess_demi
 
 
+			#calculate if other benefits is beyond the ceiling and taxable benefits
+			combined_benefits = emp_dict.total_benefits + total_excess_demi
+			t_combined_benefits = 0
+			nt_combined_benefits = 0
+			exceed_ceiling = 0
+
+			if flt(combined_benefits, 8) > flt(ceiling_month_pay, 8):
+				nt_combined_benefits = flt(ceiling_month_pay, 8)
+				t_combined_benefits = abs(flt(combined_benefits, 8) - flt(ceiling_month_pay, 8))
+				exceed_ceiling = 1
+			else:
+				#assign as non taxable
+				nt_combined_benefits = emp_dict.total_benefits + total_excess_demi
+
+			#check for MWE
+			emp_dict.minimum_wage = 0
+			mwe = 0
+			if emp_dict.mwe_loc:
+				location = emp_dict.mwe_loc
+			else:
+				location = emp_dict.location
+
+			if mwe_rate_basis == "Daily Rate":
+				if rates['daily_rate'] < flt(loc_map[location]['min_wage'], 8):
+					mwe = 1
+
+			elif mwe_rate_basis == "Dynamic":
+				if emp_dict.rate_type in ["Daily Rate","Hourly Rate","Weekly Rate"]:
+					if rates['daily_rate'] < flt(loc_map[location]['min_wage'], 8):
+						mwe = 1
+				else:
+					smw = flt(loc_map[location]['min_wage'], 8) * flt(emp_dict.total_yr_days, 8) / 12
+					if rates['monthly_rate'] < smw:
+						mwe = 1
+			else:
+				smw = flt(loc_map[location]['min_wage'], 8) * flt(emp_dict.total_yr_days, 8) / 12
+				if rates['monthly_rate'] < smw:
+					mwe = 1
+
+			if mwe == 1:
+				emp_dict.minimum_wage = 1
+				#Fixed Exempt
+				emp_dict.nt_demi = final_demi
+
+				#exempt from smw
+				emp_dict.nt_basic = emp_dict.total_basic
+				emp_dict.nt_holiday = emp_dict.total_holiday
+				emp_dict.nt_overtime = emp_dict.total_overtime
+				emp_dict.nt_nightdiff = emp_dict.total_nightdiff
+				emp_dict.nt_hazard = emp_dict.total_hazard
+
+				#maintain taxable permanents
+				emp_dict.t_represent = emp_dict.total_represent
+				emp_dict.t_transpo = emp_dict.total_transpo
+				emp_dict.t_cola = emp_dict.total_cola
+				emp_dict.t_housing = emp_dict.total_housing
+				emp_dict.t_comm = emp_dict.total_comm
+				emp_dict.t_sharing = emp_dict.total_sharing
+				emp_dict.t_fees = emp_dict.total_fees
+				emp_dict.t_other_a = emp_dict.total_other_a
+				emp_dict.t_other_b = emp_dict.total_other_b
+				emp_dict.t_other_sa = emp_dict.total_other_sa
+				emp_dict.t_other_sb = emp_dict.total_other_sb
+
+				emp_dict.nt_contrib = emp_dict.total_contrib
+				emp_dict.nt_other = 0
+
+				if exceed_ceiling == 1:
+					emp_dict.nt_benefits = nt_combined_benefits
+					emp_dict.t_benefits = t_combined_benefits					
+				else:
+					emp_dict.nt_benefits = emp_dict.total_benefits
+
+			else:
+				#Fixed Exempt
+				emp_dict.nt_demi = final_demi
+
+				#set contrib always non-tax
+				emp_dict.nt_contrib = emp_dict.total_contrib
+
+				emp_dict.t_basic = emp_dict.total_basic
+				emp_dict.t_overtime = emp_dict.total_overtime
+				#emp_dict.t_nightdiff = emp_dict.total_nightdiff no taxable ND in 2316
+				emp_dict.t_hazard = emp_dict.total_hazard
+				emp_dict.t_represent = emp_dict.total_represent
+				emp_dict.t_transpo = emp_dict.total_transpo
+				emp_dict.t_cola = emp_dict.total_cola
+				emp_dict.t_housing = emp_dict.total_housing
+				emp_dict.t_comm = emp_dict.total_comm
+				emp_dict.t_sharing = emp_dict.total_sharing
+				emp_dict.t_fees = emp_dict.total_fees
+				emp_dict.t_other_a = emp_dict.total_other_a
+				emp_dict.t_other_b = emp_dict.total_other_b
+				emp_dict.t_other_sa = emp_dict.total_other_sa
+				emp_dict.t_other_sb = emp_dict.total_other_sb
+
+				if exceed_ceiling == 1:
+					emp_dict.nt_benefits = nt_combined_benefits
+					emp_dict.t_benefits = t_combined_benefits					
+				else:
+					emp_dict.nt_benefits = emp_dict.total_benefits
+
+				#add taxable ND and Other to benefits after benefit calc,because there is no taxable ND and Other field
+				if tax_nd_birtype == "Other Regular A":
+					emp_dict.t_other_a += emp_dict.total_nightdiff + emp_dict.total_other
+				elif tax_nd_birtype == "Other Regular B":
+					emp_dict.t_other_b += emp_dict.total_nightdiff + emp_dict.total_other
+				elif tax_nd_birtype == "Other Supplementary A":
+					emp_dict.t_other_sa += emp_dict.total_nightdiff + emp_dict.total_other
+				elif tax_nd_birtype == "Other Supplementary B":
+					emp_dict.t_other_sb += emp_dict.total_nightdiff + emp_dict.total_other
+				else:
+					emp_dict.t_benefits += emp_dict.total_nightdiff + emp_dict.total_other
+
+				emp_dict.t_benefits += emp_dict.total_holiday #taxable holiday on taxable add as benefits
 
 			#PREVIOUS TOTALS
+			#Previous totals are straight up
 			emp_dict.prev_non_taxable_total = (emp_dict.pnt_basic + emp_dict.pnt_holiday + emp_dict.pnt_overtime + emp_dict.pnt_nightdiff + emp_dict.pnt_hazard + 
 				emp_dict.pnt_benefits + emp_dict.pnt_demi + emp_dict.pnt_contrib + emp_dict.pnt_other)
 
@@ -400,7 +659,27 @@ class AnnualizationProcessing(Document):
 				emp_dict.pt_fees + emp_dict.pt_benefits + emp_dict.pt_hazard + emp_dict.pt_overtime + emp_dict.pt_other_a + emp_dict.pt_other_b + emp_dict.pt_other_sa + emp_dict.pt_other_sb)
 
 			emp_dict.prev_gross_compensation = emp_dict.prev_non_taxable_total + emp_dict.prev_taxable_total
+			emp_dict['item_22'] = emp_dict.prev_taxable_total
 
+
+			#CURRENT TOTAL
+			#Get Total Non-Taxable
+			emp_dict.non_taxable_total = (emp_dict.nt_basic + emp_dict.nt_holiday + emp_dict.nt_overtime + emp_dict.nt_nightdiff + emp_dict.nt_hazard + 
+				emp_dict.nt_benefits + emp_dict.nt_demi + emp_dict.nt_contrib + emp_dict.nt_other)	
+			emp_dict['item_20'] = emp_dict.non_taxable_total
+
+			#Get Total Taxable
+			emp_dict.taxable_total = (emp_dict.t_basic + emp_dict.t_represent + emp_dict.t_transpo + emp_dict.t_cola + emp_dict.t_housing + emp_dict.t_comm + emp_dict.t_sharing + 
+				emp_dict.t_fees + emp_dict.t_benefits + emp_dict.t_hazard + emp_dict.t_nightdiff + emp_dict.t_overtime + emp_dict.t_other_a + emp_dict.t_other_b + emp_dict.t_other_sa + emp_dict.t_other_sb)
+			emp_dict['item_21'] = emp_dict.taxable_total
+
+			#Get Gross Compensation
+			emp_dict.gross_compensation = emp_dict.non_taxable_total + emp_dict.taxable_total
+			emp_dict['item_19'] = emp_dict.gross_compensation
+
+			emp_dict['item_23'] = emp_dict.item_21 + emp_dict.item_22
+
+			#Get Tax Due
 			taxable = emp_dict.taxable_total + emp_dict.prev_taxable_total
 			table = frappe.db.sql("""SELECT prescribed, compensatory, percentage FROM `tabTRAIN Table`
 				WHERE %s >= beginning AND %s <= ending AND frequency = %s LIMIT 1""",(( taxable ), ( taxable ), 'Yearly'), as_dict=True )
@@ -408,10 +687,9 @@ class AnnualizationProcessing(Document):
 			for t in table:
 				tax_due = (flt( ( taxable ) , 8) - flt(t.compensatory, 8)) * flt(flt(t.percentage, 8) / 100 , 8)
 				if t.prescribed > 0:
-					tax_due += flt(t.prescribed, 8)	
+					tax_due += flt(t.prescribed, 8)
 
 			emp_dict.tax_due = tax_due
-
 			#check if tax is to be refunded or to be paid
 			withheld = emp_dict.tax_due - (emp_dict.tax_withheld + emp_dict.prev_tax_withheld)
 
@@ -424,30 +702,6 @@ class AnnualizationProcessing(Document):
 				emp_dict.adj_over_withheld = abs(withheld)
 			else:
 				emp_dict.adj_withheld = 0
-
-			if taxable < 250000:
-				emp_dict.minimum_wage = 1
-			else:
-				emp_dict.minimum_wage = 0
-
-			if emp_dict.minimum_wage == 1:
-				#transfer field values
-				emp_dict.nt_basic  = emp_dict.t_basic 
-				emp_dict.nt_hazard = emp_dict.t_hazard 
-				emp_dict.nt_overtime = emp_dict.t_overtime
-				emp_dict['item_20'] = emp_dict.non_taxable_total + emp_dict.t_basic + emp_dict.t_hazard + emp_dict.t_overtime
-				#emp_dict.non_taxable_total += emp_dict.taxable_total
-				#zero out transfered fields
-				emp_dict.t_basic = 0
-				emp_dict.t_hazard = 0
-				emp_dict.t_overtime = 0
-				#emp_dict.taxable_total = 0
-			else:
-				emp_dict['item_20'] = emp_dict.non_taxable_total
-			
-			emp_dict['item_21'] = emp_dict.item_19 - emp_dict.item_20
-			emp_dict['item_22'] = emp_dict.prev_taxable_total
-			emp_dict['item_23'] = emp_dict.item_21 + emp_dict.item_22
 
 			if exclude != 1:
 				register = frappe.new_doc("Annualization Register")
@@ -468,6 +722,13 @@ class AnnualizationProcessing(Document):
 					"date_hired": emp.date_hired,
 					"from_date": None,
 					"to_date": None,
+					"has_prev":emp.has_prev,
+					"total_yr_days": emp.total_yr_days,
+					"no_hours": emp.no_hours,
+					"rate": emp.rate,
+					"rate_type": emp.rate_type,
+					"location": emp.location,
+					"mwe_loc": emp.mwe_loc,
 					#TERMINATION DATES
 					"date_terminated": emp.date_terminated,
 					"date_resigned": emp.date_resigned,
@@ -477,6 +738,11 @@ class AnnualizationProcessing(Document):
 					"with_previous": 0,
 					"is_terminated": 0,
 					"minimum_wage": 0,
+					#OTHER
+					"factor": emp.total_yr_days,
+					"per_day": 0,
+					"per_month": 0,
+					"per_year": 0,				
 					#PREVIOUS NON-TAXABLE
 					"pnt_basic": 0,
 					"pnt_holiday": 0,
@@ -504,6 +770,32 @@ class AnnualizationProcessing(Document):
 					"pt_other_b": 0,
 					"pt_other_sa": 0,
 					"pt_other_sb": 0,
+					#DEMI
+					"nt_conv": 0,
+					"nt_med_cash": 0,
+					"nt_rice":0,
+					"nt_uniform":0,
+					"nt_laundry":0,
+					"nt_med_ast":0,	
+					"total_conv": 0,				
+					"total_med_cash": 0,
+					"total_rice":0,
+					"total_uniform":0,
+					"total_laundry":0,
+					"total_med_ast":0,
+					"total_awards": 0,
+					"total_gifts": 0,
+					"total_prod": 0,
+					"ex_conv": 0,
+					"ex_med_cash": 0, 
+					"ex_rice": 0,
+					"ex_uniform": 0,
+					"ex_med_ast": 0,
+					"ex_laundry": 0, 
+					"ex_awards": 0, 
+					"ex_gifts": 0, 
+					"ex_prod": 0,
+					"excess_demi":0,
 					#NON-TAXABLE
 					"nt_basic": 0,
 					"nt_holiday": 0,
@@ -526,11 +818,33 @@ class AnnualizationProcessing(Document):
 					"t_benefits": 0,
 					"t_hazard": 0,
 					"t_overtime": 0,
+					"t_nightdiff": 0,
 					"t_other_a": 0,
 					"t_other_b": 0,
 					"t_other_sa": 0,
 					"t_other_sb": 0,
 					#TOTALS
+					"total_basic": 0,
+					"total_holiday": 0,
+					"total_overtime": 0,
+					"total_nightdiff": 0,
+					"total_contrib": 0,
+					"total_benefits": 0,
+					"total_demi": 0,
+					"total_fees": 0,
+					"total_hazard": 0,					
+					"total_comm": 0,
+					"total_sharing": 0,
+					"total_housing": 0,
+					"total_cola": 0,
+					"total_tax": 0,
+					"total_transpo": 0,		
+					"total_represent": 0,		
+					"total_other": 0,
+					"total_other_a": 0,
+					"total_other_b": 0,
+					"total_other_sa": 0,
+					"total_other_sb": 0,					
 					"gross_compensation": 0,
 					"total_benefits": 0,
 					"non_taxable_total": 0,

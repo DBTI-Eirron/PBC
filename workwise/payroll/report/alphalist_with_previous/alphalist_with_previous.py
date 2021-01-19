@@ -42,27 +42,32 @@ def get_data(filters, registers):
 			"1": seq,
 			"2": d.tax_id,
 			"3": d.employee_name,
-			"4a": '{:0,.2f}'.format( flt(d.gross_compensation,8) ),
-			"4b": '{:0,.2f}'.format( flt(d.pnt_benefits,8) ), #prev_ntax_benefits
-			"4c": '{:0,.2f}'.format( flt(d.pnt_demi,8) ), #prev_ntax_demi
-			"4d": '{:0,.2f}'.format( flt(d.pnt_contrib,8) ), #prev_ntax_contrib
-			"4e": '{:0,.2f}'.format( flt(d.pnt_other,8) ), #prev salaries and other forms of compensation
-			"4f": '{:0,.2f}'.format( flt(d.prev_non_taxable_total,8) ), #prev_ntax_total
+			"4a": '{:0,.2f}'.format( flt(d.prev_gross_compensation + d.gross_compensation,8) ),
+			#Previous Non Taxable
+			"4b": '{:0,.2f}'.format( flt(d.pnt_benefits,8) ),
+			"4c": '{:0,.2f}'.format( flt(d.pnt_demi,8) ),
+			"4d": '{:0,.2f}'.format( flt(d.pnt_contrib,8) ),
+			"4e": '{:0,.2f}'.format( flt(d.pnt_basic + d.pnt_holiday + d.pnt_overtime + d.pnt_nightdiff + d.pnt_hazard + d.pnt_other,8) ),
+			"4f": '{:0,.2f}'.format( flt(d.prev_non_taxable_total,8) ),
+			#Previous Taxable
 			"4g": '{:0,.2f}'.format( flt(d.pt_basic,8) ),
-			"4h": '{:0,.2f}'.format( flt(d.pt_benefits,8) ), #prev_tax_benefits
-			"4i": '{:0,.2f}'.format( flt(prev_taxable_compensation,8) ), #prev_tax_other
-			"4j": '{:0,.2f}'.format( flt(d.prev_taxable_total,8) ), #prev_tax_total
+			"4h": '{:0,.2f}'.format( flt(d.pt_benefits,8) ),
+			"4i": '{:0,.2f}'.format( flt(prev_taxable_compensation,8) ),
+			"4j": '{:0,.2f}'.format( flt(d.prev_taxable_total,8) ),
+			#Current Non Taxable
 			"4k": '{:0,.2f}'.format( flt(d.nt_benefits,8) ),
 			"4l": '{:0,.2f}'.format( flt(d.nt_demi,8) ),
 			"4m": '{:0,.2f}'.format( flt(d.nt_contrib,8) ),
-			"4n": '{:0,.2f}'.format( flt(d.nt_other,8) ),
-			"4o": '{:0,.2f}'.format( flt(d.non_taxable_total,8) ),  
+			"4n": '{:0,.2f}'.format( flt(d.nt_basic + d.nt_holiday + d.nt_overtime + d.nt_nightdiff + d.nt_hazard + d.nt_other,8) ),
+			"4o": '{:0,.2f}'.format( flt(d.non_taxable_total,8) ), 
+			#Current Taxble
 			"4p": '{:0,.2f}'.format( flt(d.t_basic,8) ),
 			"4q": '{:0,.2f}'.format( flt(d.t_benefits,8) ),
 			"4r": '{:0,.2f}'.format( flt(taxable_compensation,8) ),
 			"4s": '{:0,.2f}'.format( flt(d.taxable_total,8) ),
-			"4t": '{:0,.2f}'.format( flt((d.taxable_total + d.prev_taxable_total),8) ), #grand_tax_total
-			"7": '{:0,.2f}'.format( flt(0.0,8) ), #grand_tax_total
+			#Totals
+			"4t": '{:0,.2f}'.format( flt((d.taxable_total + d.prev_taxable_total),8) ),
+			"7": '{:0,.2f}'.format( flt(0.0,8) ),
 			"5": '{:0,.2f}'.format( flt(d.tax_due,8) ),
 			"6a": '{:0,.2f}'.format( flt(d.prev_withheld_nov, 8)),
 			"6b": '{:0,.2f}'.format( flt(d.withheld_nov,8) ),
@@ -172,7 +177,7 @@ def get_headers(filters, data):
 		"4p": "<b> TAXABLE </b>",
 		"4t": "<b> TOTAL </b>",
 		"6a": "<b> TAX WITHHELD </b>",
-		"7a": "<b> YEAR END ADJUSTMENT </b>",
+		"7a": "<b> YEAR END ADJUSTMENT (10a or 10b) </b>",
 	})
 
 	data.append({
@@ -295,6 +300,9 @@ def get_headers(filters, data):
 		"5":  "<b> (5) </b>",
 		"6a": "<b> (6a) </b>",
 		"6b":  "<b> (6b) </b>",
+		"7a": "<b> (7a)=(5)-(6a+6b) </b>",
+		"7b": "<b> (7b)=(6a+6b)-(5) </b>",
+		"8": "<b> (8)=(6b+7a)or(6b-7b) </b>",
 	})
 
 def get_columns(filters):

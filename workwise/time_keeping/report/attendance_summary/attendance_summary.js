@@ -5,7 +5,7 @@ frappe.query_reports["Attendance Summary"] = {
 			"label": __("Payroll Period"),
 			"fieldtype": "Link",
 			"options": "Payroll Period",
-			"reqd": 1
+			"reqd": 1,
 		},
 		{
 			"fieldname": "employee",
@@ -96,3 +96,11 @@ frappe.query_reports["Attendance Summary"] = {
 	"parent_field": "parent_account",
 	"initial_depth": 100*/
 };
+
+//Get Current Period
+frappe.call({
+	method: "workwise.time_keeping.report.attendance_summary.attendance_summary.get_current_period",
+	callback: function(r) {
+		frappe.query_reports["Attendance Summary"]["filters"][0]["default"] = r.message
+	}
+});

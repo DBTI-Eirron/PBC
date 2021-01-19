@@ -126,6 +126,9 @@ def get_conditions(filters):
 	if filters.get("location"):
 		conditions.append("`location`=%(location)s")
 
+	if filters.get("period_group"):
+		conditions.append("`period_group`='{0}'".format(filters.get("period_group")))
+
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 
 def get_query_conditions(filters):

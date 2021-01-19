@@ -28,6 +28,9 @@ class OvertimeApplication(Document):
 		self.validate_duplicate_ot_application()
 		self.validate_cto_strict()
 
+	def on_update(self):
+		validate_reject_cancel_own_application(self)
+
 	def on_submit(self):
 		validate_approve_own_application(self)
 		get_approver_and_date(self)

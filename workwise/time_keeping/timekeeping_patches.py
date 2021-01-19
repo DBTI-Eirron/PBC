@@ -942,65 +942,122 @@ def fix_lbentry_fromdate_partial():
 	#		frappe.db.sql(""" UPDATE `tabLB Entry` SET from_date=%s WHERE `employee`=%s AND `to_date`=%s AND `leave_type`=%s AND created_from = 'Execute Script' """,(oldlb[0].from_date, lb.employee, lb.to_date, lb.leave_type), as_dict=1)
 
 def cto_multi_file():
-	old_ctos = frappe.db.sql(""" SELECT * FROM `tabCompensatory Time Off` WHERE `name` NOT IN (SELECT `parent` FROM `tabCompensatory Time Off Targets`) """, as_dict=1)
+	old_ctos = frappe.db.sql(""" SELECT * FROM `tabCompensatory Time Off` """, as_dict=1)
 
 	if old_ctos:
 		for old in old_ctos:
+			from_date = None
+			to_date = None
+			from_time = None
+			to_time = None
+			total_credits_earned = None
+			total_required_credits = None
+			total_credits_used = None
+			total_break_hours = None
+			total_hours = None
+			total_balance = None
+
 			if old.type == "File":
-				cto_table = frappe.new_doc("Compensatory Time Off Targets")
-				cto_table.update({
-					'parent': old.name,
-					'target_date': old.file_target_date,
-					'is_previous': old.is_previous,
-					'from_date': old.file_from_date,
-					'to_date': old.file_to_date,
-					'from_time': old.file_from_time,
-					'to_time': old.file_to_time,
-					'break_hours': old.break_hours,
-					'cto_hours': old.total_hours,
-					'credits_earned': old.credits_earned,
-					'credits_used': old.credits_used,
-					'balance': old.balance,
-					'actual_in': old.file_actual_in,
-					'actual_out': old.file_actual_out,
-				})
-				cto_table.flags.ignore_permissions = True
-				cto_table.flags.ignore_validate = True
-				cto_table.insert()
+				if old.file_target_date and old.file_from_date and old.file_to_date and old.file_from_time and old.file_to_time:
+					cto_table = frappe.new_doc("Compensatory Time Off Targets")
+					cto_table.update({
+						'parentfield': 'cto_targets',
+						'parenttype': 'Compensatory Time Off',
+						'parent': old.name,
+						'target_date': old.file_target_date,
+						'is_previous': old.is_previous,
+						'from_date': old.file_from_date,
+						'to_date': old.file_to_date,
+						'from_time': old.file_from_time,
+						'to_time': old.file_to_time,
+						'break_hours': old.break_hours,
+						'cto_hours': old.total_hours,
+						'credits_earned': old.credits_earned,
+						'credits_used': old.credits_used,
+						'balance': old.balance,
+						'actual_in': old.file_actual_in,
+						'actual_out': old.file_actual_out,
+						#'docstatus': old.docstatus,
+					})
+					cto_table.flags.ignore_permissions = True
+					cto_table.flags.ignore_validate = True
+					cto_table.insert()
+					from_date = old.file_from_date
+					to_date = old.file_to_date
+					from_time = old.file_from_time
+					to_time = old.file_to_time
+					total_credits_earned = old.credits_earned
+					total_required_credits = None
+					total_credits_used = old.credits_used
+					total_break_hours = old.break_hours
+					total_hours = old.total_hours
+					total_balance = old.balance
 
 			if old.type == "Use":
-				row = {
-					'parent': old.name,
-					'target_date': old.file_target_date,
-					'is_previous': old.is_previous,
-					'from_date': old.file_from_date,
-					'to_date': old.file_to_date,
-					'from_time': old.file_from_time,
-					'to_time': old.file_to_time,
-					'filed_cto': old.filed_cto,
-					'break_hours': old.break_hours,
-					'cto_hours': old.total_hours,
-					'credits_earned': old.credits_earned,
-					#'required_credits': ,
-					#'actual_in': ,
-					#'actual_out': ,
-				}
+				if  old.use_target_date and old.use_from_date and old.use_to_date and old.use_fromtime and old.use_totime:
+					cto_table = frappe.new_doc("Compensatory Time Off Targets")
+					cto_table.update({
+						'parentfield': 'cto_targets',
+						'parenttype': 'Compensatory Time Off',
+						'parent': old.name,
+						'target_date': old.use_target_date,
+						'is_previous': old.is_previous,
+						'from_date': old.use_from_date,
+						'to_date': old.use_to_date,
+						'from_time': old.use_fromtime,
+						'to_time': old.use_totime,
+						'filed_cto': old.filed_cto,
+						'break_hours': old.use_break_hours,
+						'cto_hours': old.use_total_hours,
+						'credits_earned': old.total_credits_earned,
+						'required_credits': old.required_credits,
+						#'docstatus': old.docstatus,
+					})
+					cto_table.flags.ignore_permissions = True
+					cto_table.flags.ignore_validate = True
+					cto_table.insert()
+					from_date = old.use_from_date
+					to_date = old.use_to_date
+					from_time = old.use_fromtime
+					to_time = old.use_totime
+					total_credits_earned = old.total_credits_earned
+					total_required_credits = old.required_credits
+					total_credits_used = old.credits_used
+					total_break_hours = old.use_break_hours
+					total_hours = old.use_total_hours
+					total_balance = old.balance
+
+			if from_date:
+				from_date = getdate(from_date)
+			if to_date:
+				to_date = getdate(to_date)
 				
 			frappe.db.sql(""" UPDATE `tabCompensatory Time Off` SET 
+				`from_date` = %(from_date)s,
+				`to_date` = %(to_date)s,
+				`from_time` = %(from_time)s,
+				`to_time` = %(to_time)s,
 				`total_credits_earned`= %(total_credits_earned)s,
 				`total_required_credits`= %(total_required_credits)s,
 				`total_credits_used`= %(total_credits_used)s,
 				`total_break_hours`= %(total_break_hours)s,
 				`total_hours`= %(total_hours)s,
 				`total_balance`= %(total_balance)s WHERE `name` = %(name)s """,{
-				'total_credits_earned': old.credits_earned,
-				'total_required_credits': old.required_credits,
-				'total_credits_used': old.credits_used,
-				'total_break_hours': old.break_hours,
-				'total_hours': old.total_hours,
-				'total_balance': old.balance,
+				'from_date': from_date,
+				'to_date': to_date,
+				'from_time': from_time,
+				'to_time': to_time,
+				'total_credits_earned': total_credits_earned,
+				'total_required_credits': total_required_credits,
+				'total_credits_used': total_credits_used,
+				'total_break_hours': total_break_hours,
+				'total_hours': total_hours,
+				'total_balance': total_balance,
 				'name': old.name,
 			}, as_dict=True)
+
+		frappe.db.sql(""" UPDATE `tabCompensatory Time Off Targets` CTT INNER JOIN `tabCompensatory Time Off` CTO ON CTT.`parent`=CTO.`name`
+			SET CTT.docstatus = CTO.docstatus WHERE CTT.docstatus != CTO.docstatus """, as_dict=True)
 
 def add_approved_on_and_by():
 	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application"]
@@ -1016,3 +1073,222 @@ def update_failed_approved_docstatus():
 		table = str(table)
 
 		frappe.db.sql(""" UPDATE """+table+""" SET docstatus = 1 WHERE docstatus = 0 AND workflow_state = 'Approved' """)
+
+def update_leave_date():
+	leave_list = ["LAP00000618", "LAP00000756", "LAP00001698", "LAP00001958", "LAP00002759", "LAP00002760"]
+	leave_app = frappe.db.sql(""" SELECT * FROM `tabLeave Application` WHERE `name` in %s """,(leave_list), as_dict=1)
+
+	for l in leave_app:
+		frappe.db.sql("""DELETE FROM `tabLB Entry` WHERE created_from = "Leave Application" AND linked_document = %s""",(l.name))
+		l.linked_lb_entry = ""
+		total_balance = 0
+		l.set('leave_application_table', [])
+		if not l.from_date:
+			frappe.throw(_("<b>Leave Application: {0}</b><hr> No From Date").format(l.name))
+
+		if not l.to_date:
+			frappe.throw(_("<b>Leave Application: {0}</b><hr> No To Date").format(l.name))
+		
+		if l.from_date > l.to_date:
+			frappe.throw(_("<b>Leave Application: {0}</b><hr> To From Date Should be Greater than To").format(l.name))
+			
+		else:
+			entries = [];
+			dates = [];
+			leave_application_table = [];
+			start = datetime.datetime.strptime(l.from_date, '%Y-%m-%d')
+			end = datetime.datetime.strptime(l.to_date, '%Y-%m-%d')
+			step = datetime.timedelta(days=1)
+		
+			while start <= end:
+			    dates.append(start.date());
+			    start += step
+		    
+			for i in dates:
+				holiday_tag  = 0
+				location = frappe.get_value("Employee", l.employee, "location")
+			
+				holiday = frappe.db.sql("""SELECT `name`, location FROM `tabHoliday` WHERE holiday_date = %s 
+					AND company = %s """, (getdate(target_date), l.company), as_dict=True)
+			
+				if holiday:
+					if holiday[0].location:
+						if holiday[0].location == location:
+							holiday_tag = 1	
+					else:
+						holiday_tag = 1
+				info = {
+			        "leave_date": i,
+			        "is_holiday": holiday_tag,
+			        "is_halfday": 0,
+			        "is_excluded": 0
+			    }
+
+				leave_application_table.append(info);
+		
+			entries = sorted(list(leave_application_table), 
+				key=lambda k: k['leave_date'])		    
+			l.set('leave_application_table', [])
+			
+			for d in entries:
+				row = l.append('leave_application_table', {})
+				row.update(d)
+			
+		total_leave_days = 0
+		inc_holidays, leave_code = frappe.get_value("Leave Type", l.leave_type, ["include_holidays", "leave_code"])
+
+		for d in l.get('leave_application_table'):
+			add_days = 1
+
+			if d.is_half_day == 1:
+				add_days = 0.5			
+			
+			if d.is_holiday == 1:
+				if inc_holidays == 1:
+					add_days = 1
+				else:
+					add_days = 0
+			
+			if d.is_second_half == 1:
+				d.is_half_day = 1
+				add_days = 0.5
+
+			if getdate(d.leave_date).weekday() == 5:
+				lvbal_saturday = frappe.get_value("Employee", l.employee, "lvbal_saturday")
+				if lvbal_saturday > 0:
+					add_days = flt(lvbal_saturday, 8)
+
+			if d.is_excluded == 1:
+				add_days = 0
+				
+			total_leave_days += add_days
+
+			if leave_code == "BL":
+				schedule = get_schedule(l.employee, d.leave_date, d.leave_date)
+				if schedule:
+					shifts = frappe.db.sql("""SELECT DISTINCT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(schedule[0]['work_shift']), as_dict=True)
+					if shifts:
+						if shifts[0].is_restday > 0:
+							total_leave_days = 0
+				holiday_tag  = 0
+				location = frappe.get_value("Employee", l.employee, "location")
+			
+				holiday = frappe.db.sql("""SELECT `name`, location FROM `tabHoliday` WHERE holiday_date = %s 
+					AND company = %s """, (getdate(target_date), l.company), as_dict=True)
+			
+				if holiday:
+					if holiday[0].location:
+						if holiday[0].location == location:
+							holiday_tag = 1	
+					else:
+						holiday_tag = 1
+				holiday_leave = holiday_tag
+				if holiday_leave:
+					total_leave_days = 0
+
+		l.total_leave_days = total_leave_days
+		valid_entry = {}
+		less_entry = {}
+		from_balance = ""
+		add, less, total_balance = 0, 0, 0
+		min_date = None
+		deduct_to = frappe.get_value("Leave Type", l.leave_type, "deduct_to")
+		if not deduct_to:
+			deduct_to = l.leave_type
+		
+		lb_entries = frappe.db.sql(""" SELECT * FROM `tabLB Entry` WHERE `employee` = %s AND 
+			(`leave_type` = %s OR `deduct_credits_to` = %s) AND `company` = %s ORDER BY `from_date` 
+			ASC """, (l.employee, l.leave_type, l.leave_type, l.company), as_dict=1)
+
+		for d in lb_entries:
+			if d.balance_type == "Add":
+				if l.leave_type == d.leave_type:
+					if d.name not in valid_entry:
+						valid_entry[d.name] = {
+							"credits": d.credits,
+							"from": getdate(d.from_date),
+							"to": getdate(d.to_date),
+							"used": 0,
+						}
+			else:
+				if d.deduct_credits_to == l.leave_type:
+					if d.name not in less_entry:
+						less_entry[d.name] = {
+							"used": 0,
+							"credits": d.credits,
+							"from": getdate(d.from_date),
+							"to": getdate(d.to_date),
+						}
+
+		have_lbentry = 0
+		for vl in valid_entry:
+			for le in less_entry:
+				to_less = 0
+				if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
+					if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+						if less_entry[le]['credits'] > valid_entry[vl]['credits']:
+							to_less += valid_entry[vl]['credits']
+							less_entry[le]['credits'] -= valid_entry[vl]['credits']
+						else:
+							to_less += less_entry[le]['credits']
+							less_entry[le]['used'] = 1
+					valid_entry[vl]['credits'] -= to_less
+			if getdate(valid_entry[vl]['from']) <= getdate(l.from_date) and getdate(valid_entry[vl]['to']) >= getdate(l.to_date) and valid_entry[vl]['credits'] > 0:
+				if total_balance < l.total_leave_days:
+					from_balance += cstr(vl)
+				total_balance += valid_entry[vl]['credits']
+				valid_entry[vl]['used'] = 1
+				have_lbentry = 1
+				
+		if have_lbentry == 1:
+			for vl in valid_entry:
+				if valid_entry[vl]['used'] == 0 and valid_entry[vl]['credits'] > 0:
+					if ( valid_entry[vl]['from'] <= getdate(l.from_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(l.to_date) <= valid_entry[vl]['to'] )\
+					or ( getdate(l.from_date) <= valid_entry[vl]['from'] <= getdate(l.to_date) ) or ( getdate(l.from_date) <= valid_entry[vl]['to'] <= getdate(l.to_date) ):
+						if total_balance < l.total_leave_days:
+							from_balance += cstr(vl)
+						total_balance += valid_entry[vl]['credits']
+						valid_entry[vl]['used'] = 1
+
+		l.from_balance = from_balance
+		if total_balance <= 0:
+			total_balance = 0
+		l.leave_balance = total_balance
+		frappe.db.sql("""UPDATE `tabLeave Application` SET from_balance=%s, leave_balance = %s, leave_application_table = %s,  
+			WHERE `name` = %s """,(l.from_balance, l.leave_balance, l.leave_application_table, l.name))
+
+		#create lb entry
+		if l.workflow_state == 'Approved' and not l.linked_lb_entry:
+			deduct_to = frappe.get_value("Leave Type", l.leave_type, "deduct_to")
+			if not deduct_to:
+				deduct_to = l.leave_type
+
+			lb = frappe.new_doc("LB Entry")
+			lb.update({
+				"employee": l.employee,
+				"employee_name": l.full_name,
+				"posting_date": nowdate(),
+				"company": l.company,
+				"leave_type": l.leave_type,
+				"balance_type": 'Less',
+				"created_from": 'Leave Application',
+				"linked_document": l.name,
+				"from_date": l.from_date,
+				"to_date": l.to_date,
+				"credits": l.total_leave_days,
+				"deduct_credits_to": deduct_to,
+			})
+			lb.flags.ignore_permissions = True
+			lb.insert()
+			l.db_set("linked_lb_entry", lb.name)
+
+def update_old_loan_application_frequency_method():
+	frappe.db.sql("""UPDATE `tabLoan Application` SET first_frequency=0, second_frequency=0, third_frequency=0, fourth_fifth_frequency=0 """)
+	frappe.db.sql("""UPDATE `tabLoan Application` LA INNER JOIN `tabEmployee` TE ON LA.`employee`=TE.`name` SET LA.payroll_schedule=TE.payroll_schedule WHERE LA.payroll_schedule IS NULL """)
+	frappe.db.sql("""UPDATE `tabLoan Application` SET first_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='1st' """)
+	frappe.db.sql("""UPDATE `tabLoan Application` SET second_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='2nd' """)
+	frappe.db.sql("""UPDATE `tabLoan Application` SET second_frequency=1, fourth_fifth_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='Both' AND payroll_schedule = 'Weekly' """)
+	frappe.db.sql("""UPDATE `tabLoan Application` SET second_frequency=1, first_frequency=1 WHERE freq_method ='Automatic' AND payment_frequency='Both' AND payroll_schedule = 'Semi-Monthly' """)
+
+def worksuspension_to_datetime():
+	frappe.db.sql("""UPDATE `tabWork Suspension` SET to_time=suspension_end, from_time=suspension_start """)

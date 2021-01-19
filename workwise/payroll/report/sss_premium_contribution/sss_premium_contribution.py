@@ -11,18 +11,20 @@ from operator import itemgetter
 import os
 
 def execute(filters=None):
-	columns = get_columns()
+	columns = get_columns(filters)
 
-	transaction_type = ['SSS', 'SSSE', 'SSSC']
+	if filters.mpf:
+		transaction_type = ['SSS', 'SSSE', 'SSSC', 'SSSEEMPF', 'SSSERMPF']
+	else: 
+		transaction_type = ['SSS', 'SSSE', 'SSSC']
 	employee_list, gov_map = get_employees(filters,transaction_type)
 	
 
-	final_employee, final_employer, final_ec, final_total = 0, 0, 0, 0
+	final_employee, final_employer, final_ec, final_total, final_eempf, final_ermpf = 0, 0, 0, 0, 0, 0
 
 	data = []
 	for emp in gov_map:
 		row = [gov_map[emp]['employee'], gov_map[emp]['full_name'], gov_map[emp]['sss_no']]
-
 		total_sss = 0
 		for trans in transaction_type:
 			sss_amount = gov_map[emp][trans]
@@ -34,15 +36,21 @@ def execute(filters=None):
 			final_employer += flt(gov_map[emp]["SSSE"])
 			final_ec += flt(gov_map[emp]["SSSC"])
 			final_total += total_sss
+			if filters.mpf:
+				final_eempf += flt(gov_map[emp]["SSSEEMPF"])
+				final_ermpf += flt(gov_map[emp]["SSSERMPF"])
 			row += [format_precision(total_sss, filters.value_precision)]
 			
 		data.append(row)
 	data = sorted(data, key=itemgetter(1))
-	final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_total, filters.value_precision)]
+	if filters.mpf:
+		final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_eempf, filters.value_precision), format_precision(final_ermpf, filters.value_precision),format_precision(final_total, filters.value_precision)]
+	else:
+		final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_total, filters.value_precision)]
 	data.append(final)
 	return columns, data
 
-def get_columns():
+def get_columns(filters):
 	columns = [
 		{
 			"fieldname": "employee",
@@ -81,13 +89,31 @@ def get_columns():
 			"fieldtype": "Data",
 			"width":120
 		},
-		{
-			"fieldname": "total_sss",
-			"label": _("Total Contributions"),
-			"fieldtype": "Data",
-			"width": 100
-		},
 	]
+
+	if filters.mpf:
+		columns.append(
+		{
+			"fieldname": "SSSEEMPF",
+			"label": _("MPF Employee"),
+			"fieldtype": "Data",
+			"width":120
+		})
+		columns.append(
+		{
+			"fieldname": "SSSERMPF",
+			"label": _("MPF Employer"),
+			"fieldtype": "Data",
+			"width":120
+		})
+
+	columns.append(
+	{
+		"fieldname": "total_sss",
+		"label": _("Total Contributions"),
+		"fieldtype": "Data",
+		"width": 100
+	})
 
 	return columns
 

@@ -109,15 +109,15 @@ def get_adjustment_settings():
 	return settings
 
 def get_sss_table():
-	sss_table = frappe.db.sql(""" SELECT beginning, ending, employee, employer, ec FROM `tabSSS Table` """, as_dict=True )
+	sss_table = frappe.db.sql(""" SELECT beginning, ending, employee, employer, ec, mpf_ee, mpf_er FROM `tabSSS Table` """, as_dict=True )
 	return sss_table
 
 def get_sss_amount(amount, sss_table):
-	sss, ssse, sssc = 0, 0, 0
+	sss, ssse, sssc, sss_ee_mpf, sss_er_mpf = 0, 0, 0, 0, 0
 	for d in list(filter(lambda x: x['beginning'] <= amount <= x['ending'], sss_table)):
-		sss, ssse, sssc = d.employee, d.employer, d.ec
+		sss, ssse, sssc, sss_ee_mpf, sss_er_mpf = d.employee, d.employer, d.ec, d.mpf_ee, d.mpf_er
 
-	return sss, ssse, sssc
+	return sss, ssse, sssc, sss_ee_mpf, sss_er_mpf
 
 def get_hdmf_table():
 	sss_table = frappe.db.sql(""" SELECT beginning, ending, employee, employer FROM `tabHDMF Table` """, as_dict=True )

@@ -85,12 +85,19 @@ def get_employee(filters):
 def get_cto(emp, filters):
 	cto_validity = frappe.db.get_single_value('Timekeeping Settings', 'cto_validity')
 	if cto_validity > 0:
-		cto_validity_condition = "AND `file_target_date` BETWEEN DATE_SUB(CURDATE(), INTERVAL "+cto_validity+" DAY) AND CURDATE()"
+		cto_validity_condition = "AND `from_date` BETWEEN DATE_SUB(CURDATE(), INTERVAL "+cto_validity+" DAY) AND CURDATE()"
 	else:
 		cto_validity_condition = ""
 
-	cto = frappe.db.sql("""SELECT credits_earned - credits_used as balance, `file_target_date`, `employee`, `name` FROM `tabCompensatory Time Off` 
-		WHERE `type` = "File" AND `docstatus` = 1 AND `workflow_state` = "Approved"
-		AND `balance` > 0 {conditions}""".format(conditions=cto_validity_condition), as_dict=True)
+	cto_zero = frappe.db.get_single_value('Timekeeping Settings', 'cto_zero_out')
+	if cto_zero:
+		cto_balance_condition = "AND YEAR(`from_date`) = YEAR(CURDATE())"
+	else:
+		cto_balance_condition = ""
 
+	cto = frappe.db.sql("""SELECT total_balance as balance, `file_target_date`, `employee`, `name`, YEAR(`from_date`) FROM `tabCompensatory Time Off` 
+		WHERE `type` = "File" AND `docstatus` = 1 AND `workflow_state` = "Approved" 
+		AND `total_balance` > 0 {conditions}{cto_balance_con}""".format(conditions=cto_validity_condition, cto_balance_con=cto_balance_condition), as_dict=True)
+
+	
 	return cto

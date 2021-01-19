@@ -30,6 +30,9 @@ class ExcuseTardinessApplication(Document):
 		#validate_approver_userperm(self)
 		validate_cutoff_approval_date(self)
 
+	def on_update(self):
+		validate_reject_cancel_own_application(self)
+
 	def before_update_after_submit(self):
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
@@ -75,6 +78,8 @@ class ExcuseTardinessApplication(Document):
 	def get_actual_logs(self):
 		actual_in = []
 		actual_out = []
+		time_out = []
+		time_in = []
 
 		obas = frappe.db.sql("""SELECT OBA.`name`, OBAT.`date`, OBAT.`from_time`, OBAT.`to_date`, OBAT.`to_time` FROM `tabOfficial Business Application Table` OBAT 
 			INNER JOIN `tabOfficial Business Application` OBA  ON OBAT.parent = OBA.`name`

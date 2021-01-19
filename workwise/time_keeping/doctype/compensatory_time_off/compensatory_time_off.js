@@ -4,99 +4,6 @@ cur_frm.add_fetch('employee','full_name','employee_name');
 cur_frm.add_fetch('employee','company','company');
 
 frappe.ui.form.on('Compensatory Time Off', {
-	//FILE
-	file_from_time: function(frm) {
-		frm.trigger("get_target_date");
-		//frm.trigger("validate_file_cto");
-	},
-
-	file_to_time: function(frm) {
-		frm.trigger("get_target_date");
-		//frm.trigger("validate_file_cto");
-	},
-
-	file_from_date: function(frm) {
-		frm.trigger("get_target_date");
-		//frm.trigger("validate_file_cto");
-	},
-
-	file_to_date: function(frm) {
-		frm.trigger("get_target_date");
-		//frm.trigger("validate_file_cto");
-	},
-
-	validate_file_cto: function(frm) {
-		if(frm.doc.file_from_time && frm.doc.file_to_time && frm.doc.file_from_date && frm.doc.file_to_date && frm.doc.file_target_date) {
-			return frappe.call({
-				method: "file_process_cto",
-				doc: frm.doc,
-				callback: function(r) {
-					frm.refresh_fields();
-				}
-			});
-		} 
-	},
-
-	use_fromtime: function(frm) {
-		frm.trigger("get_target_date");
-		frm.trigger("validate_use_cto");
-	},
-
-	use_totime: function(frm) {
-		frm.trigger("get_target_date");
-		frm.trigger("validate_use_cto");
-	},
-
-	use_from_date: function(frm) {
-		frm.trigger("get_target_date");
-		frm.trigger("validate_use_cto");
-	},
-
-	use_to_date: function(frm) {
-		frm.trigger("get_target_date");
-		frm.trigger("validate_use_cto");
-	},
-
-	employee: function(frm) {
-		frm.trigger("get_target_date");
-		frm.trigger("validate_use_cto");
-		//frm.trigger("validate_file_cto");
-	},
-
-	filed_cto: function(frm) {
-		frm.trigger("get_target_date");
-		frm.trigger("validate_use_cto");
-	},
-
-	validate_use_cto: function(frm) {
-		if(frm.doc.use_fromtime && frm.doc.use_totime && frm.doc.use_from_date && frm.doc.use_to_date && frm.doc.use_target_date ) {
-			return frappe.call({
-				method: "use_process_cto",
-				doc: frm.doc,
-				callback: function(r) {
-					frm.refresh_fields();
-				}
-			});
-		} 
-	},
-
-	is_previous: function(frm) {
-		frm.trigger("get_target_date");
-		frm.trigger("validate_use_cto");
-	},
-
-	get_target_date: function(frm) {
-		if(frm.doc.type) {
-			return frappe.call({
-				method: "get_target_date",
-				doc: frm.doc,
-				callback: function(r) {
-					frm.refresh_fields();
-				}
-			});
-		} 
-	},
-
 	refresh: function(frm) {
 		cur_frm.set_query("employee", function() {
 			return {
@@ -106,36 +13,185 @@ frappe.ui.form.on('Compensatory Time Off', {
 			};
 		});
 
-		frm.set_query('filed_cto', function(doc) {
-			if(frm.doc.employee && frm.doc.type == "Use"){
-				return {
-					filters: {
-						"workflow_state": 'Approved',
-						"docstatus": 1,
-						"type": "File",
-						"employee": doc.employee,
-						"balance": ['>',0]
-					}
-				};
-			}else{
-				return {
-					filters: {
-						"type": "",
-					}
-				};
+		frm.fields_dict['cto_targets'].grid.get_field("filed_cto").get_query = function(doc, cdt, cdn) {
+			return {
+				filters: [
+					['Compensatory Time Off', 'workflow_state', '=', 'Approved'],
+					['Compensatory Time Off', 'docstatus', '=', 1],
+					['Compensatory Time Off', 'type', '=', 'File'],
+					['Compensatory Time Off', 'employee', '=', frm.doc.employee],
+					['Compensatory Time Off', 'balance', '>', 0],
+					['Compensatory Time Off', 'to_date', '<=', frm.doc.to_date],
+				]
+			}
+		},
+
+		frm.fields_dict['cto_targets'].grid.docfields.forEach(function (arrayItem) {
+		    var x = arrayItem
+	    	if (frm.doc.type=='File'){
+	    		if (x['fieldname'] == 'filed_cto'){
+	    			x['hidden'] = 1
+	    		}
+	    		if (x['fieldname'] == 'required_credits'){
+	    			x['hidden'] = 1
+	    		}
+	    		if (x['fieldname'] == 'credits_used'){
+	    			x['hidden'] = 0
+	    		}
+	    		if (x['fieldname'] == 'balance'){
+	    			x['hidden'] = 0
+	    		}
+	    	}else{
+	    		if (x['fieldname'] == 'filed_cto'){
+	    			frappe.call({
+						method: "cto_forfeit_status",
+						doc: frm.doc,
+						callback: function(r) {
+							x['hidden'] = r.message;
+							frm.refresh_fields();
+						}
+					});	
+	    		}
+	    		if (x['fieldname'] == 'credits_used'){
+	    			x['hidden'] = 1
+	    		}
+	    		if (x['fieldname'] == 'balance'){
+	    			x['hidden'] = 1
+	    		}
+	    		if (x['fieldname'] == 'required_credits'){
+	    			x['hidden'] = 0
+	    		}
 			}
 		});
-			
+	},
+
+	from_date: function(frm) {
+		frm.trigger("js_events");
+	},
+
+	to_date: function(frm) {
+		frm.trigger("js_events");
+	},
+
+	from_time: function(frm) {
+		frm.trigger("js_events");
+	},
+
+	to_time: function(frm) {
+		frm.trigger("js_events");
+	},
+
+	type: function(frm) {
+		frm.fields_dict['cto_targets'].grid.docfields.forEach(function (arrayItem) {
+		    var x = arrayItem
+	    	if (frm.doc.type=='File'){
+	    		if (x['fieldname'] == 'filed_cto'){
+	    			x['hidden'] = 1
+	    		}
+	    		if (x['fieldname'] == 'required_credits'){
+	    			x['hidden'] = 1
+	    		}
+	    		if (x['fieldname'] == 'credits_used'){
+	    			x['hidden'] = 0
+	    		}
+	    		if (x['fieldname'] == 'balance'){
+	    			x['hidden'] = 0
+	    		}
+	    	}else{
+	    		if (x['fieldname'] == 'filed_cto'){
+	    			frappe.call({
+						method: "cto_forfeit_status",
+						doc: frm.doc,
+						callback: function(r) {
+							x['hidden'] = r.message;
+							frm.refresh_fields();
+						}
+					});	
+	    		}
+	    		if (x['fieldname'] == 'credits_used'){
+	    			x['hidden'] = 1
+	    		}
+	    		if (x['fieldname'] == 'balance'){
+	    			x['hidden'] = 1
+	    		}
+	    		if (x['fieldname'] == 'required_credits'){
+	    			x['hidden'] = 0
+	    		}
+			}
+		});
+		frm.trigger("js_events");
+	},
+
+	js_events: function(frm) {
 		frappe.call({
-			method: "get_timekeeping_settings_for_cto_use_type",
+			method: "js_events",
 			doc: frm.doc,
 			callback: function(r) {
-				if (r.message == "forfeit_disabled"){
-					cur_frm.toggle_display('filed_cto', false);
-				}
 				frm.refresh_fields();
 			}
 		});
 	},
-	
+});
+
+frappe.ui.form.on("Compensatory Time Off Targets", {
+	is_previous: function(frm, cdt, cdn) {
+		frappe.call({
+			method: "js_table_events",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("cto_targets");
+			}
+		});
+	},
+
+	from_date: function(frm, cdt, cdn) {
+		frappe.call({
+			method: "js_table_events",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("cto_targets");
+			}
+		});
+	},
+
+	to_date: function(frm, cdt, cdn) {
+		frappe.call({
+			method: "js_table_events",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("cto_targets");
+			}
+		});
+	},
+
+	from_time: function(frm, cdt, cdn) {
+		frappe.call({
+			method: "js_table_events",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("cto_targets");
+			}
+		});
+	},
+
+	to_time: function(frm, cdt, cdn) {
+		frappe.call({
+			method: "js_table_events",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("cto_targets");
+			}
+		});
+	},
+
+	filed_cto: function(frm, cdt, cdn) {
+		var d = locals[cdt][cdn];
+		frappe.call({
+			method: "js_table_events",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("cto_targets");
+			}
+		});
+	},
 });

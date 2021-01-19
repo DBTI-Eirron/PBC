@@ -111,6 +111,9 @@ def get_conditions_emp(filters):
 	if filters.get("employee"):
 		conditions.append("`name`=%(employee)s")
 
+	if filters.get("period_group"):
+		conditions.append("`period_group`='{0}'".format(filters.get("period_group")))
+
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 
 def get_conditions(filters):
