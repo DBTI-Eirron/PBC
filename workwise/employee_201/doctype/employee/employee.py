@@ -86,6 +86,11 @@ class Employee(Document):
 	def update_user_permissions(self):
 		frappe.permissions.add_user_permission("Employee", self.name, self.user_id)
 		frappe.permissions.set_user_permission_if_allowed("Company", self.company, self.user_id)
+		if self.department:
+			frappe.permissions.add_user_permission("Department", self.department, self.user_id)
+			parent_department = frappe.get_value("Department", self.department, "parent_department")
+			if parent_department:
+				frappe.permissions.add_user_permission("Department", parent_department, self.user_id)
 
 	def update_fullname(self):
 		if self.middle_name:
