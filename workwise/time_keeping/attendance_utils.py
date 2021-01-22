@@ -3214,8 +3214,8 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 		)
 
 	get_all_overrides(emp_map, employee, pay_from, pay_to)
-	get_all_schedules(emp_map, employee, pay_from, pay_to)
-	get_all_timecards(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1)) #+1 date to get nextday logs
+	get_all_schedules(emp_map, employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1))
+	get_all_timecards(emp_map, employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)) #+1 date to get nextday logs
 	get_all_holidays(emp_map, pay_from, pay_to)
 	#applications
 	get_all_leaves(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment,monthly_approval_cutoffs)
@@ -3226,8 +3226,8 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
 	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_csa(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
-	get_all_dtrp(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
-	get_all_tla(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
+	get_all_dtrp(emp_map, employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
+	get_all_tla(emp_map, employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
 
 	return emp_map
 
