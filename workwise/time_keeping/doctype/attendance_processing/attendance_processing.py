@@ -99,42 +99,43 @@ class AttendanceProcessing(Document):
 				ss_list += 1
 				issue_tag = ""
 				no_work = 1
-				complete_sched(emp_dict, pay_from, pay_to, template_map)
+				complete_sched(emp_dict, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), template_map)
 				change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 				for sched in emp_dict['schedules']:
-					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
-					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), 
-						entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'), entry)
-					get_sorted_card(entry, cards_in, cards_out)
-					get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), emp_dict.get('ots'), 
-						emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
-					
-					entry['break'] = self.convert_secs(entry['break'])
-					entry['work'] = self.convert_secs(entry['work'])
-					entry['late'] = self.convert_secs(entry['late'])
-					entry['undertime'] = self.convert_secs(entry['undertime'])
-					entry['overtime'] = self.convert_secs(entry['overtime'])
-					entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
-					entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
-					entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
-					entry['earlynightdiff'] = self.convert_secs(entry['earlynightdiff'])
-					entry['latenightdiff'] = self.convert_secs(entry['latenightdiff'])
-					entry['cto'] = self.convert_secs(entry['cto'])
-					entry['ot_early_nd'] = self.convert_secs(entry['ot_early_nd'])
-					entry['ot_late_nd'] = self.convert_secs(entry['ot_late_nd'])
-					ot_list.extend(entry.get('ot_list'))
-					insert_overtime(entry)
-					reg_list.append(entry)
+					if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
+						entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
+						cards_in, cards_out = get_card_within(sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
+							entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+						get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
+						get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
+							emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+						
+						entry['break'] = self.convert_secs(entry['break'])
+						entry['work'] = self.convert_secs(entry['work'])
+						entry['late'] = self.convert_secs(entry['late'])
+						entry['undertime'] = self.convert_secs(entry['undertime'])
+						entry['overtime'] = self.convert_secs(entry['overtime'])
+						entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
+						entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
+						entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
+						entry['earlynightdiff'] = self.convert_secs(entry['earlynightdiff'])
+						entry['latenightdiff'] = self.convert_secs(entry['latenightdiff'])
+						entry['cto'] = self.convert_secs(entry['cto'])
+						entry['ot_early_nd'] = self.convert_secs(entry['ot_early_nd'])
+						entry['ot_late_nd'] = self.convert_secs(entry['ot_late_nd'])
+						ot_list.extend(entry.get('ot_list'))
+						insert_overtime(entry)
+						reg_list.append(entry)
 
-					#Get Processing Logs
-					if no_work == 1:
-						if entry['work'] > 0:
-							no_work = 0
-						if entry['cto'] > 0:
-							no_work = 0
-						if not entry['is_restday'] and not entry['is_holiday']:
-							if entry['is_absent'] == 0 and entry['is_lwop'] == 0:
+						#Get Processing Logs
+						if no_work == 1:
+							if entry['work'] > 0:
 								no_work = 0
+							if entry['cto'] > 0:
+								no_work = 0
+							if not entry['is_restday'] and not entry['is_holiday']:
+								if entry['is_absent'] == 0 and entry['is_lwop'] == 0:
+									no_work = 0
 
 				if not emp_dict['schedules']:
 					issue_tag += " <span class='label label-danger'> No Schedule </span>"

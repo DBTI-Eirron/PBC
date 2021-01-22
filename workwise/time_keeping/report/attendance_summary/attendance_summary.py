@@ -3,7 +3,7 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
-from frappe.utils import cint, flt, getdate, cstr, add_to_date, get_datetime
+from frappe.utils import cint, flt, getdate, cstr, add_to_date, get_datetime, nowdate
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
@@ -213,43 +213,44 @@ def get_data(filters):
 		shift_map = get_shift_map()
 		emp_map = init_employee_map(employees, filters.employee, filters.company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
-			complete_sched(emp_dict, pay_from, pay_to, template_map)
+			complete_sched(emp_dict, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 			if not filters.show_adjusted:
 				processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
-				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
-				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
-					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'))
-				get_sorted_card(entry, cards_in, cards_out)
-				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
-					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+				if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
+					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
+					cards_in, cards_out = get_card_within(sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
+						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+					get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
+					get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
+						emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
 
-				entry['break'] = convert_secs(filters, entry['break'])
-				totals['break'] += entry['break']
-				entry['work'] = convert_secs(filters, entry['work'])
-				totals['work'] += entry['work']
-				entry['late'] = convert_secs(filters, entry['late'])
-				totals['late'] += entry['late']
-				entry['overtime'] = convert_secs(filters, entry['overtime'])
-				totals['overtime'] += entry['overtime']
-				entry['overtime_nd'] = convert_secs(filters, entry['overtime_nd'])
-				totals['overtime_nd'] += entry['overtime_nd']
-				entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
-				totals['overtime_ex'] += entry['overtime_ex']
-				entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
-				totals['nightdiff'] += entry['nightdiff']
-				if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
-					entry['earlynightdiff'] = convert_secs(filters, entry['earlynightdiff'])
-					totals['earlynightdiff'] += entry['earlynightdiff']
-					entry['latenightdiff'] = convert_secs(filters, entry['latenightdiff'])
-					totals['latenightdiff'] += entry['latenightdiff']
+					entry['break'] = convert_secs(filters, entry['break'])
+					totals['break'] += entry['break']
+					entry['work'] = convert_secs(filters, entry['work'])
+					totals['work'] += entry['work']
+					entry['late'] = convert_secs(filters, entry['late'])
+					totals['late'] += entry['late']
+					entry['overtime'] = convert_secs(filters, entry['overtime'])
+					totals['overtime'] += entry['overtime']
+					entry['overtime_nd'] = convert_secs(filters, entry['overtime_nd'])
+					totals['overtime_nd'] += entry['overtime_nd']
+					entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
+					totals['overtime_ex'] += entry['overtime_ex']
+					entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
+					totals['nightdiff'] += entry['nightdiff']
+					if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
+						entry['earlynightdiff'] = convert_secs(filters, entry['earlynightdiff'])
+						totals['earlynightdiff'] += entry['earlynightdiff']
+						entry['latenightdiff'] = convert_secs(filters, entry['latenightdiff'])
+						totals['latenightdiff'] += entry['latenightdiff']
 
-				entry['undertime'] = convert_secs(filters, entry['undertime'])
-				totals['undertime'] += entry['undertime']			
-				entry['cto'] = convert_secs(filters, entry['cto'])
-				totals['cto'] += entry['cto']
-				data.append(entry)
+					entry['undertime'] = convert_secs(filters, entry['undertime'])
+					totals['undertime'] += entry['undertime']			
+					entry['cto'] = convert_secs(filters, entry['cto'])
+					totals['cto'] += entry['cto']
+					data.append(entry)
 		data.append(totals)
 
 	return data
@@ -280,6 +281,7 @@ def get_current_period():
 	if frappe.db.get_single_value('Timekeeping Settings', 'cur_period_attendance_summary'):
 		employee = frappe.db.sql(""" SELECT `name`, `user_id`, `company`, `payroll_schedule`, `period_group` FROM `tabEmployee` 
 			WHERE user_id = %s AND user_id != "" AND user_id is not null LIMIT 1""",( frappe.session.user ), as_dict=1)
+
 		if employee:
 			periods = frappe.db.sql("""SELECT `name`, `period_group` FROM `tabPayroll Period` WHERE `status` = 'Open'
 				AND (%(date_today)s BETWEEN `attendance_from` AND `attendance_to`) 
@@ -290,10 +292,11 @@ def get_current_period():
 					"period_group": employee[0].period_group
 				}, as_dict=True)
 			if periods:
-				if periods[0].period_group:
-					if employee[0].period_group and employee[0].period_group == periods[0].period_group:
-						period_today = periods[0].name
-				else:
-					period_today = periods[0].name
+				for per in periods:
+					if per.period_group:
+						if employee[0].period_group and employee[0].period_group == per.period_group:
+							period_today = per.name
+					else:
+						period_today = per.name
 
 	return period_today
