@@ -2407,38 +2407,71 @@ def get_schedule(employee, pay_from, pay_to):
 
 def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 	result = []
-	schedule = get_schedule(employee, pay_from, pay_to)
-	for sched in schedule:
-		shifts = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched['work_shift']), as_dict=True)
-		if shifts:
-			post_shift_date = getdate(sched['target_date'])
-			if shifts[0].time_in > shifts[0].time_out:
-				post_shift_date = add_days(getdate(sched['target_date']), 1)
-			entry = { 
-				"work_shift": sched['work_shift'],
-				"target_date": sched['target_date'],
-				"pre_shift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shifts[0].time_in)), hours= (0 - shifts[0].setup_preshift) ),
-				"end_preshift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shifts[0].time_in)), hours= shifts[0].end_preshift ),
-				"post_shift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shifts[0].time_out)), hours= (0 - shifts[0].setup_postshift) ),
-				"end_postshift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shifts[0].time_out)), hours=shifts[0].end_postshift ),
-				"card_in": "",
-				"card_out": "",
-				"break_in": "",
-				"break_out": "",
-			}
-			dtrp_list = []
-			emp_bioid = frappe.db.get_value("Employee", employee, "biometrics_id")
-			timecards = get_timecard_list(emp_bioid, sched['target_date'], sched['target_date'] + datetime.timedelta(days=1))
-			dtrp_list = get_dtrp_list(employee, sched['target_date'], sched['target_date'] + datetime.timedelta(days=1), None, 0)
-			
-			#For OT App aCTUAL LOG
-			if ot_app and not timecards:
-				timecards = dtrp_list
+	
+	shift_map = get_shift_map()
 
-			if timecards:
-				cards_in, cards_out = get_card_within(entry['pre_shift'], entry['end_preshift'], entry['post_shift'], entry['end_postshift'], timecards, dtrp_list)
-				get_sorted_card(entry, cards_in, cards_out)
-				result.append(entry)
+	emp = frappe.get_doc('Employee', employee)
+	emp_map = frappe._dict()
+	emp_map.setdefault(employee, frappe._dict({
+			"employee": employee,
+			"employee_name": emp.full_name,
+			"company": emp.company,
+			"employee_details": emp,
+			"schedules": [],
+			"timecards": [],
+			"overrides": [],
+			"hls": [],
+			"lvs": [],
+			"ots": [],
+			"obs": [],
+			"uts": [],
+			"ext": [],
+			"cto": [],
+			"wss": [],
+			"csa": [],
+			"dtrp": [],
+			"tla": [],
+			"timelogs_map": {},
+		})
+	)
+	emp_map[employee]['schedules'] = get_schedule(employee, pay_from - timedelta(days=1), pay_to + datetime.timedelta(days=1))
+	for sched in emp_map[employee]['schedules']:
+		if sched['target_date'] not in [pay_from - timedelta(days=1), pay_to + timedelta(days=1)]:
+			shifts = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched['work_shift']), as_dict=True)
+			if shifts:
+				post_shift_date = getdate(sched['target_date'])
+				if shifts[0].time_in > shifts[0].time_out:
+					post_shift_date = add_days(getdate(sched['target_date']), 1)
+				entry = { 
+					"work_shift": sched['work_shift'],
+					"target_date": sched['target_date'],
+					"pre_shift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shifts[0].time_in)), hours= (0 - shifts[0].setup_preshift) ),
+					"end_preshift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shifts[0].time_in)), hours= shifts[0].end_preshift ),
+					"post_shift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shifts[0].time_out)), hours= (0 - shifts[0].setup_postshift) ),
+					"end_postshift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shifts[0].time_out)), hours=shifts[0].end_postshift ),
+					"card_in": "",
+					"card_out": "",
+					"break_in": "",
+					"break_out": "",
+				}
+				dtrp_list = []
+				emp_bioid = frappe.db.get_value("Employee", employee, "biometrics_id")
+				timecards = get_timecard_list(emp_bioid, sched['target_date'], sched['target_date'] + datetime.timedelta(days=1))
+				dtrp_list = get_dtrp_list(employee, sched['target_date'] - timedelta(days=1), sched['target_date'] + datetime.timedelta(days=1), None, 0)
+				tla = get_all_tla(emp_map, employee, sched['target_date'] - timedelta(days=1), sched['target_date'] + timedelta(days=1), 0, 0)
+				
+				#For OT App aCTUAL LOG
+				if ot_app and not timecards:
+					timecards = dtrp_list
+
+				if timecards:
+					cards_in, cards_out = get_card_within(sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
+					shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecards, dtrp_list, tla)
+					sorted_card_list = get_sorted_card(entry, cards_in, cards_out, emp_map[employee]['timelogs_map'])
+					#cards_in, cards_out = get_card_within(sched['target_date'], schedule, shift_map, entry['pre_shift'], entry['end_preshift'], entry['post_shift'], entry['end_postshift'], timecards, dtrp_list)
+					#get_sorted_card(entry, cards_in, cards_out)
+					result.append(entry)
+
 
 	return result
 
@@ -2580,25 +2613,163 @@ def get_dtrp_list(employee, from_date, to_date, approval_cutoff, adjustment):
 
 	return dtrp_apps
 
-def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp, tla=None, entry=None):
+def get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map):
+	result = {}
+	#Get Last Shift
+	last_target_date = target_date - datetime.timedelta(days=1)
+	last_shift = filter(lambda empid: getdate(last_target_date) == getdate(empid['target_date']), schedules)
+	last_shift_in = None
+	last_shift_out = None
+	if last_shift:
+		last_shift = last_shift[0]['work_shift']
+		last_shift_in = get_datetime(str(last_target_date)+" "+str(shift_map[last_shift]['time_in']))
+		if shift_map[last_shift]['time_in'] > shift_map[last_shift]['time_out']:
+			last_target_date = last_target_date + datetime.timedelta(days=1)
+		last_shift_out = get_datetime(str(last_target_date)+" "+str(shift_map[last_shift]['time_out']))
+
+	#Get Next Shift
+	next_target_date = target_date + datetime.timedelta(days=1)
+	next_shift = filter(lambda empid: next_target_date == empid['target_date'], schedules)
+	next_shift_in = None
+	next_shift_out = None
+	if next_shift:
+		next_shift = next_shift[0]['work_shift']
+		next_shift_in = get_datetime(str(next_target_date)+" "+str(shift_map[next_shift]['time_in']))
+		if shift_map[next_shift]['time_in'] > shift_map[next_shift]['time_out']:
+			next_target_date = next_target_date + datetime.timedelta(days=1)
+		next_shift_out = get_datetime(str(next_target_date)+" "+str(shift_map[next_shift]['time_out']))
+		if shift_map[next_shift]['grace_period']:
+			next_shift_in = next_shift_in + datetime.timedelta(minutes=shift_map[next_shift]['grace_period'])
+
+	#Current Shift
+	current_shift = filter(lambda empid: target_date == empid['target_date'], schedules)
+	current_shift_in = None
+	current_shift_out = None
+	current_shift_in_ungraced = None
+	new_target_date = target_date	
+	if current_shift:
+		current_shift = current_shift[0]['work_shift']
+		current_shift_in = get_datetime(str(target_date)+" "+str(shift_map[current_shift]['time_in']))
+		if shift_map[current_shift]['time_in'] > shift_map[current_shift]['time_out']:
+			new_target_date = target_date + datetime.timedelta(days=1)
+		current_shift_out = get_datetime(str(new_target_date)+" "+str(shift_map[current_shift]['time_out']))
+		current_shift_in_ungraced = current_shift_in
+		if shift_map[current_shift]['grace_period']:
+			current_shift_in = current_shift_in + datetime.timedelta(minutes=shift_map[current_shift]['grace_period'])
+
+	orig_last_target_date = target_date - datetime.timedelta(days=1)
+	orig_next_target_date = target_date + datetime.timedelta(days=1)
+
+	last_shift_cardout = None
+	if timelogs_map and orig_last_target_date in timelogs_map and timelogs_map[orig_last_target_date] and timelogs_map[orig_last_target_date]['card_out']:
+		if get_datetime(last_shift_out) < get_datetime(timelogs_map[orig_last_target_date]['card_out']):
+			last_shift_cardout = get_datetime(timelogs_map[orig_last_target_date]['card_out'])
+
+	result['last_target_date'] = last_target_date
+	result['last_shift'] = last_shift
+	result['last_shift_in'] = last_shift_in
+	result['last_shift_out'] = last_shift_out
+	result['next_target_date'] = next_target_date
+	result['next_shift'] = next_shift
+	result['next_shift_in'] = next_shift_in
+	result['next_shift_out'] = next_shift_out
+	result['current_shift'] = current_shift
+	result['current_shift_in'] = current_shift_in
+	result['current_shift_out'] = current_shift_out
+	result['new_target_date'] = new_target_date
+	result['orig_last_target_date'] = orig_last_target_date
+	result['orig_next_target_date'] = orig_next_target_date
+	result['last_shift_cardout'] = last_shift_cardout
+	result['current_shift_in_ungraced'] = current_shift_in_ungraced
+
+	return result
+
+def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_map):
+	to_append = 0
+	enable_straight_shift = frappe.db.get_single_value('Timekeeping Settings', 'enable_straight_shift')
+
+	if (card_type in [0, 2, "Time in", "Break out"]):
+		to_append = 0
+		if enable_straight_shift:
+			if lcn_shifts['last_shift_out'] and lcn_shifts['last_shift_out'] <= card_datetime <= lcn_shifts['current_shift_out']:
+				to_append = 1
+				
+				if card_datetime >= lcn_shifts['current_shift_in_ungraced']:
+					to_append = 1
+				else:
+					if lcn_shifts['last_shift_cardout']:
+						if card_datetime < lcn_shifts['last_shift_cardout']:
+							to_append = 0
+					else:
+						to_append = 1
+
+				if lcn_shifts['last_shift_cardout']:
+					if card_datetime > lcn_shifts['last_shift_cardout']:
+						to_append = 1
+
+					if target_date in card_map and card_map[target_date]['time_in']:
+						max_card_datetime = max(card_map[target_date]['time_in'])
+						if card_datetime < max_card_datetime:
+							to_append = 0
+
+				if target_date not in card_map:
+					card_map[target_date] = {
+						'time_in': [],
+						'time_out': [],
+						'break_out': [],
+						'break_in': [],
+					}
+
+				if card_type == 0:
+					card_map[target_date]['time_in'].append(card_datetime)
+
+		else:
+			if lcn_shifts['pre_shift'] <= card_datetime <= lcn_shifts['max_preshift']:
+				to_append = 1
+
+	if (card_type in [1, 3, "Time out", "Break in"]):
+		to_append = 0
+		if enable_straight_shift:
+			if lcn_shifts['next_shift_in'] and lcn_shifts['current_shift_in'] <= card_datetime <= lcn_shifts['next_shift_in']:
+				to_append = 1
+		else:
+			if lcn_shifts['post_shift'] <= card_datetime <= lcn_shifts['max_postshift']:
+				to_append = 1
+
+	return to_append
+
+def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp=None, tla=None):
 	cards_in = []
 	cards_out = []
-	for tc in timecard_list:
-		if pre_shift <= tc.card_datetime <= max_preshift and (tc.card_type == 0 or tc.card_type == 2):
-			cards_in.append({
-				"card_name":tc.name,
-				"card_time":tc.time,
-				"card_datetime": tc.card_datetime,
-				"card_type": tc.card_type
-			})				
+	dtrp_override = frappe.db.get_single_value('Timekeeping Settings', 'dtrp_override')
 
-		if post_shift <= tc.card_datetime <= max_postshift and (tc.card_type == 1 or tc.card_type == 3):
-			cards_out.append({
-				"card_name":tc.name,
-				"card_time":tc.time,
-				"card_datetime": tc.card_datetime,
-				"card_type": tc.card_type
-			})
+	lcn_shifts = get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
+	lcn_shifts['pre_shift'] = pre_shift
+	lcn_shifts['max_preshift'] = max_preshift
+	lcn_shifts['post_shift'] = post_shift
+	lcn_shifts['max_postshift'] = max_postshift
+
+	card_map = {}
+	for tc in sorted(timecard_list, key=lambda k: k['card_datetime'], reverse=1):
+		if (tc.card_type == 0 or tc.card_type == 2):
+			if validate_card_log(tc.card_datetime, tc.card_type, lcn_shifts, target_date, card_map):
+				cards_in.append({
+					"card_name":tc.name,
+					"card_time":tc.time,
+					"card_datetime": tc.card_datetime,
+					"card_type": tc.card_type,
+					"from": 'Timecard',
+				})
+
+		if (tc.card_type == 1 or tc.card_type == 3):
+			if validate_card_log(tc.card_datetime, tc.card_type, lcn_shifts, target_date, card_map):
+				cards_out.append({
+					"card_name":tc.name,
+					"card_time":tc.time,
+					"card_datetime": tc.card_datetime,
+					"card_type": tc.card_type,
+					"from": 'Timecard',
+				})
 
 	if tla:
 		no_card_in, no_card_out, no_break_out, no_break_in = 1, 1, 1, 1
@@ -2614,115 +2785,217 @@ def get_card_within(pre_shift, max_preshift, post_shift, max_postshift, timecard
 				card_type = 2
 
 			for c_in in cards_in:
-				if pre_shift <= time_req <= max_preshift and card_type == c_in['card_type']:
-					c_in['card_name'] = tl['name']
-					c_in['card_date'] = tl['target_date']
-					c_in['card_time'] = tl['request']
-					c_in['card_datetime'] = time_req
-					c_in['card_type'] = card_type
+				if card_type == c_in['card_type']:
+					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map):
+						if c_in['from'] == 'Timecard':
+							c_in['card_name'] = tl['name']
+							c_in['card_date'] = tl['target_date']
+							c_in['card_time'] = tl['request']
+							c_in['card_datetime'] = time_req
+							c_in['card_type'] = card_type
 
-					if card_type == 0:
-						no_card_in = 0
-					if card_type == 2:
-						no_break_out = 0
+						if card_type == 0:
+							no_card_in = 0
+						if card_type == 2:
+							no_break_out = 0
 
 			for c_out in cards_out:
-				if post_shift <= time_req <= max_postshift and card_type == c_out['card_type']:
-					c_out['card_name'] = tl['name']
-					c_out['card_date'] = tl['target_date']
-					c_out['card_time'] = tl['request']
-					c_out['card_datetime'] = time_req
-					c_out['card_type'] = card_type
+				if card_type == c_out['card_type']:
+					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map):
+						if c_out['from'] == 'Timecard':
+							c_out['card_name'] = tl['name']
+							c_out['card_date'] = tl['target_date']
+							c_out['card_time'] = tl['request']
+							c_out['card_datetime'] = time_req
+							c_out['card_type'] = card_type
 
-					if card_type == 1:
-						no_card_out = 0
-					if card_type == 3:
-						no_break_in = 0
+						if card_type == 1:
+							no_card_out = 0
+						if card_type == 3:
+							no_break_in = 0
 
 			if no_card_in == 1 or no_break_out == 1:
-				if pre_shift <= time_req <= max_preshift and tl['type'] in ['Time In', 'Break Out']:
-					cards_in.append({
-						"card_name": tl['name'],
-						"card_time": tl['request'],
-						"card_datetime": time_req,
-						"card_type": card_type,
-					})
+				if tl['type'] in ['Time In', 'Break Out']:
+					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map):
+						cards_in.append({
+							"card_name": tl['name'],
+							"card_time": tl['request'],
+							"card_datetime": time_req,
+							"card_type": card_type,
+							"from": 'Timelogs Application',
+						})
 
 			if no_card_out == 1 or no_break_in == 1:
-				if post_shift <= time_req <= max_postshift and tl['type'] in ['Time Out', 'Break In']:
-					cards_out.append({
-						"card_name": tl['name'],
-						"card_time": tl['request'],
-						"card_datetime": time_req,
-						"card_type": card_type,
-					})
+				if tl['type'] in ['Time Out', 'Break In']:
+					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map):
+						cards_out.append({
+							"card_name": tl['name'],
+							"card_time": tl['request'],
+							"card_datetime": time_req,
+							"card_type": card_type,
+							"from": 'Timelogs Application',
+						})
 
 	no_card_in, no_card_out, no_break_out, no_break_in = 1, 1, 1, 1
+	dtro_time_in, dtro_break_out, dtro_break_in, dtro_time_out = [], [], [], []
 	for dt in dtrp:
-		for c_in in cards_in:
-			if pre_shift <= dt['card_datetime'] <= max_preshift and dt['card_type'] == c_in['card_type']:
-				c_in['card_name'] = dt['name']
-				c_in['card_date'] = dt['target_date']
-				c_in['card_time'] = dt['request']
-				c_in['card_datetime'] = dt['card_datetime']
-				c_in['card_type'] = dt['card_type']
+		if not dtrp_override:
+			for c_in in cards_in:
+				if dt['card_type'] == c_in['card_type']:
+					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map):
+						if c_in['from'] == 'Timecard':
+							c_in['card_name'] = dt['name']
+							c_in['card_date'] = dt['target_date']
+							c_in['card_time'] = dt['request']
+							c_in['card_datetime'] = dt['card_datetime']
+							c_in['card_type'] = dt['card_type']
 
+						if dt['card_type'] == 0:
+							no_card_in = 0
+						if dt['card_type'] == 2:
+							no_break_out = 0
+
+			for c_out in cards_out:
+				if dt['card_type'] == c_out['card_type']:
+					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map):
+						if c_out['from'] == 'Timecard':
+							c_out['card_name'] = dt['name']
+							c_out['card_date'] = dt['target_date']
+							c_out['card_time'] = dt['request']
+							c_out['card_datetime'] = dt['card_datetime']
+							c_out['card_type'] = dt['card_type']
+
+						if dt['card_type'] == 1:
+							no_card_out = 0
+						if dt['card_type'] == 3:
+							no_break_in = 0
+			
+			if no_card_in == 1 or no_break_out == 1:
+				if (dt['card_type'] == 0 or dt['card_type'] == 2):
+					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map):
+						cards_in.append({
+							"card_name": dt['name'],
+							"card_date": dt['target_date'],
+							"card_time": dt['request'],
+							"card_datetime": dt['card_datetime'],
+							"card_type": dt['card_type'],
+							"from": 'DTRP Application',
+						})
+
+			if no_card_out == 1 or no_break_in == 1:
+				if (dt['card_type'] == 1 or dt['card_type'] == 3):
+					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map):
+						cards_out.append({
+							"card_name": dt['name'],
+							"card_date": dt['target_date'],
+							"card_time": dt['request'],
+							"card_datetime": dt['card_datetime'],
+							"card_type": dt['card_type'],
+							"from": 'DTRP Application',
+						})
+
+		if dtrp_override:
+			if getdate(dt['target_date']) == getdate(target_date):
 				if dt['card_type'] == 0:
-					no_card_in = 0
-				if dt['card_type'] == 2:
-					no_break_out = 0
+					dtro_time_in = [{
+						"card_name": dt['name'],
+						"card_date": dt['target_date'],
+						"card_time": dt['request'],
+						"card_datetime": dt['card_datetime'],
+						"card_type": dt['card_type']
+					}]
 
-		for c_out in cards_out:
-			if post_shift <= dt['card_datetime'] <= max_postshift and dt['card_type'] == c_out['card_type']:
-				c_out['card_name'] = dt['name']
-				c_out['card_date'] = dt['target_date']
-				c_out['card_time'] = dt['request']
-				c_out['card_datetime'] = dt['card_datetime']
-				c_out['card_type'] = dt['card_type']
+				if dt['card_type'] == 2:
+					dtro_break_out = [{
+						"card_name": dt['name'],
+						"card_date": dt['target_date'],
+						"card_time": dt['request'],
+						"card_datetime": dt['card_datetime'],
+						"card_type": dt['card_type']
+					}]
+
+				if dt['card_type'] == 3:
+					dtro_break_in = [{
+						"card_name": dt['name'],
+						"card_date": dt['target_date'],
+						"card_time": dt['request'],
+						"card_datetime": dt['card_datetime'],
+						"card_type": dt['card_type']
+					}]
 
 				if dt['card_type'] == 1:
-					no_card_out = 0
-				if dt['card_type'] == 3:
-					no_break_in = 0
-		
-		if no_card_in == 1 or no_break_out == 1:
-			if pre_shift <= dt['card_datetime'] <= max_preshift and (dt['card_type'] == 0 or dt['card_type'] == 2):
-				cards_in.append({
-					"card_name": dt['name'],
-					"card_date": dt['target_date'],
-					"card_time": dt['request'],
-					"card_datetime": dt['card_datetime'],
-					"card_type": dt['card_type']
-				})
+					dtro_time_out = [{
+						"card_name": dt['name'],
+						"card_date": dt['target_date'],
+						"card_time": dt['request'],
+						"card_datetime": dt['card_datetime'],
+						"card_type": dt['card_type']
+					}]
 
-		if no_card_out == 1 or no_break_in == 1:
-			if post_shift <= dt['card_datetime'] <= max_postshift and (dt['card_type'] == 1 or dt['card_type'] == 3):
-				cards_out.append({
-					"card_name": dt['name'],
-					"card_date": dt['target_date'],
-					"card_time": dt['request'],
-					"card_datetime": dt['card_datetime'],
-					"card_type": dt['card_type']
-				})
+	if dtro_time_in or dtro_break_out:
+		cards_in = []
+
+	if dtro_break_in or dtro_time_out:
+		cards_out = []
+
+	if dtro_time_in:
+		cards_in.extend(dtro_time_in)
+
+	if dtro_break_out:
+		cards_in.extend(dtro_break_out)
+
+	if dtro_break_in:
+		cards_out.extend(dtro_break_in)
+
+	if dtro_time_out:
+		cards_out.extend(dtro_time_out)
 
 	return cards_in, cards_out
 
-def get_sorted_card(entry, cards_in, cards_out):
+def get_sorted_card(entry, cards_in, cards_out, timelogs_map):
 	sorted_in = sorted(cards_in, key=lambda k: k['card_datetime'])
 	sorted_out = sorted(cards_out, key=lambda k: k['card_datetime'])
+	card_in = None
+	break_out = None
+	card_out = None
+	break_in = None
+
 	for card in sorted_in:
 		if card['card_type'] == 0:
 			if entry['card_in'] == "":
 				entry['card_in'] = card['card_datetime']
+				card_in = card['card_datetime']
 		elif card['card_type'] == 2:
 			if entry['break_out'] == "":
 				entry['break_out'] = card['card_datetime']
+				break_out = card['card_datetime']
  	
  	for card in sorted_out:
 		if card['card_type'] == 1:
-			entry['card_out'] = card['card_datetime']
+			if entry['card_in']:
+				if entry['card_in'] <= card['card_datetime']:
+					entry['card_out'] = card['card_datetime']
+					card_out = card['card_datetime']
+			else:
+				entry['card_out'] = card['card_datetime']
+				card_out = card['card_datetime']
+
 		elif card['card_type'] == 3:
-			entry['break_in'] = card['card_datetime']
+			if entry['break_out']:
+				if entry['break_out'] <= card['card_datetime']:
+					entry['break_in'] = card['card_datetime']
+					break_in = card['card_datetime']
+			else:
+				entry['break_in'] = card['card_datetime']
+				break_in = card['card_datetime']
+
+	if entry['target_date'] not in timelogs_map:
+		timelogs_map[entry['target_date']] = {
+			'card_in': card_in,
+			'break_out': break_out,
+			'card_out': card_out,
+			'break_in': break_in,
+		}
 
  	return entry
 
@@ -2936,12 +3209,13 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 				"csa": [],
 				"dtrp": [],
 				"tla": [],
+				"timelogs_map": {},
 			})
 		)
 
 	get_all_overrides(emp_map, employee, pay_from, pay_to)
-	get_all_schedules(emp_map, employee, pay_from, pay_to)
-	get_all_timecards(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1)) #+1 date to get nextday logs
+	get_all_schedules(emp_map, employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1))
+	get_all_timecards(emp_map, employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)) #+1 date to get nextday logs
 	get_all_holidays(emp_map, pay_from, pay_to)
 	#applications
 	get_all_leaves(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment,monthly_approval_cutoffs)
@@ -2952,8 +3226,8 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
 	get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment)
 	get_all_csa(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
-	get_all_dtrp(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
-	get_all_tla(emp_map, employee, pay_from, pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
+	get_all_dtrp(emp_map, employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment, monthly_approval_cutoffs)
+	get_all_tla(emp_map, employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), approval_cutoff, adjustment)
 
 	return emp_map
 

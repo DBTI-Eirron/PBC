@@ -3,7 +3,7 @@ import frappe, datetime
 from datetime import time, datetime, timedelta
 from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money, now_datetime, add_to_date, now
 from frappe import _, msgprint
-from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card, get_all_dtrp, get_schedule)
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card, get_all_dtrp, get_schedule, get_shift_map)
 
 def get_employee_details(self):
 	if self.is_new():
@@ -264,23 +264,49 @@ def get_cancelled_by_and_date(self):
 
 def get_current_logs(employee, target_date):
 	cin, cout = "", ""
-	schedule = get_schedule(employee, target_date, target_date)
+
+	emp = frappe.get_doc('Employee', employee)
+	emp_map = frappe._dict()
+	emp_map.setdefault(employee, frappe._dict({
+			"employee": employee,
+			"employee_name": emp.full_name,
+			"company": emp.company,
+			"employee_details": emp,
+			"schedules": [],
+			"timecards": [],
+			"overrides": [],
+			"hls": [],
+			"lvs": [],
+			"ots": [],
+			"obs": [],
+			"uts": [],
+			"ext": [],
+			"cto": [],
+			"wss": [],
+			"csa": [],
+			"dtrp": [],
+			"tla": [],
+			"timelogs_map": {},
+		})
+	)
+
+	shift_map = get_shift_map()
+	template_map = get_template_map()
+	schedule = get_schedule(employee, target_date - timedelta(days=1), target_date + timedelta(days=1))
+	bio_id = frappe.get_value('Employee',employee,'biometrics_id')
+	timecard_list = get_timecard_list(bio_id, target_date - timedelta(days=1), target_date + timedelta(days=1))
+	dtrp = get_dtrp(employee, target_date - timedelta(days=1), target_date + timedelta(days=1))
+	tla = get_all_tla(emp_map, employee, target_date - timedelta(days=1), target_date + timedelta(days=1), 0, 0)
+	emp_map[employee]['schedules'] = get_schedule(employee, target_date - timedelta(days=1), target_date + timedelta(days=1))
 
 	for d in schedule:
-		entry = {"card_in": "", "card_out": "", "override_in": "", "override_out": "", "break_out": "", "break_in": ""}
-
-		shift = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s """,(d['work_shift']), as_dict=True)
-		pre_shift = add_to_date(d['datetime_in'], hours= (0 -  shift[0].setup_preshift) )
-		end_preshift = add_to_date(d['datetime_in'], hours=  shift[0].end_preshift )
-		post_shift = add_to_date(d['datetime_out'], hours= (0 -  shift[0].setup_postshift) )
-		end_postshift = add_to_date(d['datetime_out'], hours= shift[0].end_postshift )
-
-		bio = frappe.get_value("Employee", employee, "biometrics_id")
-		timecard_list = get_timecard_list(bio, add_days(getdate(target_date), -1), add_days(getdate(target_date), +1))
-		dtrp = get_dtrp(employee, add_days(getdate(target_date), -1), add_days(getdate(target_date), +1))
-		cards_in, cards_out = get_card_within(pre_shift, end_preshift, post_shift, end_postshift, timecard_list, dtrp)
-		get_sorted_card(entry, cards_in, cards_out)
-		cin, cout = entry.get('card_in'), entry.get('card_out')
+		if target_date == d['target_date']:
+			sched = {'target_date': d['target_date'], 'work_shift': d['work_shift'], 'is_default_schedule': d['is_default_schedule']}
+			entry = get_defaults(emp, sched, shift_map, None)
+			cards_in, cards_out = get_card_within(sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
+				shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list, dtrp, tla)
+			sorted_card_list = get_sorted_card(entry, cards_in, cards_out, emp_map[employee]['timelogs_map'])
+			cin, cout = entry.get('card_in'), entry.get('card_out')
 
 	return cin, cout
 
