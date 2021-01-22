@@ -151,7 +151,7 @@ class AnnualizationProcessing(Document):
 						if btype == "Hazard":
 							emp_map[reg.employee].total_hazard += reg.amount if _type == "Income" else -(reg.amount)
 
-						if btype == "Other":
+						if btype == "Other Non-Taxable":
 							emp_map[reg.employee].total_other += reg.amount if _type == "Income" else -(reg.amount)
 
 						if btype == "Representation":
@@ -298,7 +298,7 @@ class AnnualizationProcessing(Document):
 						if btype == "Hazard":
 							emp_map[lp.employee].total_hazard += lp.amount if _type == "Income" else -(lp.amount)
 
-						if btype == "Other":
+						if btype == "Other Non-Taxable":
 							emp_map[reg.employee].total_other += reg.amount if _type == "Income" else -(reg.amount)
 
 						if btype == "Representation":
@@ -395,6 +395,8 @@ class AnnualizationProcessing(Document):
 			last_date_list = []
 			rates = get_rates(emp_dict)
 
+
+			
 			emp_dict.from_date = getdate(from_year)
 			emp_dict.to_date = getdate(to_year)
 			if getdate(emp_dict.date_hired) > getdate(from_year) and emp_dict.has_prev > 0:
@@ -426,7 +428,6 @@ class AnnualizationProcessing(Document):
 
 			#Always reduce Basic to contrib
 			emp_dict.total_basic -= abs(emp_dict.total_contrib)
-
 
 			#get excess deminimis
 			if use_ceiling_demi:
@@ -460,63 +461,63 @@ class AnnualizationProcessing(Document):
 					excess_conv = flt(emp_dict.total_conv,8) - flt(max_conversion, 8)
 					nt_conv = max_conversion
 				else:
-					nt_conv = flt(emp_dict.total_conv, 0)
+					nt_conv = flt(emp_dict.total_conv, 2)
 
 				excess_med_cash=0
 				if emp_dict.total_med_cash > 3000:
 					excess_med_cash = flt(emp_dict.total_med_cash,8) - flt(3000, 8)
 					nt_med_cash = 3000
 				else:
-					nt_med_cash = flt(emp_dict.total_med_cash, 0)
+					nt_med_cash = flt(emp_dict.total_med_cash, 2)
 
 				excess_rice=0
 				if emp_dict.total_rice > 24000:
 					excess_rice = flt(emp_dict.total_rice,8) - flt(24000, 8)
 					nt_rice = 24000
 				else:
-					nt_rice = flt(emp_dict.total_rice, 0)
+					nt_rice = flt(emp_dict.total_rice, 2)
 				
 				excess_uniform=0
 				if emp_dict.total_uniform > 6000:
 					excess_uniform = flt(emp_dict.total_uniform,8) - flt(6000, 8)
 					nt_uniform = 6000
 				else:
-					nt_uniform = flt(emp_dict.total_uniform, 0)
+					nt_uniform = flt(emp_dict.total_uniform, 2)
 
 				excess_med_ast=0
 				if emp_dict.total_med_ast > 10000:
 					excess_med_ast = flt(emp_dict.total_med_ast,8) - flt(10000, 8)
 					nt_med_ast = 10000
 				else:
-					nt_med_ast = flt(emp_dict.total_med_ast, 0)
+					nt_med_ast = flt(emp_dict.total_med_ast, 2)
 
 				excess_laundry=0
 				if emp_dict.total_laundry > 3600:
 					excess_laundry = flt(emp_dict.total_laundry,8) - flt(3600, 8)
 					nt_laundry = 3600
 				else:
-					nt_laundry = flt(emp_dict.total_laundry	, 0)
+					nt_laundry = flt(emp_dict.total_laundry, 2)
 
 				excess_awards=0
 				if emp_dict.total_awards > 10000:
 					excess_awards = flt(emp_dict.total_awards,8) - flt(10000, 8)
 					nt_awards = 10000
 				else:
-					nt_awards = flt(emp_dict.total_awards	, 0)
+					nt_awards = flt(emp_dict.total_awards, 2)
 
 				excess_gifts=0
 				if emp_dict.total_gifts > 5000:
 					excess_gifts = flt(emp_dict.total_gifts,8) - flt(5000, 8)
 					nt_gifts = 5000
 				else:
-					nt_gifts = flt(emp_dict.total_gifts	, 0)
+					nt_gifts = flt(emp_dict.total_gifts, 2)
 
 				excess_prod=0
 				if emp_dict.total_prod > 10000:
 					excess_prod = flt(emp_dict.total_prod,8) - flt(10000, 8)
 					nt_prod = 10000
 				else:
-					nt_prod = flt(emp_dict.total_prod	, 0)												
+					nt_prod = flt(emp_dict.total_prod, 2)												
 				
 
 				emp_dict.ex_conv = excess_conv
@@ -531,7 +532,7 @@ class AnnualizationProcessing(Document):
 				
 				final_demi = nt_conv + nt_med_cash + nt_rice + nt_uniform + nt_med_ast + nt_laundry + nt_awards + nt_gifts + nt_prod
 				total_excess_demi = excess_conv + excess_med_cash + excess_rice + excess_uniform + excess_med_ast + excess_laundry + excess_awards + excess_gifts + excess_prod
-				emp_dict.excess_demi = total_excess_demi
+				emp_dict.excess_demi = flt(total_excess_demi, 8)
 
 
 			#calculate if other benefits is beyond the ceiling and taxable benefits
@@ -599,7 +600,7 @@ class AnnualizationProcessing(Document):
 				emp_dict.t_other_sb = emp_dict.total_other_sb
 
 				emp_dict.nt_contrib = emp_dict.total_contrib
-				emp_dict.nt_other = 0
+				emp_dict.nt_other = emp_dict.total_other
 
 				if exceed_ceiling == 1:
 					emp_dict.nt_benefits = nt_combined_benefits
@@ -610,6 +611,7 @@ class AnnualizationProcessing(Document):
 			else:
 				#Fixed Exempt
 				emp_dict.nt_demi = final_demi
+				emp_dict.nt_other = emp_dict.total_other
 
 				#set contrib always non-tax
 				emp_dict.nt_contrib = emp_dict.total_contrib
@@ -638,15 +640,15 @@ class AnnualizationProcessing(Document):
 
 				#add taxable ND and Other to benefits after benefit calc,because there is no taxable ND and Other field
 				if tax_nd_birtype == "Other Regular A":
-					emp_dict.t_other_a += emp_dict.total_nightdiff + emp_dict.total_other
+					emp_dict.t_other_a += emp_dict.total_nightdiff
 				elif tax_nd_birtype == "Other Regular B":
-					emp_dict.t_other_b += emp_dict.total_nightdiff + emp_dict.total_other
+					emp_dict.t_other_b += emp_dict.total_nightdiff
 				elif tax_nd_birtype == "Other Supplementary A":
-					emp_dict.t_other_sa += emp_dict.total_nightdiff + emp_dict.total_other
+					emp_dict.t_other_sa += emp_dict.total_nightdiff
 				elif tax_nd_birtype == "Other Supplementary B":
-					emp_dict.t_other_sb += emp_dict.total_nightdiff + emp_dict.total_other
+					emp_dict.t_other_sb += emp_dict.total_nightdiff
 				else:
-					emp_dict.t_benefits += emp_dict.total_nightdiff + emp_dict.total_other
+					emp_dict.t_benefits += emp_dict.total_nightdiff
 
 				emp_dict.t_benefits += emp_dict.total_holiday #taxable holiday on taxable add as benefits
 
