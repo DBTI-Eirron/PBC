@@ -114,11 +114,8 @@ class BatchApproval(Document):
 			if self.application_type in ["Excuse Tardiness Application"]:
 				appfilterdate = "date"
 
-			if self.application_type in ["Compensatory Time Off (Use)"]:
-				appfilterdate = "use_target_date"
-
-			if self.application_type in ["Compensatory Time Off (File)"]:
-				appfilterdate = "file_target_date"
+			if self.application_type in ["Compensatory Time Off"]:
+				appfilterdate = "from_date"
 
 		return appfilterdate
 
@@ -134,11 +131,6 @@ class BatchApproval(Document):
 			application_list = ["Compensatory Time Off (Use)", "Compensatory Time Off (File)"]
 
 		for app in application_list:
-			if app == "Compensatory Time Off (File)":
-				appfilterdate = "file_target_date"
-			if app == "Compensatory Time Off (Use)":
-				appfilterdate = "use_target_date"
-
 			appfilters = [
 				["workflow_state", "in", ["Pending", "Approval in Progress"]],
 				[appfilterdate, ">=", str(getdate(self.from_date))],
@@ -210,15 +202,9 @@ class BatchApproval(Document):
 						row["to_date"] = doc.target_date
 
 					if application_type in ["Compensatory Time Off"]:
-						if doc.type == "File":
-							row["from_date"] = doc.file_from_date
-							row["to_date"] = doc.file_to_date
-							row["total_hours"] = doc.total_hours
-
-						if doc.type == "Use":
-							row["from_date"] = doc.use_from_date
-							row["to_date"] = doc.use_to_date
-							row["total_hours"] = doc.use_total_hours
+						row["from_date"] = doc.from_date
+						row["to_date"] = doc.to_date
+						row["total_hours"] = doc.total_hours
 
 					if application_type in ["Timelogs Application"]:
 						row["from_date"] = doc.target_date
