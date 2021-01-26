@@ -3,7 +3,7 @@ import frappe, datetime
 from datetime import time, datetime, timedelta
 from frappe.utils import cstr, cint, flt, nowdate, add_days, getdate, fmt_money, now_datetime, add_to_date, now
 from frappe import _, msgprint
-from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card, get_all_dtrp, get_schedule, get_shift_map)
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_card_within, get_sorted_card, get_all_dtrp, get_schedule, get_shift_map, get_all_tla, get_defaults)
 
 def get_employee_details(self):
 	if self.is_new():
@@ -291,7 +291,7 @@ def get_current_logs(employee, target_date):
 	)
 
 	shift_map = get_shift_map()
-	template_map = get_template_map()
+	#template_map = get_template_map()
 	schedule = get_schedule(employee, target_date - timedelta(days=1), target_date + timedelta(days=1))
 	bio_id = frappe.get_value('Employee',employee,'biometrics_id')
 	timecard_list = get_timecard_list(bio_id, target_date - timedelta(days=1), target_date + timedelta(days=1))
