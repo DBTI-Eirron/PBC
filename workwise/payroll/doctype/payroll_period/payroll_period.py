@@ -61,10 +61,24 @@ class PayrollPeriod(Document):
 			frappe.throw(_("{0} Frequency already exist in {1} Weekly Set").format(self.frequency ,self.weekly_set))
 
 	def validate_period_group(self):
-		period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
-		if period_group:
+		strict_pg = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+		if strict_pg:
 			if not self.period_group:
 				frappe.throw("Period Group is Required for Strict use of Period Group")
+
+		if self.period_group and self.schedule == "Weekly":
+			if self.weekly_set:
+				wkpg = frappe.db.get_value("Weekly Set", self.weekly_set, "period_group")
+				if not wkpg:
+					frappe.throw(_("Period Group for Weekly Set is required if Period Group is set"))
+				else:
+					if wkpg != self.period_group:
+						frappe.throw(_("Invalid Weekly Set {0}, Weekly Set is for Period Group {1}").format(self.weekly_set, wkpg))
+
+		if self.weekly_set and not self.period_group:
+			wkpg_x = frappe.db.get_value("Weekly Set", self.weekly_set, "period_group")
+			if wkpg_x:
+				frappe.throw(_("Period Group is required for Weekly Set with Period Group"))
 
 	def validate_days(self):
 		if not self.is_special:
@@ -234,5 +248,3 @@ class PayrollPeriod(Document):
 						ps.insert()
 				
 				msgprint("Payslips Created")
-
-	

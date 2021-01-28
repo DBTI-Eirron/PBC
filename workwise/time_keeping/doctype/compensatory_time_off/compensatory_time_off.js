@@ -20,7 +20,7 @@ frappe.ui.form.on('Compensatory Time Off', {
 					['Compensatory Time Off', 'docstatus', '=', 1],
 					['Compensatory Time Off', 'type', '=', 'File'],
 					['Compensatory Time Off', 'employee', '=', frm.doc.employee],
-					['Compensatory Time Off', 'balance', '>', 0],
+					['Compensatory Time Off', 'total_balance', '>', 0],
 					['Compensatory Time Off', 'to_date', '<=', frm.doc.to_date],
 				]
 			}
