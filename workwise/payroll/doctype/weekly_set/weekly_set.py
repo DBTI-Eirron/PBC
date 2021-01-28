@@ -12,7 +12,10 @@ from frappe.model.document import Document
 class WeeklySet(Document):
 	def autoname(self):
 		abbr = frappe.get_value("Company", self.company, "abbr")
-		self.name = self.month+""+cstr(self.payroll_year)+" - "+abbr
+		if not self.period_group:
+			self.name = self.month+""+cstr(self.payroll_year)+" - "+abbr
+		else:
+			self.name = self.month+""+cstr(self.payroll_year)+" - "+abbr+"-"+cstr(self.period_group)
 
 	def validate(self):
 		self.get_month_number()
