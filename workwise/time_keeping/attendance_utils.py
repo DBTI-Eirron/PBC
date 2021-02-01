@@ -3478,7 +3478,7 @@ def get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 	ws_apps = frappe.db.sql(""" SELECT employee, suspension_date, suspension_start, suspension_end 
 		FROM `tabWork Suspension` WS 
 		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` 
-		WHERE WS.docstatus = 1 AND suspension_date >= %s 
+		WHERE WS.docstatus = 1 AND suspension_start != suspension_end AND suspension_date >= %s
 		AND suspension_date <= %s {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in ws_apps:
