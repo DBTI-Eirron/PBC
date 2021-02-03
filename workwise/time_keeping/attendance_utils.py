@@ -1947,7 +1947,7 @@ def get_final_processing(entry):
 
 	ch_tr=0
 	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
-	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1:		
+	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:	
 		entry["late"] = 0
 		entry["absent"] = 1
 		entry["is_halfday"] = 1
@@ -1956,7 +1956,7 @@ def get_final_processing(entry):
 
 	chu_tr=0
 	chu = flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_consider_halfday'), 8)		
-	if flt(entry["undertime"], 8) >= chu and chu > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1:		
+	if flt(entry["undertime"], 8) >= chu and chu > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:	
 		entry["undertime"] = 0		
 		entry["absent"] = 1		
 		entry["is_halfday"] = 1		
