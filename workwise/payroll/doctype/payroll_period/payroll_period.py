@@ -190,7 +190,7 @@ class PayrollPeriod(Document):
 					if register:
 						letter_head = frappe.db.get_value("Company", emp.company, "default_letter_head")
 						
-						loan = frappe.db.sql("""SELECT LA.loan_type, LA.loan_amount, 
+						loan = frappe.db.sql("""SELECT LA.loan_type, LA.loan_amount, LA.unpaid_amount,
 							(SELECT COUNT(`name`) FROM `tabLoan Application Payments` WHERE parent = LA.`name` and payment_status = 'Paid' and payment_date <= %s) as count, 
 							(SELECT SUM(`payment_amount`) FROM `tabLoan Application Payments` WHERE parent = LA.`name` and payment_status = 'Paid' and payment_date <= %s) as paid_amount 
 							FROM `tabLoan Application` LA 
@@ -212,6 +212,7 @@ class PayrollPeriod(Document):
 								"number_payment": ln.count,
 								"paid_amount":ln.paid_amount,
 								"loan_amount":ln.loan_amount,
+								"outstanding_balance":ln.unpaid_amount,
 							})
 
 						for lv in leaves:
