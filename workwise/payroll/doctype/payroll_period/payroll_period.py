@@ -227,11 +227,13 @@ class PayrollPeriod(Document):
 								ps.append("payslip_incomes", {
 									"description": d.pay_description,
 									"amount": d.amount,
+									"pay_time": d.pay_time,
 								})
 							elif d.pay_type == "Deduction":
 								ps.append("payslip_deductions", {
 									"description": d.pay_description,
 									"amount": d.amount,
+									"pay_time": d.pay_time,
 								})
 
 							payroll_date = d.posting_date
