@@ -103,14 +103,16 @@ def get_loans(filters):
 				LA.total_loan,
 				LA.paid_amount,
 				LA.unpaid_amount,
-				LA.on_hold,
-				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
-			FROM
-				`tabLoan Application` AS LA
-				INNER JOIN `tabEmployee` AS TE ON TE.`name` = LA.employee 
+				LA.on_hold
+
+			FROM `tabPayroll Register Entries` PE
+				INNER JOIN `tabLoan Application` LA ON PE.`linked_document`=LA.`name`
+				INNER JOIN `tabPayroll Register` PR ON PE.`parent`=PR.`name`
+
 			WHERE
 				LA.company = %(company)s 
 				AND LA.docstatus = 1 
+				AND (PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s)
 				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 						INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`
 						WHERE SU.allow_user = %(cur_user)s)
@@ -121,6 +123,7 @@ def get_loans(filters):
 						"from_date": filters.from_date,
 						"to_date": filters.to_date,
 			}, as_dict=True)
+
 	else:
 		loans = frappe.db.sql("""SELECT DISTINCT
 				LA.`name`,
@@ -133,14 +136,17 @@ def get_loans(filters):
 				LA.total_loan,
 				LA.paid_amount,
 				LA.unpaid_amount,
-				LA.on_hold,
-				( SELECT IFNULL(sum( payment_amount ), 0) FROM `tabLoan Application Payments` WHERE payment_status = 'PAID' AND `parent` = LA.`name` ) AS total_paid 
-			FROM
-				`tabLoan Application` AS LA
-				INNER JOIN `tabEmployee` AS TE ON TE.`name` = LA.employee 
+				LA.on_hold
+				
+			FROM `tabPayroll Register Entries` PE
+				INNER JOIN `tabLoan Application` LA ON PE.`linked_document`=LA.`name`
+				INNER JOIN `tabPayroll Register` PR ON PE.`parent`=PR.`name`
+				INNER JOIN `tabEmployee` TE ON PR.`employee`=TE.`name`
+
 			WHERE
 				LA.company = %(company)s 
 				AND LA.docstatus = 1 
+				AND (PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s)
 				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL 
 						INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
 			ORDER BY
@@ -157,10 +163,37 @@ def get_data(filters):
 	data = []
 	loans = get_loans(filters)
 
+	for l in loans:
+		total_loans = get_loan_amount(filters, l)
+		l['total_paid'] = flt(total_loans)
+
 	for loan in loans: 
 		data.append(loan)
 
 	return data
+
+def get_loan_amount(filters, loan):
+	loan_amount = frappe.db.sql(""" SELECT 
+		SUM(PE.`amount`) as `amount`
+		FROM `tabPayroll Register Entries` PE
+		INNER JOIN `tabPayroll Register` PR ON PE.`parent`=PR.`name`
+		WHERE PE.`linked_doctype`='Loan Application'
+		AND PE.`linked_document`= %(application)s
+		AND PR.company = %(company)s
+		AND (PR.`posting_date` BETWEEN %(from_date)s AND %(to_date)s)
+		GROUP BY PE.`linked_document` """,{
+		"application": loan.name,
+		"company": filters.company,
+		"from_date": filters.from_date,
+		"to_date": filters.to_date
+	}, as_dict=True)
+
+	if loan_amount:
+		loan_amount = loan_amount[0].amount
+	else:
+		loan_amount = 0.00
+
+	return loan_amount
  
 def get_result_as_list(data, filters):
 	result = []
