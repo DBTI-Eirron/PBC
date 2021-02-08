@@ -164,8 +164,8 @@ def get_data(filters):
 	loans = get_loans(filters)
 
 	for l in loans:
-		total_paid = get_loan_amount(filters, l)
-		l['total_paid'] = flt(total_paid)
+		total_loans = get_loan_amount(filters, l)
+		l['total_paid'] = flt(total_loans)
 
 	for loan in loans: 
 		data.append(loan)
