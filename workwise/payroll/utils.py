@@ -330,7 +330,7 @@ def get_stock_rbnb_difference(posting_date, company):
 
 	# Balance as per system
 	stock_rbnb_account = "Stock Received But Not Billed - " + frappe.db.get_value("Company", company, "abbr")
-	sys_bal = get_balance_on(stock_rbnb_account, posting_date, in_account_currency=False)
+	#sys_bal = get_balance_on(stock_rbnb_account, posting_date, in_account_currency=False)
 
 	# Amount should be credited
 	return flt(stock_rbnb) + flt(sys_bal)
@@ -474,9 +474,9 @@ def get_children(doctype, parent, company, is_root=False):
 		company_currency = frappe.db.get_value("Company", company, "default_currency")
 		for each in acc:
 			each["company_currency"] = company_currency
-			each["balance"] = flt(get_balance_on(each.get("value"), in_account_currency=False))
+			#each["balance"] = flt(get_balance_on(each.get("value"), in_account_currency=False))
 
-			if each.account_currency != company_currency:
-				each["balance_in_account_currency"] = flt(get_balance_on(each.get("value")))
+			#if each.account_currency != company_currency:
+			#	each["balance_in_account_currency"] = flt(get_balance_on(each.get("value")))
 
 	return acc
