@@ -32,6 +32,9 @@ class EmployeeMovement(Document):
 	def clear_fields(self):
 		self.old_approvers = None
 		self.new_approvers = None
+		if self.is_new():
+			self.is_processed = None
+			self.date_processed = None
 
 	def get_sensitivity_level(self):
 		self.sensitivity_level = frappe.db.get_value("Employee", self.employee, 'sensitivity')
@@ -49,7 +52,7 @@ class EmployeeMovement(Document):
 		cmd_move(process="validate")
 
 	def update_movement(self):
-		if getdate(self.effective_on) <= getdate(nowdate()):
+		if getdate(self.effective_on) <= getdate(today()):
 			movement_type = "cmd_"+cstr(self.movement_type.replace(" ", "_").lower())
 			cmd_move = getattr(self, movement_type)
 			cmd_move(process="update")
@@ -224,7 +227,7 @@ class EmployeeMovement(Document):
 					"rate_type": self.new_rate_type if self.new_rate_type else self.current_rate_type,
 					"rate": flt(self.new_rate, 2) if self.new_rate else flt(self.current_rate, 2),
 					"min_take_home": flt(self.new_minimum_take_home, 2) if self.new_minimum_take_home else flt(self.current_minimum_take_home, 2),
-					"is_attendance_base": self.new_attendance_base if self.new_attendance_base else self.current_attendance_base,
+					"is_attendance_base": self.new_attendance_base,
 					"cost_center": self.new_cost_center if self.new_cost_center else self.current_cost_center,
 					"rate_class": self.new_rate_classification,
 				})
@@ -360,12 +363,6 @@ class EmployeeMovement(Document):
 			self.is_processed = 0
 			self.date_processed = today()
 
-	def run_effective_movement(self):
-		movements = frappe.db.sql(""" SELECT effective_on, `name` FROM `tabEmployee Movement` WHERE effective_on <= %s AND is_processed != 1 """,(today()),as_dict=True)
-		for d in movements:
-			move = frappe.get_doc("Employee Movement", d.name)
-			move.submit()
-
 	def create_lb_entry(self):
 		doc_emp = frappe.get_doc("Employee", self.employee)
 		if doc_emp.leave_balance_setup:
@@ -388,3 +385,24 @@ class EmployeeMovement(Document):
 					})
 					lb.flags.ignore_permissions = True
 					lb.insert()
+
+@frappe.whitelist()
+def run_effective_movement():
+	valid = 0
+	invalid = 0
+	movements = frappe.db.sql(""" SELECT `effective_on`, `name` FROM `tabEmployee Movement` WHERE effective_on<=%s AND is_processed!=1 AND docstatus=1 ORDER BY `modified` ASC """,(today()),as_dict=True)
+	for d in movements:
+		move = frappe.get_doc("Employee Movement", d.name)
+		try:
+			move.flags.ignore_permissions = True
+			move.update_movement()
+			frappe.db.set_value("Employee Movement", move.name, 'is_processed', 1)
+			frappe.db.set_value("Employee Movement", move.name, 'date_processed', today())
+			print('Valid: '+str(move.name));
+			valid += 1
+		except Exception as e:
+			frappe.db.set_value("Employee Movement", move.name, 'is_processed', 1)
+			frappe.db.set_value("Employee Movement", move.name, 'date_processed', today())
+			print('Invalid: '+str(move.name)+' Reason: '+str(e));
+			invalid += 1
+	print('Invalid: '+str(invalid)+"	Valid: "+str(valid));
