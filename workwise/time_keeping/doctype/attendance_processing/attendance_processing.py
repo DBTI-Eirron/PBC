@@ -11,7 +11,7 @@ from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.application_utils import validate_inactive_employee
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,
-init_employee_map,complete_sched,change_sched,get_template_map)
+init_employee_map,complete_sched,change_sched,get_template_map, get_multi_breaks)
 from workwise.time_keeping.application_utils import get_user_fullname
 
 class AttendanceProcessing(Document):
@@ -76,7 +76,7 @@ class AttendanceProcessing(Document):
 		ss_list = 0
 
 		if employees:
-			pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to", "approval_cutoff"])
+			pay_from, pay_to, approval_cutoff, disable_straight_shift = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to", "approval_cutoff", "disable_straight_shift"])
 			employee_list = self.convert_to_list(employees)
 			data = []
 			ot_list = []
@@ -105,8 +105,9 @@ class AttendanceProcessing(Document):
 					if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
 						entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
 						cards_in, cards_out = get_card_within(sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
-							entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+							entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'), disable_straight_shift)
 						get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
+						get_multi_breaks(entry, cards_in, cards_out)
 						get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
 							emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
 						
