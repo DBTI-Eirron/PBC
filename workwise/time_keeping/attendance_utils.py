@@ -5,12 +5,12 @@ from frappe import _
 from datetime import timedelta, date
 
 def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp, tla):
-	if dtrp:
-		for dt in dtrp:
-			if dt['target_date'] == entry['target_date']:
-				entry['is_dtrp'] = 1
-				if dt['name'] not in entry['dtrp_links']:
-					entry['dtrp_links'].append(dt['name'])
+#	if dtrp:
+#		for dt in dtrp:
+#			if dt['target_date'] == entry['target_date']:
+#				entry['is_dtrp'] = 1
+#				if dt['name'] not in entry['dtrp_links']:
+#					entry['dtrp_links'].append(dt['name'])
 
 	if tla:
 		for tl in tla:
@@ -27,6 +27,12 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 			if over.get("time_out"):
 				entry['card_out'] = get_datetime(str(over.get("time_out")))
 
+			if over.get("break_out"):
+				entry['break_out'] = get_datetime(str(over.get("break_out")))
+
+			if over.get("break_in"):
+				entry['break_in'] = get_datetime(str(over.get("break_in")))
+
 	#Format Datetime for realtime shift
 	entry['time_in'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('time_in')) )
 	entry['time_out'] = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('time_out')) )
@@ -41,6 +47,12 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 
 	if entry.get('break_end') < entry.get('time_in'):
 		entry['break_end'] = add_days(entry.get('break_end'), 1)
+
+	if entry['is_multi_break']:
+		entry['break_start'] = entry['break_start']
+		entry['break_start'] = entry['break_end']
+		entry['break_out'] = None
+		entry['break_in'] = None
 
 	if obs:
 		for ob in obs:
@@ -1774,8 +1786,6 @@ def get_flexible(entry, obs):
 				#always reduce break mins
 				diff = abs( (flex_start - flex_end).total_seconds())  - (diff_break) + flex_ob_time
 
-				#if getdate("2020-01-13") == getdate(entry['target_date']):
-				#	frappe.throw(_("{0} {1}").format(flex_start, flex_end))
 				entry['flex_in_out'].append({"from_time":  flex_start, "to_time": flex_end})
 				#Get Undertime
 				if entry.get('lv_status') > 1:
@@ -1840,6 +1850,29 @@ def get_flexible(entry, obs):
 			entry['undertime'] = 0
 
 def get_final_processing(entry):
+	if entry['is_multi_break'] and entry.get('is_attendance_base'):
+		total_break = 0
+		entry['break_out'] = None
+		entry['break_in'] = None
+
+		if entry['break_pairs']:
+			for break_pair in entry['break_pairs']:
+				total_break += break_pair['break_mins'] * 60
+		entry['break'] = total_break
+
+		if entry['max_break'] > 0:
+			if total_break > (entry['max_break'] * 60):
+				entry["undertime"] = total_break - (entry['max_break'] * 60)
+				entry['excess_break'] = total_break - (entry['max_break'] * 60)
+
+		if not entry['card_in'] or not entry['card_out']:
+			entry['break'] = 0
+			entry["undertime"] = 0
+			entry['excess_break'] = 0
+
+		if entry['undertime']:
+			entry['work'] -= entry['undertime']
+	
 	if not entry.get('is_flexible'):
 		entry['work'] -= entry['late']
 		entry['work'] -= entry['undertime']
@@ -1946,22 +1979,47 @@ def get_final_processing(entry):
 
 
 	ch_tr=0
-	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)		
-	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:	
-		entry["late"] = 0
-		entry["absent"] = 1
-		entry["is_halfday"] = 1
-		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-		ch_tr=1
+	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)	
+	lt_job_grade = frappe.db.sql(""" SELECT JGT.`job_grade`, JGT.`lt_value` FROM `tabJob Grade Table` JGT INNER JOIN `tabEmployee` E ON E.`job_grade` = JGT.`job_grade` WHERE E.name = %s """,(entry['employee']), as_dict=1)
+	
+	
+	if lt_job_grade:
+		for j in lt_job_grade:
+			if flt(entry["late"], 8) >= int(j['lt_value']) and int(j['lt_value']) > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:
+				entry["late"] = 0
+				entry["absent"] = 1
+				entry["is_halfday"] = 1
+				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+				ch_tr=1
+
+	if not lt_job_grade:
+		if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:		
+			entry["late"] = 0
+			entry["absent"] = 1
+			entry["is_halfday"] = 1
+			entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+			ch_tr=1
 
 	chu_tr=0
-	chu = flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_consider_halfday'), 8)		
-	if flt(entry["undertime"], 8) >= chu and chu > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:	
-		entry["undertime"] = 0		
-		entry["absent"] = 1		
-		entry["is_halfday"] = 1		
-		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-		chu_tr=1
+	chu = flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_consider_halfday'), 8)
+	ut_job_grade = frappe.db.sql(""" SELECT JGT.`job_grade`, JGT.`ut_value` FROM `tabJob Grade Table` JGT INNER JOIN `tabEmployee` E ON E.`job_grade` = JGT.`job_grade` WHERE E.name = %s """,(entry['employee']), as_dict=1)
+	
+	if ut_job_grade:
+		for j in ut_job_grade:
+			if flt(entry["undertime"], 8) >= int(j['ut_value']) and int(j['ut_value'])  > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:		
+				entry["undertime"] = 0		
+				entry["absent"] = 1		
+				entry["is_halfday"] = 1		
+				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+				chu_tr=1
+					
+	if not ut_job_grade:				
+		if flt(entry["undertime"], 8) >= chu and chu > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:		
+			entry["undertime"] = 0		
+			entry["absent"] = 1		
+			entry["is_halfday"] = 1		
+			entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+			chu_tr=1
 
 
 	if chu_tr == 1 and ch_tr == 1:
@@ -2166,7 +2224,11 @@ def get_tags(entry):
 	if entry.get('linked_ut'):
 		entry["tags"] += " <span class='label label-danger'> Approved Undertime </span> "
 	elif entry.get('undertime') > 0:
-		entry["tags"] += " <span class='label label-danger'> Undertime </span> "
+		allow_ut_tag = 1
+		if frappe.db.get_value("Employee", entry['employee'], "ignore_ut") and frappe.db.get_single_value('Timekeeping Settings', 'disable_ut_tag'):
+			allow_ut_tag =0
+		if allow_ut_tag:
+			entry["tags"] += " <span class='label label-danger'> Undertime </span> "
 
 	if entry.get('nightdiff') > 0:
 		entry["tags"] += " <span class='label label-info'> Nightdiff </span> "
@@ -2477,7 +2539,7 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 
 def get_shift_map():
 	shift_map = {}
-	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday,
+	shifts = frappe.db.sql("""SELECT `name`, work_hours, override_hrs, grace_period, b_grace_period, is_restday, is_multi_break, max_break,
 			is_flexible, setup_preshift, setup_postshift, flex_from, flex_to, time_in, time_out, break_start, break_end, break_mins,
 			end_preshift, end_postshift, graceperiod_late, straight_ot, flexible_type, nd_end, nd_start, work_shift_type, allow_ot_in_shift
 		FROM `tabWork Shift` """, as_dict=True)
@@ -2493,6 +2555,8 @@ def get_shift_map():
 			"grace_period": d.grace_period,
 			"b_grace_period": d.b_grace_period,
 			"is_restday": d.is_restday,
+			"is_multi_break": d.is_multi_break,
+			"max_break": d.max_break,
 			"is_flexible": d.is_flexible,
 			"setup_preshift": d.setup_preshift,
 			"setup_postshift": d.setup_postshift,
@@ -2684,13 +2748,13 @@ def get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
 
 	return result
 
-def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_map):
+def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_map, disable_straight_shift):
 	to_append = 0
 	enable_straight_shift = frappe.db.get_single_value('Timekeeping Settings', 'enable_straight_shift')
 
 	if (card_type in [0, 2, "Time in", "Break out"]):
 		to_append = 0
-		if enable_straight_shift:
+		if enable_straight_shift and not disable_straight_shift:
 			if lcn_shifts['last_shift_out'] and lcn_shifts['last_shift_out'] <= card_datetime <= lcn_shifts['current_shift_out']:
 				to_append = 1
 				
@@ -2722,14 +2786,13 @@ def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_ma
 
 				if card_type == 0:
 					card_map[target_date]['time_in'].append(card_datetime)
-
 		else:
 			if lcn_shifts['pre_shift'] <= card_datetime <= lcn_shifts['max_preshift']:
 				to_append = 1
 
 	if (card_type in [1, 3, "Time out", "Break in"]):
 		to_append = 0
-		if enable_straight_shift:
+		if enable_straight_shift and not disable_straight_shift:
 			if lcn_shifts['next_shift_in'] and lcn_shifts['current_shift_in'] <= card_datetime <= lcn_shifts['next_shift_in']:
 				to_append = 1
 		else:
@@ -2738,7 +2801,7 @@ def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_ma
 
 	return to_append
 
-def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp=None, tla=None):
+def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp=None, tla=None, disable_straight_shift=0):
 	cards_in = []
 	cards_out = []
 	dtrp_override = frappe.db.get_single_value('Timekeeping Settings', 'dtrp_override')
@@ -2752,7 +2815,7 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 	card_map = {}
 	for tc in sorted(timecard_list, key=lambda k: k['card_datetime'], reverse=1):
 		if (tc.card_type == 0 or tc.card_type == 2):
-			if validate_card_log(tc.card_datetime, tc.card_type, lcn_shifts, target_date, card_map):
+			if validate_card_log(tc.card_datetime, tc.card_type, lcn_shifts, target_date, card_map, disable_straight_shift):
 				cards_in.append({
 					"card_name":tc.name,
 					"card_time":tc.time,
@@ -2762,7 +2825,7 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 				})
 
 		if (tc.card_type == 1 or tc.card_type == 3):
-			if validate_card_log(tc.card_datetime, tc.card_type, lcn_shifts, target_date, card_map):
+			if validate_card_log(tc.card_datetime, tc.card_type, lcn_shifts, target_date, card_map, disable_straight_shift):
 				cards_out.append({
 					"card_name":tc.name,
 					"card_time":tc.time,
@@ -2786,7 +2849,7 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 
 			for c_in in cards_in:
 				if card_type == c_in['card_type']:
-					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map):
+					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map, disable_straight_shift):
 						if c_in['from'] == 'Timecard':
 							c_in['card_name'] = tl['name']
 							c_in['card_date'] = tl['target_date']
@@ -2801,7 +2864,7 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 
 			for c_out in cards_out:
 				if card_type == c_out['card_type']:
-					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map):
+					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map, disable_straight_shift):
 						if c_out['from'] == 'Timecard':
 							c_out['card_name'] = tl['name']
 							c_out['card_date'] = tl['target_date']
@@ -2816,7 +2879,7 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 
 			if no_card_in == 1 or no_break_out == 1:
 				if tl['type'] in ['Time In', 'Break Out']:
-					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map):
+					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map, disable_straight_shift):
 						cards_in.append({
 							"card_name": tl['name'],
 							"card_time": tl['request'],
@@ -2827,7 +2890,7 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 
 			if no_card_out == 1 or no_break_in == 1:
 				if tl['type'] in ['Time Out', 'Break In']:
-					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map):
+					if validate_card_log(time_req, card_type, lcn_shifts, target_date, card_map, disable_straight_shift):
 						cards_out.append({
 							"card_name": tl['name'],
 							"card_time": tl['request'],
@@ -2842,7 +2905,7 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 		if not dtrp_override:
 			for c_in in cards_in:
 				if dt['card_type'] == c_in['card_type']:
-					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map):
+					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
 						if c_in['from'] == 'Timecard':
 							c_in['card_name'] = dt['name']
 							c_in['card_date'] = dt['target_date']
@@ -2857,7 +2920,7 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 
 			for c_out in cards_out:
 				if dt['card_type'] == c_out['card_type']:
-					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map):
+					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
 						if c_out['from'] == 'Timecard':
 							c_out['card_name'] = dt['name']
 							c_out['card_date'] = dt['target_date']
@@ -2872,7 +2935,7 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 			
 			if no_card_in == 1 or no_break_out == 1:
 				if (dt['card_type'] == 0 or dt['card_type'] == 2):
-					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map):
+					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
 						cards_in.append({
 							"card_name": dt['name'],
 							"card_date": dt['target_date'],
@@ -2882,9 +2945,13 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 							"from": 'DTRP Application',
 						})
 
+						entry['is_dtrp'] = 1
+						if dt['name'] not in entry['dtrp_links']:
+							entry['dtrp_links'].append(dt['name'])
+
 			if no_card_out == 1 or no_break_in == 1:
 				if (dt['card_type'] == 1 or dt['card_type'] == 3):
-					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map):
+					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
 						cards_out.append({
 							"card_name": dt['name'],
 							"card_date": dt['target_date'],
@@ -2893,6 +2960,10 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 							"card_type": dt['card_type'],
 							"from": 'DTRP Application',
 						})
+
+						entry['is_dtrp'] = 1
+						if dt['name'] not in entry['dtrp_links']:
+							entry['dtrp_links'].append(dt['name'])
 
 		if dtrp_override:
 			if getdate(dt['target_date']) == getdate(target_date):
@@ -2999,6 +3070,85 @@ def get_sorted_card(entry, cards_in, cards_out, timelogs_map):
 
  	return entry
 
+def get_multi_breaks(entry, cards_in, cards_out):
+	break_outs = []
+	break_ins = []
+	break_pairs = []
+
+	sorted_in = sorted(cards_in, key=lambda k: k['card_datetime'])
+	sorted_out = sorted(cards_out, key=lambda k: k['card_datetime'])
+	time_in = get_datetime(str(getdate(entry['target_date']))+" "+str(entry['time_in']))
+	time_out = get_datetime(str(getdate(entry['target_date']))+" "+str(entry['time_out']))
+
+	for card in sorted_in:
+		if card['card_type'] == 2:
+			if card['card_datetime'] < time_in:
+				card['card_datetime'] = time_in
+			break_outs.append(card['card_datetime'])
+ 	
+ 	for card in sorted_out:
+		if card['card_type'] == 3:
+			if card['card_datetime'] > time_out:
+				card['card_datetime'] = time_out
+			break_ins.append(card['card_datetime'])
+
+	if break_ins and break_outs:
+		while break_outs:
+			is_valid = 1
+			remove_endpair = 0
+			remove_startpair = 0
+			start_pair = None
+			end_pair = None
+
+			if break_outs:
+				start_pair = min(break_outs)
+			if break_ins:
+				end_pair = min(break_ins)
+
+			if not (time_in <= start_pair <= time_out):
+				remove_startpair = 1
+			if not (time_in <= end_pair <= time_out):
+				remove_endpair = 1
+			if entry['card_in'] and entry['card_out']:
+				if not (entry['card_in'] <= start_pair <= entry['card_out']):
+					remove_endpair = 1
+				if not (entry['card_in'] <= end_pair <= entry['card_out']):
+					remove_endpair = 1
+
+			if start_pair and end_pair and not remove_startpair and not remove_endpair:
+				if end_pair < start_pair:
+					remove_endpair = 1
+					is_valid = 0
+
+				for bpair in break_pairs:
+					if get_datetime(bpair['break_out']) < get_datetime(end_pair) < get_datetime(bpair['break_in']):
+						remove_endpair = 1
+						is_valid = 0
+
+					if get_datetime(bpair['break_out']) < get_datetime(start_pair) < get_datetime(bpair['break_in']):
+						remove_startpair = 1
+						is_valid = 0
+
+				if is_valid:
+					break_pairs.append({
+						'break_out': start_pair,
+						'break_in': end_pair,
+						'break_mins': (end_pair - start_pair).total_seconds() / 60
+					})
+					remove_endpair = 1
+					remove_startpair = 1
+
+			if remove_endpair:
+				break_ins.remove(end_pair)
+			if remove_startpair:
+				break_outs.remove(start_pair)
+
+			if not break_ins:
+				break_outs = []
+
+	entry['break_pairs'] = []
+	entry['break_pairs'] = break_pairs
+
 def get_timecard_list(bio, pay_from, pay_to):
 	timecard_list = frappe.db.sql("""SELECT TIMESTAMP(date, time) as card_datetime, card_type, `name`, `time` FROM `tabTime Card` 
 		WHERE is_disabled = 0 AND biometrics_id = %(bio)s AND date >= %(from_date)s AND date <= %(to_date)s
@@ -3080,6 +3230,8 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"flex_from": shift_map[sched['work_shift']]['flex_from'],
 		"flex_to": shift_map[sched['work_shift']]['flex_to'],		
 		"is_restday": shift_map[sched['work_shift']]['is_restday'],
+		"is_multi_break": shift_map[sched['work_shift']]['is_multi_break'],
+		"max_break": shift_map[sched['work_shift']]['max_break'],
 		"is_default_schedule": sched['is_default_schedule'],
 		#general policy
 		"is_processed": 0,
@@ -3479,7 +3631,7 @@ def get_all_wss(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 		FROM `tabWork Suspension` WS 
 		INNER JOIN `tabWork Suspension Apply` WSA ON WSA.parent = WS.`name` 
 		WHERE WS.docstatus = 1 AND suspension_start != suspension_end AND suspension_date >= %s
-		AND suspension_date <= %s {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
+        AND suspension_date <= %s {conditions} """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in ws_apps:
 		if d.employee in emp_map:
