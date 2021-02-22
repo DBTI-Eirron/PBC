@@ -7,7 +7,7 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date, get_datetime
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, 
+get_attendance, get_defaults, get_ob_list, get_ot_list, get_multi_breaks, 
 get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,change_sched,get_template_map)
 
 def execute(filters=None):
@@ -111,6 +111,7 @@ def get_data(filters):
 				cards_in, cards_out = get_card_within(sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
 					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
 				get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
+				get_multi_breaks(entry, cards_in, cards_out)
 				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
 					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
 

@@ -1292,3 +1292,9 @@ def update_old_loan_application_frequency_method():
 
 def worksuspension_to_datetime():
 	frappe.db.sql("""UPDATE `tabWork Suspension` SET to_time=suspension_end, from_time=suspension_start """)
+
+def set_employee_gsis_setup():
+	frappe.db.sql("""UPDATE `tabEmployee` SET gsis_mode='None', gsis_frequency='1st' WHERE gsis_mode IS NULL and gsis_frequency IS NULL """)
+
+def set_movement_processed():
+	frappe.db.sql("""UPDATE `tabEmployee Movement` SET is_processed=1, date_processed=effective_on WHERE effective_on<=%s AND is_processed!=1 AND docstatus=1 ORDER BY `modified` ASC """,(today()),as_dict=True)
