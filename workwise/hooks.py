@@ -32,7 +32,7 @@ scheduler_events = {
 	"monthly": [
 	],
 	"daily": [
-		"workwise.employee_201.movement.run_employee_movement",
+		"workwise.employee_201.doctype.employee_movement.employee_movement.run_effective_movement",
 		"workwise.time_keeping.timekeeping_task.automated_leave_balance",
 		"workwise.time_keeping.timekeeping_task.holiday_recurring_yearly",
 	],
