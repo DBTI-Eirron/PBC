@@ -140,15 +140,18 @@ def get_weekly_basis(govt_type, emp, header, govt_freq, curr_freq, weekly_data, 
 		monthly_basis += current_basis
 
 	#used for getting sss,phic,hdmf data an all previous frequencies
-	weekly_previous_amts = {
-		"sss": sss,
-		"ssse": ssse,
-		"sssc": sssc,
-		"sss_ee_mpf": sss_ee_mpf,
-		"sss_er_mpf": sss_er_mpf,
-	}		
+	if govt_type == 'sss':
+		weekly_previous_amts = {
+			"sss": sss,
+			"ssse": ssse,
+			"sssc": sssc,
+			"sss_ee_mpf": sss_ee_mpf,
+			"sss_er_mpf": sss_er_mpf,
+		}		
 
-	return government_basis, monthly_basis, weekly_previous_amts
+		return government_basis, monthly_basis, weekly_previous_amts
+	else:
+		return government_basis, monthly_basis
 
 def get_weekly_targets(govt_freq, curr_freq, no_weeks):
 	targets = []
