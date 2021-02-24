@@ -1977,50 +1977,23 @@ def get_final_processing(entry):
 		entry['ot_list'] = ""
 		entry["undertime"] = 0
 
-
 	ch_tr=0
-	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)	
-	lt_job_grade = frappe.db.sql(""" SELECT JGT.`job_grade`, JGT.`lt_value` FROM `tabJob Grade Table` JGT INNER JOIN `tabEmployee` E ON E.`job_grade` = JGT.`job_grade` WHERE E.name = %s """,(entry['employee']), as_dict=1)
-	
-	
-	if lt_job_grade:
-		for j in lt_job_grade:
-			if flt(entry["late"], 8) >= int(j['lt_value']) and int(j['lt_value']) > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:
-				entry["late"] = 0
-				entry["absent"] = 1
-				entry["is_halfday"] = 1
-				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-				ch_tr=1
-
-	if not lt_job_grade:
-		if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:		
-			entry["late"] = 0
-			entry["absent"] = 1
-			entry["is_halfday"] = 1
-			entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-			ch_tr=1
+	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)
+	if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:
+		entry["late"] = 0
+		entry["absent"] = 1
+		entry["is_halfday"] = 1
+		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
+		ch_tr=1
 
 	chu_tr=0
 	chu = flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_consider_halfday'), 8)
-	ut_job_grade = frappe.db.sql(""" SELECT JGT.`job_grade`, JGT.`ut_value` FROM `tabJob Grade Table` JGT INNER JOIN `tabEmployee` E ON E.`job_grade` = JGT.`job_grade` WHERE E.name = %s """,(entry['employee']), as_dict=1)
-	
-	if ut_job_grade:
-		for j in ut_job_grade:
-			if flt(entry["undertime"], 8) >= int(j['ut_value']) and int(j['ut_value'])  > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:		
-				entry["undertime"] = 0		
-				entry["absent"] = 1		
-				entry["is_halfday"] = 1		
-				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-				chu_tr=1
-					
-	if not ut_job_grade:				
-		if flt(entry["undertime"], 8) >= chu and chu > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:		
-			entry["undertime"] = 0		
-			entry["absent"] = 1		
-			entry["is_halfday"] = 1		
-			entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-			chu_tr=1
-
+	if flt(entry["undertime"], 8) >= chu and chu > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:
+		entry["undertime"] = 0
+		entry["absent"] = 1
+		entry["is_halfday"] = 1
+		entry['work'] = (entry.get('work_hours') * 60 * 60) / 2 
+		chu_tr=1
 
 	if chu_tr == 1 and ch_tr == 1:
 		entry["late"] = 0		
