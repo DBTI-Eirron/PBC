@@ -78,7 +78,10 @@ def get_result(filters):
 	return data
 
 def get_employee(filters):
-	employee_list = frappe.db.sql("""SELECT name, full_name FROM `tabEmployee` WHERE company = %s ORDER BY `name`""",(filters.company), as_dict=True)
+	if filters.inc_inactive_emp:
+		employee_list = frappe.db.sql("""SELECT name, full_name FROM `tabEmployee` WHERE company = %s ORDER BY `name`""",(filters.company), as_dict=True)
+	else:
+		employee_list = frappe.db.sql("""SELECT name, full_name FROM `tabEmployee` WHERE company = %s AND is_active = 1 ORDER BY `name`""",(filters.company), as_dict=True)
 
 	return employee_list
 

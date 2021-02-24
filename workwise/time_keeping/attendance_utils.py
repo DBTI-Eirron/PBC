@@ -2774,7 +2774,7 @@ def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_ma
 
 	return to_append
 
-def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp=None, tla=None, disable_straight_shift=0):
+def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp=None, tla=None, disable_straight_shift=0):
 	cards_in = []
 	cards_out = []
 	dtrp_override = frappe.db.get_single_value('Timekeeping Settings', 'dtrp_override')
@@ -2918,10 +2918,6 @@ def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_
 							"from": 'DTRP Application',
 						})
 
-						entry['is_dtrp'] = 1
-						if dt['name'] not in entry['dtrp_links']:
-							entry['dtrp_links'].append(dt['name'])
-
 			if no_card_out == 1 or no_break_in == 1:
 				if (dt['card_type'] == 1 or dt['card_type'] == 3):
 					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
@@ -2933,10 +2929,6 @@ def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_
 							"card_type": dt['card_type'],
 							"from": 'DTRP Application',
 						})
-
-						entry['is_dtrp'] = 1
-						if dt['name'] not in entry['dtrp_links']:
-							entry['dtrp_links'].append(dt['name'])
 
 		if dtrp_override:
 			if getdate(dt['target_date']) == getdate(target_date):
