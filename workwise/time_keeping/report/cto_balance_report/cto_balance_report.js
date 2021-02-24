@@ -19,6 +19,11 @@ frappe.query_reports["CTO Balance Report"] = {
 			
 		},
 		{
+			"fieldname": "inc_inactive_emp",
+			"label": __("Include Inactive Employee"),
+			"fieldtype": "Check",
+		},
+		{
 			"fieldname": "hide_zero",
 			"label": __("Hide Zero"),
 			"fieldtype": "Check",
