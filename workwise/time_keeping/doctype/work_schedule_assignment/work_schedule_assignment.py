@@ -22,21 +22,31 @@ class WorkScheduleAssignment(Document):
 		return self.create_log(ss_list)
 
 	def validate_schedule_with_csa(self):
-		csa = frappe.db.sql("""SELECT CSA.name, CSA.employee, CSAT.target_date FROM `tabChange Schedule Application` CSA INNER JOIN `tabChange Schedule Application Table` CSAT ON CSA.name = CSAT.parent
-			WHERE CSA.`docstatus` = 1""", as_dict=True)
+		employees_selected = []
 		if self.assignment == "Single":
 			for s in self.single_employee:
-				for c in csa:
-					if s.employee == c['employee']:
-						if getdate(self.from_date) >= getdate(c['target_date']) >= getdate(self.to_date):
-							frappe.throw(_("Employee %s already have approved Change Schedule Application in %s",c['employee'], c['target_date'] ))
-		
+				employees_selected.append(s.employee)
 		else:
 			for s in self.employees:
-				for c in csa:
-					if s.employee == c['employee']:
-						if getdate(self.from_date) >= getdate(c['target_date']) >= getdate(self.to_date):
-							frappe.throw(_("Employee %s already have approved Change Schedule Application in %s",c['employee'], c['target_date'] ))
+				employees_selected.append(s.employee)
+
+		approved_csa = {}
+		csa = frappe.db.sql("""SELECT CSA.name, CSA.employee, CSAT.target_date FROM `tabChange Schedule Application` CSA INNER JOIN `tabChange Schedule Application Table` CSAT ON CSA.name = CSAT.parent
+			WHERE CSA.`docstatus` = 1 AND CSA.`workflow_state`='Approved'""", as_dict=True)
+		for c in csa:
+			if getdate(self.from_date) <= getdate(c.target_date) <= getdate(self.to_date):
+				if c.employee in employees_selected:
+					if c.employee not in approved_csa:
+						approved_csa[c.employee] = []
+					approved_csa[c.employee].append( str(c.target_date) )
+
+		message = ''
+		if employees_selected and approved_csa:
+			for emp in approved_csa:
+				for td in approved_csa[emp]:
+					message += 'Employee '+emp+' already have approved Change Schedule Application in '+str(td)+'<br>'
+		if message != '':
+			frappe.throw(_( message ))
 						
 	def assign_employee_schedule(self):
 		ss_list = []
