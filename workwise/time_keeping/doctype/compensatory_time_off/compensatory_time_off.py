@@ -41,6 +41,7 @@ class CompensatoryTimeOff(Document):
 		validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
+		self.validate_child_table()
 		if self.cto_targets:
 			for d in self.cto_targets:
 				validate_strict_cto(target_date=d.target_date, employee=self.employee, from_time=d.from_time, to_time=d.to_time)
@@ -512,15 +513,21 @@ def file_validate_max_filing(**entry):
 		entry_filing = {}
 		from_date = None
 		to_date = None
+		monthly = None
 
 		for mxf in cto_max_filing:
 			if mxf.frequency == "Daily":
 				from_date = getdate( entry['target_date'] )
 				to_date = getdate( entry['target_date'] )
 
+			if mxf.frequency == "Weekly":
+				from_date = getdate( entry['target_date'] ) - timedelta(days = getdate( entry['target_date'] ).weekday())
+				to_date = getdate(from_date + timedelta(days=6))
+
 			if mxf.frequency == "Monthly":
-				month = int(datetime.strptime(entry['target_date'], "%Y-%m-%d").month)
-				year = int(datetime.strptime(entry['target_date'], "%Y-%m-%d").year)
+				monthly = str(entry['target_date'])
+				month = int(datetime.strptime(monthly, "%Y-%m-%d").month)
+				year = int(datetime.strptime(monthly, "%Y-%m-%d").year)
 
 				from_date = getdate( str(year)+"-"+str(month)+"-01" )
 				to_date = getdate( str(year)+"-"+str(month)+"-"+str(calendar.monthrange(int(year), int(month))[1]) )
@@ -534,10 +541,11 @@ def file_validate_max_filing(**entry):
 
 			if from_date and to_date:
 				filed_apps = frappe.db.sql("""SELECT COUNT(*) as filed_count FROM `tabCompensatory Time Off Targets` CTT JOIN `tabCompensatory Time Off` CTO ON CTT.`parent`=CTO.`name` 
-					WHERE CTO.`docstatus` != 2 AND CTO.`type` = "File" AND CTO.`employee` = %s AND CTT.`target_date` >= %s 
+					WHERE CTO.`docstatus` != 2 AND CTO.`workflow_state` = 'Approved' AND CTO.`type` = "File" AND CTO.`employee` = %s AND CTT.`target_date` >= %s 
 					AND CTT.`target_date` <= %s """,( entry['employee'], getdate(from_date), getdate(to_date) ), as_dict=1)
+				
 				if filed_apps:
-					if int(filed_apps[0].filed_count) > int(mxf.max_count):
+					if int(filed_apps[0].filed_count) >= int(mxf.max_count):
 						frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Max {1} File Compensatory Time Off is {2}. You already have {3} filed.").format(entry['application_name'], mxf.frequency, mxf.max_count, filed_apps[0].filed_count))
 
 def file_validate_cto(**entry):
