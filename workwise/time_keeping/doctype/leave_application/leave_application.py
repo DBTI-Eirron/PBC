@@ -22,15 +22,17 @@ class LeaveApplication(Document):
 		self.set_lwop()
 		self.validate_leave_table()
 		self.validate_days()
-		self.validate_date()
 		self.validate_employee()
 		self.validate_balance()
 		self.validate_leave()
 		self.validate_convertible()
 		change_owner(self)
 		self.get_recipients()
+		if self.workflow_state == "Pending" or self.workflow_state == "Draft":
+			self.validate_date()
 
 	def on_submit(self):
+		self.validate_date()
 		self.set_lwop()
 		validate_approve_own_application(self)
 		self.validate_medical()
@@ -299,7 +301,7 @@ class LeaveApplication(Document):
 			conditions = " AND LT.is_second_half=%(is_second_half)s"
 
 		leave_sched = frappe.db.sql(""" SELECT DISTINCT LA.`name` FROM `tabLeave Application Table` LT INNER JOIN `tabLeave Application` LA ON LT.`parent`=LA.`name` 
-		  	WHERE LA.docstatus = 1 AND LA.`employee` = %(employee)s AND LT.`leave_date` = %(leave_date)s AND LT.`is_excluded` = 0 AND LA.`name` != %(leave_app)s {conditions}""".format(conditions=conditions),
+		  	WHERE LA.workflow_state = "Approved" AND LA.`employee` = %(employee)s AND LT.`leave_date` = %(leave_date)s AND LT.`is_excluded` = 0 AND LA.`name` != %(leave_app)s {conditions}""".format(conditions=conditions),
 			({ 
 				"employee": self.employee,
 				"leave_date": leave_date,
