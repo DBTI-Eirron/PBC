@@ -29,8 +29,11 @@ class LeaveApplication(Document):
 		self.validate_convertible()
 		change_owner(self)
 		self.get_recipients()
+		if self.workflow_state == "Pending" or self.workflow_state == "Draft":
+			self.validate_date()
 
 	def on_submit(self):
+		self.validate_date()
 		self.set_lwop()
 		validate_approve_own_application(self)
 		self.validate_medical()
@@ -45,6 +48,8 @@ class LeaveApplication(Document):
 		validate_reject_cancel_own_application(self)
 
 	def before_update_after_submit(self):
+		self.validate_date()
+		self.validate_days()
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 		#validate_approver_userperm(self)
@@ -299,7 +304,7 @@ class LeaveApplication(Document):
 			conditions = " AND LT.is_second_half=%(is_second_half)s"
 
 		leave_sched = frappe.db.sql(""" SELECT DISTINCT LA.`name` FROM `tabLeave Application Table` LT INNER JOIN `tabLeave Application` LA ON LT.`parent`=LA.`name` 
-		  	WHERE LA.docstatus = 1 AND LA.`employee` = %(employee)s AND LT.`leave_date` = %(leave_date)s AND LT.`is_excluded` = 0 AND LA.`name` != %(leave_app)s {conditions}""".format(conditions=conditions),
+		  	WHERE LA.workflow_state = "Approved" AND LA.`employee` = %(employee)s AND LT.`leave_date` = %(leave_date)s AND LT.`is_excluded` = 0 AND LA.`name` != %(leave_app)s {conditions}""".format(conditions=conditions),
 			({ 
 				"employee": self.employee,
 				"leave_date": leave_date,
@@ -329,7 +334,7 @@ class LeaveApplication(Document):
 			frappe.throw(_("<b>Leave Application: {0}</b><hr> No To Date").format(self.name))
 		
 		if self.from_date > self.to_date:
-			frappe.throw(_("<b>Leave Application: {0}</b><hr> To From Date Should be Greater than To").format(self.name))
+			frappe.throw(_("<b>Leave Application: {0}</b><hr> From Date must be before To Date").format(self.name))
 			
 		else:
 			entries = [];
