@@ -5,12 +5,12 @@ from frappe import _
 from datetime import timedelta, date
 
 def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp, tla):
-#	if dtrp:
-#		for dt in dtrp:
-#			if dt['target_date'] == entry['target_date']:
-#				entry['is_dtrp'] = 1
-#				if dt['name'] not in entry['dtrp_links']:
-#					entry['dtrp_links'].append(dt['name'])
+	if dtrp:
+		for dt in dtrp:
+			if dt['target_date'] == entry['target_date']:
+				entry['is_dtrp'] = 1
+				if dt['name'] not in entry['dtrp_links']:
+					entry['dtrp_links'].append(dt['name'])
 
 	if tla:
 		for tl in tla:
