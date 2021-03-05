@@ -14,8 +14,10 @@ class TimekeepingSettings(Document):
 
 	#Enable Employee Approvers
 	def validate_employee_approvers(self):
+		app_list = [ "Leave Application", "Overtime Application", "Official Business Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "DTR Problem Application", "Compensatory Time Off", "Timelogs Application"]
 		if self.enable_employee_approvers > 0:
-			application = [ "Leave Approval Level", "Overtime Approval Level", "Official Business Approval Level", "Change Schedule Approval Level", "Excuse Tardiness Approval Level", "Undertime Approval Level", "DTR Problem Approval Level", "Compensatory Time Off Approval Level"]
+			application = [ "Leave Approval Level", "Overtime Approval Level", "Official Business Approval Level", "Change Schedule Approval Level", "Excuse Tardiness Approval Level", 
+				"Undertime Approval Level", "DTR Problem Approval Level", "Compensatory Time Off Approval Level", "Timelogs Application Approval Level"]
 			for a in application:
 				workflow = frappe.get_doc("Workflow", a)
 				workflow.update({
@@ -23,13 +25,13 @@ class TimekeepingSettings(Document):
 				})
 				workflow.save()
 
-				app_list = [ "Leave Application", "Overtime Application", "Official Business Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "DTR Problem Application", "Compensatory Time Off"]
 				for b in app_list:
 					table_name = "`tab"+str(b)+"`"
 					frappe.db.sql(""" UPDATE """+str(table_name)+""" SET docstatus=1 WHERE workflow_state="Pending" """)
 					frappe.db.commit()
 		else:
-			application = [ "Leave Approval", "Overtime Approval", "Official Business Approval", "Change Schedule Approval", "Excuse Tardiness Approval", "Undertime Approval", "DTR Problem Approval", "Compensatory Time Off Approval"]
+			application = [ "Leave Approval", "Overtime Approval", "Official Business Approval", "Change Schedule Approval", "Excuse Tardiness Approval", "Undertime Approval", 
+				"DTR Problem Approval", "Compensatory Time Off Approval", "Timelogs Application Approval"]
 			for a in application:
 				workflow = frappe.get_doc("Workflow", a)
 				workflow.update({
@@ -37,7 +39,6 @@ class TimekeepingSettings(Document):
 				})
 				workflow.save()
 
-			app_list = [ "Leave Application", "Overtime Application", "Official Business Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "DTR Problem Application", "Compensatory Time Off"]
 			for b in app_list:
 				table_name = "`tab"+str(b)+"`"
 				frappe.db.sql(""" UPDATE """+str(table_name)+""" SET docstatus=0 WHERE workflow_state="Pending" """)

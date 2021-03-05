@@ -12,9 +12,6 @@ frappe.ui.form.on('Batch Approval', {
 				}
 			});
 
-			if (!frm.doc.posting_date) {
-				frm.set_value("posting_date", get_today());
-			}
 			if (!frm.doc.batch_table){
 				cur_frm.toggle_display('batch_table',false);
 			}
