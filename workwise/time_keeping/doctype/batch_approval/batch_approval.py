@@ -105,7 +105,7 @@ class BatchApproval(Document):
 
 		if self.based_on == "Target Date":
 			if self.application_type in ["Overtime Application", "Official Business Application", "Undertime Application", 
-				"Change Schedule Application", "DTR Problem Application", "Timelogs Application"]:
+				"Change Schedule Application", "DTR Problem Application"]:
 				appfilterdate = "target_date"
 
 			if self.application_type in ["Leave Application"]:
@@ -126,6 +126,7 @@ class BatchApproval(Document):
 		cur_user = frappe.session.user
 		application_type = self.application_type
 		appfilterdate = self.get_filter_date()
+		ta_dict = None
 
 		if self.application_type in ["Compensatory Time Off"]:
 			application_list = ["Compensatory Time Off (Use)", "Compensatory Time Off (File)"]
@@ -134,7 +135,8 @@ class BatchApproval(Document):
 			appfilters = [
 				["workflow_state", "in", ["Pending", "Approval in Progress"]],
 				[appfilterdate, ">=", str(getdate(self.from_date))],
-				[appfilterdate, "<=", str(getdate(self.to_date))]
+				[appfilterdate, "<=", str(getdate(self.to_date))],
+				["company", "=", self.company]
 			]
 
 			if app == "Compensatory Time Off (File)":
@@ -144,6 +146,30 @@ class BatchApproval(Document):
 			if app == "Compensatory Time Off (Use)":
 				appfilters.append(["type", "in", "Use"])
 				app = "Compensatory Time Off"
+
+			if self.employee:
+				appfilters.append(["employee", "in", self.employee])
+
+			if app == "Timelogs Application":
+				included_ta = []
+				ta_dict = {}
+				ta_result = frappe.db.sql(""" SELECT TA.`parent`, TA.`target_date` FROM `tabTimelogs Application Table` TA JOIN `tabTimelogs Application` T ON TA.`parent` = T.`name` 
+					WHERE T.`workflow_state` IN ('Pending', 'Approval in Progress') """, as_dict=1)
+
+				for tar in ta_result:
+					if tar.parent not in ta_dict:
+						ta_dict[tar.parent] = []
+					ta_dict[tar.parent].append(tar.target_date)
+
+				if ta_dict:
+					for ta in ta_dict:
+						if self.based_on == "Target Date":
+							if (getdate(self.from_date) <= min(ta_dict[ta]) <= getdate(self.to_date)) and (getdate(self.from_date) <= max(ta_dict[ta]) <= getdate(self.to_date)):
+								included_ta.append(ta)
+						else:
+							included_ta.append(ta)
+
+				appfilters.append(["name", "in", included_ta])
 
 			if not any(elem in ["Administrator", "Admin Approver"] for elem in frappe.get_roles(cur_user)):
 				result = frappe.get_list(app, filters=appfilters, fields=['name'])
@@ -207,11 +233,24 @@ class BatchApproval(Document):
 						row["total_hours"] = doc.total_hours
 
 					if application_type in ["Timelogs Application"]:
-						row["from_date"] = doc.target_date
-						row["to_date"] = doc.target_date
+						if ta_dict:
+							row["from_date"] = min(ta_dict[res['name']])
+							row["to_date"] = max(ta_dict[res['name']])
 
 					row["employee_name"] = frappe.db.get_value("Employee", row["employee"], ["full_name"])
-					
-					final_result.append(row)
+					to_append = 1
+
+					if not any(elem in ["Administrator", "Admin Approver"] for elem in frappe.get_roles(cur_user)):
+						if frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers'):
+							to_append = 0
+							req_level = int(doc.last_approval_level)+1
+							approver_level = frappe.db.sql(""" SELECT IFNULL(MAX(EA.`level`), 0) as `level` FROM `tabEmployee Approvers` EA JOIN `tabEmployee` TE ON EA.`approver` = TE.`name` 
+								WHERE EA.parenttype = "Employee" AND (EA.application = %s OR EA.application = "All") AND EA.parent = %s AND TE.user_id = %s AND EA.`level` = %s """,(doc.doctype, doc.employee, frappe.session.user, int(req_level)), as_dict=1)
+							if approver_level:
+								if str(req_level) == str(approver_level[0].level):
+									to_append = 1
+
+					if to_append:
+						final_result.append(row)
 
 		return final_result
