@@ -47,6 +47,8 @@ class LeaveApplication(Document):
 		validate_reject_cancel_own_application(self)
 
 	def before_update_after_submit(self):
+		self.validate_date()
+		self.validate_days()
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 		#validate_approver_userperm(self)
@@ -331,7 +333,7 @@ class LeaveApplication(Document):
 			frappe.throw(_("<b>Leave Application: {0}</b><hr> No To Date").format(self.name))
 		
 		if self.from_date > self.to_date:
-			frappe.throw(_("<b>Leave Application: {0}</b><hr> To From Date Should be Greater than To").format(self.name))
+			frappe.throw(_("<b>Leave Application: {0}</b><hr> From Date must be before To Date").format(self.name))
 			
 		else:
 			entries = [];
