@@ -5,12 +5,12 @@ from frappe import _
 from datetime import timedelta, date
 
 def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp, tla):
-#	if dtrp:
-#		for dt in dtrp:
-#			if dt['target_date'] == entry['target_date']:
-#				entry['is_dtrp'] = 1
-#				if dt['name'] not in entry['dtrp_links']:
-#					entry['dtrp_links'].append(dt['name'])
+	if dtrp:
+		for dt in dtrp:
+			if dt['target_date'] == entry['target_date']:
+				entry['is_dtrp'] = 1
+				if dt['name'] not in entry['dtrp_links']:
+					entry['dtrp_links'].append(dt['name'])
 
 	if tla:
 		for tl in tla:
@@ -2770,8 +2770,8 @@ def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_ma
 						to_append = 1
 
 					if target_date in card_map and card_map[target_date]['time_in']:
-						max_card_datetime = max(card_map[target_date]['time_in'])
-						if card_datetime < max_card_datetime:
+						min_card_datetime = min(card_map[target_date]['time_in'])
+						if card_datetime > min_card_datetime and card_datetime > lcn_shifts['last_shift_cardout']:
 							to_append = 0
 
 				if target_date not in card_map:

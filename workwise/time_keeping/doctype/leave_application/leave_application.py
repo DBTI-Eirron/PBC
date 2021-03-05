@@ -22,7 +22,6 @@ class LeaveApplication(Document):
 		self.set_lwop()
 		self.validate_leave_table()
 		self.validate_days()
-		self.validate_date()
 		self.validate_employee()
 		self.validate_balance()
 		self.validate_leave()
