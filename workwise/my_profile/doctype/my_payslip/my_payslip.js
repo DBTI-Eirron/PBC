@@ -20,40 +20,48 @@ frappe.ui.form.on('My Payslip', {
 		});
 		frm.pass_dialog.set_primary_action(__("Login"), function() {
 			var filters = frm.pass_dialog.get_values();
-			frappe.call({
-				method: "check_password",
-				args:{
-					filters: filters.payslip_password
-				},
-				doc: frm.doc,
-				callback: function(r) {
-					if (r.message == false){
-						frappe.set_route("List", "My Payslip");
-					} else {
-						cur_frm.toggle_display('basic_section', true);
-						cur_frm.toggle_display('entries_section', true);
-						cur_frm.toggle_display('totals_section', true);	
-						cur_frm.toggle_display('loan_section', true);	
-					}
-					frm.pass_dialog.hide()
-					frappe.call({
-						method: "workwise.setup.doctype.jasper_form.jasper_form.get_forms",
-						args:{
-							doctype_name: "My Payslip"
-						},
-						callback: function(r) {
-							r.message.forEach(function(item) {
-								frm.add_custom_button(__(item.form_label),
-								function() {
-									window.open("http://"+ item.form_ip +":"+ item.form_port +"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2F"+ item.form_folder +"&reportUnit=%2FReports%2F"+ item.form_name +"&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
-								});
-							});
+			if (filters.payslip_password == null) {
+				msgprint('No password detected');
+			}else{
+				frappe.call({
+					method: "check_password",
+					args:{
+						filters: filters.payslip_password
+					},
+					doc: frm.doc,
+					callback: function(r) {
+						if (r.message == false){
+							frappe.set_route("List", "My Payslip");
+						} else {
+							cur_frm.toggle_display('basic_section', true);
+							cur_frm.toggle_display('entries_section', true);
+							cur_frm.toggle_display('totals_section', true);	
+							cur_frm.toggle_display('loan_section', true);	
 						}
-					});
-				}
-			});
+						frm.pass_dialog.hide()
+						frappe.call({
+							method: "workwise.setup.doctype.jasper_form.jasper_form.get_forms",
+							args:{
+								doctype_name: "My Payslip"
+							},
+							callback: function(r) {
+								r.message.forEach(function(item) {
+									frm.add_custom_button(__(item.form_label),
+									function() {
+										window.open("http://"+ item.form_ip +":"+ item.form_port +"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2F"+ item.form_folder +"&reportUnit=%2FReports%2F"+ item.form_name +"&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+									});
+								});
+							}
+						});
+					}
+				});
+			}
 		});
 		frm.pass_dialog.show();
+		$('.btn-modal-close').click(function() {
+		  frappe.set_route("List", "My Payslip");
+		});
+		$('.modal-backdrop').unbind('click');
 		
 		// frappe.call({
 		// 	method: "check_loan",
