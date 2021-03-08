@@ -82,6 +82,6 @@ def get_result(filters):
 
 			total += flt(d.amount)
 			result.append(row)
-		result.append(["", "", "", '{:,.2f}'.format(total)])
+		result.append({ "year": "", "month": "", "date": "", "amount": '{:,.2f}'.format(total) })
 
 	return result
