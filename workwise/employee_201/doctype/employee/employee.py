@@ -91,6 +91,13 @@ class Employee(Document):
 			parent_department = frappe.get_value("Department", self.department, "parent_department")
 			if parent_department:
 				frappe.permissions.add_user_permission("Department", parent_department, self.user_id)
+		if self.period_group and self.user_id:
+			user_perm = frappe.db.sql(""" SELECT `for_value` FROM `tabUser Permission` WHERE `user` = %s AND `allow` = "Period Group" """,(self.user_id) , as_dict=1)
+			if user_perm != self.period_group:
+				frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(self.user_id),as_dict=True)
+				frappe.permissions.add_user_permission("Period Group", self.period_group, self.user_id)
+		if not self.period_group:
+			frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(self.user_id),as_dict=True)
 
 	def update_fullname(self):
 		if self.middle_name:
