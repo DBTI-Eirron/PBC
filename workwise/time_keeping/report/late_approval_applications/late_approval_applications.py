@@ -45,6 +45,12 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 180
 		},
+		{
+			"fieldname": "last_cutoff",
+			"label": _("Last Cut Off Date of Approval"),
+			"fieldtype": "Data",
+			"width": 180
+		},
 	]
 
 	return columns
@@ -136,6 +142,7 @@ def get_data(filters):
 				"approved_on": lv.approved_on,
 				"approved_by": lv.approved_by,
 				"link": "<a href='/desk#Form/Leave Application/"+lv.name+"'> "+lv.name+" </a>",
+				"last_cutoff": approval_cutoff,
 			}
 			lv_included_list.append(lv.name)
 			data.append(row)
@@ -148,6 +155,7 @@ def get_data(filters):
 				"approved_on": ob.approved_on,
 				"approved_by": ob.approved_by,
 				"link": "<a href='/desk#Form/Official Business Application/"+ob.name+"'> "+ob.name+" </a>",
+				"last_cutoff": approval_cutoff,
 			}
 			ob_included_list.append(ob.name)
 			data.append(row)
@@ -160,6 +168,7 @@ def get_data(filters):
 				"approved_on": ot.approved_on,
 				"approved_by": ot.approved_by,
 				"link": "<a href='/desk#Form/Overtime Application/"+ot.name+"'> "+ot.name+" </a>",
+				"last_cutoff": approval_cutoff,
 			}
 			ot_included_list.append(ot.name)
 			data.append(row)
@@ -172,6 +181,7 @@ def get_data(filters):
 				"approved_on": ut.approved_on,
 				"approved_by": ut.approved_by,
 				"link": "<a href='/desk#Form/Undertime Application/"+ut.name+"'> "+ut.name+" </a>",
+				"last_cutoff": approval_cutoff,
 			}
 			ut_included_list.append(ut.name)
 			data.append(row)
@@ -184,6 +194,7 @@ def get_data(filters):
 				"approved_on": cto.approved_on,
 				"approved_by": cto.approved_by,
 				"link": "<a href='/desk#Form/Compensatory Time Off/"+cto.name+"'> "+cto.name+" </a>",
+				"last_cutoff": approval_cutoff,
 			}
 			cto_included_list.append(cto.name)
 			data.append(row)
@@ -196,6 +207,7 @@ def get_data(filters):
 				"approved_on": et.approved_on,
 				"approved_by": et.approved_by,
 				"link": "<a href='/desk#Form/Excuse Tardiness Application/"+et.name+"'> "+et.name+" </a>",
+				"last_cutoff": approval_cutoff,
 			}
 			et_included_list.append(et.name)
 			data.append(row)
@@ -208,6 +220,7 @@ def get_data(filters):
 				"approved_on": csa.approved_on,
 				"approved_by": csa.approved_by,
 				"link": "<a href='/desk#Form/Change Schedule Application/"+csa.name+"'> "+csa.name+" </a>",
+				"last_cutoff": approval_cutoff,
 			}
 			csa_included_list.append(csa.name)
 			data.append(row)
@@ -220,6 +233,7 @@ def get_data(filters):
 				"approved_on": dtr.approved_on,
 				"approved_by": dtr.approved_by,
 				"link": "<a href='/desk#Form/DTR Problem Application/"+dtr.name+"'> "+dtr.name+" </a>",
+				"last_cutoff": approval_cutoff,
 			}
 			dtr_included_list.append(dtr.name)
 			data.append(row)
