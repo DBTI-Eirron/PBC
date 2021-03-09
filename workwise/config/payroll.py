@@ -141,6 +141,11 @@ def get_data():
 					"is_query_report": True
 				},{
 					"type": "report",
+					"name": "13th Month Pay Projection",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
 					"name": "Pro Rated 13th Month",
 					"doctype": "Last Pay Entry",	
 					"is_query_report": True
