@@ -314,6 +314,7 @@ def get_overtime(entry, ot_apps):
 	total_ot_earlynd, total_ot_latend = 0, 0
 	strict_logs = frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs')
 	ded_late_ot = frappe.db.get_single_value('Timekeeping Settings', 'ded_late_ot')
+	min_ot_mins = frappe.db.get_single_value('Timekeeping Settings', 'min_ot_mins')
 	to_hrs, from_hrs, break_mins = 0, 0, 0
 	entry["ot_card_in"], entry["ot_card_out"], entry["ot_ob_in"], entry["ot_ob_out"] = "","","",""
 
@@ -368,6 +369,9 @@ def get_overtime(entry, ot_apps):
 				#get OT Start Deduct Late
 				ot_filed = abs((ot_in - ot_out).total_seconds()) 
 				if entry.get('ot_deduct_late') and not entry.get('is_flexible') and not entry.get('dn_ot_late'):
+					if min_ot_mins > 0:
+						if flt(ot_filed/60, 8) < flt(min_ot_mins, 8):
+							ot_filed = 0
 					if entry.get('is_restday') < 1:
 						if entry.get('is_holiday'):
 							if entry.get('ot_dedlt_ho'):
@@ -648,6 +652,13 @@ def get_overtime(entry, ot_apps):
 			total_ot -= total_brk
 		# Deduct Late In total OT HOURS
 		if entry.get('ot_deduct_late') and not entry.get('is_flexible') and entry.get('dn_ot_late') and not entry['is_holiday']:
+			if min_ot_mins > 0:
+				if flt(total_ot/60, 8) < flt(min_ot_mins, 8):
+					total_ot = 0
+
+				if flt(total_ot_nd/60, 8) < flt(min_ot_mins, 8):
+					total_ot_nd = 0
+					
 			if entry.get('is_restday') < 1:
 				total_ot_deducted = total_ot
 				if entry.get('is_holiday'):
