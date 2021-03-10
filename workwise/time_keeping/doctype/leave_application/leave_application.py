@@ -23,13 +23,13 @@ class LeaveApplication(Document):
 		self.validate_leave_table()
 		self.validate_days()
 		self.validate_employee()
-		self.validate_balance()
 		self.validate_leave()
 		self.validate_convertible()
 		change_owner(self)
 		self.get_recipients()
 		if self.workflow_state == "Pending" or self.workflow_state == "Draft":
 			self.validate_date()
+			self.validate_balance()
 
 	def on_submit(self):
 		self.validate_date()
@@ -47,6 +47,7 @@ class LeaveApplication(Document):
 		validate_reject_cancel_own_application(self)
 
 	def before_update_after_submit(self):
+		self.validate_balance()
 		self.validate_date()
 		self.validate_days()
 		get_approver_email_list(self, 'before_update_after_submit')
