@@ -51,7 +51,7 @@ def get_data(filters):
 		data.append({"employee":"<b>"+str(year)+"</b>"})
 		year_division = get_division(filters,year)
 		start_date,end_date = get_year_start_end(filters,year)
-		employee = frappe.db.sql("""SELECT DISTINCT AP.appraisee, AP.appraisee_name, AP.department, EM.date_hired FROM `tabAppraisal` AP INNER JOIN `tabEmployee` EM ON AP.appraisee = EM.`name` WHERE AP.company = %s AND AP.docstatus = 1 AND AP.from_date BETWEEN %s AND %s"""+add_filter(filters),(filters.company,start_date,end_date),as_dict=True)
+		employee = frappe.db.sql("""SELECT DISTINCT AP.appraisee, AP.appraisee_name, AP.department, EM.date_hired FROM `tabEvaluation` AP INNER JOIN `tabEmployee` EM ON AP.appraisee = EM.`name` WHERE AP.company = %s AND AP.docstatus = 1 AND AP.from_date BETWEEN %s AND %s"""+add_filter(filters),(filters.company,start_date,end_date),as_dict=True)
 		for emp in employee:
 			row = {'employee':emp.appraisee,'employee_name':emp.appraisee_name,'department':emp.department}
 			ee = 0
@@ -64,7 +64,7 @@ def get_data(filters):
 						from_date = emp.date_hired + relativedelta(months=+5)
 						to_date = emp.date_hired + relativedelta(months=+5)
 				six_months = date.today() + relativedelta(months=+6)
-				average = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabAppraisal` WHERE company = %s AND docstatus = 1 AND appraisee = %s AND from_date BETWEEN %s AND %s""",(filters.company,emp.appraisee,getdate(div['from_date']),getdate(div['to_date'])),as_dict=True)	
+				average = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabEvaluation` WHERE company = %s AND docstatus = 1 AND appraisee = %s AND from_date BETWEEN %s AND %s""",(filters.company,emp.appraisee,getdate(div['from_date']),getdate(div['to_date'])),as_dict=True)	
 				for rating in rating_class:
 					if flt(average[0].average) >= flt(rating.rate_from) and flt(average[0].average) <= flt(rating.rate_to):
 						if filters.rating:
