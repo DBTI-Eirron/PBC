@@ -15,10 +15,12 @@ cur_frm.add_fetch('employee', 'end_of_contract', 'current_end_of_contract');
 cur_frm.add_fetch('employee', 'date_hired', 'current_date_hired');
 cur_frm.add_fetch('employee', 'rate_type', 'current_rate_type');
 cur_frm.add_fetch('employee', 'cost_center', 'current_cost_center');
+cur_frm.add_fetch('employee', 'job_grade', 'emp_current_job_grade');
+
 //cur_frm.add_fetch('employee', 'rate', 'current_rate');
 //cur_frm.add_fetch('employee', 'min_take_home', 'current_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'current_attendance_base');
-
+cur_frm.add_fetch('employee', 'job_grade', 'current_job_grade');
 cur_frm.add_fetch('employee', 'position_title', 'new_position');
 cur_frm.add_fetch('employee', 'job_level', 'new_job_level');
 cur_frm.add_fetch('employee', 'employment_status', 'change_employment_status');
@@ -28,6 +30,7 @@ cur_frm.add_fetch('employee', 'location', 'new_location');
 cur_frm.add_fetch('employee', 'end_of_contract', 'new_end_of_contract');
 cur_frm.add_fetch('employee', 'date_hired', 'new_date_hired');
 cur_frm.add_fetch('employee', 'rate_type', 'new_rate_type');
+cur_frm.add_fetch('employee', 'position_title', 'transfer_cur_position_title');
 //cur_frm.add_fetch('employee', 'rate', 'new_rate');
 //cur_frm.add_fetch('employee', 'min_take_home', 'new_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'new_attendance_base');

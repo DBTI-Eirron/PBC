@@ -174,9 +174,11 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
+				"position_title": self.transfer_new_position_title if self.transfer_new_position_title else self.transfer_cur_position_title,
 				"company": self.new_company if self.new_company else self.current_company,
 				"department": self.new_department if self.new_department else self.current_department,
 				"location": self.new_location if self.new_location else self.current_location,
+				"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
 			})
 
 			self.save_employee(emp)
@@ -185,6 +187,7 @@ class EmployeeMovement(Document):
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
+				"position_title": self.transfer_cur_position_title,
 				"company": self.current_company,
 				"department": self.current_department,
 				"location": self.current_location,
@@ -326,12 +329,14 @@ class EmployeeMovement(Document):
 			emp_entry['date_resigned'] = None
 			emp_entry['date_termindated'] = None
 			emp_entry['user_id'] = None
+			emp_entry['date_contract_ended'] = None
 			emp_entry['biometrics_id'] = self.new_biometrics_id
 			emp_entry['role'] = self.new_role if self.new_role else emp_data[0]['role']
 			emp_entry['email'] = self.new_email if self.new_email else emp_data[0]['email']
 			emp_entry['is_active'] = 1
 			emp_entry['date_hired'] = today()
 			emp_entry['company'] = self.rh_new_company if self.rh_new_company else emp_data[0]['company']
+			emp_entry['job_grade'] = self.emp_new_job_grade if self.emp_current_job_grade else emp_data[0]['job_grade']
  
 			if emp_entry:
 				emp = frappe.get_doc("Employee", self.employee)
