@@ -2735,7 +2735,7 @@ def get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
 
 	last_shift_cardout = None
 	if timelogs_map and orig_last_target_date in timelogs_map and timelogs_map[orig_last_target_date] and timelogs_map[orig_last_target_date]['card_out']:
-		if get_datetime(last_shift_out) < get_datetime(timelogs_map[orig_last_target_date]['card_out']):
+		if get_datetime(last_shift_out) <= get_datetime(timelogs_map[orig_last_target_date]['card_out']):
 			last_shift_cardout = get_datetime(timelogs_map[orig_last_target_date]['card_out'])
 
 	result['last_target_date'] = last_target_date
