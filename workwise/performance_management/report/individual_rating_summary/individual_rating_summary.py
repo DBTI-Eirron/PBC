@@ -104,9 +104,9 @@ def get_columns(filters):
 
 def get_employees(filters,period):
 	if filters.employee:
-		employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_name FROM `tabAppraisal` WHERE docstatus = 1  AND `from_date` >= %s AND `to_date` <= %s AND company = %s AND appraisee = %s""",(period.from_date,period.to_date,filters.company,filters.employee),as_dict=True)
+		employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_name FROM `tabEvaluation` WHERE docstatus = 1  AND `from_date` >= %s AND `to_date` <= %s AND company = %s AND appraisee = %s""",(period.from_date,period.to_date,filters.company,filters.employee),as_dict=True)
 	else:
-		employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_name FROM `tabAppraisal` WHERE docstatus = 1  AND `from_date` >= %s AND `to_date` <= %s AND company = %s""",(period.from_date,period.to_date,filters.company),as_dict=True)
+		employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_name FROM `tabEvaluation` WHERE docstatus = 1  AND `from_date` >= %s AND `to_date` <= %s AND company = %s""",(period.from_date,period.to_date,filters.company),as_dict=True)
 	return employees
 
 def get_appraisal_period(filters,year):
@@ -121,21 +121,21 @@ def get_payroll_year(filters):
 	return years
 
 def get_emp_total(filters,period,employee):
-	total = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabAppraisal` WHERE `from_date` >= %s AND `to_date` <= %s AND appraisee = %s""",(period.from_date,period.to_date,employee),as_dict=True)
+	total = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabEvaluation` WHERE `from_date` >= %s AND `to_date` <= %s AND appraisee = %s""",(period.from_date,period.to_date,employee),as_dict=True)
 	if total:
 		return total[0].average
 	else:
 		return 0
 
 def get_total(filters,period):
-	total = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabAppraisal` WHERE `from_date` >= %s AND `to_date` <= %s and company = %s""",(period.from_date,period.to_date,filters.company),as_dict=True)
+	total = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabEvaluation` WHERE docstatus = 1 AND `from_date` >= %s AND `to_date` <= %s and company = %s""",(period.from_date,period.to_date,filters.company),as_dict=True)
 	if total:
 		return total[0].average
 	else:
 		return 0
 
 def get_grand_total(filters):
-	total = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabAppraisal` WHERE company = %s""",(filters.company),as_dict=True)
+	total = frappe.db.sql("""SELECT AVG(total_score) as average FROM `tabEvaluation` WHERE docstatus = 1 AND company = %s""",(filters.company),as_dict=True)
 	if total:
 		return total[0].average
 	else:
