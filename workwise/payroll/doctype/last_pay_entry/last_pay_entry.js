@@ -1,5 +1,12 @@
 // Copyright (c) 2018, HDI Systech and contributors
 // For license information, please see license.txt
+cur_frm.add_fetch("employee", "full_name", "employee_name");
+cur_frm.add_fetch("employee", "company", "company");
+cur_frm.add_fetch("employee", "department", "department");
+cur_frm.add_fetch("employee", "position_title", "position_title");
+cur_frm.add_fetch("employee", "sensitivity", "sensitivity_level");
+cur_frm.add_fetch("payroll_year", "from_date", "from_year");
+cur_frm.add_fetch("payroll_year", "to_date", "to_year");
 
 frappe.ui.form.on('Last Pay Entry', {
 	refresh: function(frm) {
@@ -7,10 +14,7 @@ frappe.ui.form.on('Last Pay Entry', {
 	},
 
 	setup: function(frm) {
-		frm.add_fetch("employee", "full_name", "employee_name");
-		frm.add_fetch("employee", "company", "company");
-		frm.add_fetch("payroll_year", "from_date", "from_year");
-		frm.add_fetch("payroll_year", "to_date", "to_year");
+
 	},
 	
 	get_last_pay: function(frm) {
