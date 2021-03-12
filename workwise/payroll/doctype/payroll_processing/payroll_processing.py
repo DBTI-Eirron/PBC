@@ -118,6 +118,7 @@ class PayrollProcessing(Document):
 		ab_regho = frappe.db.get_single_value('Timekeeping Settings', 'ab_regho')
 		mo_abho = frappe.db.get_single_value('Timekeeping Settings', 'mo_abho')
 		disable_pdhord = frappe.db.get_single_value('Payroll Settings', 'disable_pdhord')
+		tr_paid_lghord = frappe.db.get_single_value('Payroll Settings', 'tr_paid_lghord')
 		rec_pre_ph = frappe.db.get_single_value('Payroll Settings', 'rec_pre_ph')
 		ot_rate_class = frappe.db.get_single_value('Payroll Settings', 'ot_rate_class')
 		nd_rate_class = frappe.db.get_single_value('Payroll Settings', 'nd_rate_class')
@@ -239,6 +240,8 @@ class PayrollProcessing(Document):
 						'ab_regho': ab_regho,
 						'mo_abho': mo_abho,
 						'disable_pdhord': disable_pdhord,
+						'trigger_disable_pdhord': 0,
+						'tr_paid_lghord': tr_paid_lghord,
 						'dis_dho_tran': dis_dho_tran,
 						'dho' : dho,
 						'rec_pre_ph' : rec_pre_ph,
@@ -262,6 +265,7 @@ class PayrollProcessing(Document):
 					self.get_batch(emp, rates, header, register)
 					self.get_adjustment(emp, rates, header, register, adj_settings)
 					get_employee_loan(emp, header, register, loans_map, self.frequency)
+					self.custom_transactions(emp, rates, header, register)
 
 					#Calculate Basic Entries to Header
 					self.calculate_basic_header(register, header, tr_map)
@@ -1464,6 +1468,14 @@ class PayrollProcessing(Document):
 		for d in adjustment_register:
 			register.append(d)
 
+	def custom_transactions(self, emp, rates, header, register):
+		if header['trigger_disable_pdhord'] and header['tr_paid_lghord']:
+			register.append({"pay_code": header['tr_paid_lghord'], "amount": rates.get('daily_rate')})
+			header['basic'] -= rates.get('daily_rate')
+			bs_reg = list(filter(lambda x: x['pay_code'] == 'BS', register))
+			if bs_reg:
+				bs_reg[0]['amount'] -= rates.get('daily_rate')
+
 	def get_hourly_rate_base(self, amt, emp):
 		hourly_rate = 0
 		if amt > 0 and  emp.get('total_yr_days') > 0 and emp.get('no_hours') > 0:
@@ -1685,6 +1697,7 @@ class PayrollProcessing(Document):
 								if at.is_restday:
 									if (not at.is_sp_holiday) and (not is_uho) and (not header.get('disable_pdhord')):
 										ho_paid = 1 #paid on regular holiday if not UHO
+										header['trigger_disable_pdhord'] = 1
 								else:
 									if dl_absent == 1 and at.is_sp_holiday and header.get('uho_ab_spnw'):
 										ho_paid = 0 #not paid holiday on special HO
