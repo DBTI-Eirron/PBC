@@ -8,16 +8,14 @@ from calendar import monthrange
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from frappe import _
 from frappe.model.document import Document
-from workwise.payroll.payroll_utils import get_transaction_map
-from workwise.payroll.payroll_utils import get_rates, get_location_map
+from workwise.payroll.payroll_utils import get_transaction_map, get_rates, get_location_map, get_company_map
 
 class AnnualizationProcessing(Document):
 	def process_annualization(self):
-		ss_list = []
+		logs_list = []
 		self.validate_filters()
 		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
-		tax_nd_birtype = frappe.db.get_single_value("Payroll Settings", "tax_nd_birtype")
-		ceiling_month_pay = frappe.db.get_single_value("Payroll Settings", "ceiling_month_pay")
+
 
 
 		employees = self.get_employee(from_year, to_year)
@@ -25,9 +23,10 @@ class AnnualizationProcessing(Document):
 		previous_bir = self.get_previous_bir(from_year, to_year)
 		lastpay = self.get_lastpay(from_year, to_year)
 
-		self.create_entries(employees, registers, previous_bir, lastpay, from_year, to_year, ss_list, tax_nd_birtype, ceiling_month_pay)
+		annual_registers = self.get_entries(employees, registers, previous_bir, lastpay, from_year, to_year)
+		self.create_entries(annual_registers, logs_list)
 
-		return self.create_log(ss_list)
+		return self.create_log(logs_list)
 
 	def get_employee(self, from_year, to_year):
 		employees = frappe.db.sql("""SELECT TE.`name`, TE.tin, TE.full_name, TE.company, TE.location, TE.mwe_loc, TE.date_hired, TE.date_retired, TE.date_resigned, 
@@ -378,15 +377,22 @@ class AnnualizationProcessing(Document):
 							emp_map[lp.employee].tax_withheld += -(lp.amount) if _type == "Add" else lp.amount
 							emp_map[lp.employee].total_tax += -(lp.amount) if _type == "Add" else lp.amount
 
-
-	def create_entries(self, employees, registers, previous_bir, lastpay, from_year, to_year, ss_list, tax_nd_birtype, ceiling_month_pay):
+	def get_entries(self, employees, registers, previous_bir, lastpay, from_year, to_year):
+		annual_registers = []
 		emp_map = self.get_employee_map(employees)
+		company_map = get_company_map()
 		self.get_employee_wise_register(registers, previous_bir, lastpay, emp_map)
+		tax_nd_birtype = frappe.db.get_single_value("Payroll Settings", "tax_nd_birtype")
+		ceiling_month_pay = frappe.db.get_single_value("Payroll Settings", "ceiling_month_pay")
 		ceiling_deminimis = frappe.db.get_single_value("Payroll Settings", "ceiling_demi")
 		use_ceiling_demi = frappe.db.get_single_value("Payroll Settings", "use_ceiling_demi")
 		mwe_rate_basis = frappe.db.get_single_value("Payroll Settings", "mwe_rate_basis")
-		loc_map = get_location_map()
+		anoa_label = frappe.db.get_single_value("Payroll Settings", "anoa_label")
+		anob_label = frappe.db.get_single_value("Payroll Settings", "anob_label")
+		anoa_sp_label = frappe.db.get_single_value("Payroll Settings", "anoa_sp_label")
+		anob_sp_label = frappe.db.get_single_value("Payroll Settings", "anob_sp_label")
 
+		loc_map = get_location_map()
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			frappe.db.sql("""DELETE FROM `tabAnnualization Register` WHERE employee = %s AND payroll_year = %s """,(emp, self.payroll_year), as_dict=1)
 			ntax_benefits, tax_benefits, tax_due, adj_tax = 0, 0, 0, 0
@@ -395,6 +401,8 @@ class AnnualizationProcessing(Document):
 			last_date_list = []
 			rates = get_rates(emp_dict)
 
+			emp_dict['rdo_code'] = company_map[emp_dict.company]['rdo_code']
+			emp_dict['anoa_label'], emp_dict['anob_label'], emp_dict['anoa_sp_label'], emp_dict['anob_sp_label'] = anoa_label, anob_label, anoa_sp_label, anob_sp_label
 
 			
 			emp_dict.from_date = getdate(from_year)
@@ -606,7 +614,7 @@ class AnnualizationProcessing(Document):
 					emp_dict.nt_benefits = nt_combined_benefits
 					emp_dict.t_benefits = t_combined_benefits					
 				else:
-					emp_dict.nt_benefits = emp_dict.total_benefits
+					emp_dict.nt_benefits = nt_combined_benefits
 
 			else:
 				#Fixed Exempt
@@ -636,7 +644,7 @@ class AnnualizationProcessing(Document):
 					emp_dict.nt_benefits = nt_combined_benefits
 					emp_dict.t_benefits = t_combined_benefits					
 				else:
-					emp_dict.nt_benefits = emp_dict.total_benefits
+					emp_dict.nt_benefits = nt_combined_benefits
 
 				#add taxable ND and Other to benefits after benefit calc,because there is no taxable ND and Other field
 				if tax_nd_birtype == "Other Regular A":
@@ -706,11 +714,21 @@ class AnnualizationProcessing(Document):
 				emp_dict.adj_withheld = 0
 
 			if exclude != 1:
-				register = frappe.new_doc("Annualization Register")
-				register.update(emp_dict)
-				register.insert()
-				ss_list.append( cstr(register.employee)+": "+cstr(register.employee_name) )
+				annual_registers.append(emp_dict)
+				
+				#register = frappe.new_doc("Annualization Register")
+				#register.update(emp_dict)
+				#register.insert()
 
+		return annual_registers
+	
+	def create_entries(self, annual_registers, logs_list):
+		for ar in annual_registers:
+			register = frappe.new_doc("Annualization Register")
+			register.update(ar)
+			if register.insert():
+				logs_list.append( cstr(register.employee)+": "+cstr(register.employee_name) )
+				
 	def get_employee_map(self, employees):
 		emp_map = frappe._dict()
 		for emp in employees:
@@ -718,6 +736,7 @@ class AnnualizationProcessing(Document):
 					"employee": emp.name,
 					"employee_name": emp.full_name,
 					"company": emp.company,
+					"rdo_code": "",
 					"sensitivity_level": emp.sensitivity,
 					"payroll_year": self.payroll_year,
 					"tax_id": emp.tin,
@@ -744,7 +763,11 @@ class AnnualizationProcessing(Document):
 					"factor": emp.total_yr_days,
 					"per_day": 0,
 					"per_month": 0,
-					"per_year": 0,				
+					"per_year": 0,
+					"anoa_label":"",
+					"anob_label":"",
+					"anoa_sp_label":"",
+					"anob_sp_label":"",
 					#PREVIOUS NON-TAXABLE
 					"pnt_basic": 0,
 					"pnt_holiday": 0,
@@ -934,11 +957,11 @@ class AnnualizationProcessing(Document):
 					emp_map[reg.employee].nt_other += reg.daily_rate * (credits)
 				included_employee.append(reg.employee)
 
-	def create_log(self, ss_list):
+	def create_log(self, logs_list):
 		log = "<p>" + _("No Annualization Registers Created") + "</p>"
-		if ss_list:
+		if logs_list:
 			log = "<p>" + _("Annualization Registers Created") + "</p>"
-			log_list = '<br>'.join(ss_list)
-			log += log_list
+			add_log = '<br>'.join(logs_list)
+			log += add_log
 
 		return log
