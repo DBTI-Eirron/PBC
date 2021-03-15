@@ -221,7 +221,7 @@ class CompensatoryTimeOff(Document):
 			nowyear = datetime.strptime(str(entry['target_date']), '%Y-%m-%d').year
 			year_start = getdate(cstr(nowyear)+'-01-'+'01')
 			year_end = getdate(cstr(nowyear)+'-12-'+'31')
-			cto_validity_condition += " AND (CTT.`target_date` BETWEEN '{0}' AND '{1}') ".format(cstr(year_start), cstr(year_end))
+			current_credits_condition += " AND (CTT.`target_date` BETWEEN '{0}' AND '{1}') ".format(cstr(year_start), cstr(year_end))
 
 		filed_cto = frappe.db.sql(""" SELECT CTT.`credits_earned` - CTT.`credits_used` as balance, CTT.`target_date`, CTT.`name`, 
 			CTT.`credits_earned`, CTT.`credits_used`, CTT.`target_date`, CTT.`parent`
