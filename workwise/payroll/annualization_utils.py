@@ -5,6 +5,76 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from workwise.payroll.payroll_utils import get_transaction_map
 
+def get_annual_employees(employee, company, department, location, payroll_schedule, from_year, to_year):
+	c_list = []
+	if employee:
+		c_list.append("TE.`name`=%(employee)s")
+
+	if department:
+		lft, rgt = frappe.db.get_value("Department", department, ["lft", "rgt"])
+		c_list.append(_("( DEPT.`lft` BETWEEN '{0}' AND '{1}' )").format(lft, rgt))
+
+	if location:
+		c_list.append("TE.location=%(location)s")
+	
+	if frappe.session.user != "Administrator":
+		c_list.append(_("TE.sensitivity IN ( SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE allow_user = '{0}' )").format(frappe.session.user))
+
+	conditions = "AND {}".format(" AND ".join(c_list)) if c_list else ""
+	employees = frappe.db.sql("""SELECT TE.`name`, TE.tin, TE.full_name, TE.company, TE.location, TE.mwe_loc, TE.date_hired, TE.date_retired, TE.date_resigned, 
+		TE.date_terminated, TE.date_contract_ended, TE.total_yr_days, TE.no_hours, TE.rate, TE.rate_type, TE.sensitivity, 
+		(SELECT COUNT(`name`) FROM `tabEmployee External Work History` WHERE parent = TE.`name`) as has_prev
+		FROM `tabEmployee` TE 
+		LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
+		WHERE TE.company = %(company)s 
+		AND TE.payroll_schedule = %(schedule)s AND TE.date_hired < %(to_year)s {conditions} 
+		ORDER BY TE.full_name ASC """.format( conditions=conditions() ),
+			({ 
+				"company": company,
+				"schedule": payroll_schedule,
+				"employee": employee,
+				"from_year": from_year,
+				"to_year": to_year,
+			}), as_dict=True)
+
+	return employees
+
+def get_annual_registers(employee, company, payroll_schedule, payroll_year):
+	c_list = []
+	if employee:
+		c_list.append("employee=%(employee)s")
+
+	conditions = "and {}".format(" and ".join(c_list)) if c_list else ""	
+	registers = frappe.db.sql("""SELECT PR.name, PR.employee, PR.employee_name, PR.company, PR.posting_date, PR.schedule, PR.gross_payroll,
+			PRE.pay_code, PRE.entry_type, PRE.is_taxable, PRE.amount, PR.bonus, PR.monthly_rate, PR.daily_rate FROM `tabPayroll Register Entries` PRE
+		INNER JOIN `tabPayroll Register` PR ON PR.`name` = PRE.`parent`
+		INNER JOIN `tabPayroll Period` PP ON PR.period = PP.`name`
+		WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s AND PR.on_hold = 0 {conditions} 
+		AND PP.payroll_year = %(payroll_year)s  """.format( conditions=conditions() ),
+			({ 
+				"company": company,
+				"schedule": payroll_schedule,
+				"employee": employee,
+				"payroll_year": payroll_year,
+			}), as_dict=True)
+
+	return registers
+
+def get_annual_prev2316(employee, payroll_year):
+	c_list = []
+	if employee:
+		c_list.append("PR.employee=%(employee)s")
+
+	conditions = "and {}".format(" and ".join(c_list)) if c_list else ""
+	previous_bir = frappe.db.sql("""SELECT * FROM `tabBIR2316` 
+		WHERE payroll_year = %(payroll_year)s AND document_type = "Previous" {conditions} AND docstatus = 1 """.format( conditions=self.get_reg_conditions() ),
+			({ 
+				"employee": employee,
+				"payroll_year": payroll_year,
+			}), as_dict=1)
+
+	return previous_bir
+
 def get_annual_results(employees, registers, previous_bir, lastpay, payroll_year, from_year, to_year):
 	annual_registers = []
 	emp_map = get_employee_map(employees)
