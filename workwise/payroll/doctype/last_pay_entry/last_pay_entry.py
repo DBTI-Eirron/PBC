@@ -86,7 +86,6 @@ class LastPayEntry(Document):
 		self.get_pro_rated_taxable(emp, register, entry)
 		self.get_leave_conversion(emp, register, entry)
 		self.get_loan(emp ,register, entry)
-		self.get_previous_bir(emp, register, entry)
 		self.get_present_tax_paid(emp, register, entry)
 		for d in register:
 			row = self.append('register_table', {})
