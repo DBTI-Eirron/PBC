@@ -7,6 +7,7 @@ import frappe
 from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, cstr
 from frappe import _
 from frappe.model.document import Document
+from workwise.payroll.payroll_utils import get_rates
 
 class LastPayEntry(Document):
 	def validate(self):
@@ -245,7 +246,7 @@ class LastPayEntry(Document):
 			present_days = 0
 			total_bonus = 0
 			remarks = ""
-			rates = self.get_rates(emp)
+			rates = get_rates(emp)
 			bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method")
 
 			if bonus_method == "Standard":
@@ -452,7 +453,7 @@ class LastPayEntry(Document):
 
 	def get_leave_conversion(self, employee, register, entry):
 		for emp in employee:
-			rates = self.get_rates(emp)
+			rates = get_rates(emp)
 			convertible_leaves = frappe.db.sql(""" SELECT `name`, leave_name, leave_code FROM `tabLeave Type` WHERE convertible = 1 """, as_dict=True)
 			for lv in convertible_leaves:
 				total_amt = 0
@@ -509,38 +510,6 @@ class LastPayEntry(Document):
 				entry["net_pay"] += total_amt
 
 		return register
-
-	def get_rates(self, emp):
-		monthly_rate = 0.0
-		hourly_rate = 0.0
-		semi_rate = 0.0
-		daily_rate = 0.0
-		if emp['rate'] > 0 and  emp['total_yr_days'] > 0 and emp['no_hours'] > 0:
-			month_days = (flt(emp['total_yr_days'], 8) / 12)
-			if emp['rate_type'] == "Monthly Rate":
-				monthly_rate = flt(emp['rate'], 8)
-				semi_rate = flt(emp['rate'], 8) / 2
-				daily_rate = flt(emp['rate'], 8) / month_days
-				hourly_rate = ( flt(emp['rate'], 8) / month_days ) / emp['no_hours']
-
-			elif emp['rate_type'] == "Hourly Rate":
-				monthly_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * month_days
-				semi_rate = ( flt(emp['rate'], 8) * emp['no_hours'] ) * (month_days / 2)
-				daily_rate = flt(emp['rate'], 8) * emp['no_hours']
-				hourly_rate = flt(emp['rate'], 8)
-
-			elif emp['rate_type'] == "Daily Rate":
-				monthly_rate = flt(emp['rate'], 8) * month_days
-				semi_rate = flt(emp['rate'], 8) * (month_days / 2)
-				daily_rate = flt(emp['rate'], 8)
-				hourly_rate = flt(emp['rate'], 8) / emp['no_hours']
-
-		return {
-			"monthly_rate": monthly_rate,
-			"semi_rate": semi_rate,
-			"daily_rate": daily_rate,
-			"hourly_rate": flt(hourly_rate, 8)
-		}
 
 	def get_previous_bir(self, employee, register, entry):
 		prev_tax_paid = 0.0
@@ -611,7 +580,7 @@ class LastPayEntry(Document):
 		train_prescribed = 0.0
 		train_percentage = 0.0
 		for emp in employee:
-			rates = self.get_rates(emp)
+			rates = get_rates(emp)
 			bracket = frappe.db.sql(""" SELECT DISTINCT `compensatory`, `prescribed`, `percentage` FROM `tabTRAIN Table` WHERE `frequency` = "Yearly" AND %(amount)s BETWEEN `beginning` AND `ending` LIMIT 1 """,{
 				"amount": entry["gross_taxable"],
 			}, as_dict=True)
