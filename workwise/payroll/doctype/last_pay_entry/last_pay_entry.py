@@ -87,7 +87,6 @@ class LastPayEntry(Document):
 		self.get_leave_conversion(emp, register, entry)
 		self.get_loan(emp ,register, entry)
 		self.get_previous_bir(emp, register, entry)
-		self.get_paid_payroll(emp, register, entry)
 		self.get_present_tax_paid(emp, register, entry)
 		for d in register:
 			row = self.append('register_table', {})
@@ -164,29 +163,6 @@ class LastPayEntry(Document):
 
 		return register
 
-	def get_paid_payroll(self, employee ,register, entry):
-		pres_total_tax = 0.0
-		paid_payroll = frappe.db.sql(""" SELECT PR.`name`, PR.period, PR.net_payroll, PR.gross_payroll FROM `tabPayroll Register` PR
-		INNER JOIN `tabPayroll Period` PP ON PR.`period`=PP.`name`
-		WHERE employee = %(employee)s 
-			AND PR.on_hold = 0 
-			AND PP.payroll_year = %(payroll_year)s
-			#AND ((from_year)s BETWEEN PP.attendance_from AND PP.attendance_to
-			#	OR (to_year)s BETWEEN PP.attendance_from AND PP.attendance_to
-			#	OR PP.attendance_from BETWEEN (from_year)s AND (to_year)s
-			#	OR PP.attendance_to BETWEEN (from_year)s AND (to_year)s)
-			""",{
-			"employee": self.employee,
-			"payroll_year": self.payroll_year,
-			"from_year": self.from_year,
-			"to_year": self.to_year,
-		}, as_dict=True)
-
-		for d in paid_payroll:
-			pres_total_tax += d.gross_payroll
-
-		entry["pres_total_tax"] += pres_total_tax
-		
 	def get_pro_rated(self, employee ,register, entry):
 		period_map = self.get_period_map()
 		for emp in employee:
