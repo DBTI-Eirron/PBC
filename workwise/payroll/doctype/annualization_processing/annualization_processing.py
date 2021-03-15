@@ -17,7 +17,7 @@ class AnnualizationProcessing(Document):
 		self.validate_filters()
 		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
 		employees = get_annual_employees(self.employee, self.company, self.department, self.location, self.payroll_schedule, from_year, to_year)
-		registers = get_annual_registers(self.employee, self.company, self.payroll_schedule, self.payroll_year)
+		registers = get_annual_registers(self.employee, self.company, self.payroll_schedule, self.payroll_year, True)
 		previous_bir = get_annual_prev2316(self.employee, self.payroll_year)
 		lastpay = self.get_lastpay(from_year, to_year)
 

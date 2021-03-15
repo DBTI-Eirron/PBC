@@ -39,17 +39,20 @@ def get_annual_employees(employee, company, department, location, payroll_schedu
 
 	return employees
 
-def get_annual_registers(employee, company, payroll_schedule, payroll_year):
+def get_annual_registers(employee, company, payroll_schedule, payroll_year, omit_hold):
 	c_list = []
 	if employee:
 		c_list.append("employee=%(employee)s")
+
+	if omit_hold:
+		c_list.append("PR.on_hold='0' ")
 
 	conditions = "and {}".format(" and ".join(c_list)) if c_list else ""	
 	registers = frappe.db.sql("""SELECT PR.name, PR.employee, PR.employee_name, PR.company, PR.posting_date, PR.schedule, PR.gross_payroll,
 			PRE.pay_code, PRE.entry_type, PRE.is_taxable, PRE.amount, PR.bonus, PR.monthly_rate, PR.daily_rate FROM `tabPayroll Register Entries` PRE
 		INNER JOIN `tabPayroll Register` PR ON PR.`name` = PRE.`parent`
 		INNER JOIN `tabPayroll Period` PP ON PR.period = PP.`name`
-		WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s AND PR.on_hold = 0 {conditions} 
+		WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s {conditions} 
 		AND PP.payroll_year = %(payroll_year)s  """.format( conditions=conditions() ),
 			({ 
 				"company": company,
