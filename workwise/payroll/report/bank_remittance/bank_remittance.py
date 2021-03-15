@@ -48,7 +48,7 @@ def get_columns(filters):
 			"width": 250
 		},
 	]
-	if filters.bank == "Asia United Bank":
+	if filters.bank in ["Asia United Bank", "AUB"]:
 		columns = [
 			{
 				"fieldname": "employee_account",
@@ -70,7 +70,7 @@ def get_columns(filters):
 			},
 		]
 
-	if filters.bank == "EastWest Bank":
+	if filters.bank in ["EastWest Bank"]:
 		columns = [
 			{
 				"fieldname": "hdr",
@@ -98,7 +98,7 @@ def get_columns(filters):
 			},
 		]
 
-	if filters.bank == "China Banking Corporation" or filters.bank == "Chinabank" or filters.bank == "China Bank" or filters.bank == "CBC":
+	if filters.bank in ["China Banking Corporation", "Chinabank", "China Bank", "CBC"]:
 		columns = [
 			{
 				"fieldname": "last_name",
@@ -131,7 +131,7 @@ def get_columns(filters):
 			},
 		]
 
-	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI" :
+	if filters.bank in ["Bank of the Philippine Islands", "BPI"]:
 		columns = [
 			{
 				"fieldname": "detail",
@@ -201,7 +201,7 @@ def get_columns(filters):
 			},
 		]
 
-	if filters.bank == "Metrobank" or filters.bank == "Metro Bank" or filters.bank == "MB":
+	if filters.bank in ["Metrobank", "Metro Bank", "MB"]:
 		columns = [
 			{
 				"fieldname": "employee_code",
@@ -235,7 +235,7 @@ def get_columns(filters):
 			},
 		]
 
-	if filters.bank == "Banco de Oro" or filters.bank == "BDO":
+	if filters.bank in ["Banco de Oro", "BDO"]:
 		columns = [
 			{
 				"fieldname": "account_number",
@@ -346,7 +346,7 @@ def get_result_as_list(data_list, filters):
 			payroll_time = d.payroll_time
 		funding_account = d.funding_account
 
-	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
+	if filters.bank in ["Bank of the Philippine Islands", "BPI"]:
 		if filters.include_header:
 			payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
 			if payroll_time == "Pay Now":
@@ -391,31 +391,31 @@ def get_result_as_list(data_list, filters):
 		}
 		result.append(total)
 
-	elif filters.bank == "EastWest Bank":
+	elif filters.bank in ["EastWest Bank"]:
 		for d in data:
 			row = {
 				"hdr": "DTL",
 				"account_number": d.get("employee_account"),
-				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+				"amount": format_precision(d.get("amount"), filters.value_precision),
 				"remarks": str(d.get("last_name"))+", "+str(d.get("first_name"))+", "+str(d.get("middle_name")),
 			}
 			result.append(row)
 		total = {
 			"hdr": "TLR",
 			"account_number": total_count,
-			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+			"amount": format_precision(total_amount, filters.value_precision),
 			"remarks": "",
 		}
 		result.append(total)
 
-	elif filters.bank == "China Banking Corporation" or filters.bank == "Chinabank" or filters.bank == "China Bank" or filters.bank == "CBC":
+	elif filters.bank in ["China Banking Corporation", "Chinabank", "China Bank", "CBC"]:
 		for d in data:
 			row = {
 				"last_name" : d.get("last_name"),
 				"first_name" : d.get("first_name"),
 				"account_number" : d.get("employee_account"),
 				"account_type" : d.get("bank_type"),
-				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+				"amount": format_precision(d.get("amount"), filters.value_precision),
 			}
 			result.append(row)
 		total = {
@@ -423,11 +423,11 @@ def get_result_as_list(data_list, filters):
 			"first_name" : "",
 			"account_number" : "",
 			"account_type" : "Total",
-			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+			"amount": format_precision(total_amount, filters.value_precision),
 		}
 		result.append(total)
 
-	elif filters.bank == "Metrobank" or filters.bank == "Metro Bank" or filters.bank == "MB":
+	elif filters.bank in ["Metrobank", "Metro Bank", "MB"]:
 		count = 1
 		for d in data:
 			row = {
@@ -448,7 +448,7 @@ def get_result_as_list(data_list, filters):
 		}
 		result.append(total)
 
-	elif filters.bank == "Banco de Oro" or filters.bank == "BDO":
+	elif filters.bank in ["Banco de Oro", "BDO"]:
 		for d in data:
 			row = {
 				"account_number": d.get("employee_account"),
@@ -459,9 +459,24 @@ def get_result_as_list(data_list, filters):
 			result.append(row)
 		total = {
 			"account_number": "Headcount: "+str(total_count),
-			"amount": "Total Amount:    "+format_precision(total_amount, filters.value_precision),
+			"amount": "Total Amount:    "+format_align_right(format_precision(total_amount, filters.value_precision)),
 			"employee_name": "",
 			"remarks": "",
+		}
+		result.append(total)
+
+	elif filters.bank in ["Asia United Bank", "AUB"]:
+		for d in data:
+			row = {
+				"employee_account": d.get("employee_account"),
+				"amount": format_align_right(format_precision(d.amount, filters.value_precision)),
+				"employee_name": d.get("employee_name"),
+			}
+			result.append(row)
+		total = {
+			"employee_account": "TOTAL",
+			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+			"employee_name": total_count,
 		}
 		result.append(total)
 
@@ -477,12 +492,11 @@ def get_result_as_list(data_list, filters):
 			result.append(row)
 		total = {
 			"employee": "TOTAL",
-			"employee_account": "TOTAL" if filters.bank == "Asia United Bank" else None,
+			"employee_account": None,
 			"employee_name": total_count,
 			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 			"remarks": "",
 		}
-
 		result.append(total)
 
 	return result
