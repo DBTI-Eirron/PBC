@@ -192,7 +192,12 @@ def print_txt_file(company,from_date,to_date,period_group):
 		if emp.date_retired or emp.date_resigned or emp.date_terminated:
 			is_term  = 1
 			if emp.is_active == 0:
-				term_date = emp.date_retired if emp.date_retired else emp.date_resigned if emp.date_resigned else emp.date_terminated
+				if emp.date_retired:
+					term_date = emp.date_retired
+				elif emp.date_resigned:
+					term_date = emp.date_resigned
+				elif emp.date_terminated:
+					term_date = emp.date_terminated
 			else:
 				term_date = emp.date_hired
 		else:
