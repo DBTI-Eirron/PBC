@@ -71,7 +71,7 @@ def get_annual_prev2316(employee, payroll_year):
 	conditions = "and {}".format(" and ".join(c_list)) if c_list else ""
 	previous_bir = frappe.db.sql("""SELECT * FROM `tabBIR2316` 
 		WHERE payroll_year = %(payroll_year)s AND document_type = "Previous" {conditions} 
-		AND docstatus = 1 """.format( conditions=self.conditions ),
+		AND docstatus = 1 """.format( conditions=conditions ),
 			({ 
 				"employee": employee,
 				"payroll_year": payroll_year,
