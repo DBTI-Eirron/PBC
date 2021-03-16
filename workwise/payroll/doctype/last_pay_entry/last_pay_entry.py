@@ -294,7 +294,7 @@ class LastPayEntry(Document):
 			})
 
 			tax_included_reg.append({
-				"employee": self.get_employee,
+				"employee": self.employee,
 				"_type": "Income",
 				"amount": total_bonus,
 				"transaction_type": "PR13th_Month",
@@ -455,7 +455,7 @@ class LastPayEntry(Document):
 					})
 
 					tax_included_reg.append({
-						"employee": self.get_employee,
+						"employee": self.employee,
 						"_type": "Income",
 						"amount": total_amt,
 						"transaction_type": "LC",
