@@ -21,7 +21,7 @@ class AnnualizationProcessing(Document):
 		previous_bir = get_annual_prev2316(self.employee, self.payroll_year)
 		lastpay = self.get_lastpay(from_year, to_year)
 
-		annual_registers = get_annual_results(employees, registers, previous_bir, lastpay, payroll_year, from_year, to_year)
+		annual_registers = get_annual_results(employees, registers, previous_bir, lastpay, self.payroll_year, from_year, to_year)
 		self.create_entries(annual_registers, logs_list)
 
 		return self.create_log(logs_list)
