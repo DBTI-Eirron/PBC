@@ -116,7 +116,7 @@ class LastPayEntry(Document):
 			last_date_list.append(getdate(date_resigned))
 		if date_terminated:
 			last_date_list.append(getdate(date_terminated))
-		if date_contract_ended:R
+		if date_contract_ended:
 			last_date_list.append(getdate(date_contract_ended))
 		if last_date_list:
 			last_date = max(last_date_list)
