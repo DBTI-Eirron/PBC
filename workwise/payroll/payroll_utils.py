@@ -260,3 +260,18 @@ def get_rateclass_map():
 			})
 
 	return rateclass_map
+
+def get_company_map():
+	co_map = {}
+	co = frappe.db.sql(""" SELECT name, tax_id, sss_id, phic_id, hdmf_id, rdo_code FROM `tabCompany` """, as_dict=1)
+	for c in co:
+		co_map[c.name] = {
+			"company_name": c.name,
+			"tax_id": c.tax_id,
+			"sss_id": c.sss_id,
+			"phic_id": c.phic_id,
+			"hdmf_id": c.hdmf_id,
+			"rdo_code": c.rdo_code
+		}
+
+	return co_map
