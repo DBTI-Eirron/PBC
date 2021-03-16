@@ -184,8 +184,6 @@ class LastPayEntry(Document):
 				"manually_encoded": 0,
 			})
 
-		return register
-
 	def get_pro_rated(self, employee ,register, entry, tax_included_reg):
 		period_map = self.get_period_map()
 		for emp in employee:
@@ -321,8 +319,6 @@ class LastPayEntry(Document):
 					"manually_encoded": 0,
 				})
 
-		return register
-
 	def get_loan(self, employee ,register, entry):
 		unpaid_loans = {}
 		paid_loans = {}
@@ -386,8 +382,6 @@ class LastPayEntry(Document):
 
 		entry["net_pay"] -= total_unpaid
 		entry["net_pay"] += total_paid
-
-		return register
 
 	def get_period_map(self):
 		period_map = {}
@@ -463,8 +457,6 @@ class LastPayEntry(Document):
 
 				#entry["pres_total_tax"] += total_amt
 				entry["net_pay"] += total_amt
-
-		return registers
 
 	def compute_summary(self, employee, register, entry):
 		entry["gross_taxable"] = entry["prev_total_tax"] + entry["pres_total_tax"]
