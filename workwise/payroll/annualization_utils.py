@@ -114,27 +114,33 @@ def get_annual_results(employees, registers, previous_bir, lastpay, payroll_year
 		if getdate(emp_dict.date_hired) > getdate(from_year) and emp_dict.has_prev > 0:
 				emp_dict.from_date = getdate(emp_dict.date_hired)
 
-		if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired or emp_dict.date_contract_ended:
+		if emp_dict.date_terminated:
 			if getdate(emp_dict.date_terminated) <= getdate(to_year):
 				emp_dict.is_terminated = 1
 				emp_dict.to_date = getdate(emp_dict.date_terminated)
+		if emp_dict.date_resigned:
 			if getdate(emp_dict.date_resigned) <= getdate(to_year):
 				emp_dict.is_terminated = 1
 				emp_dict.to_date = getdate(emp_dict.date_resigned)
+		if emp_dict.date_retired:
 			if getdate(emp_dict.date_retired) <= getdate(to_year):
 				emp_dict.is_terminated = 1
 				emp_dict.to_date = getdate(emp_dict.date_retired)
+		if emp_dict.date_contract_ended:
 			if getdate(emp_dict.date_contract_ended) <= getdate(to_year):
 				emp_dict.is_terminated = 1
 				emp_dict.to_date = getdate(emp_dict.date_retired)					
 		
-		if emp_dict.date_terminated or emp_dict.date_resigned or emp_dict.date_retired or emp_dict.date_contract_ended:
+		if emp_dict.date_terminated:
 			if getdate(emp_dict.date_terminated) <= getdate(from_year):
 				exclude = 1
+		if emp_dict.date_resigned:	
 			if getdate(emp_dict.date_resigned) <= getdate(from_year):
 				exclude = 1
+		if emp_dict.date_retired:
 			if getdate(emp_dict.date_retired) <= getdate(from_year):
 				exclude = 1
+		if emp_dict.date_contract_ended:
 			if getdate(emp_dict.date_contract_ended) <= getdate(from_year):
 				exclude = 1
 
