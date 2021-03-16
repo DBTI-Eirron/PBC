@@ -3,7 +3,7 @@ import frappe, datetime
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
-from workwise.payroll.payroll_utils import get_transaction_map
+from workwise.payroll.payroll_utils import get_transaction_map, get_company_map
 
 def get_annual_employees(employee, company, department, location, payroll_schedule, from_year, to_year):
 	c_list = []
