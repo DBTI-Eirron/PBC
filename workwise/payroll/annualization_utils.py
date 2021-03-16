@@ -28,7 +28,7 @@ def get_annual_employees(employee, company, department, location, payroll_schedu
 		LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 		WHERE TE.company = %(company)s 
 		AND TE.payroll_schedule = %(schedule)s AND TE.date_hired < %(to_year)s {conditions} 
-		ORDER BY TE.full_name ASC """.format( conditions=conditions() ),
+		ORDER BY TE.full_name ASC """.format( conditions=conditions),
 			({ 
 				"company": company,
 				"schedule": payroll_schedule,
@@ -53,7 +53,7 @@ def get_annual_registers(employee, company, payroll_schedule, payroll_year, omit
 		INNER JOIN `tabPayroll Register` PR ON PR.`name` = PRE.`parent`
 		INNER JOIN `tabPayroll Period` PP ON PR.period = PP.`name`
 		WHERE PR.company=%(company)s AND PR.schedule=%(schedule)s {conditions} 
-		AND PP.payroll_year = %(payroll_year)s  """.format( conditions=conditions() ),
+		AND PP.payroll_year = %(payroll_year)s  """.format( conditions=conditions ),
 			({ 
 				"company": company,
 				"schedule": payroll_schedule,
@@ -70,7 +70,8 @@ def get_annual_prev2316(employee, payroll_year):
 
 	conditions = "and {}".format(" and ".join(c_list)) if c_list else ""
 	previous_bir = frappe.db.sql("""SELECT * FROM `tabBIR2316` 
-		WHERE payroll_year = %(payroll_year)s AND document_type = "Previous" {conditions} AND docstatus = 1 """.format( conditions=self.get_reg_conditions() ),
+		WHERE payroll_year = %(payroll_year)s AND document_type = "Previous" {conditions} 
+		AND docstatus = 1 """.format( conditions=self.conditions ),
 			({ 
 				"employee": employee,
 				"payroll_year": payroll_year,

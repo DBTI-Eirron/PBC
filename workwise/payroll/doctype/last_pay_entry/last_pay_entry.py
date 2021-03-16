@@ -8,7 +8,7 @@ from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, cstr
 from frappe import _
 from frappe.model.document import Document
 from workwise.payroll.payroll_utils import get_rates
-get_annual_employees
+from workwise.payroll.annualization_utils import get_annual_results, get_annual_employees, get_annual_registers, get_annual_prev2316
 
 class LastPayEntry(Document):
 	def validate(self):
@@ -131,7 +131,7 @@ class LastPayEntry(Document):
 		employees = get_annual_employees(self.employee, None, None, None, pay_sched, from_year, to_year)
 		registers = get_annual_registers(self.employee, self.company, self.payroll_schedule, self.payroll_year, False)
 		prev_2316 = get_annual_prev2316(self.employee, self.payroll_year)
-		annual_registers = get_annual_entries(employees, registers, prev_2316, tax_included_reg, self.payroll_year, from_year, to_year)
+		annual_registers = get_annual_results(employees, registers, prev_2316, tax_included_reg, self.payroll_year, from_year, to_year)
 
 		for d in annual_registers:
 			if d.employee == self.employee:

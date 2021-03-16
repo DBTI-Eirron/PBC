@@ -9,7 +9,7 @@ from frappe.utils import cint, flt, getdate, cstr, add_to_date
 from frappe import _
 from frappe.model.document import Document
 from workwise.payroll.payroll_utils import get_transaction_map, get_rates, get_location_map, get_company_map
-from workwise.payroll.annualization_utils import get_annual_results, get_annual_employees, get_annual_prev2316
+from workwise.payroll.annualization_utils import get_annual_results, get_annual_employees, get_annual_registers, get_annual_prev2316
 
 class AnnualizationProcessing(Document):
 	def process_annualization(self):
