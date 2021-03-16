@@ -135,14 +135,14 @@ class LastPayEntry(Document):
 
 		for d in annual_registers:
 			if d.employee == self.employee:
-				["prev_total_tax"] = d.prev_taxable_total
-				["pres_total_tax"] = d.taxable_total
-				["gross_taxable"] = (d.taxable_total + d.taxable_total)
-				["tax_due"] = d.tax_due
-				["prev_tax_paid"] = d.prev_tax_withheld
-				["pres_tax_paid"] = d.tax_withheld
-				["tax_refund"] = 0.0
-				["deficit_tax"] = 0.0
+				entry["prev_total_tax"] = d.prev_taxable_total
+				entry["pres_total_tax"] = d.taxable_total
+				entry["gross_taxable"] = (d.taxable_total + d.taxable_total)
+				entry["tax_due"] = d.tax_due
+				entry["prev_tax_paid"] = d.prev_tax_withheld
+				entry["pres_tax_paid"] = d.tax_withheld
+				entry["tax_refund"] = 0.0
+				entry["deficit_tax"] = 0.0
 
 	def get_on_hold(self, employee ,register, entry):
 		included_transactions = {}
