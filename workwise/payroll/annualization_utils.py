@@ -83,7 +83,7 @@ def get_annual_results(employees, registers, previous_bir, lastpay, payroll_year
 	annual_registers = []
 	emp_map = get_employee_map(employees, payroll_year)
 	company_map = get_company_map()
-	get_employee_wise_register(registers, previous_bir, lastpay, emp_map)
+	get_employee_wise_register(payroll_year, registers, previous_bir, lastpay, emp_map)
 	#Annualization Settings
 	tax_nd_birtype = frappe.db.get_single_value("Payroll Settings", "tax_nd_birtype")
 	ceiling_month_pay = frappe.db.get_single_value("Payroll Settings", "ceiling_month_pay")
