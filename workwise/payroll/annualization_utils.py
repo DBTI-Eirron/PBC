@@ -81,7 +81,7 @@ def get_annual_prev2316(employee, payroll_year):
 
 def get_annual_results(employees, registers, previous_bir, lastpay, payroll_year, from_year, to_year):
 	annual_registers = []
-	emp_map = get_employee_map(employees)
+	emp_map = get_employee_map(employees, payroll_year)
 	company_map = get_company_map()
 	get_employee_wise_register(registers, previous_bir, lastpay, emp_map)
 	#Annualization Settings
