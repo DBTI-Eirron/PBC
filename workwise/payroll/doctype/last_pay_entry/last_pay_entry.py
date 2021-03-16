@@ -84,9 +84,9 @@ class LastPayEntry(Document):
 		self.set('register', [])
 		self.validate_dates()
 
-		self.get_pro_rated(emp, register, entry)
+		self.get_pro_rated(emp, register, entry, tax_included_reg)
 		self.get_on_hold(emp, register, entry)
-		self.get_leave_conversion(emp, register, entry)
+		self.get_leave_conversion(emp, register, entry, tax_included_reg)
 		self.get_loan(emp ,register, entry)
 
 		#self.get_pro_rated_taxable(emp, register, entry)
@@ -186,7 +186,7 @@ class LastPayEntry(Document):
 
 		return register
 
-	def get_pro_rated(self, employee ,register, entry):
+	def get_pro_rated(self, employee ,register, entry, tax_included_reg):
 		period_map = self.get_period_map()
 		for emp in employee:
 			present_days = 0
@@ -399,7 +399,7 @@ class LastPayEntry(Document):
 			}
 		return period_map
 
-	def get_leave_conversion(self, employee, register, entry):
+	def get_leave_conversion(self, employee, register, entry, tax_included_reg):
 		for emp in employee:
 			rates = get_rates(emp)
 			convertible_leaves = frappe.db.sql(""" SELECT `name`, leave_name, leave_code FROM `tabLeave Type` WHERE convertible = 1 """, as_dict=True)
