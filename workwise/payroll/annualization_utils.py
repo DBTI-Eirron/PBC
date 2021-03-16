@@ -67,7 +67,7 @@ def get_annual_registers(employee, company, payroll_schedule, payroll_year, omit
 def get_annual_prev2316(employee, payroll_year):
 	c_list = []
 	if employee:
-		c_list.append("PR.employee=%(employee)s")
+		c_list.append("employee=%(employee)s")
 
 	conditions = "and {}".format(" and ".join(c_list)) if c_list else ""
 	previous_bir = frappe.db.sql("""SELECT * FROM `tabBIR2316` 
