@@ -116,7 +116,7 @@ class LastPayEntry(Document):
 			last_date_list.append(getdate(date_resigned))
 		if date_terminated:
 			last_date_list.append(getdate(date_terminated))
-		if date_contract_ended:
+		if date_contract_ended:R
 			last_date_list.append(getdate(date_contract_ended))
 		if last_date_list:
 			last_date = max(last_date_list)
@@ -129,7 +129,7 @@ class LastPayEntry(Document):
 		pay_sched = frappe.db.get_value("Employee", self.employee, "payroll_schedule")
 		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
 		employees = get_annual_employees(self.employee, None, None, None, pay_sched, from_year, to_year)
-		registers = get_annual_registers(self.employee, self.company, self.payroll_schedule, self.payroll_year, False)
+		registers = get_annual_registers(self.employee, self.company, pay_sched, self.payroll_year, False)
 		prev_2316 = get_annual_prev2316(self.employee, self.payroll_year)
 		annual_registers = get_annual_results(employees, registers, prev_2316, tax_included_reg, self.payroll_year, from_year, to_year)
 
