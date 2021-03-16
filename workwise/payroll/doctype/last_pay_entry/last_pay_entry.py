@@ -126,7 +126,7 @@ class LastPayEntry(Document):
 			self.to_year = last_date
 
 	def pre_annualization(self, entry, tax_included_reg):
-		pay_sched = frappe.db.get_value("Payroll Year", self.employee, "payroll_schedule")
+		pay_sched = frappe.db.get_value("Employee", self.employee, "payroll_schedule")
 		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
 		employees = get_annual_employees(self.employee, None, None, None, pay_sched, from_year, to_year)
 		registers = get_annual_registers(self.employee, self.company, self.payroll_schedule, self.payroll_year, False)
