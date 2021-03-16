@@ -27,12 +27,16 @@ class AnnualizationProcessing(Document):
 		return self.create_log(logs_list)
 
 	def get_lastpay(self, from_year, to_year):
+		c_list = []
+		if self.employee:
+			c_list.append("employee=%(employee)s")
+		conditions = "and {}".format(" and ".join(c_list)) if c_list else ""
+
 		lastpay = frappe.db.sql("""SELECT employee, LPR.transaction_type, LPR.amount, LPR.type FROM  `tabLast Pay Entry` LPE 
 			INNER JOIN `tabLast Pay Register` LPR ON LPR.parent = LPE.`name`
-			WHERE payroll_year = %(payroll_year)s AND remarks != 'On Hold Payroll' {conditions} """.format( conditions=self.get_reg_conditions() ),
+			WHERE payroll_year = %(payroll_year)s 
+			AND remarks != 'On Hold Payroll' {conditions} """.format( conditions=conditions ),
 				({ 
-					"company": self.company,
-					"schedule": self.payroll_schedule,
 					"employee": self.employee,
 					"payroll_year": self.payroll_year,
 				}), as_dict=1)
