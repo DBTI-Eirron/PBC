@@ -291,12 +291,12 @@ class LastPayEntry(Document):
 				"manually_encoded": 0,
 			})
 
-			tax_included_reg.append({
+			tax_included_reg.append(frappe._dict({
 				"employee": self.employee,
 				"_type": "Income",
 				"amount": total_bonus,
 				"transaction_type": "PR13th_Month",
-			})			
+			}))			
 
 			entry["total_bonus_basis"] += total_bonus_basis
 			entry["net_pay"] += total_bonus
@@ -448,12 +448,12 @@ class LastPayEntry(Document):
 						"manually_encoded": 0,
 					})
 
-					tax_included_reg.append({
-						"employee": self.employee,
+					tax_included_reg.append(frappe._dict({
+						"employee": emp.name,
 						"_type": "Income",
 						"amount": total_amt,
 						"transaction_type": "LC",
-					})	
+					}))
 
 				#entry["pres_total_tax"] += total_amt
 				entry["net_pay"] += total_amt
