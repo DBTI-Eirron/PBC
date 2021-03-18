@@ -35,7 +35,7 @@ class AnnualizationProcessing(Document):
 		lastpay = frappe.db.sql("""SELECT employee, LPR.transaction_type, LPR.amount, LPR.type FROM  `tabLast Pay Entry` LPE 
 			INNER JOIN `tabLast Pay Register` LPR ON LPR.parent = LPE.`name`
 			WHERE payroll_year = %(payroll_year)s 
-			AND remarks != 'On Hold Payroll' AND LPE.docstatus = 1 {conditions} """.format( conditions=conditions ),
+			AND LPE.docstatus = 1 {conditions} """.format( conditions=conditions ),
 				({ 
 					"employee": self.employee,
 					"payroll_year": self.payroll_year,
