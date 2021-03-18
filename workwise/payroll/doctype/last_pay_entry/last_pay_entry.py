@@ -129,15 +129,15 @@ class LastPayEntry(Document):
 			tax_included_reg.append(frappe._dict({
 				"employee": self.employee,
 				"type": rt.type,
-				"amount": rt.amount,
+				"amount": flt(rt.amount, 2),
 				"transaction_type": rt.transaction_type,
 			}))
 			if rt.type=="Income":
-				net_pay+=rt.amount
+				net_pay+=flt(rt.amount, 2)
 			elif rt.type=="Deduction":
-				net_pay-=rt.amount
+				net_pay-=flt(rt.amount, 2)
 
-		self.net_pay =net_pay
+		self.net_pay=net_pay
 		self.pre_annualization(tax_included_reg)
 
 	def get_on_hold(self, employee ,register, entry):
