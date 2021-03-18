@@ -308,7 +308,7 @@ class PayrollProcessing(Document):
 						minimum_wage = flt(emp.get('min_take_home'), 8)
 
 					#Check if employee has attendance/work
-					if emp.is_attendance_base == 1 and header['no_attendance'] == 1:
+					if header['no_attendance'] == 1:
 						proc_emp += 1
 						error_emp += 1
 						payslip_label = " " + emp.full_name +"<span class='label label-danger'> No Work </span>"
@@ -1493,6 +1493,28 @@ class PayrollProcessing(Document):
 	def get_attendance(self, emp, rates, header, register, ot_map, ot_class_map, rateclass_map):
 		attendance_register = []
 		overtimes_register = []
+		if emp.get('is_attendance_base') == 0:
+			lwop_deduction = 0
+			no_attendance = 1
+			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
+				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
+			for at in attendance:
+				if not at.is_restday:
+					if at.is_lwop:
+						if at.lv_status == 1:
+							lwop_deduction += rates.get('daily_rate')
+						if at.lv_status in [2, 3]:
+							lwop_deduction += rates.get('daily_rate') / 2
+					else:
+						no_attendance = 0
+
+				cost_center = emp.get("cost_center")
+				if at.cost_center:
+					cost_center = at.cost_center
+
+			register.append({"pay_code": "AT", "amount": flt(lwop_deduction, 8), "cost_center": emp.get("cost_center")})
+			header['no_attendance'] = no_attendance
+
 		if emp.get('is_attendance_base') > 0:
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
