@@ -35,7 +35,7 @@ class AnnualizationProcessing(Document):
 		lastpay = frappe.db.sql("""SELECT employee, LPR.transaction_type, LPR.amount, LPR.type FROM  `tabLast Pay Entry` LPE 
 			INNER JOIN `tabLast Pay Register` LPR ON LPR.parent = LPE.`name`
 			WHERE payroll_year = %(payroll_year)s 
-			AND remarks != 'On Hold Payroll' {conditions} """.format( conditions=conditions ),
+			AND remarks != 'On Hold Payroll' AND LPE.docstatus = 1 {conditions} """.format( conditions=conditions ),
 				({ 
 					"employee": self.employee,
 					"payroll_year": self.payroll_year,
@@ -45,6 +45,9 @@ class AnnualizationProcessing(Document):
 
 	def create_entries(self, annual_registers, logs_list):
 		for ar in annual_registers:
+			frappe.db.sql("""DELETE FROM `tabAnnualization Register` 
+				WHERE employee = %s AND payroll_year = %s """,(ar.employee, ar.payroll_year), as_dict=1)
+
 			register = frappe.new_doc("Annualization Register")
 			register.update(ar)
 			if register.insert():

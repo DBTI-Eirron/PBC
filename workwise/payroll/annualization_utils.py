@@ -98,7 +98,7 @@ def get_annual_results(employees, registers, previous_bir, lastpay, payroll_year
 	loc_map = get_location_map()
 	
 	for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
-		frappe.db.sql("""DELETE FROM `tabAnnualization Register` WHERE employee = %s AND payroll_year = %s """,(emp, payroll_year), as_dict=1)
+		#frappe.db.sql("""DELETE FROM `tabAnnualization Register` WHERE employee = %s AND payroll_year = %s """,(emp, payroll_year), as_dict=1)
 		ntax_benefits, tax_benefits, tax_due, adj_tax = 0, 0, 0, 0
 		ntax_total, amt_withheld, over_withheld = 0, 0, 0
 		exclude = 0
@@ -410,18 +410,22 @@ def get_annual_results(employees, registers, previous_bir, lastpay, payroll_year
 				tax_due += flt(t.prescribed, 8)
 
 		emp_dict.tax_due = tax_due
-		#check if tax is to be refunded or to be paid
+		#Get Amount Withheld & Paid for in December or Overwith held Tax Refunded
 		withheld = emp_dict.tax_due - (emp_dict.tax_withheld + emp_dict.prev_tax_withheld)
-
-		#Set Amount Withheld & Paid for in December
-		emp_dict.adj_amount_withheld = (emp_dict.tax_withheld + emp_dict.prev_tax_withheld) - (emp_dict.withheld_nov + emp_dict.prev_withheld_nov)
-
-		if withheld > 1:
-			emp_dict.adj_withheld = abs(withheld)
-		elif withheld < 0:
-			emp_dict.adj_over_withheld = abs(withheld)
+		if withheld < 0:
+			emp_dict.adj_over_withheld = flt(abs(withheld), 2)
+			emp_dict.adj_amount_withheld = 0
 		else:
-			emp_dict.adj_withheld = 0
+			emp_dict.adj_over_withheld = 0
+			emp_dict.adj_amount_withheld = flt(abs(withheld), 2)
+
+		#set 2 decimals for certain fields
+		emp_dict.tax_due = flt(emp_dict.tax_due, 2)
+		emp_dict.tax_withheld = flt(emp_dict.tax_withheld, 2) 
+		emp_dict.prev_tax_withheld = flt(emp_dict.prev_tax_withheld, 2)
+		emp_dict.withheld_nov = flt(emp_dict.withheld_nov, 2) 
+		emp_dict.prev_withheld_nov = flt(emp_dict.prev_withheld_nov, 2)
+		emp_dict.adj_amount_withheld = flt(emp_dict.adj_amount_withheld, 2)
 
 		if exclude != 1:
 			annual_registers.append(emp_dict)
@@ -681,8 +685,8 @@ def get_employee_wise_register(payroll_year, registers, previous_bir, lastpay, e
 
 					#TAX WITHHELD
 					if btype == "TAX":
-						emp_map[lp.employee].tax_withheld += -(lp.amount) if _type == "Add" else lp.amount
-						emp_map[lp.employee].total_tax += -(lp.amount) if _type == "Add" else lp.amount
+						emp_map[lp.employee].tax_withheld += -(lp.amount) if _type == "Income" else lp.amount
+						emp_map[lp.employee].total_tax += -(lp.amount) if _type == "Income" else lp.amount
 
 def get_employee_map(employees, payroll_year):
 	emp_map = frappe._dict()
