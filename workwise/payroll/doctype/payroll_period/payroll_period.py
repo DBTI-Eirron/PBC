@@ -190,12 +190,16 @@ class PayrollPeriod(Document):
 					if register:
 						letter_head = frappe.db.get_value("Company", emp.company, "default_letter_head")
 						
-						loan = frappe.db.sql("""SELECT LA.loan_type, LA.loan_amount, LA.unpaid_amount,
-							(SELECT COUNT(`name`) FROM `tabLoan Application Payments` WHERE parent = LA.`name` and payment_status = 'Paid' and payment_date <= %s) as count, 
-							(SELECT SUM(`payment_amount`) FROM `tabLoan Application Payments` WHERE parent = LA.`name` and payment_status = 'Paid' and payment_date <= %s) as paid_amount 
-							FROM `tabLoan Application` LA 
-							WHERE LA.docstatus = 1 and LA.employee = %s and LA.on_hold = 0 and (LA.unpaid_amount > 0 or paid_amount > 0)
-							""",(self.payroll_date,self.payroll_date,emp.name),as_dict=True)
+						loan = frappe.db.sql("""SELECT PRE.*, unpaid_amount, total_loan,
+						(SELECT COUNT(`name`) FROM `tabLoan Application Payments` WHERE parent = PRE.linked_document and payment_status = 'Paid' and payment_date <= %(pdate)s) as count
+						FROM `tabPayroll Register`  PR
+						INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
+						INNER JOIN `tabLoan Application` LA ON LA.name = PRE.linked_document
+		 				WHERE PRE.entry_type = 'Loan' AND PR.period = %(period)s and PR.employee = %(employee)s """,{
+							"pdate":self.payroll_date,
+							"period": self.name,
+							"employee": emp.name,
+						}, as_dict=True)
 
 						leaves = self.get_leave_balance(balances,leave_type,emp.name)
 
@@ -204,14 +208,14 @@ class PayrollPeriod(Document):
 							"owner": emp.user_id, "employee": emp.name, "payroll_period": self.name, 
 							"employee_name": emp.full_name, "company": emp.company,
 							"sss_no": emp.sss_no, "phic_no": emp.phic_no, "hdmf_no": emp.hdmf_no, "tin": emp.tin
-						});
+						})
 
 						for ln in loan:
 							ps.append("loan", {
-								"loan_type": ln.loan_type,
+								"loan_type": ln.pay_code,
 								"number_payment": ln.count,
-								"paid_amount":ln.paid_amount,
-								"loan_amount":ln.loan_amount,
+								"paid_amount":ln.amount,
+								"loan_amount":ln.total_loan,
 								"outstanding_balance":ln.unpaid_amount,
 							})
 
