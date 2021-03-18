@@ -41,6 +41,15 @@ def empget_subordinates(cur_user):
 		INNER JOIN `tabSubordinates` SB ON ES.employee = SB.parent 
 		WHERE ES.employee = %s """,(emp), as_dict=True)
 	return employees
+	
+def empget_active_subordinates(cur_user):
+	emp = frappe.db.sql(""" SELECT `name` FROM `tabEmployee` WHERE user_id = %s LIMIT 1""",(cur_user))
+	emp = emp[0][0] if emp else ""
+	employees = frappe.db.sql(""" SELECT DISTINCT SB.subordinate as `name`, SB.subordinate_name as full_name FROM `tabEmployee Subordinates` ES 
+		INNER JOIN `tabSubordinates` SB ON ES.employee = SB.parent INNER JOIN `tabEmployee` E ON  SB.subordinate = E.name
+		WHERE ES.employee = %s and E.is_active = 1 """,(emp), as_dict=True)
+
+	return employees
 
 def empget_company(company):
 	employees = frappe.db.sql("""SELECT `name`, `full_name` FROM tabEmployee WHERE company = %(company)s ORDER BY last_name, first_name""",{ 
