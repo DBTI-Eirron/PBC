@@ -963,8 +963,120 @@ class PayrollProcessing(Document):
 					if freq_all_passed:
 						target_amt = flt(emp.get("hdmf_manual"), 8)
 
+			if emp.get('hdmf_mode') == "Table Percentage":
+				target_amt = header.get('govt_basic') + header.get('hdmf_inc') - header.get('hdmf_ded')
+
+				if emp.get('payroll_schedule') not in ["Weekly"] and self.frequency == '1st' and emp.get('hdmf_freq') == '1st':
+					if emp.get('rate_type') not in ["Daily Rate"]:
+						target_amt = rates.get('monthly_rate') + header.get('hdmf_inc') - header.get('hdmf_ded')
+
+				if emp.get('payroll_schedule') == "Weekly":
+					target_amt = 0
+					if emp.get('hdmf_freq') == '1st':
+						if self.frequency == '2nd':
+							target_amt = rates.get('monthly_rate') + header.get('hdmf_inc') - header.get('hdmf_ded')
+							target_prvhdmf = ['1st']
+
+							prv_hdmf = filter(lambda dct: dct['frequency'] in target_prvhdmf, weekly_prev_map[emp['name']]['previous_data'])
+							if prv_hdmf:
+								for prv in prv_hdmf:
+									target_amt += prv['hdmf_inc']
+									target_amt -= prv['hdmf_ded']
+
+					if emp.get('hdmf_freq') == '2nd':
+						target_prvhdmf = []
+						if cint(header.get("no_weeks")) == cint(4) and self.frequency == '4th':
+							target_amt = header.get('govt_basic') + header.get('hdmf_inc') - header.get('hdmf_ded')
+							target_prvhdmf = ['1st', '2nd', '3rd']
+
+						if cint(header.get("no_weeks")) == cint(5) and self.frequency == '5th':
+							target_amt = header.get('govt_basic') + header.get('hdmf_inc') - header.get('hdmf_ded')
+							target_prvhdmf = ['1st', '2nd', '3rd', '4th']
+
+						prv_hdmf = filter(lambda dct: dct['frequency'] in target_prvhdmf, weekly_prev_map[emp['name']]['previous_data'])
+						if prv_hdmf:
+							for prv in prv_hdmf:
+								target_amt += prv['government_basis']
+								target_amt += prv['hdmf_inc']
+								target_amt -= prv['hdmf_ded']
+
+					if emp.get('hdmf_freq') == 'Both':
+						target_prvhdmf = []
+						if self.frequency == '2nd':
+							target_amt = header.get('govt_basic') + header.get('hdmf_inc') - header.get('hdmf_ded')
+							target_prvhdmf = ['1st']
+
+						if cint(header.get("no_weeks")) == cint(4) and self.frequency == '4th':
+							target_amt = header.get('govt_basic') + header.get('hdmf_inc') - header.get('hdmf_ded')
+							target_prvhdmf = ['1st', '2nd', '3rd']
+
+						if cint(header.get("no_weeks")) == cint(5) and self.frequency == '5th':
+							target_amt = header.get('govt_basic') + header.get('hdmf_inc') - header.get('hdmf_ded')
+							target_prvhdmf = ['1st', '2nd', '3rd', '4th']
+
+						if target_prvhdmf:
+							prv_hdmf = filter(lambda dct: dct['frequency'] in target_prvhdmf, weekly_prev_map[emp['name']]['previous_data'])
+							if prv_hdmf:
+								for prv in prv_hdmf:
+									target_amt += prv['government_basis']
+									target_amt += prv['hdmf_inc']
+									target_amt -= prv['hdmf_ded']
+
+					if emp.get('hdmf_freq') == 'All':
+						target_amt = header.get('govt_basic') + header.get('hdmf_inc') - header.get('hdmf_ded')
+						target_prvhdmf = []
+						if self.frequency == '2nd':
+							target_prvhdmf = ['1st']
+
+						if self.frequency == '3rd':
+							target_prvhdmf = ['1st', '2nd']
+
+						if cint(header.get("no_weeks")) == cint(4) and self.frequency == '4th':
+							target_prvhdmf = ['1st', '2nd', '3rd']
+
+						if cint(header.get("no_weeks")) == cint(5):
+							if self.frequency == '4th':
+								target_prvhdmf = ['1st', '2nd', '3rd']
+							if self.frequency == '5th':
+								target_prvhdmf = ['1st', '2nd', '3rd', '4th']
+
+						prv_hdmf = filter(lambda dct: dct['frequency'] in target_prvhdmf, weekly_prev_map[emp['name']]['previous_data'])
+						if prv_hdmf:
+							for prv in prv_hdmf:
+								target_amt += prv['government_basis']
+								target_amt += prv['hdmf_inc']
+								target_amt -= prv['hdmf_ded']
+
+					if cint(header.get("no_weeks")) == cint(4) and self.frequency == '5th':
+						target_amt = 0
+
+				if emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('hdmf_freq') == '2nd' and self.frequency == '2nd':
+					target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
+						(header.get('prev_hdmf_inc') + header.get('hdmf_inc')) - (header.get('prev_hdmf_ded') + header.get('hdmf_ded'))
+
+				if emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('hdmf_freq') == 'Both' and self.frequency == '2nd':
+					target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
+						(header.get('prev_hdmf_inc') + header.get('hdmf_inc')) - (header.get('prev_hdmf_ded') + header.get('hdmf_ded'))
+
+				if emp.get('payroll_schedule') == "Semi-Monthly" and emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('hdmf_smdl'):
+					yrdays = flt(emp.get('total_yr_days'), 8)/12
+					target_amt = ((rates.get('daily_rate') * yrdays) / 2) + (header.get('hdmf_inc') - header.get('hdmf_ded'))
+
+					if self.frequency == '2nd':
+						target_amt = ((rates.get('daily_rate') * yrdays)) + (header.get('hdmf_inc') + header.get('prev_hdmf_inc')) - (header.get('hdmf_ded') + header.get('prev_hdmf_ded'))
+
+				if emp.get('payroll_schedule') == "Monthly" and emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('hdmf_smdl'):
+					target_amt = rates.get('monthly_rate') + (header.get('hdmf_inc') - header.get('hdmf_ded'))
+
+				if emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('hdmf_freq') == '2nd' and self.frequency == '1st':
+					target_amt = 0
+
+				if emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('hdmf_freq') == '1st' and self.frequency == '2nd':
+					target_amt = 0
+
 			if target_amt and emp.get('hdmf_mode') != "None":
 				hdmf, hdmfe = get_hdmf_amount(target_amt, hdmf_table)
+
 				#HDMF Manual Triggers
 				if emp.get('payroll_schedule') == "Weekly" and emp.get('hdmf_mode') == "ME Table Manual":
 					if emp.get('hdmf_freq') == "1st" and self.frequency == "2nd":
@@ -1047,6 +1159,19 @@ class PayrollProcessing(Document):
 							hdmf = emp.get('hdmf_manual')
 							hdmfe = 100
 
+				if emp.get('hdmf_mode') == "Table Percentage":
+					hdmf_tablepercentage = frappe.db.sql("""SELECT `minimum`, `maximum`, `employee_rate`, `employer_rate` FROM `tabHDMF Table Percentage` """, as_dict=1 )
+					hdmf, hdmfe = 0, 0
+
+					for tp in hdmf_tablepercentage:
+						if tp.minimum <= target_amt <= tp.maximum:
+							hdmf = flt(target_amt) * ((flt(tp.employee_rate, 8) / 100))
+							hdmfe = flt(target_amt) * ((flt(tp.employer_rate, 8) / 100))
+
+						if target_amt >= 5000:
+							hdmf = 100
+							hdmfe = 100
+
 				#set to zero if HDMFM is negative
 				if hdmfm < 1:
 					hdmfm = 0
@@ -1105,6 +1230,62 @@ class PayrollProcessing(Document):
 								else:
 									if emp.get('payroll_schedule') == "Semi-Monthly":
 										amt = flt(eval(l), 8) / 2
+
+					if emp.get('hdmf_mode') in ["Table Percentage"]:
+						amt = flt(eval(l), 8)
+
+						if l =='hdmf' and (header.get('prev_hdmf_amt') + amt) >= 100:
+							amt = abs(amt - header.get('prev_hdmf_amt'))
+
+						if l =='hdmf' and header.get('prev_hdmf_amt') >= 100:
+							amt = 0
+
+						if l =='hdmfe' and (header.get('prev_hdmf_er_amt') + amt) >= 100:
+							amt = abs(amt - header.get('prev_hdmf_er_amt'))
+
+						if l =='hdmfe' and header.get('prev_hdmf_er_amt') >= 100:
+							amt = 0
+
+						if emp.get('payroll_schedule') == "Weekly":
+							weekly_hdmf = 0
+							weekly_hdmfe = 0
+							curfrqstr = str(self.frequency)[:1]
+							for prv in weekly_prev_map[emp['name']]['previous_data']:
+								frqstr = str(prv['frequency'])[:1]
+								if int(frqstr) < int(curfrqstr):
+									if l =='hdmf':
+										weekly_hdmf += prv['hdmf']
+									if l =='hdmfe':
+										weekly_hdmfe += prv['hdmfe']
+
+							if emp.get('hdmf_freq') in ['Both', 'All']:
+								if l =='hdmf':
+									amt = abs(amt - weekly_hdmf)
+								if l =='hdmfe':
+									amt = abs(amt - weekly_hdmfe)
+
+								if amt > 100:
+									amt = 0
+							else:
+								if l =='hdmf' and (weekly_hdmf + amt ) >= 100:
+									amt = abs(amt - weekly_hdmf)
+								if l =='hdmfe' and (weekly_hdmfe + amt ) >= 100:
+									amt = abs(amt - weekly_hdmfe)
+								if l =='hdmf' and weekly_hdmf >= 100:
+									amt = 0
+								if l =='hdmfe' and weekly_hdmfe >= 100:
+									amt = 0
+
+						if amt:
+							if emp.get('payroll_schedule') == "Semi-Monthly" and emp.get('hdmf_freq') == 'Both' and self.frequency == '2nd':
+								if l =='hdmf':
+									amt = abs(flt(eval(l), 8) - header.get('prev_hdmf_amt'))
+									if amt > 100:
+										amt = 100
+								if l =='hdmfe':
+									amt = abs(flt(eval(l), 8) - header.get('prev_hdmf_er_amt'))
+									if amt > 100:
+										amt = 100
 
 					if emp.get('hdmf_mode') in ["Manual"] and emp.get('payroll_schedule') == "Weekly":
 						amt = 0
