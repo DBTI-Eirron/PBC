@@ -2579,7 +2579,7 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 			period_disable_straight_shift = frappe.db.get_value("Payroll Period", period, "disable_straight_shift")
 			if enable_straight_shift and not period_disable_straight_shift:
 				disable_straight_shift = 0
-			cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
+			cards_in, cards_out = get_card_within(sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
 			shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecards, dtrp_list, tla, disable_straight_shift)
 			sorted_card_list = get_sorted_card(entry, cards_in, cards_out, emp_map[employee]['timelogs_map'])
 			if getdate(sched['target_date']) in daterange(pay_from, pay_to):
