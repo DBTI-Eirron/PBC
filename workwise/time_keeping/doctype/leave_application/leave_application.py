@@ -29,11 +29,13 @@ class LeaveApplication(Document):
 		self.get_recipients()
 		if self.workflow_state == "Pending" or self.workflow_state == "Draft":
 			self.validate_date()
+			self.validate_filing_in_holiday()
 			self.validate_balance()
 
 	def on_submit(self):
 		self.validate_date()
 		self.set_lwop()
+		self.validate_filing_in_holiday()
 		validate_approve_own_application(self)
 		self.validate_medical()
 		self.validate_balance()
@@ -50,6 +52,8 @@ class LeaveApplication(Document):
 		self.validate_balance()
 		self.validate_date()
 		self.validate_days()
+		self.validate_balance()
+		self.validate_filing_in_holiday()
 		get_approver_email_list(self, 'before_update_after_submit')
 		get_levelled_approval(self)
 		#validate_approver_userperm(self)
@@ -63,6 +67,15 @@ class LeaveApplication(Document):
 		get_cancelled_by_and_date(self)
 		self.revert_leave_credits()
 
+	def validate_filing_in_holiday(self):
+		inc_holidays, allow_holiday_filing, leave_code = frappe.get_value("Leave Type", self.leave_type, ["include_holidays", "allow_holiday_filing","leave_code"])
+		for d in self.get('leave_application_table'):
+			if d.is_holiday == 1 and d.is_excluded == 0:
+				if inc_holidays == 1:
+					if allow_holiday_filing != 1:
+						frappe.throw(_("<b>Leave Application: {0}</b><hr> Can't File on Holiday").format(self.name))
+				else:
+					frappe.throw(_("<b>Leave Application: {0}</b><hr> Can't File on Holiday ").format(self.name))
 
 	def get_recipients(self):
 		recipients = []
