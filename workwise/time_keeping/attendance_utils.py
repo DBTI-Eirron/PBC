@@ -5,12 +5,12 @@ from frappe import _
 from datetime import timedelta, date
 
 def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp, tla):
-	if dtrp:
-		for dt in dtrp:
-			if dt['target_date'] == entry['target_date']:
-				entry['is_dtrp'] = 1
-				if dt['name'] not in entry['dtrp_links']:
-					entry['dtrp_links'].append(dt['name'])
+#	if dtrp:
+#		for dt in dtrp:
+#			if dt['target_date'] == entry['target_date']:
+#				entry['is_dtrp'] = 1
+#				if dt['name'] not in entry['dtrp_links']:
+#					entry['dtrp_links'].append(dt['name'])
 
 	if tla:
 		for tl in tla:
@@ -2579,7 +2579,7 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 			period_disable_straight_shift = frappe.db.get_value("Payroll Period", period, "disable_straight_shift")
 			if enable_straight_shift and not period_disable_straight_shift:
 				disable_straight_shift = 0
-			cards_in, cards_out = get_card_within(sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
+			cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
 			shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecards, dtrp_list, tla, disable_straight_shift)
 			sorted_card_list = get_sorted_card(entry, cards_in, cards_out, emp_map[employee]['timelogs_map'])
 			if getdate(sched['target_date']) in daterange(pay_from, pay_to):
@@ -2851,7 +2851,7 @@ def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_ma
 
 	return to_append
 
-def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp=None, tla=None, disable_straight_shift=0):
+def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp=None, tla=None, disable_straight_shift=0):
 	cards_in = []
 	cards_out = []
 	dtrp_override = frappe.db.get_single_value('Timekeeping Settings', 'dtrp_override')
@@ -2995,6 +2995,10 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 							"from": 'DTRP Application',
 						})
 
+						entry['is_dtrp'] = 1
+						if dt['name'] not in entry['dtrp_links']:
+							entry['dtrp_links'].append(dt['name'])
+
 			if no_card_out == 1 or no_break_in == 1:
 				if (dt['card_type'] == 1 or dt['card_type'] == 3):
 					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
@@ -3006,6 +3010,10 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 							"card_type": dt['card_type'],
 							"from": 'DTRP Application',
 						})
+
+						entry['is_dtrp'] = 1
+						if dt['name'] not in entry['dtrp_links']:
+							entry['dtrp_links'].append(dt['name'])
 
 		if dtrp_override:
 			if getdate(dt['target_date']) == getdate(target_date):

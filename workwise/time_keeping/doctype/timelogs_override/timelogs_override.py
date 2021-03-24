@@ -198,7 +198,7 @@ class TimelogsOverride(Document):
 		for d in self.get("timelogs_override"):
 			sched = {'target_date':d.target_date,'work_shift':d.work_shift,'is_default_schedule':d.is_default}
 			entry = get_defaults(emp, sched, shift_map, overrides)
-			cards_in, cards_out = get_card_within(sched['target_date'], emp_map[self.employee]['timelogs_map'], emp_map[self.employee]['schedules'], 
+			cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_map[self.employee]['timelogs_map'], emp_map[self.employee]['schedules'], 
 				shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list, dtrp, tla)
 			sorted_card_list = get_sorted_card(entry, cards_in, cards_out, emp_map[self.employee]['timelogs_map'])
 			d.time_in = sorted_card_list['card_in']
