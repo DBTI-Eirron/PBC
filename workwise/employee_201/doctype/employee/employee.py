@@ -51,6 +51,7 @@ class Employee(Document):
 		self.validate_salary()
 		self.validate_bank()
 		self.create_user()
+		self.update_user_role_profile()
 		self.validate_is_qualified_dependent()
 		self.validate_employee_approvers()
 		self.validate_user_status()
@@ -78,6 +79,20 @@ class Employee(Document):
 			us = frappe.get_doc("User", self.user_id)
 			us.update({ "enabled": 1, })
 			us.save()
+			
+	def update_user_role_profile(self):
+		if frappe.db.get_single_value('System Settings', 'enable_role_profile_setup'):
+			if self.user_id:
+				us = frappe.get_doc("User", self.user_id)
+				if self.role_profile:
+					if us.role_profile_name != self.role_profile:
+						us.update({ "role_profile_name":  self.role_profile, })
+				else:
+					us.update({ 
+						"role_profile_name": "",
+						"roles": None,
+					})
+				us.save()
 			
 	def on_update(self):
 		if self.user_id:
@@ -162,11 +177,14 @@ class Employee(Document):
 					"send_welcome_mail": 0,
 					"last_name": self.last_name,
 				})
+				if self.role_profile_setup_enabled():
+					user.update({ "role_profile_name": self.role_profile })
 				if user.insert():
 					self.user_id = self.email
 					user = frappe.get_doc("User", self.user_id)
 					user.flags.ignore_permissions = True
-					user.add_roles(self.role)
+					if not self.role_profile_setup_enabled():
+						user.add_roles(self.role)
 					user.save()
 					frappe.defaults.set_user_default("Employee", self.name, self.user_id)
 
@@ -400,6 +418,12 @@ class Employee(Document):
 			result.append(user_list[emp])
 		return result
 
+	def role_profile_setup_enabled(self):
+		if frappe.db.get_single_value('System Settings', 'enable_role_profile_setup'):
+			return 1
+		else:
+			return 0
+
 @frappe.whitelist()
 def update_user():
 	employees = frappe.db.sql("""SELECT user_id, is_active FROM `tabEmployee`""",as_dict=True)
@@ -412,4 +436,3 @@ def update_user():
 			us = frappe.get_doc("User", emp.user_id)
 			us.update({ "enabled": 1, })
 			us.save()
-

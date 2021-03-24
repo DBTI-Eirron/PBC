@@ -38,6 +38,22 @@ frappe.ui.form.on('Employee', {
 		});
 
 		frappe.call({
+			method: "role_profile_setup_enabled",
+			doc: frm.doc,
+			callback: function(r) {
+				console.log(r.message);
+				if (r.message == 1){
+					cur_frm.toggle_display('role_profile', true);
+					cur_frm.toggle_display('role', false);
+				}
+				else{
+					cur_frm.toggle_display('role_profile', false);
+					cur_frm.toggle_display('role', true);
+				}
+			}
+		});
+
+		frappe.call({
 			method: "get_age_and_service_years",
 			doc: frm.doc,
 			callback: function(r) {
