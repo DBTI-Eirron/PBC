@@ -2531,20 +2531,23 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 		})
 	)
 
-	get_all_schedules(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3))
-	emp_dict = None
-	emp_id = None
-	for a, b in emp_map.items():
-		emp_id = a
-		emp_dict = b
+	period = get_period_from_targetdate(employee, pay_from)
+	if period:
+		period_disable_straight_shift, approval_cutoff = frappe.db.get_value("Payroll Period", period, ["disable_straight_shift", "approval_cutoff"] )
 
-	complete_sched(emp_dict, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), template_map)
-	change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
-	processed_def_sched(emp_id, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), emp_dict['schedules'])
+	get_all_schedules(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3))
+	get_all_timecards(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3))
+	get_all_csa(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), approval_cutoff, 1, 0)
+	get_all_dtrp(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), approval_cutoff, 1, 0)
+	get_all_tla(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), approval_cutoff, 1)
+
+	complete_sched(emp_map[employee], pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), template_map)
+	change_sched(emp_map[employee], emp_map[employee]['schedules'], emp_map[employee].get('csa'))
+	processed_def_sched(employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), emp_map[employee]['schedules'])
+
 	for sched in emp_map[employee]['schedules']:
 		shifts = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched['work_shift']), as_dict=True)
 		if shifts:
-			period = get_period_from_targetdate(employee, sched['target_date'])
 			disable_straight_shift = 1
 			period_disable_straight_shift = None
 			approval_cutoff = None
@@ -2567,24 +2570,14 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 				"break_out": "",
 				"dtrp_links": [],
 			}
-			dtrp_list = []
-			emp_bioid = frappe.db.get_value("Employee", employee, "biometrics_id")
-			get_all_timecards(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3))
-			timecards = emp_map[employee]['timecards']
-			get_all_dtrp(emp_map, employee, sched['target_date'] - datetime.timedelta(days=3), sched['target_date'] + datetime.timedelta(days=3), approval_cutoff, 1, 0)
-			dtrp_list = emp_map[employee]['dtrp']
-			get_all_tla(emp_map, employee, sched['target_date'] - timedelta(days=3), sched['target_date'] + timedelta(days=3), approval_cutoff, 1)
-			tla = emp_map[employee]['tla']
 			
-			#For OT App aCTUAL LOG
-			#if ot_app and not timecards:
-			#	timecards = dtrp_list
-
 			enable_straight_shift = frappe.db.get_single_value('Timekeeping Settings', 'enable_straight_shift')
 			if enable_straight_shift and not period_disable_straight_shift:
 				disable_straight_shift = 0
+
 			cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
-			shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecards, dtrp_list, tla, disable_straight_shift)
+				shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), 
+				emp_map[employee]['timecards'], emp_map[employee]['dtrp'], emp_map[employee]['tla'], disable_straight_shift)
 			sorted_card_list = get_sorted_card(entry, cards_in, cards_out, emp_map[employee]['timelogs_map'])
 			if getdate(sched['target_date']) in daterange(pay_from, pay_to):
 				result.append(entry)
@@ -2859,7 +2852,6 @@ def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_
 	cards_in = []
 	cards_out = []
 	dtrp_override = frappe.db.get_single_value('Timekeeping Settings', 'dtrp_override')
-
 	lcn_shifts = get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
 	lcn_shifts['pre_shift'] = pre_shift
 	lcn_shifts['max_preshift'] = max_preshift
