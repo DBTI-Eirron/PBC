@@ -99,6 +99,7 @@ class AttendanceProcessing(Document):
 				ss_list += 1
 				issue_tag = ""
 				no_work = 1
+				all_restday_sched, has_restday = 1, 0
 				complete_sched(emp_dict, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), template_map)
 				change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 				for sched in emp_dict['schedules']:
@@ -137,6 +138,15 @@ class AttendanceProcessing(Document):
 							if not entry['is_restday'] and not entry['is_holiday']:
 								if entry['is_absent'] == 0 and entry['is_lwop'] == 0:
 									no_work = 0
+
+						if not entry['is_restday']:
+							all_restday_sched = 0
+						if entry['is_restday']:
+							has_restday = 1
+
+				if frappe.db.get_single_value('Timekeeping Settings', 'rdwork_always'):
+					if emp_dict['employee_details']['rate_type'] == 'Monthly Rate' and has_restday:
+						no_work = 0
 
 				if not emp_dict['schedules']:
 					issue_tag += " <span class='label label-danger'> No Schedule </span>"
