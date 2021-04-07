@@ -42,6 +42,14 @@ frappe.ui.form.on('Payroll Processing', {
 			};
 		});
 
+		frm.set_query("department", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
+
 		frm.set_query("employee", function() {
 			return {
 				"filters": {

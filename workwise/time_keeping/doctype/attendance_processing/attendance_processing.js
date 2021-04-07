@@ -35,6 +35,14 @@ frappe.ui.form.on('Attendance Processing', {
 				}
 			};
 		});
+
+		frm.set_query("department", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
 	},
 
 	setup: function(frm) {

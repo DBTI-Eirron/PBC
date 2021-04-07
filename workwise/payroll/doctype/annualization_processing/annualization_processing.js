@@ -2,12 +2,22 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on('Annualization Processing', {
-	onload: function(frm){
+	refresh: function(frm) {
 		//Button Style
 		document.querySelectorAll("[data-fieldname='process_annualization']")[1].style.backgroundColor ="#81da63";
 		document.querySelectorAll("[data-fieldname='process_annualization']")[1].style.height ="30px";
 		document.querySelectorAll("[data-fieldname='process_annualization']")[1].style.width ="150px";
 		document.querySelectorAll("[data-fieldname='process_annualization']")[1].style.color ="white";
+		
+		frm.disable_save();
+
+		frm.set_query("department", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
 
 		frm.set_query("employee", function() {
 			return {
@@ -34,10 +44,6 @@ frappe.ui.form.on('Annualization Processing', {
 				}
 			};
 		});
-	},
-
-	refresh: function(frm) {
-		frm.disable_save();
 	},
 
 	company: function(frm){
