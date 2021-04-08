@@ -911,7 +911,7 @@ def get_ndiff(entry):
 						flex_start = add_to_date(get_datetime(late_point), hours=((entry['late'] /60 / 60)))
 					card_in = flex_start
 
-		elif entry['late_interval'] and entry.get('late'):
+		elif entry['late_interval'] and entry.get('late') and not entry['is_flexible']:
 			if entry.get('lt_int_rup'):
 				lt_start = entry.get('late_interval') * 60
 				lt_end = entry.get('late_interval') * 60
