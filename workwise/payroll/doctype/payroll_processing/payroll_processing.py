@@ -1789,6 +1789,7 @@ class PayrollProcessing(Document):
 				total_cto_days, total_work_days, total_absent_days, total_present_days, total_pho_days, total_hourly_basic, total_nwho_days, total_dl_days = 0, 0, 0, 0, 0, 0, 0, 0
 				cur_suc_hol_wout_before, before_holiday_work, before_sp_work = 0, 0, 0
 				is_uho, no_previous, dho_amount, work_hrs, paid_leave, total_work = 0, 0, 0, 0, 0, 0
+				all_restday_sched, total_restday_count = 1, 0
 				for at in attendance:
 					cto_days, work_days, absent_days, present_days, pho_days, hourly_basic, nwho_days = 0, 0, 0, 0, 0, 0, 0
 					basic_salary, absent, late, undertime, unpaid_holiday, cto, nightdiff = 0, 0, 0, 0, 0, 0, 0
@@ -1822,6 +1823,10 @@ class PayrollProcessing(Document):
 
 						if not at.is_restday:
 							work_days += 1
+							all_restday_sched = 0
+
+						if at.is_restday:
+							total_restday_count += 1
 
 						if at.is_holiday and at.work <= 0:
 							nwho_days += 1
@@ -2195,11 +2200,15 @@ class PayrollProcessing(Document):
 						
 						# Save work For Next Day in Attendace Processing
 				header['no_attendance'] = 1
-				#frappe.throw(_(suc_list))
+
 				if total_work > 0 or paid_leave > 0 or total_cto_days > 0:
 					header['no_attendance'] = 0
 				if emp.get("rate_type") == "Daily Rate":
 					if total_dl_days > 0:
+						header['no_attendance'] = 0
+
+				if frappe.db.get_single_value('Timekeeping Settings', 'rdwork_always'):
+					if emp.get("rate_type") == "Monthly Rate" and total_restday_count:
 						header['no_attendance'] = 0
 
 				#attendance_register.append({"pay_code": "AT", "amount": flt(absent, 8) })

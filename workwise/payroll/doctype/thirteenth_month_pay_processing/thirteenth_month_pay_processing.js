@@ -23,6 +23,14 @@ frappe.ui.form.on('Thirteenth Month Pay Processing', {
 	refresh: function(frm) {
 		frm.disable_save();
 
+		frm.set_query("department", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
+
 		frm.set_query("employee", function() {
 			return {
 				"filters": {

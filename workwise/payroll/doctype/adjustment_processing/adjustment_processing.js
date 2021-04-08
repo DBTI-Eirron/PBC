@@ -51,6 +51,14 @@ frappe.ui.form.on('Adjustment Processing', {
 				}
 			};
 		});
+
+		frm.set_query("department", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
 	},
 	
 	onload_post_render: function() {
