@@ -51,6 +51,14 @@ frappe.ui.form.on('Leave Conversion', {
 				}
 			};
 		});
+
+		frm.set_query("department", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
 	},
 
 	company: function(frm){

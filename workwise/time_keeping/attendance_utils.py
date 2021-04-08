@@ -5,12 +5,12 @@ from frappe import _
 from datetime import timedelta, date
 
 def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, wss, dtrp, tla):
-	if dtrp:
-		for dt in dtrp:
-			if dt['target_date'] == entry['target_date']:
-				entry['is_dtrp'] = 1
-				if dt['name'] not in entry['dtrp_links']:
-					entry['dtrp_links'].append(dt['name'])
+#	if dtrp:
+#		for dt in dtrp:
+#			if dt['target_date'] == entry['target_date']:
+#				entry['is_dtrp'] = 1
+#				if dt['name'] not in entry['dtrp_links']:
+#					entry['dtrp_links'].append(dt['name'])
 
 	if tla:
 		for tl in tla:
@@ -911,7 +911,7 @@ def get_ndiff(entry):
 						flex_start = add_to_date(get_datetime(late_point), hours=((entry['late'] /60 / 60)))
 					card_in = flex_start
 
-		elif entry['late_interval'] and entry.get('late'):
+		elif entry['late_interval'] and entry.get('late') and not entry['is_flexible']:
 			if entry.get('lt_int_rup'):
 				lt_start = entry.get('late_interval') * 60
 				lt_end = entry.get('late_interval') * 60
@@ -2324,8 +2324,8 @@ def get_period_from_targetdate(employee, target_date):
 			WHERE `name` = %s LIMIT 1""",( employee ), as_dict=1)
 
 		if employee:
-			periods = frappe.db.sql("""SELECT `name`, `period_group` FROM `tabPayroll Period` WHERE `status` = 'Open'
-				AND (%(date_today)s BETWEEN `attendance_from` AND `attendance_to`) 
+			periods = frappe.db.sql("""SELECT `name`, `period_group` FROM `tabPayroll Period` WHERE
+				(%(date_today)s BETWEEN `attendance_from` AND `attendance_to`) 
 				AND `company` = %(company)s AND `schedule` = %(schedule)s """,{ 
 					"date_today": getdate(target_date),
 					"company": employee[0].company,
@@ -2531,19 +2531,29 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 		})
 	)
 
-	get_all_schedules(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3))
-	emp_dict = None
-	emp_id = None
-	for a, b in emp_map.items():
-		emp_id = a
-		emp_dict = b
+	period = get_period_from_targetdate(employee, pay_from)
+	if period:
+		period_disable_straight_shift, approval_cutoff = frappe.db.get_value("Payroll Period", period, ["disable_straight_shift", "approval_cutoff"] )
 
-	complete_sched(emp_dict, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), template_map)
-	change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
-	processed_def_sched(emp_id, pay_from, pay_to, emp_dict['schedules'])
+	get_all_schedules(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3))
+	get_all_timecards(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3))
+	get_all_csa(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), approval_cutoff, 1, 0)
+	get_all_dtrp(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), approval_cutoff, 1, 0)
+	get_all_tla(emp_map, employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), approval_cutoff, 1)
+
+	complete_sched(emp_map[employee], pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), template_map)
+	change_sched(emp_map[employee], emp_map[employee]['schedules'], emp_map[employee].get('csa'))
+	processed_def_sched(employee, pay_from - datetime.timedelta(days=3), pay_to + datetime.timedelta(days=3), emp_map[employee]['schedules'])
+
 	for sched in emp_map[employee]['schedules']:
 		shifts = frappe.db.sql("""SELECT * FROM `tabWork Shift` WHERE `name` = %s LIMIT 1""",(sched['work_shift']), as_dict=True)
 		if shifts:
+			disable_straight_shift = 1
+			period_disable_straight_shift = None
+			approval_cutoff = None
+			if period:
+				period_disable_straight_shift, approval_cutoff = frappe.db.get_value("Payroll Period", period, ["disable_straight_shift", "approval_cutoff"] )
+
 			post_shift_date = getdate(sched['target_date'])
 			if shifts[0].time_in > shifts[0].time_out:
 				post_shift_date = add_days(getdate(sched['target_date']), 1)
@@ -2560,27 +2570,14 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 				"break_out": "",
 				"dtrp_links": [],
 			}
-			dtrp_list = []
-			emp_bioid = frappe.db.get_value("Employee", employee, "biometrics_id")
-			timecards = get_timecard_list(emp_bioid, sched['target_date'] - datetime.timedelta(days=3), sched['target_date'] + datetime.timedelta(days=3))
-			#dtrp_list = get_dtrp_list(employee, sched['target_date'] - timedelta(days=1), sched['target_date'] + datetime.timedelta(days=1), None, 0)
-			get_all_dtrp(emp_map, employee, sched['target_date'] - datetime.timedelta(days=3), sched['target_date'] + datetime.timedelta(days=3), None, 0, 0)
-			dtrp_list = emp_map[employee]['dtrp']
-			tla = get_all_tla(emp_map, employee, sched['target_date'] - timedelta(days=3), sched['target_date'] + timedelta(days=3), 0, 0)
 			
-			#For OT App aCTUAL LOG
-			if ot_app and not timecards:
-				timecards = dtrp_list
-
-			#if timecards:
-			period = get_period_from_targetdate(employee, sched['target_date'])
-			disable_straight_shift = 1
 			enable_straight_shift = frappe.db.get_single_value('Timekeeping Settings', 'enable_straight_shift')
-			period_disable_straight_shift = frappe.db.get_value("Payroll Period", period, "disable_straight_shift")
 			if enable_straight_shift and not period_disable_straight_shift:
 				disable_straight_shift = 0
-			cards_in, cards_out = get_card_within(sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
-			shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecards, dtrp_list, tla, disable_straight_shift)
+
+			cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
+				shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), 
+				emp_map[employee]['timecards'], emp_map[employee]['dtrp'], emp_map[employee]['tla'], disable_straight_shift)
 			sorted_card_list = get_sorted_card(entry, cards_in, cards_out, emp_map[employee]['timelogs_map'])
 			if getdate(sched['target_date']) in daterange(pay_from, pay_to):
 				result.append(entry)
@@ -2851,11 +2848,10 @@ def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_ma
 
 	return to_append
 
-def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp=None, tla=None, disable_straight_shift=0):
+def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_shift, max_preshift, post_shift, max_postshift, timecard_list, dtrp=None, tla=None, disable_straight_shift=0):
 	cards_in = []
 	cards_out = []
 	dtrp_override = frappe.db.get_single_value('Timekeeping Settings', 'dtrp_override')
-
 	lcn_shifts = get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
 	lcn_shifts['pre_shift'] = pre_shift
 	lcn_shifts['max_preshift'] = max_preshift
@@ -2995,6 +2991,10 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 							"from": 'DTRP Application',
 						})
 
+						entry['is_dtrp'] = 1
+						if dt['name'] not in entry['dtrp_links']:
+							entry['dtrp_links'].append(dt['name'])
+
 			if no_card_out == 1 or no_break_in == 1:
 				if (dt['card_type'] == 1 or dt['card_type'] == 3):
 					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
@@ -3006,6 +3006,10 @@ def get_card_within(target_date, timelogs_map, schedules, shift_map, pre_shift, 
 							"card_type": dt['card_type'],
 							"from": 'DTRP Application',
 						})
+
+						entry['is_dtrp'] = 1
+						if dt['name'] not in entry['dtrp_links']:
+							entry['dtrp_links'].append(dt['name'])
 
 		if dtrp_override:
 			if getdate(dt['target_date']) == getdate(target_date):
@@ -3845,7 +3849,7 @@ def processed_def_sched(employee, pay_from, pay_to, completed_schedules):
 
 	for d in completed_schedules:
 		for ar in att_reg:
-			if (ar.employee == employee) and (ar.is_default_schedule) and ('is_change_schedule' not in d or not d['is_change_schedule']):
+			if (ar.employee == employee) and (ar.is_default_schedule) and not d['is_change_schedule']:
 				if ar['target_date'] == d['target_date']:
 					d['work_shift'] = ar['work_shift']
 

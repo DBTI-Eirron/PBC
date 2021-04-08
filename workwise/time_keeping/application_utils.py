@@ -303,7 +303,7 @@ def get_current_logs(employee, target_date):
 		if target_date == d['target_date']:
 			sched = {'target_date': d['target_date'], 'work_shift': d['work_shift'], 'is_default_schedule': d['is_default_schedule']}
 			entry = get_defaults(emp, sched, shift_map, None)
-			cards_in, cards_out = get_card_within(sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
+			cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_map[employee]['timelogs_map'], emp_map[employee]['schedules'], 
 				shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list, dtrp, tla)
 			sorted_card_list = get_sorted_card(entry, cards_in, cards_out, emp_map[employee]['timelogs_map'])
 			cin, cout = entry.get('card_in'), entry.get('card_out')
