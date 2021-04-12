@@ -207,11 +207,12 @@ def get_data(filters):
 	}
 
 	if employees:
+		company = frappe.db.get_value("Employee", filters.employee, ["company"])
 		pay_from, pay_to, approval_cutoff, disable_straight_shift = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "approval_cutoff", "disable_straight_shift"])
 		employee_list = convert_to_list(employees)
 		template_map = get_template_map()
 		shift_map = get_shift_map()
-		emp_map = init_employee_map(employees, filters.employee, filters.company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		emp_map = init_employee_map(employees, filters.employee, company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			complete_sched(emp_dict, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
