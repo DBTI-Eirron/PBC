@@ -207,6 +207,7 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	entry['ut_list'] = []
 	entry['cto_list'] = []
 	entry['late_deduction'] = 0
+	entry['ut_deduction'] = 0
 	entry['late_without_int'] = 0
 	entry['flex_in_out'] = []
 	get_late(entry)
@@ -314,6 +315,7 @@ def get_overtime(entry, ot_apps):
 	total_ot_earlynd, total_ot_latend = 0, 0
 	strict_logs = frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs')
 	ded_late_ot = frappe.db.get_single_value('Timekeeping Settings', 'ded_late_ot')
+	ded_ut_ot = frappe.db.get_single_value('Timekeeping Settings', 'ded_ut_ot')
 	min_ot_mins = frappe.db.get_single_value('Timekeeping Settings', 'min_ot_mins')
 	to_hrs, from_hrs, break_mins = 0, 0, 0
 	entry["ot_card_in"], entry["ot_card_out"], entry["ot_ob_in"], entry["ot_ob_out"] = "","","",""
@@ -393,6 +395,32 @@ def get_overtime(entry, ot_apps):
 						if entry.get('late') < 0:
 							entry['late'] = 0
 
+				#get OT Start Deduct Undertime
+				if entry.get('ot_deduct_ut') and not entry.get('is_flexible') and not entry.get('dn_ot_ut'):
+					if min_ot_mins > 0:
+						if flt(ot_filed/60, 8) < flt(min_ot_mins, 8):
+							ot_filed = 0
+					if entry.get('is_restday') < 1:
+						if entry.get('is_holiday'):
+							if entry.get('ot_dedut_ho'):
+								ot_in = add_to_date(ot_in, hours=( entry.get('undertime') / 60 / 60 ))
+								if ded_ut_ot:
+									entry['ut_deduction'] = entry['undertime']
+									entry['undertime'] -= ot_filed
+									if entry.get('undertime') < 0:
+										entry['ut_deduction'] = ot_file
+
+						else:
+							ot_in = add_to_date(ot_in, hours=( entry.get('undertime') / 60 / 60 ))
+							if ded_ut_ot:
+								entry['ut_deduction'] = entry['undertime']
+								entry['undertime'] -= ot_filed
+								if entry.get('undertime') < 0:
+									entry['ut_deduction'] = ot_filed
+
+						if entry.get('undertime') < 0:
+							entry['undertime'] = 0
+	
 				#Always follow whichever is lower between card_out and ot_out
 				if entry.get('ot_strict_logs'):
 					if ot_in < entry.get('time_in') and ot_out >  entry.get('time_out') and not entry.get('is_restday') and not entry.get('is_holiday'):
@@ -550,6 +578,7 @@ def get_overtime(entry, ot_apps):
 					#Get ND OT Start and End
 					ot_nd_start = None #Start Time of OT ND computation
 					ot_nd_end = None #End Time of OT ND computation
+					ot_nd = 0
 					if nd_start and nd_end:
 						if get_datetime(ot_out) > get_datetime(nd_start):
 							# GET ND OT START
@@ -699,6 +728,55 @@ def get_overtime(entry, ot_apps):
 					entry['late'] = 0
 				entry['late_deduction'] = total_ot_deducted
 
+		# Deduct Undertime In total OT HOURS
+		if entry.get('ot_deduct_ut') and not entry.get('is_flexible') and entry.get('dn_ot_ut') and not entry['is_holiday']:
+			if min_ot_mins > 0:
+				if flt(total_ot/60, 8) < flt(min_ot_mins, 8):
+					total_ot = 0
+
+				if flt(total_ot_nd/60, 8) < flt(min_ot_mins, 8):
+					total_ot_nd = 0
+					
+			if entry.get('is_restday') < 1:
+				total_ot_deducted = total_ot
+				if entry.get('is_holiday'):
+					if entry.get('ot_dedut_ho'):
+						total_ot -= entry['undertime']
+						total_ot_nd -= entry['undertime']
+						total_ot_latend -= entry['undertime']
+						if total_ot_latend < 0:
+							total_ot_earlynd -= abs(total_ot_latend)
+							total_ot_latend = 0
+							if  total_ot_earlynd < 0:
+								total_ot_earlynd = 0
+						if total_ot < 0:
+							total_ot = 0
+						if total_ot_nd < 0:
+							total_ot_nd = 0
+
+						total_ot_deducted -= total_ot
+						if ded_ut_ot:
+							entry['undertime'] -= total_ot_deducted
+				else:
+					total_ot_nd -= entry['undertime']
+					total_ot -= entry['undertime']
+					total_ot_latend -= entry['undertime']
+					if total_ot_latend < 0:
+						total_ot_earlynd -= abs(total_ot_latend)
+						total_ot_latend = 0
+						if  total_ot_earlynd < 0:
+							total_ot_earlynd = 0
+					if total_ot < 0:
+						total_ot = 0
+					if total_ot_nd < 0:
+						total_ot_nd = 0
+					total_ot_deducted -= total_ot
+					if ded_ut_ot:
+						entry['undertime'] -= total_ot_deducted
+				if entry.get('undertime') < 0:
+					entry['undertime'] = 0
+				entry['ut_deduction'] = total_ot_deducted
+
 		#Minimum OT (Mins)
 		min_ot_mins = frappe.db.get_single_value('Timekeeping Settings', 'min_ot_mins')
 		if min_ot_mins > 0:
@@ -836,6 +914,7 @@ def get_ndiff(entry):
 		card_in = entry.get('card_in')
 		card_out = entry.get('card_out')
 		ded_late_ot = frappe.db.get_single_value('Timekeeping Settings', 'ded_late_ot')
+		ded_ut_ot = frappe.db.get_single_value('Timekeeping Settings', 'ded_ut_ot')
 
 		#OB Triggers for nightdiff
 		if entry.get('ob_stat') == 1:
@@ -3365,6 +3444,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"flexible_type": shift_map[sched['work_shift']]['flexible_type'],
 		#GLOBAL POLICIES
 		"ot_deduct_late": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_deduct_late'), 8),
+		"ot_deduct_ut": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_deduct_ut'), 8),
 		"ot_start_delay": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_start_delay'), 8),
 		"ot_interval": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_interval'), 8),
 		"max_holiday_ot": flt(frappe.db.get_single_value('Timekeeping Settings', 'max_holiday_ot'), 8),
@@ -3373,7 +3453,9 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"ot_strict_logs": flt(frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs'), 8),
 		"hd_halfcard": flt(frappe.db.get_single_value('Timekeeping Settings', 'hd_halfcard'), 8),
 		"ot_dedlt_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedlt_ho'),
+		"ot_dedut_ho": frappe.db.get_single_value('Timekeeping Settings', 'ot_dedut_ho'),
 		"dn_ot_late": frappe.db.get_single_value('Timekeeping Settings', 'dn_ot_late'),
+		"dn_ot_ut": frappe.db.get_single_value('Timekeeping Settings', 'dn_ot_ut'),
 		"at_work_rdho": frappe.db.get_single_value('Timekeeping Settings', 'at_work_rdho'),
 		"mo_abho": frappe.db.get_single_value('Timekeeping Settings', 'mo_abho'),
 		"ab_regho": frappe.db.get_single_value('Timekeeping Settings', 'ab_regho'),
