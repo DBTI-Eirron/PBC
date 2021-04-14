@@ -79,6 +79,7 @@ class EmployeeMovement(Document):
 			emp.update({
 					"position_title": self.new_position if self.new_position else self.current_position,
 					"job_level": self.new_job_level if self.new_job_level else self.current_job_level,
+					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
 				})
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
@@ -88,6 +89,7 @@ class EmployeeMovement(Document):
 			emp.update({
 					"position_title": self.current_position,
 					"job_level": self.current_job_level,
+					"job_grade": self.current_job_grade,
 				})
 			self.revert_employee(emp)
 			self.cmd_salary_adjustment(process=process)
