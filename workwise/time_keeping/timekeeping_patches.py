@@ -1313,3 +1313,6 @@ def update_user_perm_period_group():
 				frappe.permissions.add_user_permission("Period Group", emp.period_group, emp.user_id)
 		else:
 			frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(emp.user_id),as_dict=True)
+
+def workschedule_set_employeename():
+	frappe.db.sql("""UPDATE `tabWork Schedule` WS INNER JOIN `tabEmployee` TE ON WS.`employee`=TE.`name` SET WS.`employee_name`=TE.`full_name` WHERE WS.`employee_name` IS NULL """)
