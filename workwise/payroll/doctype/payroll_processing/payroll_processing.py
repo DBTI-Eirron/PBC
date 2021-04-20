@@ -1699,9 +1699,6 @@ class PayrollProcessing(Document):
 		if emp.get('is_attendance_base') > 0:
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
 				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
-
-			#overtime_list = frappe.db.sql("""SELECT employee, target_date, ot_code, hrs, linked_ot FROM `tabOvertime` 
-			#	WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp.get('name'), self.attendance_from, self.attendance_to), as_dict=1)
 			
 			#Get Overtime
 			unique_ot = ["00000000"]
@@ -1977,7 +1974,14 @@ class PayrollProcessing(Document):
 									if not is_uho or at.work:
 										dho_amount += flt(rates.get('daily_rate'), 8)*1
 										register.append({"pay_code": header.get('dho'), "amount": dho_amount})
-									
+
+						if frappe.db.get_single_value('Payroll Settings', 'ignore_bssphoot'):
+							if at.is_sp_holiday and at.overtime and emp.get("rate_type") != "Daily Rate":
+								ho_paid = 0
+
+							if at.is_sp_holiday and emp.get("rate_type") == "Daily Rate":
+								ho_paid = 0
+
 						if ho_paid == 1:
 							pho_days += ho_paid
 						
