@@ -107,7 +107,7 @@ class LeaveApplication(Document):
 								frappe.throw("Can't file leave on Restday Schedule")
 
 	def validate_leave(self):
-		max_days, filing_days, is_allow_beyond = frappe.get_value("Leave Type", self.leave_type, ["max_days", "filing_days", "is_allow_beyond"])
+		max_days, is_allow_beyond = frappe.get_value("Leave Type", self.leave_type, ["max_days", "is_allow_beyond"])
 		if max_days > 0:
 			if not is_allow_beyond:
 				if self.total_leave_days > max_days:
