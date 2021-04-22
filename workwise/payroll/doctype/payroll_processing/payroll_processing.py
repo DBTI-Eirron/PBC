@@ -2090,6 +2090,10 @@ class PayrollProcessing(Document):
 								paid_leave = 1
 
 						#Succesive Holiday Without attendance Before the start 
+						if at.is_restday:
+							before_holiday_work = 1
+							before_sp_work = 1
+						
 						if not at.is_holiday and not at.is_restday:
 							cur_suc_hol_wout_before = 0
 							if at.work:
