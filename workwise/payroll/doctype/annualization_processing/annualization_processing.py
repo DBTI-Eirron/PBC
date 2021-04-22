@@ -44,14 +44,14 @@ class AnnualizationProcessing(Document):
 		return lastpay
 
 	def create_entries(self, annual_registers, logs_list):
-		self.get_signatory(frappe.session['user'])
+		signatory = self.get_signatory(frappe.session['user'])
 		for ar in annual_registers:
 			frappe.db.sql("""DELETE FROM `tabAnnualization Register` 
 				WHERE employee = %s AND payroll_year = %s """,(ar.employee, ar.payroll_year), as_dict=1)
 
 			register = frappe.new_doc("Annualization Register")
 			register.update(ar)
-			register['signatory'] =
+			register['signatory'] = signatory 
 			if register.insert():
 				logs_list.append( cstr(register.employee)+": "+cstr(register.employee_name) )
 
