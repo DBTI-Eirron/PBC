@@ -3781,7 +3781,7 @@ def get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 		cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
 			FROM `tabChange Schedule Application` CSA INNER JOIN `tabPayroll Period` PP ON CSA.`company` = PP.`company`
 			INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
-			WHERE CSA.docstatus = 1 AND workflow_state = 'Approved' AND CSAT.target_date >= %(pay_from)s AND CSAT.target_date <= %(pay_to)s AND CONVERT(CSA.approved_on, DATE) <= PP.approval_cutoff 
+			WHERE CSA.docstatus = 1 AND CSA.`workflow_state` = 'Approved' AND CSAT.target_date >= %(pay_from)s AND CSAT.target_date <= %(pay_to)s AND CONVERT(CSA.approved_on, DATE) <= PP.approval_cutoff 
 			AND CSAT.`target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to`
 			{conditions} ORDER BY CSA.modified ASC """.format( conditions=conditions ), {'pay_from': pay_from, 'pay_to': pay_to}, as_dict=1)
 		
@@ -3789,7 +3789,7 @@ def get_all_csa(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment
 		cs_apps = frappe.db.sql(""" SELECT CSA.employee, CSA.approved_on, CSAT.target_date, CSAT.new_shift
 			FROM `tabChange Schedule Application` CSA 
 			INNER JOIN `tabChange Schedule Application Table` CSAT ON CSAT.parent = CSA.`name` 
-			WHERE CSA.docstatus = 1 AND workflow_state = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s 
+			WHERE CSA.docstatus = 1 AND CSA.`workflow_state` = 'Approved' AND CSAT.target_date >= %s AND CSAT.target_date <= %s 
 			{conditions} ORDER BY CSA.modified ASC """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in cs_apps:
