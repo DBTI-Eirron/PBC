@@ -165,7 +165,7 @@ def validate_cutoff_approval_date(self):
 		
 		for ap in approvals_cutoff:
 			if ap.approval_cutoff:
-				if approved_on >= getdate(ap.approval_cutoff):
+				if approved_on > getdate(ap.approval_cutoff):
 					frappe.msgprint("Approved Application is Beyond Approval Cut off")
 
 def validate_approver_userperm(self):
