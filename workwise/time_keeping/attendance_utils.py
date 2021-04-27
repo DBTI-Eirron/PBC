@@ -2610,6 +2610,7 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 		})
 	)
 
+	approval_cutoff = None
 	period = get_period_from_targetdate(employee, pay_from)
 	if period:
 		period_disable_straight_shift, approval_cutoff = frappe.db.get_value("Payroll Period", period, ["disable_straight_shift", "approval_cutoff"] )
@@ -2629,7 +2630,6 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 		if shifts:
 			disable_straight_shift = 1
 			period_disable_straight_shift = None
-			approval_cutoff = None
 			if period:
 				period_disable_straight_shift, approval_cutoff = frappe.db.get_value("Payroll Period", period, ["disable_straight_shift", "approval_cutoff"] )
 
