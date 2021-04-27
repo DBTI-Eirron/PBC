@@ -624,10 +624,17 @@ def get_overtime(entry, ot_apps):
 					if d.break_hrs:
 						to_hrs, from_hrs, break_mins = frappe.db.get_value("Overtime Application", d['name'], ["to_hrs", "from_hrs", "break_mins"])
 						if is_break_deducted != 1:
-							if flt(from_hrs, 8) * 60 * 60 <= ot_normal <= flt(to_hrs, 8) * 60 * 60:
+							if not from_hrs and not to_hrs and not break_mins:
+								total_brk += flt(d.break_hrs, 8)
+								is_break_deducted = 1
+							if from_hrs and to_hrs and flt(from_hrs, 8) * 60 * 60 <= ot_normal <= flt(to_hrs, 8) * 60 * 60:
 								total_brk += flt(break_mins, 8) * 60
 								is_break_deducted = 1
+
 						if is_nd_break_deducted !=1:
+							if not from_hrs and not to_hrs and not break_mins:
+								total_brk += flt(d.break_hrs, 8)
+								is_break_deducted = 1
 							if flt(from_hrs, 8) * 60 * 60 <= ot_nd <= flt(to_hrs, 8) * 60 * 60:
 								ot_nd -= flt(break_mins, 8) * 60
 								otndbrk += flt(break_mins, 8) * 60
