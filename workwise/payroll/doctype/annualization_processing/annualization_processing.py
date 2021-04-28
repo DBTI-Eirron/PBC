@@ -44,15 +44,28 @@ class AnnualizationProcessing(Document):
 		return lastpay
 
 	def create_entries(self, annual_registers, logs_list):
+		signatory = self.get_signatory(frappe.session['user'])
 		for ar in annual_registers:
 			frappe.db.sql("""DELETE FROM `tabAnnualization Register` 
 				WHERE employee = %s AND payroll_year = %s """,(ar.employee, ar.payroll_year), as_dict=1)
 
+			ar["signatory"]=signatory
+
 			register = frappe.new_doc("Annualization Register")
 			register.update(ar)
+
 			if register.insert():
 				logs_list.append( cstr(register.employee)+": "+cstr(register.employee_name) )
-				
+
+	def get_signatory(self, user):
+		signatory = ""
+		sign = frappe.db.sql(""" SELECT `name`, `user_id`, full_name FROM `tabEmployee` 
+			WHERE user_id = %s AND user_id != "" AND user_id is not null LIMIT 1""",(user), as_dict=1)
+		for d in sign:
+			signatory = d.full_name
+
+		return signatory
+
 	def validate_filters(self):
 		if not self.company:
 			frappe.throw(" Company is Required for Annualization Processing")
