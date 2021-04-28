@@ -312,6 +312,8 @@ def get_overtime(entry, ot_apps):
 	nd_start = None
 	nd_end = None
 	nd_early_start = None
+	ot_earlynd = None
+	ot_latend = None
 	total_ot_earlynd, total_ot_latend = 0, 0
 	strict_logs = frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs')
 	ded_late_ot = frappe.db.get_single_value('Timekeeping Settings', 'ded_late_ot')
