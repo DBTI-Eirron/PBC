@@ -49,13 +49,15 @@ class AnnualizationProcessing(Document):
 			frappe.db.sql("""DELETE FROM `tabAnnualization Register` 
 				WHERE employee = %s AND payroll_year = %s """,(ar.employee, ar.payroll_year), as_dict=1)
 
+			ar["signatory"]=signatory
+
 			register = frappe.new_doc("Annualization Register")
 			register.update(ar)
-			register['signatory'] = signatory 
+
 			if register.insert():
 				logs_list.append( cstr(register.employee)+": "+cstr(register.employee_name) )
 
-	def get_signatory(user):
+	def get_signatory(self, user):
 		signatory = ""
 		sign = frappe.db.sql(""" SELECT `name`, `user_id`, full_name FROM `tabEmployee` 
 			WHERE user_id = %s AND user_id != "" AND user_id is not null LIMIT 1""",(user), as_dict=1)
