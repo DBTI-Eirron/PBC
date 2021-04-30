@@ -1325,5 +1325,5 @@ def leave_days_before_filing_setup():
 			row = {
 				"days_before_filing": doc.filing_days,
 			}
-			new_dtr_app.append('days_before_filing', row)
+			doc.append('days_before_filing', row)
 		doc.save()
