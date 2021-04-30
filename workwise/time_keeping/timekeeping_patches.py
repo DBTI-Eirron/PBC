@@ -1316,3 +1316,14 @@ def update_user_perm_period_group():
 
 def workschedule_set_employeename():
 	frappe.db.sql("""UPDATE `tabWork Schedule` WS INNER JOIN `tabEmployee` TE ON WS.`employee`=TE.`name` SET WS.`employee_name`=TE.`full_name` WHERE WS.`employee_name` IS NULL """)
+
+def leave_days_before_filing_setup():
+	leave_types = frappe.get_all('Leave Type')
+	for lt in leave_types:
+		doc = frappe.get_doc('Leave Type', lt.name)
+		if doc.filing_days and not doc.days_before_filing:
+			row = {
+				"days_before_filing": doc.filing_days,
+			}
+			new_dtr_app.append('days_before_filing', row)
+		doc.save()

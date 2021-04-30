@@ -67,7 +67,7 @@
    "read_only": 0, 
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
-   "reqd": 1, 
+   "reqd": 0, 
    "search_index": 0, 
    "set_only_once": 0, 
    "unique": 0
@@ -97,7 +97,7 @@
    "read_only": 0, 
    "remember_last_selected_value": 0, 
    "report_hide": 0, 
-   "reqd": 1, 
+   "reqd": 0, 
    "search_index": 0, 
    "set_only_once": 0, 
    "unique": 0
@@ -113,7 +113,7 @@
  "issingle": 0, 
  "istable": 1, 
  "max_attachments": 0, 
- "modified": "2019-09-20 14:10:24.049803", 
+ "modified": "2021-04-29 14:12:34.014649", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Leave Type Before Filing Table", 

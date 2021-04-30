@@ -124,13 +124,20 @@ class LeaveApplication(Document):
 				count_lv = self.total_leave_days
 
 			for df in dbf:
-				if df.from_leave_day <= count_lv <= df.to_leave_day:
+				trigger_validation = 0
+				if not df.from_leave_day or not df.to_leave_day:
+					trigger_validation = 1
+					
+				if df.from_leave_day and df.to_leave_day and df.from_leave_day <= count_lv <= df.to_leave_day:
+					trigger_validation = 1
+
+				if trigger_validation:
 					only_from_date = datetime.datetime.strptime(str(self.from_date), '%Y-%m-%d') - datetime.timedelta(days=df.days_before_filing)
 					only_to_date = datetime.datetime.strptime(str(self.to_date), '%Y-%m-%d') - datetime.timedelta(days=df.days_before_filing)
 					date_list = [only_from_date, only_to_date]
 					for dt in date_list:
 						if getdate(nowdate()) > getdate(dt):
-							frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file {1} day(s) before {2} ").format(self.name, df.days_before_filing, getdate(dt) ))
+							frappe.throw(_("<b>Leave Application: {0}</b><hr> You can only file {1} day(s) before {2} ").format(self.name, df.days_before_filing, self.from_date ))
 							break
 
 	def set_lwop(self):
