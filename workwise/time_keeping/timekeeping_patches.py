@@ -1327,3 +1327,32 @@ def leave_days_before_filing_setup():
 			}
 			doc.append('days_before_filing', row)
 		doc.save()
+
+def attendance_register_tags_table():
+	registers = frappe.get_all('Attendance Register')
+	for rg in registers:
+		doc = frappe.get_doc('Attendance Register', rg.name)
+		if doc.tags:
+			# importing re module
+			import re
+			strings = []
+			final_tagging = []
+			# initializing string
+			test_str = str(doc.tags)
+			for filt in ['<span class="label label-success">', '<span class="label label-danger">', '<span class="label label-info">', '<span class="label label-warning">']:
+				reg_str = str(filt)+'(.*?)</span>'
+				res = re.findall(reg_str, test_str)
+				if res:
+					final_tagging.extend(res)
+			
+			rows = []
+			for fin in final_tagging:
+				final_string = str(fin.strip())
+				row = {
+					"tag": final_string,
+				}
+				rows.append(row)
+				
+			if rows:
+				doc.set('tags_table', rows)
+				doc.save()
