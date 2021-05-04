@@ -2296,68 +2296,111 @@ def get_final_processing(entry):
 	return entry
 
 def get_tags(entry):
+	entry['tags_table'] = []
 	#leave tags
 	if entry['lv_status'] == 1:
 		entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+"</span>"
+		entry['tags_table'].append({'tag': cstr(entry['leave_name'])})
 	elif entry['lv_status'] == 2:
 		entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+" 1sthalf </span>"
+		entry['tags_table'].append({'tag': cstr(entry['leave_name'])})
 	elif entry['lv_status'] == 3:
 		entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+" 2ndhalf </span>"
-	entry["tags"] += "<span class='label label-danger'> LWOP </span> " if entry['is_lwop'] > 0 else ""		
-	entry["tags"] += "<span class='label label-danger'> Halfday </span> " if entry['is_halfday'] > 0 else ""
-	entry["tags"] += "<span class='label label-success'> Double Holiday </span> " if entry['is_db_holiday'] > 0 else ""
+		entry['tags_table'].append({'tag': cstr(entry['leave_name'])})
+
+	if entry['is_lwop'] > 0:
+		entry["tags"] += "<span class='label label-danger'> LWOP </span> "
+		entry['tags_table'].append({'tag': 'LWOP'})
+
+	if entry['is_halfday'] > 0:
+		entry["tags"] += "<span class='label label-danger'> Halfday </span> "
+		entry['tags_table'].append({'tag': 'Halfday'})
+
+	if entry['is_db_holiday'] > 0:
+		entry["tags"] += "<span class='label label-success'> Double Holiday </span> "
+		entry['tags_table'].append({'tag': 'Double Holiday'})
 	#ot tags
 	for d in entry.get('ot_list'):
 		if d.get('ot_tag'):
 			entry["tags"] += d.get('ot_tag')
+			entry['tags_table'].append({'tag': d.get('ot_tag')})
 			
 	#ut_tags
 	if entry.get('suspension') == 1:
 		entry["tags"] += " <span class='label label-success'> Work Suspension </span> "
+		entry['tags_table'].append({'tag': 'Work Suspension'})
 	elif entry.get('suspension') == 2:
 		entry["tags"] += " <span class='label label-success'> 1sthalf Work Suspension </span> "
+		entry['tags_table'].append({'tag': '1sthalf Work Suspension'})
 	elif entry.get('suspension') == 3:
 		entry["tags"] += " <span class='label label-success'> 2ndhalf Work Suspension </span> "
+		entry['tags_table'].append({'tag': '2ndhalf Work Suspension'})
 
 	if entry.get('linked_ut'):
 		entry["tags"] += " <span class='label label-danger'> Approved Undertime </span> "
+		entry['tags_table'].append({'tag': 'Approved Undertime'})
 	elif entry.get('undertime') > 0:
 		allow_ut_tag = 1
 		if frappe.db.get_value("Employee", entry['employee'], "ignore_ut") and frappe.db.get_single_value('Timekeeping Settings', 'disable_ut_tag'):
 			allow_ut_tag =0
 		if allow_ut_tag:
 			entry["tags"] += " <span class='label label-danger'> Undertime </span> "
+			entry['tags_table'].append({'tag': 'Undertime'})
 
 	if entry.get('nightdiff') > 0:
 		entry["tags"] += " <span class='label label-info'> Nightdiff </span> "
+		entry['tags_table'].append({'tag': 'Nightdiff'})
 
 	if entry.get('cto') > 0:
 		entry["tags"] += " <span class='label label-info'> CTO </span> "
+		entry['tags_table'].append({'tag': 'CTO'})
 
 	#ob_tags
 	if entry.get('ob_stat') == 1 or entry['ob_links']:
 		entry["tags"] += " <span class='label label-success'> Official Business  </span> "
+		entry['tags_table'].append({'tag': 'Official Business'})
 	elif entry.get('ob_stat') == 2:
 		entry["tags"] += " <span class='label label-success'> OB 1sthalf </span> "
+		entry['tags_table'].append({'tag': 'OB 1sthalf'})
 	elif entry.get('ob_stat') == 3:
 		entry["tags"] += " <span class='label label-success'> OB 2ndhalf </span> "
+		entry['tags_table'].append({'tag': 'OB 2ndhalf'})
 
-	entry["tags"] += " <span class='label label-success'> Excused Tardiness </span> " if entry.get('ex_tardiness') else ""
-	entry["tags"] += " <span class='label label-danger'> Absent </span> " if entry['is_absent'] == 1 and entry['is_attendance_base'] else ""
-	entry["tags"] += " <span class='label label-danger'> Late </span> " if entry['late'] > 0 else ""
-	entry["tags"] += " <span class='label label-info'>"+ entry['holiday_name'] +"</span>" if entry['is_holiday'] == 1 else ""
-	entry["tags"] += " <span class='label label-info'> Special Non-Working </span>" if entry['is_sp_holiday'] == 1 else ""
+	if entry.get('ex_tardiness'):
+		entry["tags"] += " <span class='label label-success'> Excused Tardiness </span> "
+		entry['tags_table'].append({'tag': 'Excused Tardiness'})
 
-	entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+"</span>" if entry['is_leave'] > 0 else ""
+	if entry['is_absent'] == 1 and entry['is_attendance_base']:
+		entry["tags"] += " <span class='label label-danger'> Absent </span> "
+		entry['tags_table'].append({'tag': 'Absent'})
+
+	if entry['late'] > 0:
+		entry["tags"] += " <span class='label label-danger'> Late </span> "
+		entry['tags_table'].append({'tag': 'Late'})
+
+	if entry['is_holiday'] == 1:
+		entry["tags"] += " <span class='label label-info'>"+ entry['holiday_name'] +"</span>"
+		entry['tags_table'].append({'tag': entry['holiday_name']})
+
+	if entry['is_sp_holiday'] == 1:
+		entry["tags"] += " <span class='label label-info'> Special Non-Working </span>"
+		entry['tags_table'].append({'tag': 'Special Non-Working'})
+
+	if entry['is_leave'] > 0:
+		entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+"</span>"
+		entry['tags_table'].append({'tag': cstr(entry['leave_name'])})
 	
 	if entry['is_restday']:
 		entry["tags"] += "<span class='label label-info'> Rest Day </span> "
+		entry['tags_table'].append({'tag': 'Rest Day'})
 	else:
 		if not entry['card_in'] and entry['is_attendance_base']:
 			entry["tags"] += " <span class='label label-warning'> No Card IN </span> "
+			entry['tags_table'].append({'tag': 'No Card IN'})
 
 		if not entry['card_out'] and entry['is_attendance_base']:
 			entry["tags"] += " <span class='label label-warning'> No Card OUT </span> "
+			entry['tags_table'].append({'tag': 'No Card OUT'})
 
 	return entry
 

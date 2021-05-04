@@ -23,10 +23,10 @@ class EmployeeMovement(Document):
 			validate_active_employee(self)
 		self.validate_movement()
 
-	def on_submit(self):
+	def before_submit(self):
 		self.update_movement()
 
-	def on_cancel(self):
+	def before_cancel(self):
 		self.revert_movement()
 
 	def clear_fields(self):
