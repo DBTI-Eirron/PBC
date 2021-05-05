@@ -142,10 +142,10 @@ class TimelogsOverride(Document):
 			}
 			if str(d['target_date']) in override_list:
 				row.update({
-					"o_time_in": override_list[str(d['target_date'])]['time_in'],
-					"o_break_in": override_list[str(d['target_date'])]['break_in'],
-					"o_break_out": override_list[str(d['target_date'])]['break_out'],
-					"o_time_out": override_list[str(d['target_date'])]['time_out'],
+					"o_time_in": get_datetime(override_list[str(d['target_date'])]['time_in']) if override_list[str(d['target_date'])]['time_in'] else None,
+					"o_break_in": get_datetime(override_list[str(d['target_date'])]['break_in']) if override_list[str(d['target_date'])]['break_in'] else None,
+					"o_break_out": get_datetime(override_list[str(d['target_date'])]['break_out']) if override_list[str(d['target_date'])]['break_out'] else None,
+					"o_time_out": get_datetime(override_list[str(d['target_date'])]['time_out']) if override_list[str(d['target_date'])]['time_out'] else None,
 				})
 			entries.append(row);
 

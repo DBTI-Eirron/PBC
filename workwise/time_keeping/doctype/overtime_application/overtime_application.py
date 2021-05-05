@@ -233,10 +233,10 @@ class OvertimeApplication(Document):
 		if override:
 			for o in override:
 				if o.time_in:
-					self.actual_in = o.time_in
+					self.actual_in = get_datetime(o.time_in)
 
 				if o.time_out:
-					self.actual_out = o.time_out
+					self.actual_out = get_datetime(o.time_out)
 	
 		if ob_apps:
 			for ob in ob_apps:
