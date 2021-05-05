@@ -234,7 +234,6 @@ class AttendanceProcessing(Document):
 					'card_in': reg['card_in'],
 					'card_out': reg['card_out'],
 					'tags': reg['tags'],
-					'tags_table': reg['tags_table'],
 					'links': reg['links'],
 				}
 
