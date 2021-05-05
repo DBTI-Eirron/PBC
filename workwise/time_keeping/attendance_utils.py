@@ -527,7 +527,7 @@ def get_overtime(entry, ot_apps):
 								if o.get('ot_in') < bound <= o.get('ot_out'):
 									o['ot_in'] = bound
 								if o.get('ot_out') <= bound:
-									 start, end = None, None
+									 o.get('ot_out') = o.get('ot_in')
 
 						for ot in ot_log_list:
 							ot_start, ot_end = get_ot(o.get('ot_in'), o.get('ot_out'), ot.get('start'), ot.get('end'), bound, entry['is_restday'], entry['is_holiday'])
