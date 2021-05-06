@@ -174,6 +174,9 @@ def get_data(filters):
 						'address': (cstr(ad['address_type'] if ad['address_type'] else None))+': '+(cstr(ad['address_line1']if ad['address_line1'] else None))+' '+(cstr(ad['address_line2']if ad['address_line2'] else None))+' '+(cstr(ad['city']if ad['city'] else None)),
 						'birthday': '',
 					})
+		else:
+			data.append(emp)
+
 	return data
  
 def get_result_as_list(data, filters):
