@@ -97,6 +97,19 @@ def get_columns(filters):
 			"fieldtype": "Float",
 			"width": 60
 		},
+	] 
+ 
+	if frappe.db.get_single_value('Timekeeping Settings', 'enable_otndex'): 
+		columns += [ 
+			{ 
+				"fieldname": "overtime_ndex", 
+				"label": _("OTNDEX"), 
+				"fieldtype": "Float", 
+				"width": 60 
+			}, 
+		] 
+ 
+	columns += [ 
 		{
 			"fieldname": "nightdiff",
 			"label": _("ND"),
@@ -151,7 +164,7 @@ def get_columns(filters):
 	]
 
 	if filters.flt_precision:
-		precision_fields = ["work","break","late","overtime","overtime_ex","overtime_nd","nightdiff","cto","undertime"]
+		precision_fields = ["work","break","late","overtime","overtime_ex","overtime_nd","overtime_ndex","nightdiff","cto","undertime"] 
 		for d in columns:
 			if d.get('fieldname') in precision_fields:
 				d['precision'] = cint(filters.flt_precision)	
@@ -200,6 +213,7 @@ def get_data(filters):
 		'ot_early_nd': 0,
 		'ot_late_nd': 0,
 		'overtime_ex': 0, 
+		'overtime_ndex': 0, 
 		'nightdiff': 0,
 		'earlynightdiff': 0,
 		'latenightdiff': 0,
@@ -240,6 +254,8 @@ def get_data(filters):
 					totals['overtime_nd'] += entry['overtime_nd']
 					entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
 					totals['overtime_ex'] += entry['overtime_ex']
+					entry['overtime_ndex'] = convert_secs(filters, entry['overtime_ndex']) 
+					totals['overtime_ndex'] += entry['overtime_ndex'] 
 					entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
 					totals['nightdiff'] += entry['nightdiff']
 					if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
