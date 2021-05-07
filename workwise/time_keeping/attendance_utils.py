@@ -1000,10 +1000,12 @@ def get_ndiff(entry):
 			flex_start = entry.get('card_in')
 			flex_end = entry.get('card_out')
 			if entry.get('ob_stat') == 1:
-				if entry.get('ob_in') < entry.get('card_in'):
-					flex_start = entry.get('ob_in')
-				if entry.get('ob_out') > entry.get('card_out'):
-					flex_end = entry.get('ob_out')
+				if entry['card_in']:
+					if entry.get('ob_in') < entry.get('card_in'):
+						flex_start = entry.get('ob_in')
+				if entry['card_out']:
+					if entry.get('ob_out') > entry.get('card_out'):
+						flex_end = entry.get('ob_out')
 
 			late_point = get_datetime( str(entry.get('target_date'))+" "+ str(entry.get('flex_to')))
 			if late_point and flex_start:
