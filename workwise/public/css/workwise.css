@@ -155,8 +155,9 @@ body[data-route="desktop"] .navbar-default {
 
 .indicator  {
   color: #8d99a6;;
-<<<<<<< HEAD
 }
-=======
+
+.toolbar-user-fullname {
+  max-width: 125px;
+  display: inline-block;
 }
->>>>>>> develop
