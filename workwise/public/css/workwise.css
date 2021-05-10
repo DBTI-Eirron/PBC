@@ -487,3 +487,7 @@ body[data-route="desktop"] .navbar-default {
 .editable-title .title-text:hover {
   background-color: #80aaff;
 }
+.toolbar-user-fullname {
+  max-width: 125px;
+  display: inline-block;
+}
