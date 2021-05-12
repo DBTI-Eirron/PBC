@@ -68,15 +68,15 @@ def check_rundate(method, datesource):
 
 	return result
 
-def automated_leave_balance(is_forced=0):
+def automated_leave_balance(is_forced=0, targetdate=None):
 	lb_entries_created = 0
 	created_lb_entries = 0
-	now_date = nowdate()
+	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 	year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
 
 	#Check for Carry Over Leave Balance
-	carry_overs = get_carryover_lvbal()
+	carry_overs = get_carryover_lvbal(targetdate)
 	for co in carry_overs:
 		if validate_create_lbentry({'employee': co['employee'], 'leave_type': co['leave_type']}):
 			crow = {
@@ -229,10 +229,10 @@ def automated_leave_balance(is_forced=0):
 
 	return lb_entries_created
 
-def startfrom_datehired(employee, datehired, method, method_condition, value, yearbased):
+def startfrom_datehired(employee, datehired, method, method_condition, value, yearbased, targetdate=None):
 	add_credits = 0
 	if datehired:
-		now_date = nowdate()
+		now_date = nowdate() if not targetdate else getdate(targetdate)
 		now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 		datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
 		year_diff, year_diff_res, year_diff_date = get_yeardiff(now_date, datehired)
@@ -256,9 +256,9 @@ def startfrom_datehired(employee, datehired, method, method_condition, value, ye
 
 	return add_credits
 
-def startfrom_regular(employee, method, method_condition, value, yearbased):
+def startfrom_regular(employee, method, method_condition, value, yearbased, targetdate=None):
 	add_credits = 0
-	now_date = nowdate()
+	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 	reg_date = []
 	empmov = frappe.db.sql(""" SELECT effective_on FROM `tabEmployee Movement` WHERE `movement_type` = 'Regularization' AND `employee` = %s """,(employee), as_dict=1)
@@ -325,9 +325,9 @@ def validate_create_lbentry(entry, data=None):
 
 	return create
 
-def get_carryover_lvbal():
+def get_carryover_lvbal(targetdate=None):
 	result = []
-	now_date = nowdate()
+	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 	year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
 	pastyear = now_date.year - 1
@@ -437,8 +437,8 @@ def create_lb_entry_logs(entry):
 	logs.flags.ignore_permissions = True
 	logs.save()
 
-def holiday_recurring_yearly():
-	now_date = nowdate()
+def holiday_recurring_yearly(targetdate=None):
+	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 
 	if now_date.day == 01 and now_date.month == 01:
