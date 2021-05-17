@@ -491,3 +491,23 @@ body[data-route="desktop"] .navbar-default {
   max-width: 125px;
   display: inline-block;
 }
+#navbar-breadcrumbs {
+  max-width: 768px;
+}
+.navbar-header.navbar-desk {
+  max-width: 768px;
+}
+a.navbar-brand.navbar-home.hidden-xs.hidden-sm {
+    max-width: 200px;
+    padding: 6px 15px 10px 0px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#navbar-breadcrumbs > li > a {
+    padding: 6px 15px 10px 0px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 150px;
+}
