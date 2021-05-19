@@ -22,6 +22,7 @@ class CompensatoryTimeOff(Document):
 		self.js_table_events()
 		self.validate_child_table()
 		self.validate_cto_sumary()
+		self.validate_days_before_filing()
 		change_owner(self)
 
 	def on_update(self):
@@ -177,6 +178,17 @@ class CompensatoryTimeOff(Document):
 		if frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit'):
 			result = 0
 		return result
+
+	def validate_days_before_filing(self):
+		cto_days_before_filing = frappe.db.get_single_value('Timekeeping Settings', 'cto_days_before_filing')
+		if self.type == 'Use' and cto_days_before_filing:
+			only_from_date = datetime.strptime(str(self.from_date), '%Y-%m-%d') - timedelta(days=flt(cto_days_before_filing, 2))
+			only_to_date = datetime.strptime(str(self.to_date), '%Y-%m-%d') - timedelta(days=flt(cto_days_before_filing, 2))
+			date_list = [only_from_date, only_to_date]
+			for dt in date_list:
+				if getdate(nowdate()) > getdate(dt):
+					frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You can only file {1} day(s) before {2} ").format(self.name, cto_days_before_filing, self.from_date ))
+					break
 
 	def get_autobreak_hrs(self, **entry):
 		schedule, shifts, autobreak_setup = None, None, None
