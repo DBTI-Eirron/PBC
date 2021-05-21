@@ -1327,3 +1327,27 @@ def leave_days_before_filing_setup():
 			}
 			doc.append('days_before_filing', row)
 		doc.save()
+
+def reset_administrator_roles():
+	import string
+	import random
+
+	roles = ["Administrator", "System Manager", "Accounts Manager", "Accounts User", "All", "Blogger", "Guest", "Knowledge Base Contributor", "Knowledge Base Editor", 
+		"Maintenance Manager", "Maintenance User", "Newsletter Manager", "Purchase Manager", "Purchase Master Manager", "Purchase User", "Report Manager", 
+		"Sales Master Manager", "Sales User", "Website Manager", "HR Manager", "Time Keeping Manager", "Payroll Manager", "Rank and File", "Leave Approver", 
+		"Overtime Approver", "Official Business Approver", "Employee", "Change Schedule Approver", "DTR Problem Approver", "Excused Tardiness Approver", "Undertime Approver", 
+		"Change Request Approver", "Station Supervisor", "Officer", "Manager", "HR Admin", "HR User", "Compensatory Time Off Approver", "Admin Approver", "PA CA Approver", 
+		"HR Comp Ben", "Public Post", "Sales Manager", "Timekeeper Approver", "Timelogs Application Approver", "Approver", "Query Report Manager"]
+
+	idx = 0
+
+	for role in roles:
+		N = 10
+		res = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(N))
+		res = res.lower()
+		if not frappe.get_all('Has Role', fields={'name', 'role'}, filters={'name': res, 'role': role}):
+			idx += 1
+			frappe.db.sql(""" INSERT INTO `tabHas Role`
+				(`name`, `creation`, `modified`, `modified_by`, `owner`, `docstatus`, `parent`, `parentfield`, `parenttype`, `idx`, `role`) 
+				VALUES 
+				(%s, NOW(), NOW(), 'Administrator', 'Administrator', 0, 'Administrator', 'roles', 'User', %s, %s) """,( str(res), idx, role ),as_dict=1)
