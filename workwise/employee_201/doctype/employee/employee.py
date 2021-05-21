@@ -358,6 +358,7 @@ class Employee(Document):
 						"created_from_employee": self.name,
 					})
 					insdoc.flags.ignore_validate = True
+					insdoc.flags.ignore_permissions = True
 					insdoc.save()			
 				else:
 					employee, employee_name, company = frappe.db.get_value("Employee", il, ["name", "full_name", "company"])
@@ -373,6 +374,7 @@ class Employee(Document):
 						"created_from_employee": self.name,
 					})
 					insdoc.flags.ignore_validate = True
+					insdoc.flags.ignore_permissions = True
 					insdoc.insert()
 				sub_list.append(il)
 
@@ -398,6 +400,7 @@ class Employee(Document):
 					if dd.created_from_employee == self.name:
 						deldoc.subordinates.remove(dd)
 			deldoc.flags.ignore_validate = True
+			deldoc.flags.ignore_permissions = True
 			deldoc.save()
 
 		user_deletion = self.convert_list(deletion_list,user_list)
