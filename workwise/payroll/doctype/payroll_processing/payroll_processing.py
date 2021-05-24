@@ -1708,6 +1708,7 @@ class PayrollProcessing(Document):
 			
 			#Get OT registers
 			for ot in overtime_list:
+				amount = 0
 				ot_code = "00000000"
 				if ot.ot_code in ot_map:
 					ot_code = ot.ot_code
