@@ -3881,7 +3881,7 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 	if monthly_approval_cutoffs and not adjustment:
 		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
-			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`
+			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`, DA.`is_previous`
 			FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` INNER JOIN `tabPayroll Period` PP ON DA.`company` = PP.`company`
 			WHERE DA.`workflow_state` = 'Approved'
 			AND DA.`target_date` >= %s AND DA.`target_date` <= %s 
@@ -3889,13 +3889,16 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 			ORDER BY card_datetime """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 	else:
 		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
-			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`
+			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`, DA.`is_previous`
 			FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name`
 			WHERE DA.`workflow_state` = 'Approved'
 			AND DA.`target_date` >= %s AND DA.`target_date` <= %s {conditions}
 			ORDER BY card_datetime """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in dtr_apps:
+		if d.is_previous:
+			d.target_date = getdate(d.target_date) - datetime.timedelta(days=1)
+
 		if d.employee in emp_map:
 			if d.employee not in multi_dtrp:
 				multi_dtrp[d.employee] = {}

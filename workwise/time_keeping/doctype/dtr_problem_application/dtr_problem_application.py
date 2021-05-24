@@ -154,3 +154,6 @@ class DTRProblemApplication(Document):
 		new_timecard.insert(ignore_permissions = True)
 		new_timecard.save(ignore_permissions = True)
 		frappe.db.commit()
+
+	def enable_isprevious(self):
+		return 'true' if frappe.db.get_single_value('Timekeeping Settings', 'is_previous') else 'false'
