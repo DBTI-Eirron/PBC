@@ -201,7 +201,7 @@ def get_columns(filters,employee_list):
 def get_employees(filters, from_date, to_date):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT PR.employee, PR.employee_name, PR.present_days, PR.total_income, PR.total_deduction, PR.net_payroll
+		employees = frappe.db.sql("""SELECT PR.employee, TE.full_name, PR.present_days, PR.total_income, PR.total_deduction, PR.net_payroll
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
 		AND PR.on_hold = 0
@@ -215,7 +215,7 @@ def get_employees(filters, from_date, to_date):
 			"location": filters.location,
 		}, as_dict=1)
 	else:
-		employees = frappe.db.sql("""SELECT PR.employee, PR.employee_name, PR.present_days, PR.total_income, PR.total_deduction, PR.net_payroll
+		employees = frappe.db.sql("""SELECT PR.employee, TE.full_name, PR.present_days, PR.total_income, PR.total_deduction, PR.net_payroll
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PR.on_hold = 0
 		AND (PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s)
