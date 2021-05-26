@@ -119,6 +119,8 @@ class Employee(Document):
 			self.full_name = self.last_name + ', ' + self.first_name + ' ' + self.middle_name
 		else:
 			self.full_name = self.last_name + ', ' + self.first_name
+		if self.suffix:
+			self.full_name = self.full_name + ', ' + self.suffix + '.'
 
 	def validate_biometric_id(self):
 		if self.biometrics_id and self.is_active:
