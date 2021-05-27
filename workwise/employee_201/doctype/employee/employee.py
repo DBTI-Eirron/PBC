@@ -282,8 +282,10 @@ class Employee(Document):
 			serv_date = getdate(self.date_resigned)
 		if self.date_terminated:
 			serv_date = getdate(self.date_terminated)
-		yrs_in_serv = serv_date.year - dte_hired.year - ((serv_date.month, serv_date.day) < (dte_hired.month, dte_hired.day))
-		self.years_in_service = yrs_in_serv
+
+		if serv_date and dte_hired:
+			yrs_in_serv = serv_date.year - dte_hired.year - ((serv_date.month, serv_date.day) < (dte_hired.month, dte_hired.day))
+			self.years_in_service = yrs_in_serv
 
 	def validate_employee_approvers(self):
 		unique_emp = []
