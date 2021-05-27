@@ -23,7 +23,8 @@ class LeaveApplication(Document):
 		self.validate_leave_table()
 		self.validate_days()
 		self.validate_employee()
-		self.validate_leave()
+		if self.docstatus not in [1, '1', 2, '2']:
+			self.validate_leave()
 		self.validate_convertible()
 		change_owner(self)
 		self.get_recipients()
