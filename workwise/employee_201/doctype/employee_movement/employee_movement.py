@@ -155,6 +155,7 @@ class EmployeeMovement(Document):
 				})
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
+			self.create_lb_entry()
 
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)
@@ -165,7 +166,6 @@ class EmployeeMovement(Document):
 				})
 			self.revert_employee(emp)
 			self.cmd_salary_adjustment(process=process)
-			self.create_lb_entry()
 
 	def cmd_transfer(self, process):
 		if process == "validate":
