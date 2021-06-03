@@ -13,12 +13,11 @@ import os
 def execute(filters=None):
 	columns = get_columns(filters)
 
-	if filters.mpf:
-		transaction_type = ['SSS', 'SSSE', 'SSSC', 'SSSEEMPF', 'SSSERMPF']
-	else: 
-		transaction_type = ['SSS', 'SSSE', 'SSSC']
-	employee_list, gov_map = get_employees(filters,transaction_type)
-	
+	#if filters.mpf:
+	transaction_type = ['SSS', 'SSSE', 'SSSC', 'SSSEEMPF', 'SSSERMPF']
+	#else: 
+	#	transaction_type = ['SSS', 'SSSE', 'SSSC']
+	employee_list, gov_map = get_employees(filters, transaction_type)
 
 	final_employee, final_employer, final_ec, final_total, final_eempf, final_ermpf = 0, 0, 0, 0, 0, 0
 
@@ -27,6 +26,12 @@ def execute(filters=None):
 		row = [gov_map[emp]['employee'], gov_map[emp]['full_name'], gov_map[emp]['sss_no']]
 		total_sss = 0
 		for trans in transaction_type:
+			if not filters.mpf:
+				if trans == "SSS":
+					gov_map[emp][trans] += gov_map[emp]["SSSEEMPF"]
+				if trans == "SSSE":
+					gov_map[emp][trans] += gov_map[emp]["SSSERMPF"]
+
 			sss_amount = gov_map[emp][trans]
 			total_sss += sss_amount
 			row.append(format_precision(sss_amount, filters.value_precision))
@@ -34,6 +39,7 @@ def execute(filters=None):
 		if total_sss > 0:
 			final_employee += flt(gov_map[emp]["SSS"])
 			final_employer += flt(gov_map[emp]["SSSE"])
+
 			final_ec += flt(gov_map[emp]["SSSC"])
 			final_total += total_sss
 			if filters.mpf:
