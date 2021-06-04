@@ -1999,8 +1999,8 @@ def get_flexible(entry, obs):
 def get_final_processing(entry):
 	if entry['is_multi_break'] and entry.get('is_attendance_base'):
 		total_break = 0
-		entry['break_out'] = None
-		entry['break_in'] = None
+		entry['break_out'] = min(entry['break_pairs'])['break_out'] if entry['break_pairs'] else None
+		entry['break_in'] = max(entry['break_pairs'])['break_in'] if entry['break_pairs'] else None
 
 		if entry['break_pairs']:
 			for break_pair in entry['break_pairs']:
