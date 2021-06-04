@@ -2391,7 +2391,7 @@ def get_tags(entry):
 
 	entry["tags"] += " <span class='label label-success'> Excused Tardiness </span> " if entry.get('ex_tardiness') else ""
 	entry["tags"] += " <span class='label label-danger'> Absent </span> " if entry['is_absent'] == 1 and entry['is_attendance_base'] else ""
-	entry["tags"] += " <span class='label label-danger'> Late </span> " if entry['late'] > 0 else ""
+	entry["tags"] += " <span class='label label-danger'> Late </span> " if entry['late'] > 0 and not frappe.db.get_single_value('Timekeeping Settings', 'disable_lt_tag') else ""
 	entry["tags"] += " <span class='label label-info'>"+ entry['holiday_name'] +"</span>" if entry['is_holiday'] == 1 else ""
 	entry["tags"] += " <span class='label label-info'> Special Non-Working </span>" if entry['is_sp_holiday'] == 1 else ""
 
