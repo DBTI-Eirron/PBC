@@ -53,7 +53,7 @@ class AttendanceProcessing(Document):
 
 	def validate_period(self):
 		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
-		company, period_stats = frappe.db.get_value("Payroll Period", self.period, ["company", "status"])
+		company, period_stats = frappe.db.get_value("Payroll Period", self.period, ["company", "time_keeping_status"])
 
 		if not self.period:
 			frappe.throw(_("Please Select Payroll Period"))

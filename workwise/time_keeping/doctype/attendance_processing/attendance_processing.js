@@ -22,7 +22,7 @@ frappe.ui.form.on('Attendance Processing', {
 		frm.set_query('period', function(doc) {
 			return {
 				filters: {
-					"status": "Open",
+					"time_keeping_status": "Open",
 					"company": doc.company
 				}
 			};
