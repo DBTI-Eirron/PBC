@@ -69,6 +69,7 @@ class Company(Document):
 			dpt_set_default_parent()
 			dpt_rebuild_department_tree()
 
+	#Creation of default company accounts
 	def create_dafault_accounts(self):
 		default_account_roots = [
 			{'account_number': '1000000', 'account_name': 'Asset'},
