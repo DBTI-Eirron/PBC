@@ -57,8 +57,9 @@ class OvertimeApplication(Document):
 
 	def validate_cto_strict(self):
 		if frappe.db.get_single_value('Timekeeping Settings', 'cto_strict'):
+			target = getdate(self.target_date)
 			ot_app = frappe.db.sql("""SELECT * FROM `tabCompensatory Time Off` C INNER JOIN  `tabCompensatory Time Off Targets` CT ON C.`name` = CT.`parent` WHERE `employee` = %s AND `workflow_state` = "Approved" 
-				AND CT.`target_date` AND (( %s BETWEEN CT.`from_time` AND CT.`to_time`) OR (%s BETWEEN CT.`from_time` AND CT.`to_time`)) """,(self.employee, self.from_time, self.to_time), as_dict=True)
+				AND CT.`target_date` = %s AND (( %s BETWEEN CT.`from_time` AND CT.`to_time`) OR (%s BETWEEN CT.`from_time` AND CT.`to_time`)) """,(self.employee, target, self.from_time, self.to_time), as_dict=True)
 			if ot_app:
 				frappe.throw(_("There's already an Compensatory Time Off Application filed with the same date."))
 
