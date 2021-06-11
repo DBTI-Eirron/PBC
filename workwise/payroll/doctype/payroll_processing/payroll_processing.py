@@ -319,8 +319,9 @@ class PayrollProcessing(Document):
 							#update other entries like loans
 							proc_emp += 1
 							for d in register:
-								if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
-									update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'), self.period)
+								if d['pay_code'] in tr_map:
+									if tr_map[d.get('pay_code')]['entry_type'] == 'Loan':
+										update_loans(self.payroll_date, d.get('linked_document') , d.get('loan_idx'), self.period)
 						payslip_label = " " + emp.full_name +""
 						
 
