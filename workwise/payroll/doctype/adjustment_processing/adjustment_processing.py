@@ -161,6 +161,7 @@ class AdjustmentProcessing(Document):
 		ot_adj_list = []
 		ss_list = []
 		ot_map = get_overtime_map()
+		employees = self.validate_adjustment_period(employees)
 		for emp in employees:
 			emp_map.setdefault(emp.name, frappe._dict({
 					"employee": emp.name,
@@ -796,3 +797,19 @@ class AdjustmentProcessing(Document):
 			data.append(d.name)
 		return data
 
+
+	def validate_adjustment_period(self, employees):
+		proc_ar_emp = []
+		ar_list = frappe.get_all('Adjustment Register', filters={'payroll_period': self.period}, fields=['*'])
+		for ar in ar_list:
+			if ar.target_period != self.target_period:
+				proc_ar_emp.append(ar.employee)
+
+				if self.employee and ar.employee == self.employee:
+					frappe.throw(_( "Adjustment already processed in {0}".format(ar.target_period) ))
+
+		for emp in employees:
+			if emp.name in proc_ar_emp:
+				del emp
+
+		return employees
