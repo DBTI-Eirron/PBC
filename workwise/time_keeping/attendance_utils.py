@@ -49,8 +49,8 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 		entry['break_end'] = add_days(entry.get('break_end'), 1)
 
 	if entry['is_multi_break']:
-		entry['break_start'] = entry['break_start']
-		entry['break_start'] = entry['break_end']
+		#entry['break_start'] = entry['break_start']
+		#entry['break_start'] = entry['break_end']
 		entry['break_out'] = None
 		entry['break_in'] = None
 
