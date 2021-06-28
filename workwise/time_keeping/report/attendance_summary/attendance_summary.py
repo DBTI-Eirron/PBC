@@ -60,8 +60,17 @@ def get_columns(filters):
 			"label": _("Time Out"),
 			"fieldtype": "Data",
 			"width": 140
-		},
-		{
+		},]
+
+	if frappe.db.get_single_value('Timekeeping Settings', 'show_actual_work_hours'):
+		columns += [{
+			"fieldname": "actual_work",
+			"label": _("Actual Work"),
+			"fieldtype": "Float",
+			"width": 60
+		},]
+
+	columns += [{
 			"fieldname": "work",
 			"label": _("Work"),
 			"fieldtype": "Float",
@@ -164,7 +173,7 @@ def get_columns(filters):
 	]
 
 	if filters.flt_precision:
-		precision_fields = ["work","break","late","overtime","overtime_ex","overtime_nd","overtime_ndex","nightdiff","cto","undertime"] 
+		precision_fields = ["actual_work","work","break","late","overtime","overtime_ex","overtime_nd","overtime_ndex","nightdiff","cto","undertime"] 
 		for d in columns:
 			if d.get('fieldname') in precision_fields:
 				d['precision'] = cint(filters.flt_precision)	
@@ -205,6 +214,7 @@ def get_data(filters):
 	totals = {
 		'card_out': '<b> Totals </b>',
 		'break': 0,
+		'actual_work': 0,
 		'work': 0,
 		'late': 0,
 		'undertime': 0,
@@ -246,6 +256,8 @@ def get_data(filters):
 					totals['break'] += entry['break']
 					entry['work'] = convert_secs(filters, entry['work'])
 					totals['work'] += entry['work']
+					entry['actual_work'] = convert_secs(filters, entry['actual_work'])
+					totals['actual_work'] += entry['actual_work']
 					entry['late'] = convert_secs(filters, entry['late'])
 					totals['late'] += entry['late']
 					entry['overtime'] = convert_secs(filters, entry['overtime'])
