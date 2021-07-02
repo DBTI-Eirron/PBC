@@ -224,6 +224,8 @@ class AdjustmentProcessing(Document):
 				adjr.update(reg)
 				adjr.insert()
 				ss_list.append(" " + emp_dict['employee_name'] +"")
+		
+		self.create_adjustment_processing_logs(reg)
 
 		return self.create_log(ss_list)
 
@@ -797,6 +799,30 @@ class AdjustmentProcessing(Document):
 			data.append(d.name)
 		return data
 
+	def create_adjustment_processing_logs(self, header):
+		pr = frappe.new_doc("Adjustment Processing Logs")
+		pr.update(header)
+		pr.update({
+			'company': self.company,
+			'period': self.period,
+			'target_period': self.target_period,
+			'employee': self.employee,
+			'department': self.department,
+			'location': self.location,
+			'payroll_date': self.payroll_date,
+			'frequency': self.frequency,
+			'schedule': self.schedule,
+			'period_from': self.period_from,
+			'attendance_from': self.attendance_from,
+			'period_group': self.period_group,
+			'period_to': self.period_to,
+			'attendance_to': self.attendance_to,
+			'user': frappe.session.user,
+			'user_name': frappe.db.get_value("User",{"name":frappe.session.user}, "full_name"),
+			'user_ip': frappe.local.request_ip,
+		})
+		pr.flags.ignore_permissions = True
+		pr.insert()
 
 	def validate_adjustment_period(self, employees):
 		proc_ar_emp = []

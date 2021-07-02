@@ -78,6 +78,30 @@ class PayrollProcessing(Document):
 		if is_special:
 			frappe.throw(_("Selected Period is Special"))
 
+	def create_payroll_processing_logs(self, header):
+		pr = frappe.new_doc("Payroll Processing Logs")
+		pr.update(header)
+		pr.update({
+			'company': self.company,
+			'period': self.period,
+			'employee': self.employee,
+			'department': self.department,
+			'location': self.location,
+			'payroll_date': self.payroll_date,
+			'frequency': self.frequency,
+			'schedule': self.schedule,
+			'period_from': self.period_from,
+			'attendance_from': self.attendance_from,
+			'period_group': self.period_group,
+			'period_to': self.period_to,
+			'attendance_to': self.attendance_to,
+			'user': frappe.session.user,
+			'user_name': frappe.db.get_value("User",{"name":frappe.session.user}, "full_name"),
+			'user_ip': frappe.local.request_ip,
+		})
+		pr.flags.ignore_permissions = True
+		pr.insert()
+
 	def process_payroll(self):
 		if self.employee:
 			validate_inactive_employee(self)
@@ -338,6 +362,8 @@ class PayrollProcessing(Document):
 			ss_list.append("<b>Processed "+ str(proc_emp)+" / "+str(no_emp)+" Employees ("+str(error_emp)+") with Issues </b>")
 		else:
 			frappe.throw(_("No Employee Found"))
+
+		self.create_payroll_processing_logs(header)
 		
 		return self.create_log(ss_list)
 

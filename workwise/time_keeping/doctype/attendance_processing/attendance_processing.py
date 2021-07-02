@@ -171,6 +171,7 @@ class AttendanceProcessing(Document):
 				"no_work": no_work_count,
 				"no_schedule": no_sched_count,
 				"employee_list": employee_log_list,
+				"user_ip": frappe.local.request_ip,
 			})
 			processing_logs.flags.ignore_permissions = True
 			processing_logs.save()
