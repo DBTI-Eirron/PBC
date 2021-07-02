@@ -23,6 +23,9 @@ class AnnualizationProcessing(Document):
 
 		annual_registers = get_annual_results(employees, registers, previous_bir, lastpay, self.payroll_year, from_year, to_year)
 		self.create_entries(annual_registers, logs_list)
+		
+		for annual_reg in annual_registers:
+			self.create_annualization_processing_logs(annual_reg)
 
 		return self.create_log(logs_list)
 
@@ -84,3 +87,20 @@ class AnnualizationProcessing(Document):
 			log += add_log
 
 		return log
+
+	def create_annualization_processing_logs(self, header):
+		pr = frappe.new_doc("Annualization Processing Logs")
+		pr.update(header)
+		pr.update({
+			'company': self.company,
+			'payroll_year': self.payroll_year,
+			'payroll_schedule': self.payroll_schedule,
+			'employee': self.employee,
+			'department': self.department,
+			'location': self.location,
+			'user': frappe.session.user,
+			'user_name': frappe.db.get_value("User",{"name":frappe.session.user}, "full_name"),
+			'user_ip': frappe.local.request_ip,
+		})
+		pr.flags.ignore_permissions = True
+		pr.insert()

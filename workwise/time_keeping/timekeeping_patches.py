@@ -1351,3 +1351,14 @@ def reset_administrator_roles():
 				(`name`, `creation`, `modified`, `modified_by`, `owner`, `docstatus`, `parent`, `parentfield`, `parenttype`, `idx`, `role`) 
 				VALUES 
 				(%s, NOW(), NOW(), 'Administrator', 'Administrator', 0, 'Administrator', 'roles', 'User', %s, %s) """,( str(res), idx, role ),as_dict=1)
+
+def add_dtrp_targetdate():
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET dtr_date=target_date """)
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET target_date=DATE_SUB(dtr_date, INTERVAL 1 DAY) WHERE is_previous = 1 """)
+
+def add_payrollprocesslogs_to_payslipgenerationlogs():
+	payroll_process_logs = frappe.get_all('Payroll Process Logs', fields=['*'])
+	for ppl in payroll_process_logs:
+		payslip_generation = frappe.new_doc("Payslip Generation Logs")
+		payslip_generation.update(ppl)
+		payslip_generation.insert(ignore_permissions=True)

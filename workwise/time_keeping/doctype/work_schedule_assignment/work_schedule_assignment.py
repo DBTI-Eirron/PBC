@@ -308,6 +308,7 @@ class WorkScheduleAssignment(Document):
 			"date_assigned": getdate(nowdate()),
 			"assigned_by": frappe.session.user,
 			"assigned_by_name": get_user_fullname(self),
+			"user_ip": frappe.local.request_ip,
 		})
 
 		for d in self.employees:
