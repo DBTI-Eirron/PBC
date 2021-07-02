@@ -28,5 +28,25 @@ frappe.ui.form.on('DTR Problem Application', {
 		});
 	},
 
+	dtr_date: function(frm) {
+		frm.trigger("get_target_date");
+	},
+
+	is_previous: function(frm) {
+		frm.trigger("get_target_date");
+	},
+
+	get_target_date: function(frm) {
+		if (frm.doc.dtr_date) {
+			frappe.call({
+				method: "get_target_date",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		}
+	}
+
 });
 

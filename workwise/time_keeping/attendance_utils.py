@@ -3105,67 +3105,68 @@ def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_
 	dtro_time_in, dtro_break_out, dtro_break_in, dtro_time_out = [], [], [], []
 	for dt in dtrp:
 		if not dtrp_override:
-			for c_in in cards_in:
-				if dt['card_type'] == c_in['card_type']:
-					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
-						if c_in['from'] == 'Timecard':
-							c_in['card_name'] = dt['name']
-							c_in['card_date'] = dt['target_date']
-							c_in['card_time'] = dt['request']
-							c_in['card_datetime'] = dt['card_datetime']
-							c_in['card_type'] = dt['card_type']
+			if getdate(target_date) == getdate(dt['target_date']):
+				for c_in in cards_in:
+					if dt['card_type'] == c_in['card_type']:
+						if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift, is_dtrp=1):
+							if c_in['from'] == 'Timecard':
+								c_in['card_name'] = dt['name']
+								c_in['card_date'] = dt['target_date']
+								c_in['card_time'] = dt['request']
+								c_in['card_datetime'] = dt['card_datetime']
+								c_in['card_type'] = dt['card_type']
 
-						if dt['card_type'] == 0:
-							no_card_in = 0
-						if dt['card_type'] == 2:
-							no_break_out = 0
+							if dt['card_type'] == 0:
+								no_card_in = 0
+							if dt['card_type'] == 2:
+								no_break_out = 0
 
-			for c_out in cards_out:
-				if dt['card_type'] == c_out['card_type']:
-					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
-						if c_out['from'] == 'Timecard':
-							c_out['card_name'] = dt['name']
-							c_out['card_date'] = dt['target_date']
-							c_out['card_time'] = dt['request']
-							c_out['card_datetime'] = dt['card_datetime']
-							c_out['card_type'] = dt['card_type']
+				for c_out in cards_out:
+					if dt['card_type'] == c_out['card_type']:
+						if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift, is_dtrp=1):
+							if c_out['from'] == 'Timecard':
+								c_out['card_name'] = dt['name']
+								c_out['card_date'] = dt['target_date']
+								c_out['card_time'] = dt['request']
+								c_out['card_datetime'] = dt['card_datetime']
+								c_out['card_type'] = dt['card_type']
 
-						if dt['card_type'] == 1:
-							no_card_out = 0
-						if dt['card_type'] == 3:
-							no_break_in = 0
-			
-			if no_card_in == 1 or no_break_out == 1:
-				if (dt['card_type'] == 0 or dt['card_type'] == 2):
-					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
-						cards_in.append({
-							"card_name": dt['name'],
-							"card_date": dt['target_date'],
-							"card_time": dt['request'],
-							"card_datetime": dt['card_datetime'],
-							"card_type": dt['card_type'],
-							"from": 'DTRP Application',
-						})
+							if dt['card_type'] == 1:
+								no_card_out = 0
+							if dt['card_type'] == 3:
+								no_break_in = 0
+				
+				if no_card_in == 1 or no_break_out == 1:
+					if (dt['card_type'] == 0 or dt['card_type'] == 2):
+						if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift, is_dtrp=1):
+							cards_in.append({
+								"card_name": dt['name'],
+								"card_date": dt['target_date'],
+								"card_time": dt['request'],
+								"card_datetime": dt['card_datetime'],
+								"card_type": dt['card_type'],
+								"from": 'DTRP Application',
+							})
 
-						entry['is_dtrp'] = 1
-						if dt['name'] not in entry['dtrp_links']:
-							entry['dtrp_links'].append(dt['name'])
+							entry['is_dtrp'] = 1
+							if dt['name'] not in entry['dtrp_links']:
+								entry['dtrp_links'].append(dt['name'])
 
-			if no_card_out == 1 or no_break_in == 1:
-				if (dt['card_type'] == 1 or dt['card_type'] == 3):
-					if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift):
-						cards_out.append({
-							"card_name": dt['name'],
-							"card_date": dt['target_date'],
-							"card_time": dt['request'],
-							"card_datetime": dt['card_datetime'],
-							"card_type": dt['card_type'],
-							"from": 'DTRP Application',
-						})
+				if no_card_out == 1 or no_break_in == 1:
+					if (dt['card_type'] == 1 or dt['card_type'] == 3):
+						if validate_card_log(dt['card_datetime'], dt['card_type'], lcn_shifts, target_date, card_map, disable_straight_shift, is_dtrp=1):
+							cards_out.append({
+								"card_name": dt['name'],
+								"card_date": dt['target_date'],
+								"card_time": dt['request'],
+								"card_datetime": dt['card_datetime'],
+								"card_type": dt['card_type'],
+								"from": 'DTRP Application',
+							})
 
-						entry['is_dtrp'] = 1
-						if dt['name'] not in entry['dtrp_links']:
-							entry['dtrp_links'].append(dt['name'])
+							entry['is_dtrp'] = 1
+							if dt['name'] not in entry['dtrp_links']:
+								entry['dtrp_links'].append(dt['name'])
 
 		if dtrp_override:
 			if getdate(dt['target_date']) == getdate(target_date):
@@ -3900,7 +3901,7 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 	if monthly_approval_cutoffs and not adjustment:
-		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`dtr_date`, DT.`request`) as card_datetime, 
 			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`, DA.`is_previous`
 			FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` INNER JOIN `tabPayroll Period` PP ON DA.`company` = PP.`company`
 			WHERE DA.`workflow_state` = 'Approved'
@@ -3908,7 +3909,7 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 			AND CONVERT(DA.`approved_on`, DATE) <= PP.`approval_cutoff` AND DA.`target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to` {conditions}
 			ORDER BY card_datetime """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 	else:
-		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`dtr_date`, DT.`request`) as card_datetime, 
 			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`, DA.`is_previous`
 			FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name`
 			WHERE DA.`workflow_state` = 'Approved'
@@ -3916,9 +3917,6 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 			ORDER BY card_datetime """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 
 	for d in dtr_apps:
-		if d.is_previous:
-			d.target_date = getdate(d.target_date) - datetime.timedelta(days=1)
-
 		if d.employee in emp_map:
 			if d.employee not in multi_dtrp:
 				multi_dtrp[d.employee] = {}
