@@ -101,9 +101,9 @@ def get_data(filters):
 		INNER JOIN `tabEmployee` TE ON UT.employee = TE.`name` WHERE UT.workflow_state = 'Approved' AND UT.`company` = %s
 		AND UT.from_date >= %s AND UT.from_date <= %s AND UT.approved_on > %s {conditions} ORDER BY TE.full_name """.format(conditions=conditions),(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
-	compensatory = frappe.db.sql("""SELECT CTO.`name`, CTO.employee, CTO.use_target_date, TE.full_name, CTO.approved_on, CTO.approved_by 
-		FROM `tabCompensatory Time Off` CTO INNER JOIN `tabEmployee` TE ON CTO.employee = TE.`name`
-		WHERE CTO.`company` = %s AND CTO.workflow_state = 'Approved' AND CTO.use_target_date >= %s AND CTO.use_target_date <= %s AND CTO.`type` = 'Use' {conditions}
+	compensatory = frappe.db.sql("""SELECT CTO.`name`, CTO.employee, CTT.target_date, TE.full_name, CTO.approved_on, CTO.approved_by 
+		FROM `tabCompensatory Time Off` CTO INNER JOIN `tabEmployee` TE ON CTO.employee = TE.`name` INNER JOIN `tabCompensatory Time Off Targets` CTT ON CTO.`name` = CTT.`parent`
+		WHERE CTO.`company` = %s AND CTO.workflow_state = 'Approved' AND CTT.target_date >= %s AND CTT.target_date <= %s AND CTO.`type` = 'Use' {conditions}
 		AND CTO.approved_on > %s ORDER BY TE.full_name """.format(conditions=conditions),(filters.company, pay_from, pay_to, getdate(approval_cutoff)), as_dict=1)
 
 	ex_tardiness = frappe.db.sql("""SELECT ET.`name`, ET.employee, ET.`date`, ET.from_time, ET.to_time, ET.`type`, 
