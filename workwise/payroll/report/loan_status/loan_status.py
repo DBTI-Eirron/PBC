@@ -108,6 +108,7 @@ def get_loans(filters):
 			FROM `tabPayroll Register Entries` PE
 				INNER JOIN `tabLoan Application` LA ON PE.`linked_document`=LA.`name`
 				INNER JOIN `tabPayroll Register` PR ON PE.`parent`=PR.`name`
+				INNER JOIN `tabEmployee` TE ON PR.`employee`=TE.`name`
 
 			WHERE
 				LA.company = %(company)s 
