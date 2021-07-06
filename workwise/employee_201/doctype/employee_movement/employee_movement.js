@@ -67,6 +67,33 @@ frappe.ui.form.on('Employee Movement', {
 				}
 			});
 		}
+
+		if(frm.doc.movement_type){
+			frappe.call({
+				method: "get_custom_fields",
+				doc: frm.doc,
+				callback: function(r) {
+					r.message.forEach(function(item) {
+						cur_frm.add_fetch('employee', item.fieldname, item.custom_fieldname);
+					});
+				}
+			});
+
+			frappe.call({
+				method: "visible_additional_changes",
+				doc: frm.doc,
+				callback: function(r) {
+					r.message['show'].forEach(function(item) {
+						frm.toggle_display(item, true);
+						frm.refresh_fields();
+					});
+					r.message['hide'].forEach(function(item) {
+						frm.toggle_display(item, false);
+						frm.refresh_fields();
+					});
+				}
+			});
+		}
 	},
 
 	employee: function(frm) {
@@ -94,6 +121,33 @@ frappe.ui.form.on('Employee Movement', {
 			frm.trigger("get_resignation");
 		}
 		frm.trigger("filter_employees");
+
+		if(frm.doc.movement_type){
+			frappe.call({
+				method: "get_custom_fields",
+				doc: frm.doc,
+				callback: function(r) {
+					r.message.forEach(function(item) {
+						cur_frm.add_fetch('employee', item.fieldname, item.custom_fieldname);
+					});
+				}
+			});
+
+			frappe.call({
+				method: "visible_additional_changes",
+				doc: frm.doc,
+				callback: function(r) {
+					r.message['show'].forEach(function(item) {
+						frm.toggle_display(item, true);
+						frm.refresh_fields();
+					});
+					r.message['hide'].forEach(function(item) {
+						frm.toggle_display(item, false);
+						frm.refresh_fields();
+					});
+				}
+			});
+		}
 	},
 
 	get_resignation: function(frm) {

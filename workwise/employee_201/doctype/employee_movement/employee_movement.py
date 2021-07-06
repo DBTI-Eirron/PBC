@@ -361,11 +361,15 @@ class EmployeeMovement(Document):
 			pass
 
 	def save_employee(self, emp):
+		self.add_additional_changes(emp, actiontype='save')
+
 		if emp.save():
 			self.is_processed = 1
 			self.date_processed = today()
 
 	def revert_employee(self, emp):
+		self.add_additional_changes(emp, actiontype='revert')
+
 		if emp.save():
 			self.is_processed = 0
 			self.date_processed = today()
@@ -392,6 +396,69 @@ class EmployeeMovement(Document):
 					})
 					lb.flags.ignore_permissions = True
 					lb.insert()
+
+	def get_custom_fields(self, target='specific'):
+		result = [] 
+		filters = {}
+
+		if target == 'specific':
+			filters={'movement_type': self.movement_type}
+
+		setup_list = frappe.get_all('Employee Movement Setup', filters=filters)
+		for setp in setup_list:
+			doc = frappe.get_doc('Employee Movement Setup', setp.name)
+			if doc.fields:
+				for df in doc.fields:
+					result.append({
+						'fieldname': df.fieldname,
+						'custom_fieldname': 'current_'+str(df.fieldname)
+					})
+					result.append({
+						'fieldname': df.fieldname,
+						'custom_fieldname': 'new_'+str(df.fieldname)
+					})
+
+		cf_list = []
+		if target == 'all':
+			cf_list = frappe.get_all('Custom Field', filters={'dt': 'Employee Movement'}, fields=['fieldname'])
+
+		for cf in cf_list:
+			if cf.fieldname[:8] == 'current_' or cf.fieldname[:4] == 'new_':
+				result.append({
+					'fieldname': cf.fieldname,
+					'custom_fieldname': str(cf.fieldname)
+				})
+
+		return result
+
+	def add_additional_changes(self, emp, actiontype='save'):
+		fields = self.get_custom_fields()
+		for fd in fields:
+			if actiontype=='revert' and fd['custom_fieldname'][:8] == 'current_':
+				emp.update({
+					fd['fieldname']: self.get(fd['custom_fieldname'])
+				})
+			if actiontype=='save' and fd['custom_fieldname'][:4] == 'new_':
+				emp.update({
+					fd['fieldname']: self.get(fd['custom_fieldname'])
+				})
+
+	def visible_additional_changes(self):
+		result = {
+			'show': [],
+			'hide': [],
+		}
+
+		show_fields = self.get_custom_fields()
+		for fd in show_fields:
+			result['show'].append(fd['custom_fieldname'])
+
+		hide_fields = self.get_custom_fields('all')
+		for fd in hide_fields:
+			if fd['custom_fieldname'] not in result['show']:
+				result['hide'].append(fd['custom_fieldname'])
+
+		return result
 
 @frappe.whitelist()
 def run_effective_movement():

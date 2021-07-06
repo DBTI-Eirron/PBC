@@ -124,6 +124,11 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
+					"name": "Employee Movement Setup",
+					"description": _("Employee Movement Setup"),
+				},
+				{
+					"type": "doctype",
 					"name": "Employee Movement",
 					"description": _("Employee Movement"),
 				},
