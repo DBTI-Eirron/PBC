@@ -4,14 +4,15 @@
 
 from __future__ import unicode_literals
 import frappe, json, datetime
+from dateutil.relativedelta import relativedelta
 from frappe import _
 #from workwise.utils.employee_utils import set_employee_name
 from frappe import throw
-from frappe.utils import getdate, today, cstr, flt, nowdate
+from frappe.utils import getdate, today, cstr, flt, nowdate, get_datetime
 from frappe.model.document import Document
 from workwise.payroll.payroll_utils import format_decimal_by_2
 from workwise.time_keeping.application_utils import validate_inactive_employee, validate_active_employee
-from workwise.time_keeping.timekeeping_task import validate_create_lbentry
+from workwise.time_keeping.timekeeping_task import validate_create_lbentry, gather_total_lb_entries
 
 class EmployeeMovement(Document):
 	def validate(self):
@@ -375,27 +376,65 @@ class EmployeeMovement(Document):
 			self.date_processed = today()
 
 	def create_lb_entry(self):
+		#Get date list to create
+		datetoday = str(getdate(nowdate()).year)+'-'+str(getdate(nowdate()).month)+'-01'
+		dates_to_create = [datetoday]
+		monthcount_diff = relativedelta(getdate(nowdate()), getdate(self.effective_on)).months
+		while monthcount_diff >= 0:
+			create_date = getdate(self.effective_on) + relativedelta(months=+monthcount_diff)
+			create_date = getdate(str(create_date.year)+"-"+str(create_date.month)+"-01")
+			if getdate(self.effective_on) <= create_date <= getdate(nowdate()):
+				if create_date not in dates_to_create:
+					dates_to_create.append(create_date)
+			monthcount_diff -= 1
+
+		#Create lb entries
 		doc_emp = frappe.get_doc("Employee", self.employee)
 		if doc_emp.leave_balance_setup:
+			lb_setup = frappe.get_doc("Leave Balance Setup", doc_emp.leave_balance_setup)
 			lb_sched = frappe.db.sql(""" SELECT * FROM `tabLeave Balance Schedule` WHERE `parent` = %s """,(doc_emp.leave_balance_setup),as_dict=1)
 			year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
+
+			#Gather total lb entries created per employee
+			total_lb_entries = gather_total_lb_entries()
+
 			for d in lb_sched:
-				if validate_create_lbentry({'employee': doc_emp.name, 'leave_type': d.leave_type}):
-					lb = frappe.new_doc("LB Entry")
-					lb.update({
-						"employee": doc_emp.name,
-						"employee_name": doc_emp.full_name,
-						"posting_date": nowdate(),
-						"company": doc_emp.company,
-						"leave_type": d.leave_type,
-						"balance_type": 'Add',
-						"created_from": 'Leave Balance Setup',
-						"from_date": nowdate(),
-						"to_date": year_end,
-						"credits": d.credits,
-					})
-					lb.flags.ignore_permissions = True
-					lb.insert()
+				is_valid = 0
+				if d.add_from_movement and validate_create_lbentry({'employee': doc_emp.name, 'leave_type': d.leave_type}):
+					is_valid = 1
+
+				if d.method != 'Every Month':
+					dates_to_create = [getdate(self.effective_on)]
+
+				if d.method == 'Every Month' and not d.is_continuous:
+					if d.end_type == 'By Count' and d.by_count_value:
+						if self.employee in total_lb_entries and d.leave_type in total_lb_entries[self.employee]:
+							lbentry_count = total_lb_entries[self.employee][d.leave_type]
+							if lbentry_count >= d.by_count_value:
+								valid_setup = 0
+
+					if d.end_type == 'By End of Year' and d.by_end_of_year:
+						setup_year_end = getdate(str(d.by_end_of_year)+'-12-31')
+						if getdate(targetdate) >= getdate(setup_year_end):
+							valid_setup = 0
+
+				if is_valid and dates_to_create:
+					for dt in dates_to_create:
+						lb = frappe.new_doc("LB Entry")
+						lb.update({
+							"employee": doc_emp.name,
+							"employee_name": doc_emp.full_name,
+							"posting_date": nowdate(),
+							"company": doc_emp.company,
+							"leave_type": d.leave_type,
+							"balance_type": 'Add',
+							"created_from": 'Leave Balance Setup',
+							"from_date": dt if d.add_from_movement else nowdate(),
+							"to_date": year_end,
+							"credits": d.credits,
+						})
+						lb.flags.ignore_permissions = True
+						lb.insert()
 
 	def get_custom_fields(self, target='specific'):
 		result = [] 

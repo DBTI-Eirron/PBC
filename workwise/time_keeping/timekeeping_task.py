@@ -68,12 +68,35 @@ def check_rundate(method, datesource):
 
 	return result
 
+def gather_total_lb_entries():
+	result = {}
+	fields=['name', 'employee', 'employee_name', 'posting_date', 'company', 'leave_type', 'balance_type', 
+		'created_from', 'linked_document', 'from_date', 'to_date', 'credits', 'deduct_credits_to']
+
+	lb_entries = frappe.get_all('LB Entry', filters={'created_from': 'LB Scheduler', 'balance_type': 'Add'}, fields=fields)
+	for lb in lb_entries:
+		if lb.employee not in result:
+			result[lb.employee] = {}
+
+		if lb.leave_type not in result[lb.employee]:
+			result[lb.employee][lb.leave_type] = 0
+
+		result[lb.employee][lb.leave_type] += 1
+
+	return result
+
 def automated_leave_balance(is_forced=0, targetdate=None):
+	
 	lb_entries_created = 0
 	created_lb_entries = 0
-	now_date = nowdate() if not targetdate else getdate(targetdate)
+	if targetdate:
+		targetdate = getdate(targetdate)
+	else:
+		targetdate = nowdate()
+
+	now_date = targetdate
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
-	year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
+	year_end = getdate(datetime.date(targetdate.year, 12, 31))
 
 	#Check for Carry Over Leave Balance
 	carry_overs = get_carryover_lvbal(targetdate)
@@ -131,7 +154,8 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 	#Get leave balance setups
 	if setup_included:
 		setup_cond = ','.join(setup_included)
-		setups = frappe.db.sql(""" SELECT LB.name, LBS.leave_type, LBS.method, LBS.allocation_start, LBS.method_condition, LBS.value, LBS.credits
+		setups = frappe.db.sql(""" SELECT LB.name, LBS.leave_type, LBS.method, LBS.allocation_start, LBS.method_condition, LBS.value, LBS.credits, 
+			LBS.is_continuous, LBS.end_type, LBS.by_count_value, LBS.by_end_of_year
 			FROM `tabLeave Balance Setup` LB INNER JOIN `tabLeave Balance Schedule` LBS ON LBS.`parent` = LB.`name` 
 			WHERE LB.`name` IN ("""+setup_cond+""") """, as_dict=1)
 
@@ -155,74 +179,99 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 						regularization_date = datetime.datetime.strptime(cstr(getdate(regularization_date)), '%Y-%m-%d')
 						row['regularization_date'] = regularization_date
 	
+	#Gather total lb entries created per employee
+	total_lb_entries = gather_total_lb_entries()
+
 	#Accumulate LB Entry
 	for d in setups:
 		for e in employee_setup[d.name]:
-			add_credits = 0
-			datehired = None
-			reference = cstr(d.method)+" from Calendar with "+cstr(d.credits)+" credits"
-			#Calendar
-			if not d.allocation_start:
-				add_credits = check_rundate(d.method, now_date)
+			valid_setup = 1
+			is_continuous = 0
+			if d.method == 'Every Month' and d.is_continuous:
+				is_continuous = 1
 
-			if e['date_hired'] and d.allocation_start in ['Date Hired in Years']:
-				reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" "+cstr(d.method_condition)+" "+cstr(d.value)+" with "+cstr(d.credits)+" credits"
-				datehired = getdate(e['date_hired'])
-				datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
-				if getdate(datehired) < getdate(now_date):
-					year_diff = relativedelta(now_date, datehired).years
-					if check_rundate(d.method, now_date):
-						if (d.method_condition and d.value):
-							add_credits = check_condition(d.method_condition, year_diff, d.value)
-						else:
-							add_credits = 1
+			if d.method == 'Every Month' and not d.is_continuous:
+				if d.end_type == 'By Count' and d.by_count_value:
+					if e['name'] in total_lb_entries and d.leave_type in total_lb_entries[e['name']]:
+						lbentry_count = total_lb_entries[e['name']][d.leave_type]
+						if lbentry_count >= d.by_count_value:
+							valid_setup = 0
 
-			if e['regularization_date'] and d.allocation_start in ['Regularization in Years']:
-				reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" "+cstr(d.method_condition)+" "+cstr(d.value)+" with "+cstr(d.credits)+" credits"
-				regular_date = getdate(e['regularization_date'])
-				regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
-				if getdate(regular_date) < getdate(now_date):
-					year_diff = relativedelta(now_date, regular_date).years
-					if check_rundate(d.method, now_date):
-						if (d.method_condition and d.value):
-							add_credits = check_condition(d.method_condition, year_diff, d.value)
-						else:
-							add_credits = 1
-
-			if e['regularization_date'] and d.allocation_start in ['Regular']:
-				reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" with "+cstr(d.credits)+" credits"
-				regular_date = getdate(e['regularization_date'])
-				regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
-				if getdate(regular_date) < getdate(now_date):
-					year_diff = relativedelta(now_date, regular_date).years
+				if d.end_type == 'By End of Year' and d.by_end_of_year:
+					setup_year_end = getdate(str(d.by_end_of_year)+'-12-31')
+					if getdate(targetdate) >= getdate(setup_year_end):
+						valid_setup = 0
+						
+			
+			if valid_setup:
+				add_credits = 0
+				datehired = None
+				reference = cstr(d.method)+" from Calendar with "+cstr(d.credits)+" credits"
+				#Calendar
+				if not d.allocation_start:
 					add_credits = check_rundate(d.method, now_date)
 
-			if add_credits and validate_create_lbentry({'employee': e['name'], 'leave_type': d.leave_type}):
-				row = {
-					"employee": e['name'],
-					"company": e['company'],
-					"posting_date": getdate(now_date),
-					"leave_type": d.leave_type,
-					"balance_type": 'Add',
-					"created_from": 'Leave Balance Setup',
-					"from_date": getdate(now_date),
-					"to_date": year_end,
-					"credits": d.credits,
-					"linked_document": reference,
-				}
-				if is_forced:
-					row['created_from'] = 'LB Scheduler'
-				if validate_duplicate_lbentry(row, is_forced):
-					row["employee_name"] = e['full_name']
-					row["deduct_credits_to"] = None
-					lb = frappe.new_doc("LB Entry")
-					lb.update(row)
-					lb.flags.ignore_permissions = True
-					lb.flags.ignore_validate = True
-					if lb.insert():
-						lb_entries_created = 1
-						if is_forced:
-							created_lb_entries += 1
+				if e['date_hired'] and d.allocation_start in ['Date Hired in Years']:
+					reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" "+cstr(d.method_condition)+" "+cstr(d.value)+" with "+cstr(d.credits)+" credits"
+					datehired = getdate(e['date_hired'])
+					datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
+					if getdate(datehired) < getdate(now_date):
+						year_diff = relativedelta(now_date, datehired).years
+						if check_rundate(d.method, now_date):
+							if (d.method_condition and d.value):
+								add_credits = check_condition(d.method_condition, year_diff, d.value)
+							else:
+								add_credits = 1
+
+				if e['regularization_date'] and d.allocation_start in ['Regularization in Years']:
+					reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" "+cstr(d.method_condition)+" "+cstr(d.value)+" with "+cstr(d.credits)+" credits"
+					regular_date = getdate(e['regularization_date'])
+					regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
+					if getdate(regular_date) < getdate(now_date):
+						year_diff = relativedelta(now_date, regular_date).years
+						if check_rundate(d.method, now_date):
+							if (d.method_condition and d.value):
+								add_credits = check_condition(d.method_condition, year_diff, d.value)
+							else:
+								add_credits = 1
+
+				if e['regularization_date'] and d.allocation_start in ['Regular']:
+					reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" with "+cstr(d.credits)+" credits"
+					regular_date = getdate(e['regularization_date'])
+					regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
+					if getdate(regular_date) < getdate(now_date):
+						year_diff = relativedelta(now_date, regular_date).years
+						add_credits = check_rundate(d.method, now_date)
+
+				if is_continuous:
+					add_credits = 1
+
+				if add_credits and validate_create_lbentry({'employee': e['name'], 'leave_type': d.leave_type}):
+					row = {
+						"employee": e['name'],
+						"company": e['company'],
+						"posting_date": getdate(now_date),
+						"leave_type": d.leave_type,
+						"balance_type": 'Add',
+						"created_from": 'Leave Balance Setup',
+						"from_date": getdate(now_date),
+						"to_date": year_end,
+						"credits": d.credits,
+						"linked_document": reference,
+					}
+					if is_forced:
+						row['created_from'] = 'LB Scheduler'
+					if validate_duplicate_lbentry(row, is_forced):
+						row["employee_name"] = e['full_name']
+						row["deduct_credits_to"] = None
+						lb = frappe.new_doc("LB Entry")
+						lb.update(row)
+						lb.flags.ignore_permissions = True
+						lb.flags.ignore_validate = True
+						if lb.insert():
+							lb_entries_created = 1
+							if is_forced:
+								created_lb_entries += 1
 
 	if is_forced:
 		create_lb_entry_logs(created_lb_entries)
@@ -329,7 +378,7 @@ def get_carryover_lvbal(targetdate=None):
 	result = []
 	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
-	year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
+	year_end = getdate(datetime.date(now_date.year, 12, 31))
 	pastyear = now_date.year - 1
 	pastdate_start = getdate(str(pastyear)+'-01-01')
 	pastdate_end = getdate(str(pastyear)+'-12-31')
@@ -433,6 +482,7 @@ def create_lb_entry_logs(entry):
 		"created_by_name": full_name,
 		"button_pressed": 'Force LB Scheduler',
 		"number_created": entry,
+		"user_ip": frappe.local.request_ip,
 	})
 	logs.flags.ignore_permissions = True
 	logs.save()
