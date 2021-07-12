@@ -27,6 +27,9 @@ class LoanApplication(Document):
 	def on_change(self):
 		self.update_loan_status()
 
+	def before_cancel(self):
+		self.status = "Cancelled"
+
 	def validate_loan(self):
 		loan_type = frappe.db.sql("""SELECT `name` FROM `tabTransaction Type` WHERE `code` = %s and `entry_type` = 'Loan'""", self.loan_type, as_dict=True)
 		if not loan_type:
@@ -213,6 +216,10 @@ class LoanApplication(Document):
 				status = "Entered"
 			elif not self.on_hold and flt(self.paid_amount) > 0 and flt(self.unpaid_amount) > 0:
 				status = "Active"
+
+			if self.docstatus == 2:
+				self.status = "Cancelled"
+
 			self.status = status
 
 @frappe.whitelist()

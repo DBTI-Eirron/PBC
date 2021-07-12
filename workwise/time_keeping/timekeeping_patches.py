@@ -1379,4 +1379,8 @@ def update_loans_status():
 				status = "Entered"
 			elif not doc.on_hold and flt(doc.paid_amount) > 0 and flt(doc.unpaid_amount) > 0:
 				status = "Active"
+
+			if doc.docstatus == 2:
+				status = "Cancelled"
+
 			doc.db_set("status", status)
