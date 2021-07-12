@@ -57,6 +57,16 @@ frappe.ui.form.on('Loan Application', {
 			});
 		} 
 	},
+
+	on_hold: function(frm) {
+		frappe.call({
+			method: "update_loan_status",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_fields();
+			}
+		}); 
+	},
 });
 
 frappe.ui.form.on('Loan Application Payments', {
