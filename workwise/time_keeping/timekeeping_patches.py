@@ -1369,4 +1369,14 @@ def update_loans_status():
 	loans = frappe.get_all('Loan Application', fields=['name'])
 	for loan in loans:
 		doc = frappe.get_doc("Loan Application", loan.name)
-		doc.run_method("update_loan_status")
+		if doc.docstatus != 0:
+			status = "Entered"
+			if doc.on_hold:
+				status = "On Hold"
+			elif not doc.on_hold and flt(doc.unpaid_amount) == 0:
+				status = "Fully Paid"
+			elif not doc.on_hold and flt(doc.paid_amount) < 1 and flt(doc.unpaid_amount) > 0:
+				status = "Entered"
+			elif not doc.on_hold and flt(doc.paid_amount) > 0 and flt(doc.unpaid_amount) > 0:
+				status = "Active"
+			doc.db_set("status", status)
