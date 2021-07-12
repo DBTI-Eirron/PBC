@@ -1363,3 +1363,9 @@ def add_payrollprocesslogs_to_payslipgenerationlogs():
 		payslip_generation = frappe.new_doc("Payslip Generation Logs")
 		payslip_generation.update(ppl)
 		payslip_generation.insert(ignore_permissions=True)
+
+def update_loans_status():
+	loans = frappe.get_all('Loan Application', fields=['name'])
+	for loan in loans:
+		doc = frappe.get_doc("Loan Application", loan.name)
+		doc.run_method("update_loan_status")

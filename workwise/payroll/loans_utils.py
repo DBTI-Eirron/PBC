@@ -113,3 +113,6 @@ def update_loans(payroll_date, loan_doc, loan_idx, period):
 
 		frappe.db.sql("""UPDATE `tabLoan Application` SET unpaid_amount = %s, paid_amount = %s
 			WHERE name = %s LIMIT 1 """,(total_unpaid, total_paid, loan_doc), as_dict=True )
+
+		doc = frappe.get_doc("Loan Application", loan_doc)
+		doc.run_method("update_loan_status")
