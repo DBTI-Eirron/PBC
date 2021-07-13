@@ -58,12 +58,14 @@ frappe.ui.form.on('Employee Movement', {
 					doctype_name: "Employee Movement"
 				},
 				callback: function(r) {
-					r.message.forEach(function(item) {
-						frm.add_custom_button(__(item.form_label),
-						function() {
-							window.open("http://"+ item.form_ip +":"+ item.form_port +"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2F"+ item.form_folder +"&reportUnit=%2FReports%2F"+ item.form_name +"&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+					if (r.message){
+						r.message.forEach(function(item) {
+							frm.add_custom_button(__(item.form_label),
+							function() {
+								window.open("http://"+ item.form_ip +":"+ item.form_port +"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2F"+ item.form_folder +"&reportUnit=%2FReports%2F"+ item.form_name +"&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+							});
 						});
-					});
+					}
 				}
 			});
 		}
@@ -72,10 +74,12 @@ frappe.ui.form.on('Employee Movement', {
 			frappe.call({
 				method: "get_custom_fields",
 				doc: frm.doc,
-				callback: function(r) {
-					r.message.forEach(function(item) {
-						cur_frm.add_fetch('employee', item.fieldname, item.custom_fieldname);
-					});
+				callback: function(r){
+					if (r.message){
+						r.message.forEach(function(item) {
+							cur_frm.add_fetch('employee', item.fieldname, item.custom_fieldname);
+						});
+					}
 				}
 			});
 
@@ -83,14 +87,16 @@ frappe.ui.form.on('Employee Movement', {
 				method: "visible_additional_changes",
 				doc: frm.doc,
 				callback: function(r) {
-					r.message['show'].forEach(function(item) {
-						frm.toggle_display(item, true);
-						frm.refresh_fields();
-					});
-					r.message['hide'].forEach(function(item) {
-						frm.toggle_display(item, false);
-						frm.refresh_fields();
-					});
+					if (r.message){
+						r.message['show'].forEach(function(item) {
+							frm.toggle_display(item, true);
+							frm.refresh_fields();
+						});
+						r.message['hide'].forEach(function(item) {
+							frm.toggle_display(item, false);
+							frm.refresh_fields();
+						});
+					}
 				}
 			});
 		}
