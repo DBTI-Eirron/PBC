@@ -180,7 +180,7 @@ class LeaveApplication(Document):
 				frappe.throw(_("<b>Leave Application: {0}</b><hr> Employement Status {1} is not allowed for {2}").format(self.name, employment_status, self.leave_type))
 
 		if allow_advance_filing == 0:
-			if self.from_date > nowdate() or self.to_date > nowdate():
+			if self.from_date > getdate(nowdate()) or self.to_date > getdate(nowdate()):
 				frappe.throw(_("<b>Leave Application: {0}</b><hr> You cannot file in advance for {1}").format(self.name, self.leave_type))
 
 		if leave_code == "BL":
