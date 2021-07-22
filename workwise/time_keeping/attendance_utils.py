@@ -2951,7 +2951,7 @@ def get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
 
 	return result
 
-def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_map, disable_straight_shift):
+def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_map, disable_straight_shift, is_dtrp = None):
 	to_append = 0
 	enable_straight_shift = frappe.db.get_single_value('Timekeeping Settings', 'enable_straight_shift')
 
