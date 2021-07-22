@@ -285,21 +285,21 @@ def get_columns(position_list, accumulated_values=1, company=None):
 		columns.append({
 			"fieldname": position.key,
 			"label": position.label,
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 100
 		})
 
 	columns.append({
 		"fieldname": "total_actual",
 		"label": _("Actual"),
-		"fieldtype": "Float",
+		"fieldtype": "Int",
 		"width": 80
 	})
 
 	columns.append({
 		"fieldname": "total_variance",
 		"label": _("Variance"),
-		"fieldtype": "Float",
+		"fieldtype": "Int",
 		"width": 80
 	})
 	return columns
