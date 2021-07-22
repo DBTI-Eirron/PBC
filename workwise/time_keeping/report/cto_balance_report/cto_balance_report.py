@@ -98,7 +98,7 @@ def get_cto(emp, filters):
 	else:
 		cto_balance_condition = ""
 
-	cto = frappe.db.sql("""SELECT total_balance as balance, `file_target_date`, `employee`, `name`, YEAR(`from_date`) FROM `tabCompensatory Time Off` 
+	cto = frappe.db.sql("""SELECT total_balance as balance, `employee`, `name`, YEAR(`from_date`) FROM `tabCompensatory Time Off` 
 		WHERE `type` = "File" AND `docstatus` = 1 AND `workflow_state` = "Approved" 
 		AND `total_balance` > 0 {conditions}{cto_balance_con}""".format(conditions=cto_validity_condition, cto_balance_con=cto_balance_condition), as_dict=True)
 
