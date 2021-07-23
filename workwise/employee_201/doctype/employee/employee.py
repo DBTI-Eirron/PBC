@@ -107,10 +107,15 @@ class Employee(Document):
 			if parent_department:
 				frappe.permissions.add_user_permission("Department", parent_department, self.user_id)
 		if self.period_group and self.user_id:
+			exists = 0
 			user_perm = frappe.db.sql(""" SELECT `for_value` FROM `tabUser Permission` WHERE `user` = %s AND `allow` = "Period Group" """,(self.user_id) , as_dict=1)
-			if user_perm and user_perm[0].for_value != self.period_group:
-				frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(self.user_id),as_dict=True)
-			if not user_perm:
+			if user_perm:
+				for perm in user_perm:
+					if perm.for_value == self.period_group:
+						exists = 1
+					if perm.for_value != self.period_group:
+						frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(self.user_id),as_dict=True)
+			if not user_perm or not exists:
 				frappe.permissions.add_user_permission("Period Group", self.period_group, self.user_id)
 		if not self.period_group:
 			frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(self.user_id),as_dict=True)
