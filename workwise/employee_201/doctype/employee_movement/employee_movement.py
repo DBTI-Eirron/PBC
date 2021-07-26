@@ -375,11 +375,12 @@ class EmployeeMovement(Document):
 			self.is_processed = 0
 			self.date_processed = today()
 
-	def create_lb_entry(self):
+	def get_lbentries_dates_to_create(self):
 		#Get date list to create
 		datetoday = str(getdate(nowdate()).year)+'-'+str(getdate(nowdate()).month)+'-01'
-		dates_to_create = [datetoday]
+		dates_to_create = [getdate(datetoday), getdate(self.effective_on)]
 		monthcount_diff = relativedelta(getdate(nowdate()), getdate(self.effective_on)).months
+		monthcount_diff = abs(monthcount_diff)
 		while monthcount_diff >= 0:
 			create_date = getdate(self.effective_on) + relativedelta(months=+monthcount_diff)
 			create_date = getdate(str(create_date.year)+"-"+str(create_date.month)+"-01")
@@ -388,6 +389,9 @@ class EmployeeMovement(Document):
 					dates_to_create.append(create_date)
 			monthcount_diff -= 1
 
+		return dates_to_create
+
+	def create_lb_entry(self):
 		#Create lb entries
 		doc_emp = frappe.get_doc("Employee", self.employee)
 		if doc_emp.leave_balance_setup:
@@ -400,6 +404,8 @@ class EmployeeMovement(Document):
 
 			for d in lb_sched:
 				is_valid = 0
+				dates_to_create = self.get_lbentries_dates_to_create()
+
 				if d.add_from_movement and validate_create_lbentry({'employee': doc_emp.name, 'leave_type': d.leave_type}):
 					is_valid = 1
 
@@ -415,7 +421,7 @@ class EmployeeMovement(Document):
 
 					if d.end_type == 'By End of Year' and d.by_end_of_year:
 						setup_year_end = getdate(str(d.by_end_of_year)+'-12-31')
-						if getdate(targetdate) >= getdate(setup_year_end):
+						if getdate(self.effective_on) >= getdate(setup_year_end):
 							valid_setup = 0
 
 				if is_valid and dates_to_create:
