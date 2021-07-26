@@ -15,7 +15,20 @@ frappe.ui.form.on('Blanket', {
 	},
 
 	refresh: function(frm) {
-
+		cur_frm.set_query("timelogs_application_location", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
+		cur_frm.set_query("cost_center", function() {
+			return {
+				"filters": {
+					"timelogs_application_cost_center": frm.doc.company,
+				}
+			};
+		});
 	},
 
 	//Filter
@@ -240,4 +253,53 @@ frappe.ui.form.on('Blanket', {
 		} 
 	},
 
+	//Timelogs Application
+	timelogs_application_location: function(frm) {
+		frm.trigger("tla_fill_location_cost_center");
+	},
+
+	timelogs_application_cost_center: function(frm) {
+		frm.trigger("tla_fill_location_cost_center");
+	},
+
+	tla_fill_location_cost_center: function(frm){
+		return frappe.call({
+			method: "tla_fill_location_cost_center",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("timelogs_application_table");
+			}
+		});
+	},
+
+	tla_fromdate: function(frm) {
+		frm.trigger("tla_populate_dates");
+	},
+
+	tla_todate: function(frm) {
+		frm.trigger("tla_populate_dates");
+	},
+
+	tla_populate_dates: function(frm){
+		return frappe.call({
+			method: "tla_populate_dates",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("timelogs_application_table");
+			}
+		});
+	},
+
+});
+
+frappe.ui.form.on('Blanket Timelogs Application Table', {
+	timelogs_application_table_add: function(frm) {
+		frappe.call({
+			method: "tla_fill_location_cost_center",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("timelogs_application_table");
+			}
+		});
+    },
 });
