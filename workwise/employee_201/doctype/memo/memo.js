@@ -3,7 +3,6 @@
 
 frappe.ui.form.on('Memo', {
 	refresh: function(frm) {
-		frm.disable_save();
 
 	},
 });
