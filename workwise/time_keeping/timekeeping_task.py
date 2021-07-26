@@ -86,7 +86,6 @@ def gather_total_lb_entries():
 	return result
 
 def automated_leave_balance(is_forced=0, targetdate=None):
-	
 	lb_entries_created = 0
 	created_lb_entries = 0
 	if targetdate:
@@ -96,7 +95,7 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 
 	now_date = targetdate
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
-	year_end = getdate(datetime.date(targetdate.year, 12, 31))
+	year_end = getdate(datetime.date(now_date.year, 12, 31))
 
 	#Check for Carry Over Leave Balance
 	carry_overs = get_carryover_lvbal(targetdate)
@@ -161,22 +160,12 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 
 	#Get Employee Regularization Date
 	if employee_setup:
-		reg_date = {}
-		empmov = frappe.db.sql(""" SELECT employee, effective_on FROM `tabEmployee Movement` WHERE `movement_type` = 'Regularization' AND docstatus = 1 """, as_dict=1)
-		for reg in empmov:
-			if reg.employee in included_employees:
-				if reg.employee not in reg_date:
-					reg_date[reg.employee] = []
-
-				if getdate(reg.effective_on) <= getdate(now_date):
-					reg_date[reg.employee].append(reg.effective_on)
-
-		for ems in employee_setup:
-			for row in employee_setup[ems]:
-				if row['name'] in reg_date:
-					if reg_date[row['name']]:
-						regularization_date = max(reg_date[row['name']])
-						regularization_date = datetime.datetime.strptime(cstr(getdate(regularization_date)), '%Y-%m-%d')
+		regularization_date_map = employees_regularization_date_map(now_date)
+		if regularization_date_map:
+			for ems in employee_setup:
+				for row in employee_setup[ems]:
+					if row['name'] in regularization_date_map:
+						regularization_date = regularization_date_map[row['name']]
 						row['regularization_date'] = regularization_date
 	
 	#Gather total lb entries created per employee
@@ -201,7 +190,6 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 					setup_year_end = getdate(str(d.by_end_of_year)+'-12-31')
 					if getdate(targetdate) >= getdate(setup_year_end):
 						valid_setup = 0
-						
 			
 			if valid_setup:
 				add_credits = 0
@@ -247,31 +235,37 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 					add_credits = 1
 
 				if add_credits and validate_create_lbentry({'employee': e['name'], 'leave_type': d.leave_type}):
-					row = {
-						"employee": e['name'],
-						"company": e['company'],
-						"posting_date": getdate(now_date),
-						"leave_type": d.leave_type,
-						"balance_type": 'Add',
-						"created_from": 'Leave Balance Setup',
-						"from_date": getdate(now_date),
-						"to_date": year_end,
-						"credits": d.credits,
-						"linked_document": reference,
-					}
-					if is_forced:
-						row['created_from'] = 'LB Scheduler'
-					if validate_duplicate_lbentry(row, is_forced):
-						row["employee_name"] = e['full_name']
-						row["deduct_credits_to"] = None
-						lb = frappe.new_doc("LB Entry")
-						lb.update(row)
-						lb.flags.ignore_permissions = True
-						lb.flags.ignore_validate = True
-						if lb.insert():
-							lb_entries_created = 1
-							if is_forced:
-								created_lb_entries += 1
+					dates_to_create = [getdate(now_date)]
+					retro_lbentry_dates = get_retro_lbentry_dates(e['name'], e['regularization_date'], now_date)
+					if retro_lbentry_dates:
+						dates_to_create = retro_lbentry_dates
+
+					for lb_date in dates_to_create:
+						row = {
+							"employee": e['name'],
+							"company": e['company'],
+							"posting_date": getdate(lb_date),
+							"leave_type": d.leave_type,
+							"balance_type": 'Add',
+							"created_from": 'Leave Balance Setup',
+							"from_date": getdate(lb_date),
+							"to_date": year_end,
+							"credits": d.credits,
+							"linked_document": reference,
+						}
+						if is_forced:
+							row['created_from'] = 'LB Scheduler'
+						if validate_duplicate_lbentry(row, is_forced):
+							row["employee_name"] = e['full_name']
+							row["deduct_credits_to"] = None
+							lb = frappe.new_doc("LB Entry")
+							lb.update(row)
+							lb.flags.ignore_permissions = True
+							lb.flags.ignore_validate = True
+							if lb.insert():
+								lb_entries_created = 1
+								if is_forced:
+									created_lb_entries += 1
 
 	if is_forced:
 		create_lb_entry_logs(created_lb_entries)
@@ -459,7 +453,7 @@ def validate_duplicate_lbentry(entry, is_forced):
 		row['created_from'] = ['in', ['Carry Over', 'LB Scheduler - Carry Over']]
 		del row['credits']
 
-	lb_list = frappe.db.get_list('LB Entry', filters=row)
+	lb_list = frappe.db.get_all('LB Entry', filters=row)
 	if lb_list:
 		result = 0
 
@@ -525,3 +519,40 @@ def fix_approved_on_and_by():
 			frappe.db.sql("""UPDATE """+table+""" APP SET APP.`approved_on`=DATE(APP.`modified`), APP.`approved_by`=APP.`modified_by`, 
 			APP.`approver_name`=(SELECT TE.`full_name` FROM `tabEmployee` TE WHERE TE.`user_id`=APP.modified_by LIMIT 1), APP.`docstatus`=1
 			WHERE APP.`workflow_state` IN ('Approved', 'Approval in Progress') AND (APP.approved_on IS NULL OR APP.approved_by IS NULL) """)
+
+def get_retro_lbentry_dates(employee, effective_on, now_date):
+	#Get date list to create
+
+	datetoday = str(getdate(now_date).year)+'-'+str(getdate(now_date).month)+'-01'
+	dates_to_create = [getdate(datetoday)]
+	if effective_on.month in [1, '01']:
+		dates_to_create.append(getdate(effective_on))
+	monthcount_diff = relativedelta(getdate(now_date), getdate(effective_on)).months
+	monthcount_diff = abs(monthcount_diff)
+	while monthcount_diff >= 0:
+		create_date = getdate(effective_on) + relativedelta(months=+monthcount_diff)
+		create_date = getdate(str(create_date.year)+"-"+str(create_date.month)+"-01")
+		if getdate(effective_on) <= create_date <= getdate(now_date):
+			if create_date not in dates_to_create:
+				dates_to_create.append(create_date)
+		monthcount_diff -= 1
+
+	return dates_to_create
+
+def employees_regularization_date_map(now_date):
+	result = {}
+	reg_date = {}
+	empmov = frappe.db.sql(""" SELECT employee, effective_on FROM `tabEmployee Movement` WHERE `movement_type` = 'Regularization' AND docstatus = 1 """, as_dict=1)
+	for reg in empmov:
+		if reg.employee not in reg_date:
+			reg_date[reg.employee] = []
+
+		if getdate(reg.effective_on) <= getdate(now_date):
+			reg_date[reg.employee].append(reg.effective_on)
+
+	for employee in reg_date:
+		regularization_date = max(reg_date[employee])
+		regularization_date = datetime.datetime.strptime(cstr(getdate(regularization_date)), '%Y-%m-%d')
+		result[employee] = regularization_date
+
+	return result
