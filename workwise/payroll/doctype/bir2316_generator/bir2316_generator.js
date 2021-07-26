@@ -36,10 +36,12 @@ frappe.ui.form.on('BIR2316 Generator', {
 				}
 
 				filter1 = filter1.replace('&','xyz123')
-				console.log(filter1)
-				r.message.forEach(function(item) {
-					window.open("http://"+ item.form_ip +":"+ item.form_port +"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2F"+ item.form_folder +"&reportUnit=%2FReports%2F"+ item.form_name +"&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+filter1+"");
-				});
+
+				if (r.message){
+					r.message.forEach(function(item) {
+						window.open("http://"+ item.form_ip +":"+ item.form_port +"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2F"+ item.form_folder +"&reportUnit=%2FReports%2F"+ item.form_name +"&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+filter1+"");
+					});
+				}
 			}
 		});
 	}
