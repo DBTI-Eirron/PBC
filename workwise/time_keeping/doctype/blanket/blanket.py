@@ -62,6 +62,13 @@ class Blanket(Document):
 			self.validate_employee_company()
 			self.validate_duplicate_table_entries()
 
+		elif self.application_type == "Timelogs Application":
+			self.validate_mandatory_fields()
+			self.validate_employee_company()
+			self.validate_duplicate_table_entries()
+			self.validate_timelogs_application()
+			self.remove_tla_duplicate_entry()
+
 	def on_submit(self):
 		if self.application_type == "Leave Application":
 			self.make_leave_application()
@@ -86,6 +93,9 @@ class Blanket(Document):
 
 		elif self.application_type == "Compensatory Time Off":
 			self.make_compensatory_time_off_application()
+
+		elif self.application_type == "Timelogs Application":
+			self.make_timelogs_application()
 
 	#def on_cancel(self):
 	#	if self.application_type == "Leave Application":
@@ -356,6 +366,12 @@ class Blanket(Document):
 				frappe.throw(_("No Type"))
 			if not self.bctod_table:
 				frappe.throw(_("No Employee"))
+
+		elif self.application_type == "Timelogs Application":
+			if not self.bad_table:
+				frappe.throw(_("No Employee(s)"))
+			if not self.timelogs_application_table:
+				frappe.throw(_("No Details Entered"))
 
 	def validate_employee_company(self):
 		if self.application_type == "Leave Application":
@@ -1112,3 +1128,143 @@ class Blanket(Document):
 			new_cto.insert()
 			new_cto.save()
 			new_cto.submit()
+
+	def make_timelogs_application(self):
+		for d in self.get("bad_table"):
+			new_tla_app = frappe.new_doc("Timelogs Application")
+			new_tla_app.update({
+				"employee": d.employee,
+				"employee_name": d.full_name,
+				"posting_date": self.posting_date,
+				"company": self.company,
+				"location": self.timelogs_application_location,
+				"reason": self.dtr_reason,
+				"cost_center": self.timelogs_application_cost_center,
+				"approved_on": nowdate(),
+				"workflow_state": "Approved",
+				"is_blanket": 1,
+				"approved_by": frappe.session.user,
+				"owner": frappe.session.user,
+				"managers_list": self.get_recipients(d.employee),
+			})
+
+			for req in self.timelogs_application_table:
+				row = {
+					"target_date": req.target_date,
+					"type": req.type,
+					"request": req.request,
+					"location": req.location,
+					"cost_center": req.cost_center,
+				}
+				new_tla_app.append('timelogs', row)
+
+			new_tla_app.insert()
+			new_tla_app.save()
+			new_tla_app.submit()
+
+	def tla_fill_location_cost_center(self):
+		if self.get("timelogs_application_table"):
+			for t in self.timelogs_application_table:
+				t.location =  self.timelogs_application_location
+				t.cost_center = self.timelogs_application_cost_center
+
+	def validate_timelogs_application(self):
+		for d in self.bad_table:
+			location_list = []
+			cost_center_list = []
+
+			bio_id = frappe.get_value('Employee', d.employee, 'biometrics_id')
+			if not bio_id:
+				frappe.throw(_("<b>Timelogs Application: {0}</b><hr> Employee {1} has no Biometrics ID").format(d.employee, d.employee_name))
+
+			location = frappe.db.sql("""SELECT `name` FROM `tabLocation` WHERE `company` = %s """, (self.company), as_dict=True)
+			for loc in location:
+				location_list.append(loc.name)
+
+			cost_center = frappe.db.sql("""SELECT `name` FROM `tabCost Center` WHERE `company` = %s """, (self.company), as_dict=True)
+			for cos in cost_center:
+				cost_center_list.append(cos.name)
+
+			if self.timelogs_application_location and self.timelogs_application_location not in location_list:
+				frappe.throw(_( "Invalid Location: "+str(self.timelogs_application_location) ))
+			if self.timelogs_application_cost_center and self.timelogs_application_cost_center not in cost_center_list:
+				frappe.throw(_( "Invalid Cost Center: "+str(self.timelogs_application_cost_center) ))
+			for t in self.timelogs_application_table:
+				if t.location and t.location not in location_list:	
+					frappe.throw(_( "Invalid Location: "+str(t.location) ))
+				if t.location and t.location not in location_list:
+					frappe.throw(_( "Invalid Cost Center: "+str(t.cost_center) ))
+
+				#Get Current Time Card
+				if t.type == "Time In":
+					card_type = 0
+				if t.type == "Time Out":
+					card_type = 1
+				if t.type == "Break In":
+					card_type = 2
+				if t.type == "Break Out":
+					card_type = 3
+
+				current = frappe.db.sql("""SELECT TC.`name`, TC.`time` FROM `tabTime Card` TC INNER JOIN `tabEmployee` TE ON TC.biometrics_id = TE.biometrics_id
+					WHERE TC.`date` = %s AND TC.`card_type` = %s AND TE.`name` = %s LIMIT 1 """, (getdate(t.target_date), card_type, d.employee), as_dict=True)
+				if current:
+					t.current = current[0].time
+				else:
+					t.current = None
+
+				if not t.location:
+					t.location = self.timelogs_application_location
+				if not t.cost_center:
+					t.cost_center = self.timelogs_application_cost_center
+
+	def remove_tla_duplicate_entry(self):
+		unique_ent = []
+		unique_entries = []
+		for req in self.timelogs_application_table:
+			if str(req.target_date)+str(req.type) not in unique_ent:
+				unique_ent.append(str(req.target_date)+str(req.type));
+
+				i = {
+					"target_date": req.target_date,
+					"type": req.type,
+					"request": req.request,
+					"location": req.location,
+					"cost_center": req.cost_center,
+				}	
+				unique_entries.append(i);
+
+		self.set('timelogs_application_table', [])
+		for ue in unique_entries:
+			row = self.append('timelogs_application_table', {})
+			row.update(ue)
+
+	def daterange(self, start_date, end_date):
+		for n in range( int((end_date - start_date).days) + 1):
+			yield start_date + datetime.timedelta(n)
+
+	def tla_populate_dates(self):
+		if getdate(self.tla_fromdate) > getdate(self.tla_todate):
+			self.set('timelogs_application_table', [])
+
+		if self.tla_fromdate and self.tla_todate and getdate(self.tla_fromdate) <= getdate(self.tla_todate):
+			entries = []
+			for target_date in self.daterange(getdate(self.tla_fromdate), getdate(self.tla_todate)):
+				i = {
+					"target_date": getdate(target_date),
+					"type": "Time In",
+					"location":  self.timelogs_application_location,
+					"cost_center": self.timelogs_application_cost_center,
+				}
+				entries.append(i);
+				i = {
+					"target_date": getdate(target_date),
+					"type": "Time Out",
+					"location":  self.timelogs_application_location,
+					"cost_center": self.timelogs_application_cost_center,
+				}
+				entries.append(i);
+
+			self.set('timelogs_application_table', [])
+			for ue in entries:
+				row = self.append('timelogs_application_table', {})
+				row.update(ue)
