@@ -30,6 +30,7 @@ class IncidentReport(Document):
 				"involvement": d.involvement,
 				"department": d.department,
 				"offense": self.offense,
+				"reference": self.name
 			})
 
 			new_memo.insert()
