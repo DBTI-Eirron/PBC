@@ -19,8 +19,10 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 				if tl['name'] not in entry['tla_links']:
 					entry['tla_links'].append(tl['name'])
 
+	entry['has_timelog_override'] = 0
 	for over in overrides:
 		if over['target_date'] == entry['target_date']:
+			entry['has_timelog_override'] = 1
 			if over.get("time_in"):
 				entry['card_in'] = get_datetime(str(over.get("time_in")))
 
@@ -2363,6 +2365,10 @@ def get_final_processing(entry):
 	return entry
 
 def get_tags(entry):
+	#Timlogs Override tags
+	if entry['has_timelog_override']:
+		entry["tags"] += "<span class='label label-success'>Timelogs Override</span>"
+
 	#leave tags
 	if entry['lv_status'] == 1:
 		entry["tags"] += "<span class='label label-success'>"+cstr(entry['leave_name'])+"</span>"
