@@ -3012,10 +3012,10 @@ def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_ma
 	if (card_type in [1, 3, "Time out", "Break in"]):
 		to_append = 0
 		if enable_straight_shift and not disable_straight_shift:
-			if lcn_shifts['next_shift_in'] and lcn_shifts['current_shift_in'] <= card_datetime <= lcn_shifts['next_shift_in']:
+			if get_datetime(lcn_shifts['next_shift_in']) and get_datetime(lcn_shifts['current_shift_in']) <= get_datetime(card_datetime) <= get_datetime(lcn_shifts['next_shift_in']):
 				to_append = 1
 		else:
-			if lcn_shifts['post_shift'] <= card_datetime <= lcn_shifts['max_postshift']:
+			if get_datetime(lcn_shifts['post_shift']) <= get_datetime(card_datetime) <= get_datetime(lcn_shifts['max_postshift']):
 				to_append = 1
 
 	return to_append
@@ -3142,7 +3142,7 @@ def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_
 				for c_in in cards_in:
 					if dt['card_type'] == c_in['card_type']:
 						is_valid_dtrp = 1
-						if lcn_shifts['last_shift_cardout'] and dt['card_datetime'] < lcn_shifts['last_shift_cardout']:
+						if get_datetime(lcn_shifts['last_shift_cardout']) and get_datetime(dt['card_datetime']) < get_datetime(lcn_shifts['last_shift_cardout']):
 							is_valid_dtrp = 0
 
 						#if not validate_straight_dtrp(target_date, dtrp):
@@ -3183,7 +3183,7 @@ def get_card_within(entry, target_date, timelogs_map, schedules, shift_map, pre_
 				if no_card_in == 1 or no_break_out == 1:
 					if (dt['card_type'] == 0 or dt['card_type'] == 2):
 						is_valid_dtrp = 1
-						if lcn_shifts['last_shift_cardout'] and dt['card_datetime'] < lcn_shifts['last_shift_cardout']:
+						if get_datetime(lcn_shifts['last_shift_cardout']) and get_datetime(dt['card_datetime']) < get_datetime(lcn_shifts['last_shift_cardout']):
 							is_valid_dtrp = 0
 
 						#if not validate_straight_dtrp(target_date, dtrp):
