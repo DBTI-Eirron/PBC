@@ -94,7 +94,7 @@ def get_cost_center(filters):
 	if filters.cost_center:
 		conditions = "WHERE `name` = %(cost_center)s"
 
-	accounts = frappe.db.sql("""SELECT * FROM `tabCost Center` {conditions} ORDER BY cost_center_code """.format(conditions=conditions),{
+	accounts = frappe.db.sql("""SELECT * FROM `tabCost Center` {conditions} ORDER BY `name` """.format(conditions=conditions),{
 		"company": filters.company,
 		"cost_center": filters.cost_center,
 	}, as_dict=True)
@@ -103,7 +103,7 @@ def get_cost_center(filters):
 
 def get_account_setting_map(filters):
 	acct_map = {}
-	acct_settings = frappe.db.sql("""SELECT TT.`code`, TTA.debit_account, TTA.debit_code, TTA.credit_account, TTA.credit_code
+	acct_settings = frappe.db.sql("""SELECT TT.`code`, TTA.debit_account, TTA.debit_account as debit_code, TTA.credit_account, TTA.credit_account as credit_code
 		FROM `tabTransaction Type` TT  INNER JOIN `tabTransaction Type Accounts` TTA ON TT.`name` = TTA.parent AND TTA.`company` = %(company)s """,{
 		"company": filters.company,
 	}, as_dict=True)
