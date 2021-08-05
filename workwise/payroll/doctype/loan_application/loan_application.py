@@ -91,7 +91,7 @@ class LoanApplication(Document):
 					
 				total_payables = unpaid_amount 
 				actual_beginning_balance = self.beginning_balance
-				start = datetime.datetime.strptime(self.payment_start, '%Y-%m-%d')
+				start = datetime.datetime.strptime(str(getdate(self.payment_start)), '%Y-%m-%d')
 				
 				if self.freq_method == "Relative Month":
 					relative = cint(self.relative_month) or 1 
