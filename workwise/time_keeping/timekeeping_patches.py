@@ -1384,3 +1384,6 @@ def update_loans_status():
 				status = "Cancelled"
 
 			doc.db_set("status", status)
+
+def remove_loan_payment_frequency_whitespaces():
+	frappe.db.sql("""UPDATE `tabLoan Application` SET payment_frequency=TRIM(payment_frequency) """)

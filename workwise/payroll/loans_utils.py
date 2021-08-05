@@ -77,7 +77,7 @@ def get_employee_loan(emp, header, register, loans_map, frequency):
 					elif cint(header.get("no_weeks")) == cint(4) and frequency == "4th":
 						append_al(al, loans_register)
 			else:
-				if al.payment_frequency == frequency or al.payment_frequency == 'Both':
+				if str(al.payment_frequency).strip() == str(frequency).strip() or str(al.payment_frequency).strip() == 'Both':
 					append_al(al, loans_register)
 		#dated loans
 		for dl in loans_map[emp.get('name')].dated_loans:
