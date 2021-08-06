@@ -451,7 +451,9 @@ class PayrollProcessing(Document):
 			else:
 				rates['monthly_rate'] = amt
 				rates['monthly_rate'] = header['daily_basic']
-
+			if emp.get('payroll_schedule') == "Weekly":
+				amt = rates.get('weekly_rate')
+				
 		elif emp.get('payroll_schedule') == "Weekly":
 			amt = rates.get('weekly_rate')
 
@@ -466,7 +468,7 @@ class PayrollProcessing(Document):
 				amt += flt(rates.get('daily_rate'), 8) * header.get('paid_holidays')
 				
 		header['basic'] = amt
-		if emp.get('rate_type') != "Daily Rate":
+		if not(emp.get('rate_type') == "Daily Rate" and emp.get('is_attendance_base') == 1):
 			register.append({"pay_code": "BS", "amount": amt})
 
 	def get_sss(self, emp, rates, header, register, tr_map, sss_table, weekly_prev_map):
