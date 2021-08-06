@@ -26,6 +26,8 @@ def execute(filters=None):
 		row = [gov_map[emp]['employee'], gov_map[emp]['full_name'], gov_map[emp]['sss_no']]
 		total_sss = 0
 		for trans in transaction_type:
+			to_append = 1
+
 			if not filters.mpf:
 				if trans == "SSS":
 					gov_map[emp][trans] += gov_map[emp]["SSSEEMPF"]
@@ -34,7 +36,19 @@ def execute(filters=None):
 
 			sss_amount = gov_map[emp][trans]
 			total_sss += sss_amount
-			row.append(format_precision(sss_amount, filters.value_precision))
+
+			if not filters.mpf:
+				if trans == "SSS":
+					total_sss -= gov_map[emp]["SSSEEMPF"]
+				if trans == "SSSE":
+					total_sss -= gov_map[emp]["SSSERMPF"]
+
+			if not filters.mpf:
+				if trans in ['SSSEEMPF', 'SSSERMPF']:
+					to_append = 0
+
+			if to_append:
+				row.append(format_precision(sss_amount, filters.value_precision))
 
 		if total_sss > 0:
 			final_employee += flt(gov_map[emp]["SSS"])
