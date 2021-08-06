@@ -21,7 +21,7 @@ def execute(filters=None):
 	columns = get_columns(income_types, deduction_types)
 	
 	final_total_row = ["<b> Total</b>",""]
-	f_total_income, f_total_deduction, f_total_payroll = 0, 0, 0
+	f_total_income, f_total_deduction, f_total_payroll, f_total_present_days = 0, 0, 0, 0
 	f_income_total, f_deduction_total = [], []
 
 	for f_income in income_types:
@@ -37,7 +37,7 @@ def execute(filters=None):
 			data.append([dept_name])
 			income_map = get_income_map(filters, employee_list)
 			deduction_map = get_deduction_map(filters, employee_list)
-			dtotal_income, dtotal_deduction, dtotal_payroll = 0, 0, 0
+			dtotal_income, dtotal_deduction, dtotal_payroll, total_present_days = 0, 0, 0, 0
 			income_total, deduction_total = [], []
 			total_row = ["<b> Total</b>",""]
 
@@ -48,7 +48,7 @@ def execute(filters=None):
 				deduction_total.append(0)
 
 			for emp in employee_list:
-				row = [emp.employee, emp.employee_name]
+				row = [emp.employee, emp.employee_name, emp.present_days]
 				total_payroll, total_income, total_deduction = 0, 0, 0
 
 				i = 0
@@ -67,6 +67,7 @@ def execute(filters=None):
 					row.append(format_precision(deduction_amount, filters.value_precision))
 					i += 1
 
+				total_present_days = total_present_days + emp.present_days
 				total_payroll = flt(total_income, 8) - flt(total_deduction, 8)
 				row += [format_precision(total_income, filters.value_precision), format_precision(total_deduction, filters.value_precision), format_precision(total_payroll, filters.value_precision)]
 				dtotal_income += flt(total_income, 2)
@@ -74,6 +75,8 @@ def execute(filters=None):
 				dtotal_payroll += flt(total_payroll, 2)
 				data.append(row)
 
+			total_row += [format_precision(total_present_days, filters.value_precision)]
+			f_total_present_days += total_present_days
 			i = 0
 			for income in income_types:
 				total_row.append(format_precision(income_total[i], filters.value_precision))
@@ -93,6 +96,7 @@ def execute(filters=None):
 			data.append(total_row)
 
 	#Final Total
+	final_total_row += [format_precision(f_total_present_days, filters.value_precision)]
 	i = 0
 	for income in income_types:
 		final_total_row.append(format_precision(f_income_total[i], filters.value_precision))
@@ -140,6 +144,12 @@ def get_columns(income_types, deduction_types):
 			"fieldtype": "Data",
 			"width": 200
 		},
+		{
+			"fieldname": "present_days",
+			"label": _("Present Days"),
+			"fieldtype": "Data",
+			"width": 100
+		},
 	]
 
 	for pay_code in income_types:
@@ -184,7 +194,7 @@ def get_columns(income_types, deduction_types):
 	return columns
 
 def get_employees(filters, department):
-	employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name
+	employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days
 	FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 	WHERE PR.period = %(period)s
 	AND PR.on_hold = 0
