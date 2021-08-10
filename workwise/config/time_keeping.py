@@ -170,7 +170,6 @@ def get_data():
 				{
 					"type": "report",
 					"name": "CTO Balance Report",
-					"doctype": "CTO Balance Report",	
 					"is_query_report": True
 				},
 				{
@@ -266,7 +265,6 @@ def get_data():
 				{
 					"type": "report",
 					"name": "Workdays Summary",
-					"doctype": "Workdays Summary",
 					"is_query_report": True
 				},
 			],

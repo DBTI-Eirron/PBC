@@ -58,7 +58,6 @@ def get_data():
 				{
 					"type": "report",
 					"name": "Plantilla Report",
-					"doctype": "Plantilla Report",	
 					"is_query_report": True
 				},
 			]
