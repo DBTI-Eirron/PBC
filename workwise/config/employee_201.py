@@ -155,7 +155,8 @@ def get_data():
 			"items": [
 				{
 					"type": "doctype",
-					"name": "Employee Record Settings",				},
+					"name": "Employee Record Settings",				
+				},
 				{
 					"type": "doctype",
 					"name": "Employee Subordinates",
@@ -213,13 +214,13 @@ def get_data():
 				{
 					"type": "report",
 					"name": "Gender per Company",
-					"doctype": "Gender per Company",	
+					"doctype": "Employee",	
 					"is_query_report": True
 				},
 				{
 					"type": "report",
 					"name": "Age per Company",
-					"doctype": "Age per Company",	
+					"doctype": "Employee",	
 					"is_query_report": True
 				},
 			]
