@@ -190,7 +190,7 @@ class PayrollPeriod(Document):
 					if register:
 						letter_head = frappe.db.get_value("Company", emp.company, "default_letter_head")
 						
-						loan = frappe.db.sql("""SELECT PRE.*, unpaid_amount, total_loan,
+						loan = frappe.db.sql("""SELECT PRE.pay_code, LA.unpaid_amount, LA.total_loan, LA.paid_amount,
 						(SELECT COUNT(`name`) FROM `tabLoan Application Payments` WHERE parent = PRE.linked_document and payment_status = 'Paid' and payment_date <= %(pdate)s) as count
 						FROM `tabPayroll Register`  PR
 						INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
@@ -214,7 +214,7 @@ class PayrollPeriod(Document):
 							ps.append("loan", {
 								"loan_type": ln.pay_code,
 								"number_payment": ln.count,
-								"paid_amount":ln.amount,
+								"paid_amount":ln.paid_amount,
 								"loan_amount":ln.total_loan,
 								"outstanding_balance":ln.unpaid_amount,
 							})
