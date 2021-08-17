@@ -156,9 +156,9 @@ def get_data(filters):
 		data.append({})
 	
 	for per in sorted(data_entry.keys()):
-		data += [{"employee":"<b>"+str(per)+"</b>"}]
+		data += [{"employee":"<b>"+cstr(per)+"</b>"}]
 		for loc in sorted(data_entry[per].keys()):
-			data += [{"employee":"<b>"+str(loc)+"</b>"}]
+			data += [{"employee":"<b>"+cstr(loc)+"</b>"}]
 			for ent in data_entry[per][loc]:
 				if ent:
 					data += ent
