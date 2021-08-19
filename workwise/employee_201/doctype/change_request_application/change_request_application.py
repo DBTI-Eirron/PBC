@@ -58,6 +58,18 @@ class ChangeRequestApplication(Document):
 			for item in item_sel:
 				if item_req.action == "Approved":
 					frappe.db.set_value("Employee", self.employee, item.fieldname, item_req.current)
+					
+		for item_req in self.get("change_request"):
+			if item_req.item == "Middle Name" or item_req.item == "First Name" or item_req.item == "Last Name" or item_req.item == "Suffix":
+				middle_name, first_name, last_name, suffix = frappe.db.get_value("Employee", self.employee, ["middle_name", "first_name", "last_name", "suffix"])
+				full_name = ""
+				if middle_name:
+					full_name = last_name + ', ' + first_name + ' ' + middle_name
+				else:
+					full_name = last_name + ', ' + first_name
+				if suffix:
+					full_name = full_name + ', ' + suffix + '.'
+				frappe.db.set_value("Employee", self.employee, "full_name", full_name)
 
 	def cancel_request_address(self):
 		for item_req in self.get("change_request_address"):
@@ -111,6 +123,18 @@ class ChangeRequestApplication(Document):
 				
 				if item_req.action == "Approved":
 					frappe.db.set_value("Employee", self.employee, item.fieldname, item_req.request)
+
+		for item_req in self.get("change_request"):
+			if item_req.item == "Middle Name" or item_req.item == "First Name" or item_req.item == "Last Name" or item_req.item == "Suffix":
+				middle_name, first_name, last_name, suffix = frappe.db.get_value("Employee", self.employee, ["middle_name", "first_name", "last_name", "suffix"])
+				full_name = ""
+				if middle_name:
+					full_name = last_name + ', ' + first_name + ' ' + middle_name
+				else:
+					full_name = last_name + ', ' + first_name
+				if suffix:
+					full_name = full_name + ', ' + suffix + '.'
+				frappe.db.set_value("Employee", self.employee, "full_name", full_name)
 
 	def approve_request_address(self):
 		for item_req in self.get("change_request_address"):
