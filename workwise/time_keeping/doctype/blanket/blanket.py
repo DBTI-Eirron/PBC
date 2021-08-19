@@ -1139,6 +1139,8 @@ class Blanket(Document):
 				"company": self.company,
 				"location": self.timelogs_application_location,
 				"reason": self.dtr_reason,
+				"from_date": self.tla_fromdate,
+				"to_date": self.tla_todate,
 				"cost_center": self.timelogs_application_cost_center,
 				"approved_on": nowdate(),
 				"workflow_state": "Approved",
