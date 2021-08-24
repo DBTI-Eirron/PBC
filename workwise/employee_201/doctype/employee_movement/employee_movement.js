@@ -16,7 +16,7 @@ cur_frm.add_fetch('employee', 'date_hired', 'current_date_hired');
 cur_frm.add_fetch('employee', 'rate_type', 'current_rate_type');
 cur_frm.add_fetch('employee', 'cost_center', 'current_cost_center');
 cur_frm.add_fetch('employee', 'job_grade', 'emp_current_job_grade');
-
+cur_frm.add_fetch('employee', 'date_hired', 'date_hired');
 //cur_frm.add_fetch('employee', 'rate', 'current_rate');
 //cur_frm.add_fetch('employee', 'min_take_home', 'current_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'current_attendance_base');
