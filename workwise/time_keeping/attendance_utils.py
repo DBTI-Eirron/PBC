@@ -3959,7 +3959,7 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 
 	conditions = "and {}".format(" and ".join(conditions_list)) if conditions_list else ""
 	if monthly_approval_cutoffs and not adjustment:
-		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`dtr_date`, DT.`request`) as card_datetime, 
 			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`, DA.`is_previous`
 			FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` INNER JOIN `tabPayroll Period` PP ON DA.`company` = PP.`company`
 			WHERE DA.`workflow_state` = 'Approved'
@@ -3967,7 +3967,7 @@ def get_all_dtrp(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustmen
 			AND CONVERT(DA.`approved_on`, DATE) <= PP.`approval_cutoff` AND DA.`target_date` BETWEEN PP.`attendance_from` and PP.`attendance_to` {conditions}
 			ORDER BY card_datetime """.format( conditions=conditions ), (pay_from, pay_to), as_dict=1)
 	else:
-		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+		dtr_apps = frappe.db.sql(""" SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`dtr_date`, DT.`request`) as card_datetime, 
 			DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`, DA.`is_previous`
 			FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name`
 			WHERE DA.`workflow_state` = 'Approved'
