@@ -17,7 +17,6 @@ class ChangeScheduleApplication(Document):
 		#if emp_app < 1:
 		#	self.change_sched()
 		validate_approve_own_application(self)
-		change_owner(self)
 		self.get_recipients()
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
@@ -52,6 +51,8 @@ class ChangeScheduleApplication(Document):
 		grant_head_subordinate_access(self)
 		self.validate_dates()
 		self.validate_existing_application()
+		self.get_recipients()
+		change_owner(self)
 
 	def validate_dates(self):
 		unique_ent = []
