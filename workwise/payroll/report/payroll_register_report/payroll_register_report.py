@@ -117,7 +117,23 @@ def execute(filters=None):
 			x = 0
 			while x < colen:
 				if columns[x]['fieldname'] not in ["employee", "employee_name", "present_days", "position_title", "total_income", "total_deduction", "total_payroll"]:
-					if totals[columns[x]['fieldname']] <= 0:
+					if columns[x]['fieldname'] in totals:
+						if totals[columns[x]['fieldname']] <= 0:
+							del columns[x]
+							if filters.include_header:
+								row_num = 3
+								if filters.location:
+									row_num = 4
+									
+								for y,d in enumerate(data[row_num:]):
+									del data[y+row_num][x]
+							else:
+								for y,d in enumerate(data):
+									del data[y][x]
+							colen -= 1
+						else:
+							x +=1
+					else:
 						del columns[x]
 						if filters.include_header:
 							row_num = 3
@@ -130,8 +146,6 @@ def execute(filters=None):
 							for y,d in enumerate(data):
 								del data[y][x]
 						colen -= 1
-					else:
-						x +=1
 				else:
 					x += 1
 
