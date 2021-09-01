@@ -30,9 +30,17 @@ def execute(filters=None):
 	for f_deduction in deduction_types:
 		f_deduction_total.append(0)
 
+	holiday_to_presentday_report = frappe.db.get_single_value('Payroll Settings', 'holiday_to_presentday_report')
 	for department in department_list:
 		dept_name = "<b>"+ cstr(department.name) +"</b>"
 		employee_list = get_employees(filters, department.name)
+		if holiday_to_presentday_report:
+			holidays = get_holiday(filters, department.name)
+			holiday_present = {}
+			for h in holidays:
+				if h.employee not in holiday_present:
+					holiday_present[h.employee] = 0
+				holiday_present[h.employee] += 1
 		if employee_list:
 			data.append([dept_name])
 			income_map = get_income_map(filters, employee_list)
@@ -48,6 +56,8 @@ def execute(filters=None):
 				deduction_total.append(0)
 
 			for emp in employee_list:
+				if holiday_to_presentday_report:
+					emp.present_days = emp.present_days + holiday_present[emp.employee]
 				row = [emp.employee, emp.employee_name, emp.present_days]
 				total_payroll, total_income, total_deduction = 0, 0, 0
 
@@ -220,6 +230,12 @@ def get_department(filters):
 	}, as_dict=1)
 
 	return department
+
+def get_holiday(filters, department):
+	attendance_from, attendance_to = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to"])
+	holiday = frappe.db.sql("""SELECT AR.target_date, AR.employee FROM `tabAttendance Register` AR INNER JOIN `tabEmployee` TE ON AR.employee = TE.`name`
+		WHERE AR.target_date >= %s AND AR.target_date <= %s AND  TE.`department`=%s AND AR.is_holiday = '1'""",(attendance_from, attendance_to, department), as_dict=1)
+	return holiday
 
 def get_conditions(filters):
 	conditions = []
