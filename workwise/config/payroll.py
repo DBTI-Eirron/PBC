@@ -318,7 +318,6 @@ def get_data():
 				{
 					"type": "report",
 					"name": "SSS Premium Contribution",
-					"doctype": "SSS Premium Contribution",	
 					"is_query_report": True
 				},
 				{
@@ -329,7 +328,6 @@ def get_data():
 				{
 					"type": "report",
 					"name": "PhilHealth Premium Contribution",
-					"doctype": "PhilHealth Premium Contribution",	
 					"is_query_report": True
 				},
 				{

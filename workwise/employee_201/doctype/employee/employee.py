@@ -302,8 +302,8 @@ class Employee(Document):
 			if not is_active:
 				frappe.throw(_("Approver {0}: {1} is not active").format(d.approver, d.approver_name))
 
-			if d.approver and d.application and d.level and str(d.approver+d.application+d.level) not in unique_emp:
-				unique_emp.append(str(d.approver+d.application+d.level));
+			if d.approver and d.application and d.level and str(d.approver)+str(d.application)+str(d.level) not in unique_emp:
+				unique_emp.append(str(d.approver)+str(d.application)+str(d.level));
 
 				i = {
 					"approver": d.approver,

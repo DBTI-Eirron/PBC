@@ -451,7 +451,9 @@ class PayrollProcessing(Document):
 			else:
 				rates['monthly_rate'] = amt
 				rates['monthly_rate'] = header['daily_basic']
-
+			if emp.get('payroll_schedule') == "Weekly":
+				amt = rates.get('weekly_rate')
+				
 		elif emp.get('payroll_schedule') == "Weekly":
 			amt = rates.get('weekly_rate')
 
@@ -466,7 +468,7 @@ class PayrollProcessing(Document):
 				amt += flt(rates.get('daily_rate'), 8) * header.get('paid_holidays')
 				
 		header['basic'] = amt
-		if emp.get('rate_type') != "Daily Rate":
+		if not(emp.get('rate_type') == "Daily Rate" and emp.get('is_attendance_base') == 1):
 			register.append({"pay_code": "BS", "amount": amt})
 
 	def get_sss(self, emp, rates, header, register, tr_map, sss_table, weekly_prev_map):
@@ -1811,12 +1813,12 @@ class PayrollProcessing(Document):
 			if attendance:
 				ws_halfday_tags = ["1sthalf Work Suspension", "2ndhalf Work Suspension"]
 				ws_wholeday_tag = ["Work Suspension"]
-				total_cto_days, total_work_days, total_absent_days, total_present_days, total_pho_days, total_hourly_basic, total_nwho_days, total_dl_days = 0, 0, 0, 0, 0, 0, 0, 0
+				total_cto_days, total_work_days, total_absent_days, total_present_days, total_pho_days, total_hourly_basic, total_nwho_days, total_dl_days, total_lv_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
 				cur_suc_hol_wout_before, before_holiday_work, before_sp_work = 0, 0, 0
 				is_uho, no_previous, dho_amount, work_hrs, paid_leave, total_work = 0, 0, 0, 0, 0, 0
 				all_restday_sched, total_restday_count = 1, 0
 				for at in attendance:
-					cto_days, work_days, absent_days, present_days, pho_days, hourly_basic, nwho_days = 0, 0, 0, 0, 0, 0, 0
+					cto_days, work_days, absent_days, present_days, pho_days, hourly_basic, nwho_days, lv_days = 0, 0, 0, 0, 0, 0, 0, 0
 					basic_salary, absent, late, undertime, unpaid_holiday, cto, nightdiff = 0, 0, 0, 0, 0, 0, 0
 					dl_days, pho_days, uho_days = 0, 0, 0
 					if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
@@ -1855,6 +1857,9 @@ class PayrollProcessing(Document):
 
 						if at.is_holiday and at.work <= 0:
 							nwho_days += 1
+						
+						if at.lv_status and (not at.is_lwop) and at.lv_status == 1:
+							lv_days += 1
 
 						if at.late > 0:
 							late += flt(at.late, 8) * flt(rates.get('hourly_rate'), 8)
@@ -2222,6 +2227,7 @@ class PayrollProcessing(Document):
 						total_hourly_basic += hourly_basic
 						total_nwho_days += nwho_days
 						total_dl_days += dl_days
+						total_lv_days += lv_days
 
 						attendance_register.append({
 							"BS": basic_salary,
@@ -2268,6 +2274,7 @@ class PayrollProcessing(Document):
 				header['paid_holidays'] = total_pho_days
 				header['hourly_basic'] = total_hourly_basic
 				header['nwho_days'] = total_nwho_days
+				header['leave_days'] = total_lv_days
 			else:
 				header['no_attendance'] = 1
 

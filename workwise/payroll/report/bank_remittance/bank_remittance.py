@@ -210,10 +210,22 @@ def get_columns(filters):
 				"width": 180
 			},
 			{
-				"fieldname": "employee_name",
-				"label": _("Employee Name"),
+				"fieldname": "last_name",
+				"label": _("Last Name"),
 				"fieldtype": "Data",
-				"width": 180
+				"width": 160
+			},
+			{
+				"fieldname": "first_name",
+				"label": _("First Name"),
+				"fieldtype": "Data",
+				"width": 160
+			},
+			{
+				"fieldname": "middle_name",
+				"label": _("Midlle Name"),
+				"fieldtype": "Data",
+				"width": 160
 			},
 			{
 				"fieldname": "branch_code",
@@ -432,7 +444,9 @@ def get_result_as_list(data_list, filters):
 		for d in data:
 			row = {
 			"employee_code": count,
-			"employee_name": d.get("employee_name"),
+			"last_name": d.get("last_name"),
+			"first_name": d.get("first_name"),
+			"middle_name": d.get("middle_name"),
 			"branch_code": d.get("branch_code"),
 			"payroll_acct_no": d.get("employee_account"),
 			"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),

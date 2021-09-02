@@ -1,5 +1,6 @@
 cur_frm.add_fetch('employee','full_name','full_name');
 cur_frm.add_fetch('employee','company','company');
+cur_frm.add_fetch('employee','department','department');
 
 frappe.ui.form.on('Official Business Application', {
 	onload: function(frm) {

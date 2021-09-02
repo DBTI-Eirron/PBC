@@ -24,19 +24,16 @@ def get_data():
 				{
 					"type": "report",
 					"name": "Comparison per Department",
-					"doctype": "Comparison per Department",	
 					"is_query_report": True
 				},
 				{
 					"type": "report",
 					"name": "Individual Rating Summary",
-					"doctype": "Individual Rating Summary",	
 					"is_query_report": True
 				},
 				{
 					"type": "report",
 					"name": "Performance Summary",
-					"doctype": "Performance Summary",	
 					"is_query_report": True
 				},
 			]

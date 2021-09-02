@@ -1387,3 +1387,11 @@ def update_loans_status():
 
 def remove_loan_payment_frequency_whitespaces():
 	frappe.db.sql("""UPDATE `tabLoan Application` SET payment_frequency=TRIM(payment_frequency) """)
+
+def add_derpartment_on_tk_applications():
+	applications = ["Leave Application", "Overtime Application", "Official Business Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "DTR Problem Application", "Compensatory Time Off", "Timelogs Application"]
+	for application in applications:
+		try:
+			frappe.db.sql("""UPDATE `tab{0}` AP SET AP.`department`=(SELECT `department` FROM `tabEmployee` WHERE `name`=AP.`employee` ) WHERE AP.`department` IS NULL """.format(application))
+		except Exception as e:
+			pass
