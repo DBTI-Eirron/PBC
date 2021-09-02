@@ -612,11 +612,16 @@ def get_overtime(entry, ot_apps):
 								ot_nd_end = nd_end
 								
 						if enable_otndex:
-							ot_nd_end = ot_in + timedelta(hours=8)
+							if ot_in and ot_nd_end:
+								if ot_nd_end >= ot_in + timedelta(hours=8):
+									ot_nd_end = min(ot_nd_end, ot_in + timedelta(hours=8))
 	
 					#Get ND OT and Calculate ND OT From Start to End
 					if ot_nd_start and ot_nd_end and ot_nd_start < ot_nd_end:
-						ot_nd = abs((ot_nd_start - ot_nd_end).total_seconds())	
+						ot_nd = abs((ot_nd_start - ot_nd_end).total_seconds())
+						if enable_otndex:
+							if abs((ot_nd_start - ot_nd_end).total_seconds()) >= 28800:
+								ot_nd = 28800
 
 					otndbrk = 0
 					ot_nd_user_brk = 0
