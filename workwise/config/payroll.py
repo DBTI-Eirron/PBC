@@ -196,6 +196,16 @@ def get_data():
 					"is_query_report": True
 				},{
 					"type": "report",
+					"name": "Adjustment Summary Processed",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Adjustment Diffference Report",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
 					"name": "Minimum Take Home",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
