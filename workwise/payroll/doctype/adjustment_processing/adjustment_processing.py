@@ -87,7 +87,6 @@ class AdjustmentProcessing(Document):
 			frappe.throw(_("Target Period and Payroll Period Should have the same Company"))
 
 	def get_adjusted(self, emp_adj_map, ot_adj_list, employees):
-
 		data = []
 		#Validate Inactive Employee
 		if self.employee:
@@ -108,32 +107,33 @@ class AdjustmentProcessing(Document):
 		shift_map = get_shift_map()
 		emp_map = init_employee_map(employees, None, self.company, pay_from, pay_to, approval_cutoff, 1)
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
-			complete_sched(emp_dict, pay_from, pay_to, template_map)
+			complete_sched(emp_dict, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 			processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
-				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
-				cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
-					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
-				get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
-				get_multi_breaks(entry, cards_in, cards_out)
-				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
-					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
-
-				entry['break'] = self.convert_secs(entry['break'])
-				entry['work'] = self.convert_secs(entry['work'])
-				entry['late'] = self.convert_secs(entry['late'])
-				entry['undertime'] = self.convert_secs(entry['undertime'])
-				entry['overtime'] = self.convert_secs(entry['overtime'])
-				entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
-				entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
-				entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
-				entry['cto'] = self.convert_secs(entry['cto'])
-				if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
-					entry['earlynightdiff'] = self.convert_secs(entry['earlynightdiff'])
-					entry['latenightdiff'] = self.convert_secs(entry['latenightdiff'])
-				data.append(entry)
-
+				if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
+					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
+					cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
+						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+					get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
+					get_multi_breaks(entry, cards_in, cards_out)
+					get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
+						emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+	
+					entry['break'] = self.convert_secs(entry['break'])
+					entry['work'] = self.convert_secs(entry['work'])
+					entry['late'] = self.convert_secs(entry['late'])
+					entry['undertime'] = self.convert_secs(entry['undertime'])
+					entry['overtime'] = self.convert_secs(entry['overtime'])
+					entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
+					entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
+					entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
+					entry['cto'] = self.convert_secs(entry['cto'])
+					if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
+						entry['earlynightdiff'] = self.convert_secs(entry['earlynightdiff'])
+						entry['latenightdiff'] = self.convert_secs(entry['latenightdiff'])
+					data.append(entry)
+	
 		for d in data:
 			if d['employee'] in emp_adj_map:
 				emp_adj_map[d['employee']].adjustment.append(d)
@@ -194,13 +194,76 @@ class AdjustmentProcessing(Document):
 			"nd_rate_class": frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'),
 			"ot_rate_class": frappe.db.get_single_value('Payroll Settings', 'ot_rate_class'),
 		}
-
+		if self.exclude_processed_adjustment:
+			past_adjustment = frappe.db.sql("""SELECT * FROM `tabAdjustment Register` 
+				WHERE payroll_period = %s AND target_period != %s """,(self.period, self.target_period), as_dict=1)
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
-			frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s AND payroll_period = %s  """,(emp_dict['employee'], self.period), as_dict=1)
-			adjustment = self.get_attendance_result(emp_dict['employee_details'], emp_dict['adjustment'], self.attendance_from, self.attendance_to, emp_dict['adjustment_ot'], ot_map, sys_settings, "adjustment")
-			processed = self.get_attendance_result(emp_dict['employee_details'], emp_dict['processed'], self.attendance_from, self.attendance_to, emp_dict['processed_ot'], ot_map, sys_settings, "processed")
+			if not self.exclude_processed_adjustment:
+				frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s AND payroll_period = %s  """,(emp_dict['employee'], self.period), as_dict=1)
+				frappe.db.sql("""DELETE FROM `tabAdjustment Register Adjusted` WHERE employee = %s AND payroll_period = %s  """,(emp_dict['employee'], self.period), as_dict=1)
+				frappe.db.sql("""DELETE FROM `tabAdjustment Register Processed` WHERE employee = %s AND payroll_period = %s  """,(emp_dict['employee'], self.period), as_dict=1)
+				frappe.db.sql("""DELETE FROM `tabOvertime Adjustment Register` WHERE employee = %s AND previous_payroll_period = %s  """,(emp_dict['employee'], self.period), as_dict=1)
+			if self.exclude_processed_adjustment:
+				frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE employee = %s AND payroll_period = %s AND target_period = %s  """,(emp_dict['employee'], self.period, self.target_period), as_dict=1)
+				frappe.db.sql("""DELETE FROM `tabAdjustment Register Adjusted` WHERE employee = %s AND payroll_period = %s AND target_period = %s  """,(emp_dict['employee'], self.period, self.target_period), as_dict=1)
+				frappe.db.sql("""DELETE FROM `tabAdjustment Register Processed` WHERE employee = %s AND payroll_period = %s AND target_period = %s  """,(emp_dict['employee'], self.period, self.target_period), as_dict=1)
+				frappe.db.sql("""DELETE FROM `tabOvertime Adjustment Register` WHERE employee = %s AND previous_payroll_period = %s AND current_payroll_period = %s  """,(emp_dict['employee'], self.period, self.target_period), as_dict=1)	
+			adjustment, adjustment_time = self.get_attendance_result(emp_dict['employee_details'], emp_dict['adjustment'], self.attendance_from, self.attendance_to, emp_dict['adjustment_ot'], ot_map, sys_settings, "adjustment")
+			processed, processed_time = self.get_attendance_result(emp_dict['employee_details'], emp_dict['processed'], self.attendance_from, self.attendance_to, emp_dict['processed_ot'], ot_map, sys_settings, "processed")
 			rates = get_rates(emp_dict['employee_details'])
-			
+
+			if self.exclude_processed_adjustment:
+				for p in past_adjustment:
+					if emp_dict['employee_details']['name'] == p.employee:
+						adjustment_time['work']  = adjustment_time['work'] - p['adjusted_work_hrs']
+						adjustment_time['absent'] = adjustment_time['absent'] - p['adjusted_absent_hrs']
+						adjustment_time['undertime'] = adjustment_time['undertime'] - p['adjusted_undertime_hrs']
+						adjustment_time['nd'] = adjustment_time['nd'] - p['adjusted_nd_hrs']
+						adjustment_time['late'] = adjustment_time['late'] - p['adjusted_late_hrs']
+						adjustment_time['overtime'] = adjustment_time['overtime'] - p['adjusted_overtime_hrs']
+						adjustment_time['cto'] = adjustment_time['cto'] - p['adjusted_cto_hrs']
+						adjustment_time['uho'] = adjustment_time['uho'] - p['adjusted_uho_hrs']
+						adjustment['absent_days'] = adjustment.get('absent_days') - p['absent']
+						adjustment['AT'] = adjustment.get('AT') - p['absent']
+						adjustment['UHO'] = adjustment['UHO'] - p['unpaid_holiday']
+						adjustment['OT'] = adjustment['OT'] - p['overtime']
+						adjustment['ND'] = adjustment['ND'] - p['nightdiff']
+						adjustment['LT'] = adjustment['LT'] - p['late']
+						adjustment['UT'] = adjustment['UT'] - p['undertime']
+						adjustment['CTO'] = adjustment['CTO'] - p['compensatory']
+						for l in list(adjustment['adjusted_leave_application_links']):
+							if str(l) in str(p['adjusted_leave_application_links']):
+								adjustment['adjusted_leave_application_links'].remove(l)
+		
+						for o in list(adjustment['adjusted_overtime_application_links']):
+							if str(o) in str(p['adjusted_overtime_application_links']):
+								adjustment['adjusted_overtime_application_links'].remove(o)
+
+						for ob in list(adjustment['adjusted_official_business_application_links']):
+							if str(ob) in str(p['adjusted_official_business_application_links']):
+								adjustment['adjusted_official_business_application_links'].remove(ob)
+
+						for e in list(adjustment['adjusted_excuse_tardiness_application_links']):
+							if str(e) in str(p['adjusted_excuse_tardiness_application_links']):
+								adjustment['adjusted_excuse_tardiness_application_links'].remove(e)
+
+						for u in list(adjustment['adjusted_undertime_application_links']):
+							if str(u) in str(p['adjusted_undertime_application_links']):
+								adjustment['adjusted_undertime_application_links'].remove(u)
+
+						for d in list(adjustment['adjusted_dtr_problem_application_links']):
+							if str(d) in adjustment.get('adjusted_dtr_problem_application_links'):
+								adjustment['adjusted_dtr_problem_application_links'].remove(d)
+
+						for c in list(adjustment['adjusted_compensatory_time_off_links']):
+							if str(c) in adjustment.get('adjusted_compensatory_time_off_links'):
+								adjustment['adjusted_compensatory_time_off_links'].remove(c)
+
+						for t in list(adjustment['adjusted_timelogs_application_links']):
+							if str(t) in adjustment.get('adjusted_timelogs_application_links'):
+								adjustment['adjusted_timelogs_application_links'].remove(t)
+
+
 			reg = {
 				"employee": emp_dict['employee'],
 				"employee_name": emp_dict['employee_name'],
@@ -214,6 +277,40 @@ class AdjustmentProcessing(Document):
 				"late": adjustment.get('LT') - processed.get('LT'),
 				"undertime":  adjustment.get('UT') - processed.get('UT'),
 				"compensatory":  adjustment.get('CTO') - processed.get('CTO'),
+				"processed_work_hrs": processed_time['work'],
+				"processed_absent_hrs": processed_time['absent'],
+				"processed_undertime_hrs": processed_time['undertime'],
+				"processed_nd_hrs": processed_time['nd'],
+				"processed_late_hrs": processed_time['late'],
+				"processed_overtime_hrs": processed_time['overtime'],
+				"processed_cto_hrs": processed_time['cto'],
+				"processed_uho_hrs": processed_time['uho'],
+				"adjusted_work_hrs": adjustment_time['work'],
+				"adjusted_absent_hrs": adjustment_time['absent'],
+				"adjusted_undertime_hrs": adjustment_time['undertime'],
+				"adjusted_nd_hrs": adjustment_time['nd'],
+				"adjusted_late_hrs": adjustment_time['late'],
+				"adjusted_overtime_hrs": adjustment_time['overtime'],
+				"adjusted_cto_hrs": adjustment_time['cto'],
+				"adjusted_uho_hrs": adjustment_time['uho'],
+				#Processed Links
+				"processed_leave_application_links": str(processed.get('processed_leave_application_links')),
+				"processed_overtime_application_links": str(processed.get('processed_overtime_application_links')),
+				"processed_official_business_application_links": str(processed.get('processed_official_business_application_links')),
+				"processed_excuse_tardiness_application_links": str(processed.get('processed_excuse_tardiness_application_links')),
+				"processed_undertime_application_links": str(processed.get('processed_undertime_application_links')),
+				"processed_dtr_problem_application_links": str(processed.get('processed_dtr_problem_application_links')),
+				"processed_compensatory_time_off_links": str(processed.get('processed_compensatory_time_off_links')),
+				"processed_timelogs_application_links": str(processed.get('processed_timelogs_application_links')),
+				#Adjusted Links
+				"adjusted_leave_application_links": str(adjustment.get('adjusted_leave_application_links')),
+				"adjusted_overtime_application_links": str(adjustment.get('adjusted_overtime_application_links')),
+				"adjusted_official_business_application_links": str(adjustment.get('adjusted_official_business_application_links')),
+				"adjusted_excuse_tardiness_application_links": str(adjustment.get('adjusted_excuse_tardiness_application_links')),
+				"adjusted_undertime_application_links": str(adjustment.get('adjusted_undertime_application_links')),
+				"adjusted_dtr_problem_application_links": str(adjustment.get('adjusted_dtr_problem_application_links')),
+				"adjusted_compensatory_time_off_links": str(adjustment.get('adjusted_compensatory_time_off_links')),
+				"adjusted_timelogs_application_links": str(adjustment.get('adjusted_timelogs_application_links')),
 			}
 			if emp_dict['rate_type'] == "Daily Rate" and adjustment.get('absent_days') != processed.get('absent_days'):
 				ab_days = adjustment.get('absent_days') - processed.get('absent_days')
@@ -231,17 +328,38 @@ class AdjustmentProcessing(Document):
 
 	def delete_adjustment(self):
 		self.validate_period()
-		frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE payroll_period = %s  """, (self.period), as_dict=1)
+		if not self.exclude_processed_adjustment:
+			frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE payroll_period = %s  """, (self.period), as_dict=1)
+		else:
+			frappe.db.sql("""DELETE FROM `tabAdjustment Register` WHERE payroll_period = %s and target_period = %s  """, (self.period, self.target_period), as_dict=1)
 
 	def get_attendance_result(self, emp, attendance, attendance_from, attendance_to, ot_list, ot_map, header, _type):
 		ot_class_map = get_ot_class_map()
 		rateclass_map = get_rateclass_map()
-
+		prev_adjustment = self.get_previous_adjustment()
 		if getdate(emp.get('date_hired')) > getdate(attendance_to):
 			frappe.throw(_("You cannot process Employee {0}: {1}, due to Date Hired").format(emp['name'], emp['full_name']))
-
+		attendance_time = {}
 		rates = get_rates(emp)
-		attendance_result = { "AT": 0.0, "UHO": 0.0, "OT": 0.0, "ND": 0.0, "LT": 0.0, "UT": 0.0, "CTO": 0.0, "absent_days": 0 }
+		attendance_result = { "AT": 0.0, "UHO": 0.0, "OT": 0.0, "ND": 0.0, "LT": 0.0, "UT": 0.0, "CTO": 0.0, "absent_days": 0,
+			"processed_leave_application_links": [],
+			"processed_overtime_application_links": [],
+			"processed_official_business_application_links": [],
+			"processed_excuse_tardiness_application_links": [],
+			"processed_undertime_application_links": [],
+			"processed_dtr_problem_application_links": [],
+			"processed_compensatory_time_off_links": [],
+			"processed_timelogs_application_links": [],
+			"adjusted_leave_application_links": [],
+			"adjusted_overtime_application_links": [],
+			"adjusted_official_business_application_links": [],
+			"adjusted_excuse_tardiness_application_links": [],
+			"adjusted_undertime_application_links": [],
+			"adjusted_dtr_problem_application_links": [],
+			"adjusted_compensatory_time_off_links": [],
+			"adjusted_timelogs_application_links": [],
+		}
+
 		overtimes_register = []
 		if emp.get('is_attendance_base') > 0 and getdate(emp.get('date_hired')) < getdate(attendance_to):
 			late, overtime, undertime, absent, nightdiff, work_days, absent_days, unpaid_holiday, prev_lwop, prev_absent, is_uho, cto, cto_days = 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0
@@ -320,30 +438,82 @@ class AdjustmentProcessing(Document):
 					"ot_code": ot_code,
 					"hrs": flt( ot[ot_hrs], 8),
 					"amount": amount, 
+					"early_nd": ot.get('early_nd'),
+					"late_nd": ot.get('late_nd'),
+					"target_date": ot.get('target_date'),
+					"employee": ot.get('employee'),
 				})
 
 			#Merge all OT Types based on Unique OT and create attendance registers
 			for uot in unique_ot:
-				merge_amount, merge_hrs = 0, 0
+				merge_amount, merge_hrs, early_nd, late_nd = 0, 0, 0, 0
+				target_date = None
+				employee = None
 				for otr in ot_register:
 					if uot == otr.get('ot_code'):
 						merge_amount += otr.get('amount')
 						merge_hrs += otr.get('hrs')
+						if otr.get('early_nd'):
+							early_nd += otr.get('early_nd')
+						if otr.get('late_nd'):
+							late_nd += otr.get('late_nd')
+						target_date = otr.get('target_date')
+						employee = otr.get('employee')
 
 				if merge_amount > 0:
 					overtimes_register.append({
 						"pay_code": ot_map[uot]['transaction_type'],
 						"pay_time": flt(merge_hrs, 8),
-						"amount": flt(merge_amount, 8) 
+						"amount": flt(merge_amount, 8),
+						"early_nd": early_nd,
+						"late_nd": late_nd,
+						"target_date": target_date,
+						"employee": employee,
 					})
 			
 			suc_list = []
 			attendance_register = []
+			attendance_time = {"work": 0, "absent": 0, "overtime": 0, "nd": 0, "late": 0, "undertime": 0, "cto": 0, "uho": 0}
 			if attendance:
 				total_cto_days, total_work_days, total_absent_days, total_present_days, total_pho_days, total_hourly_basic, total_nwho_days, total_dl_days = 0, 0, 0, 0, 0, 0, 0, 0
 				cur_suc_hol_wout_before, before_holiday_work, before_sp_work = 0, 0, 0
 				is_uho, no_previous, dho_amount, work_hrs, paid_leave, total_work = 0, 0, 0, 0, 0, 0
 				for at in attendance:
+					if _type == 'processed':
+						if at["leave_application_links"]:
+							attendance_result["processed_leave_application_links"].extend(eval(at["leave_application_links"]))
+						if at["overtime_application_links"]:
+							attendance_result["processed_overtime_application_links"].extend(eval(at["overtime_application_links"]))
+						if at["official_business_application_links"]:
+							attendance_result["processed_official_business_application_links"].extend(eval(at["official_business_application_links"]))
+						if at["excuse_tardiness_application_links"]:
+							attendance_result["processed_excuse_tardiness_application_links"].extend(eval(at["excuse_tardiness_application_links"]))
+						if at["undertime_application_links"]:
+							attendance_result["processed_undertime_application_links"].extend(eval(at["undertime_application_links"]))
+						if at["dtr_problem_application_links"]:
+							attendance_result["processed_dtr_problem_application_links"].extend(eval(at["dtr_problem_application_links"]))
+						if at["compensatory_time_off_links"]:
+							attendance_result["processed_compensatory_time_off_links"].extend(eval(at["compensatory_time_off_links"]))
+						if at["timelogs_application_links"]:
+							attendance_result["processed_timelogs_application_links"].extend(eval(at["timelogs_application_links"]))
+					if _type == 'adjustment':
+						if at['lv_links']:
+							attendance_result["adjusted_leave_application_links"].extend(at['lv_links'])
+						if at['ot_links']:
+							attendance_result["adjusted_overtime_application_links"].extend(at['ot_links'])
+						if at['ob_links']:
+							attendance_result["adjusted_official_business_application_links"].extend(at['ob_links'])
+						if at['ext_links']:
+							attendance_result["adjusted_excuse_tardiness_application_links"].extend(at['ext_links'])
+						if at['ut_links']:
+							attendance_result["adjusted_undertime_application_links"].extend(at['ut_links'])
+						if at['dtrp_links']:
+							attendance_result["adjusted_dtr_problem_application_links"].extend(at['dtrp_links'])
+						if at['cto_links']:
+							attendance_result["adjusted_compensatory_time_off_links"].extend(at['cto_links'])
+						if at['tla_links']:
+							attendance_result["adjusted_timelogs_application_links"].extend(at['tla_links'])
+						
 					cto_days, work_days, absent_days, present_days, pho_days, hourly_basic, nwho_days = 0, 0, 0, 0, 0, 0, 0
 					basic_salary, absent, late, undertime, unpaid_holiday, cto, nightdiff = 0, 0, 0, 0, 0, 0, 0
 					dl_days, pho_days, uho_days = 0, 0, 0
@@ -689,7 +859,33 @@ class AdjustmentProcessing(Document):
 							"ND": nightdiff,
 							"cost_center": cost_center,
 						})
-						
+
+						attendance_time['work'] += at['work']
+						attendance_time['absent'] += absent_days * at['work_hours']
+						attendance_time['overtime'] += at['overtime']
+						attendance_time['nd'] += at['nightdiff']
+						attendance_time['late'] += at['late']
+						attendance_time['undertime'] += at['undertime']
+						attendance_time['cto'] += at['cto']
+						attendance_time['uho'] += unpaid_holiday / flt(rates.get('hourly_rate'), 8)
+
+					#Create Adjustment Register Processed
+					if self.exclude_processed_adjustment:
+						create_pass = 0
+						for p in prev_adjustment:
+								
+							if (at["employee"] == p["employee"] and at["work"] == p["worked_hours"] and getdate(at["target_date"]) == getdate(p["date"]) and at["late"] == p["late_hours"]
+							and at["overtime"] == p["overtime_hours"] and at["overtime_nd"] == p["overtime_nd_hours"] and at["overtime_ex"] == p["overtime_ex_hours"] and at["undertime"] == p["undertime_hrs"]
+							and at["cto"] == p["cto"] and at["nightdiff"] == p["night_difference_hours"]):
+								create_pass = 1
+									
+						if create_pass == 0:
+							self.create_adjustment_register_processed(at, _type)
+
+					else:
+						frappe.throw(_("create_pass"))
+						self.create_adjustment_register_processed(at, _type)
+
 						# Save work For Next Day in Attendace Processing
 				header['no_attendance'] = 1
 				#frappe.throw(_(suc_list))
@@ -709,8 +905,28 @@ class AdjustmentProcessing(Document):
 				
 				#for d in attendance_register:
 				#	register.append(d)
+				if self.exclude_processed_adjustment:
+					past_overtime = frappe.db.sql("""SELECT * FROM `tabOvertime Adjustment Register` WHERE previous_payroll_period = %s AND current_payroll_period != %s 
+						""",(self.period, self.target_period), as_dict=1)
 				for otr in overtimes_register:
 					overtime += otr.get('amount')
+					if _type == "adjustment":
+						if self.exclude_processed_adjustment:
+							created_overtime_reg = 0
+							if past_overtime:
+								count = 0
+								for p in past_overtime:
+									count += 1
+									#if count == 2:
+									#	frappe.throw(_(otr['employee']))
+									#if count == 2:
+									#	frappe.throw(_(otr['target_date']))
+									if getdate(p['target_date']) == getdate(otr['target_date']) and p['ot_code'] == otr['pay_code'] and p['hrs'] == otr['pay_time'] and p['early_nd'] == otr['early_nd'] and p['late_nd'] == otr['late_nd'] and p['employee'] == otr['employee']:
+										created_overtime_reg = 1
+								if created_overtime_reg == 0:
+									self.create_overtime_adjustment_register(otr)
+						else:
+							self.create_overtime_adjustment_register(otr)
 
 				attendance_payment = self.create_attendance_registers(header, attendance_register)
 				if attendance_payment:
@@ -734,7 +950,57 @@ class AdjustmentProcessing(Document):
 			else:
 				header['no_attendance'] = 1
 		
-		return attendance_result
+		return attendance_result, attendance_time
+	def get_previous_adjustment(self):
+		prev_adjustment = frappe.db.sql("""SELECT * FROM `tabAdjustment Register Adjusted` WHERE payroll_period = %s AND target_period != %s 
+						""",(self.period, self.target_period), as_dict=1)
+		return prev_adjustment
+
+	def create_overtime_adjustment_register(self, otr):
+		new_doc = frappe.new_doc("Overtime Adjustment Register")
+		new_doc.employee = otr.get("employee")
+		new_doc.employee_name = frappe.db.get_value('Employee', otr.get("employee"), 'full_name')
+		new_doc.company = self.company
+		new_doc.previous_payroll_period = self.period
+		new_doc.current_payroll_period = self.target_period
+		new_doc.target_date = otr.get("target_date")
+		new_doc.ot_code = otr.get("pay_code")
+		new_doc.hrs = otr.get("pay_time")
+		new_doc.linked_ot = None
+		new_doc.early_nd = otr.get("early_nd")
+		new_doc.late_nd = otr.get("late_nd")
+		new_doc.flags.ignore_permissions = True
+		new_doc.insert()
+
+	def create_adjustment_register_processed(self, at, _type):
+		new_doc = None
+		if _type == "adjustment":
+			new_doc = frappe.new_doc("Adjustment Register Adjusted")
+			new_doc.worked_hours = at["work"]
+			new_doc.overtime_nd_ex_hours = at["overtime_ndex"]
+		if _type == "processed":
+			new_doc = frappe.new_doc("Adjustment Register Processed")
+			new_doc.worked_hours = at["work"]
+			new_doc.overtime_nd_ex_hours = at["ot_ndex"]
+			
+		if new_doc:
+			new_doc.employee = at["employee"]
+			new_doc.employee_name = frappe.db.get_value('Employee', at["employee"], 'full_name')
+			new_doc.company = self.company
+			new_doc.payroll_period = self.period
+			new_doc.target_period = self.target_period
+			new_doc.date = at["target_date"]
+			new_doc.late_hours = at["late"]
+			new_doc.overtime_hours = at["overtime"]
+			new_doc.overtime_nd_hours = at["overtime_nd"]
+			new_doc.overtime_ex_hours = at["overtime_ex"]
+			new_doc.night_difference_hours = at["nightdiff"]
+			new_doc.undertime_hrs = at["undertime"]
+			new_doc.cto = at["cto"]
+			new_doc.tags = at["tags"]
+			new_doc.links = at["links"]
+			new_doc.flags.ignore_permissions = True
+			new_doc.insert()
 
 	def create_attendance_registers(self, header, attendance):
 		register = []
@@ -832,7 +1098,8 @@ class AdjustmentProcessing(Document):
 				proc_ar_emp.append(ar.employee)
 
 				if self.employee and ar.employee == self.employee:
-					frappe.throw(_( "Adjustment already processed in {0}".format(ar.target_period) ))
+					if not self.exclude_processed_adjustment:
+						frappe.throw(_( "Adjustment already processed in {0}".format(ar.target_period) ))
 
 		for emp in employees:
 			if emp.name in proc_ar_emp:

@@ -236,6 +236,14 @@ class AttendanceProcessing(Document):
 					'card_out': reg['card_out'],
 					'tags': reg['tags'],
 					'links': reg['links'],
+					'leave_application_links': str(reg['lv_links']) if reg['lv_links'] else None,
+					'overtime_application_links': str(reg['ot_links']) if reg['ot_links'] else None,
+					'official_business_application_links': str(reg['ob_links']) if reg['ob_links'] else None,
+					'excuse_tardiness_application_links': str(reg['ext_links']) if reg['ext_links'] else None,
+					'undertime_application_links': str(reg['ut_links']) if reg['ut_links'] else None,
+					'dtr_problem_application_links': str(reg['dtrp_links']) if reg['dtrp_links'] else None,
+					'compensatory_time_off_links': str(reg['cto_links']) if reg['cto_links'] else None,
+					'timelogs_application_links': str(reg['tla_links']) if reg['tla_links'] else None,
 				}
 
 				register = frappe.new_doc("Attendance Register")
