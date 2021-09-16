@@ -3012,7 +3012,7 @@ def validate_card_log(card_datetime, card_type, lcn_shifts, target_date, card_ma
 					card_map[target_date]['time_in'].append(card_datetime)
 		else:
 			if lcn_shifts['pre_shift'] and lcn_shifts['max_preshift']:
-				if lcn_shifts['pre_shift'] <= card_datetime <= lcn_shifts['max_preshift']:
+				if get_datetime(lcn_shifts['pre_shift']) <= get_datetime(card_datetime) <= get_datetime(lcn_shifts['max_preshift']): 
 					to_append = 1
 
 	if (card_type in [1, 3, "Time out", "Break in"]):
