@@ -70,7 +70,7 @@ frappe.ui.form.on('Employee Movement', {
 			});
 		}
 
-		if(frm.doc.movement_type){
+		if(frm.doc.movement_type && frm.doc.docstatus != 2 && frm.doc.docstatus != 1){
 			frappe.call({
 				method: "get_custom_fields",
 				doc: frm.doc,
