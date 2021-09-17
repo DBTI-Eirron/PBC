@@ -20,6 +20,7 @@ class ExcuseTardinessApplication(Document):
 		time_in, time_out = self.get_employeee_actual_logs()
 		if not time_in and not time_out:
 			frappe.throw(_("<b>Excuse Tardiness Application: {0}</b><hr> No timelogs for employee {1}").format(self.name, self.employee))
+		self.get_recipients()
 		grant_head_subordinate_access(self)
 		change_owner(self)
 
@@ -132,3 +133,17 @@ class ExcuseTardinessApplication(Document):
 					actual_out = ob_out
 
 		return actual_in, actual_out
+
+	def get_recipients(self):
+		recipients = []
+		managers = frappe.db.sql("""SELECT ES.employee, E.user_id FROM `tabEmployee Subordinates` ES 
+			INNER JOIN `tabSubordinates` S ON S.parent = ES.name
+			LEFT JOIN `tabEmployee` E ON ES.employee = E.name
+			WHERE S.subordinate = %s """,(self.employee), as_dict=True)
+		for d in managers:
+			if d.user_id:
+				recipients.append(d.user_id)
+
+		if recipients:
+			send_to = ', '.join(str(x) for x in recipients)
+			self.managers_list = send_to

@@ -23,6 +23,7 @@ class CompensatoryTimeOff(Document):
 		self.validate_child_table()
 		self.validate_cto_sumary()
 		self.validate_days_before_filing()
+		self.get_recipients()
 		change_owner(self)
 
 	def on_update(self):
@@ -339,6 +340,20 @@ class CompensatoryTimeOff(Document):
 
 			if update_cto_table_list:
 				update_cto_table_summary(update_cto_table_list, self.type)
+
+	def get_recipients(self):
+		recipients = []
+		managers = frappe.db.sql("""SELECT ES.employee, E.user_id FROM `tabEmployee Subordinates` ES 
+			INNER JOIN `tabSubordinates` S ON S.parent = ES.name
+			LEFT JOIN `tabEmployee` E ON ES.employee = E.name
+			WHERE S.subordinate = %s """,(self.employee), as_dict=True)
+		for d in managers:
+			if d.user_id:
+				recipients.append(d.user_id)
+
+		if recipients:
+			send_to = ', '.join(str(x) for x in recipients)
+			self.managers_list = send_to
 
 @frappe.whitelist()
 def generate_target_dates(**entry):

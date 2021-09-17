@@ -61,15 +61,7 @@ class ChangeScheduleApplication(Document):
 		for i in self.change_list:
 			if str(i.target_date) not in unique_ent:
 				unique_ent.append(str(i.target_date));
-
-				entries = {
-				    "target_date": i.target_date,
-			        "current_shift": i.current_shift,
-			        "new_shift": i.new_shift,
-			        "time_in": i.time_in,
-			        "time_out":i.time_out,
-			    }
-				unique_entries.append(entries);
+				unique_entries.append(i);
 
 		self.set('change_list', [])
 		for ue in unique_entries:

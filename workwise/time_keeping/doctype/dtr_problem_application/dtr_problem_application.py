@@ -20,9 +20,10 @@ class DTRProblemApplication(Document):
 		self.update_card_type()
 		self.validate_application()
 		self.get_timekeeping_settings()
+		self.get_recipients()
 		grant_head_subordinate_access(self)
 		change_owner(self)
-		
+
 	def on_submit(self):
 		validate_approve_own_application(self)
 		#enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
@@ -163,3 +164,17 @@ class DTRProblemApplication(Document):
 
 	def enable_isprevious(self):
 		return 'true' if frappe.db.get_single_value('Timekeeping Settings', 'is_previous') else 'false'
+
+	def get_recipients(self):
+		recipients = []
+		managers = frappe.db.sql("""SELECT ES.employee, E.user_id FROM `tabEmployee Subordinates` ES 
+			INNER JOIN `tabSubordinates` S ON S.parent = ES.name
+			LEFT JOIN `tabEmployee` E ON ES.employee = E.name
+			WHERE S.subordinate = %s """,(self.employee), as_dict=True)
+		for d in managers:
+			if d.user_id:
+				recipients.append(d.user_id)
+
+		if recipients:
+			send_to = ', '.join(str(x) for x in recipients)
+			self.managers_list = send_to
