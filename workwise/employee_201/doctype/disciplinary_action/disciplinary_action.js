@@ -20,6 +20,12 @@ frappe.ui.form.on('Disciplinary Action', {
 		frm.trigger("calc_suspension_days"); 
 	},
 
+	ex_holiday: function(frm){
+		frm.trigger("calc_suspension_days"); 
+	},
+	ex_restday: function(frm){
+		frm.trigger("calc_suspension_days"); 
+	},
 	calc_suspension_days: function(frm) {
 		if( frm.doc.suspended_from && frm.doc.suspended_to ) {
 			frappe.call({
