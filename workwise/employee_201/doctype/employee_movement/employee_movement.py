@@ -106,6 +106,8 @@ class EmployeeMovement(Document):
 				"employment_status": "Retired",
 				"is_active": 0,
 				"date_retired": getdate(self.effective_on),
+				"reports_to": None,
+				"approvers": None,
 			})
 
 			self.save_employee(emp)
@@ -128,10 +130,12 @@ class EmployeeMovement(Document):
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
 			emp.update({
-					"employment_status": "Resigned",
-					"is_active": 0,
-					"date_resigned": getdate(self.effective_on),
-				})
+				"employment_status": "Resigned",
+				"is_active": 0,
+				"date_resigned": getdate(self.effective_on),
+				"reports_to": None,
+				"approvers": None,
+			})
 			self.save_employee(emp)
 
 		elif process == "revert":
@@ -209,6 +213,8 @@ class EmployeeMovement(Document):
 				"employment_status": "Terminated",
 				"is_active": 0,
 				"date_terminated": getdate(self.effective_on),
+				"reports_to": None,
+				"approvers": None,
 			})
 			self.save_employee(emp)
 
@@ -287,6 +293,8 @@ class EmployeeMovement(Document):
 			emp.update({
 					"is_active": 0,
 					"date_contract_ended": self.effective_on,
+					"reports_to": None,
+					"approvers": None,
 				})
 			self.save_employee(emp)
 
@@ -367,6 +375,11 @@ class EmployeeMovement(Document):
 		if emp.save():
 			self.is_processed = 1
 			self.date_processed = today()
+
+			if self.movement_type in ["Resignation", "Termination", "Retirement", "End of Contract"]:
+				frappe.db.commit()
+				self.remove_employee_subordinates()
+				self.remove_employee_as_approver()
 
 	def revert_employee(self, emp):
 		self.add_additional_changes(emp, actiontype='revert')
@@ -504,6 +517,41 @@ class EmployeeMovement(Document):
 				result['hide'].append(fd['custom_fieldname'])
 
 		return result
+
+	def remove_employee_subordinates(self):
+		if frappe.db.sql(""" SELECT `name` FROM `tabEmployee Subordinates` WHERE `name`=%s """,(self.employee)):
+			doc = frappe.get_doc('Employee Subordinates', self.employee)
+			if doc:
+				doc.subordinates = None
+				doc.flags.ignore_permissions = True
+				doc.save()
+
+		employees = frappe.db.sql(""" SELECT `parent` FROM `tabSubordinates` WHERE `subordinate`=%s """,(self.employee), as_dict=1)
+		for emp in employees:
+			employee = frappe.get_doc("Employee Subordinates", emp.parent)
+			if employee.subordinates:
+				for sub in employee.subordinates:
+					if sub.subordinate == self.employee:
+						employee.subordinates.remove(sub)
+						employee.flags.ignore_permissions = True
+						try:
+							employee.save()
+						except Exception as e:
+							pass
+
+	def remove_employee_as_approver(self):
+		employees = frappe.db.sql(""" SELECT `parent` FROM `tabEmployee Approvers` WHERE `approver`=%s """,(self.employee), as_dict=1)
+		for emp in employees:
+			employee = frappe.get_doc("Employee", emp.parent)
+			if employee.approvers:
+				for app in employee.approvers:
+					if app.approver == self.employee:
+						employee.approvers.remove(app)
+						employee.flags.ignore_permissions = True
+						try:
+							employee.save()
+						except Exception as e:
+							pass
 
 @frappe.whitelist()
 def run_effective_movement():
