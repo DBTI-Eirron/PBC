@@ -60,6 +60,7 @@ class Employee(Document):
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
 			self.update_subordinates()
+		frappe.db.commit()
 
 	def after_insert(self):
 		self.update_subordinates()
