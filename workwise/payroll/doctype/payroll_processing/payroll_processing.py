@@ -1735,7 +1735,7 @@ class PayrollProcessing(Document):
 			lwop_deduction = 0
 			no_attendance = 1
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
-				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
+				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], self.attendance_from, self.attendance_to), as_dict=1)
 			for at in attendance:
 				if not at.is_restday:
 					if at.is_lwop:
