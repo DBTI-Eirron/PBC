@@ -57,6 +57,8 @@ def execute(filters=None):
 
 			for emp in employee_list:
 				if holiday_to_presentday_report:
+					if emp.employee not in holiday_present:
+						holiday_present[emp.employee] = 0
 					emp.present_days = emp.present_days + holiday_present[emp.employee]
 				row = [emp.employee, emp.employee_name, emp.present_days]
 				total_payroll, total_income, total_deduction = 0, 0, 0
