@@ -73,7 +73,7 @@ def get_data(filters):
 				`tabOfficial Business Application Table` OBT
 				JOIN `tabOfficial Business Application` OBA 
 			WHERE
-				OBT.`parent` = OBA.`name` AND OBA.`docstatus`=1 AND OBA.`employee` = %(employee)s AND OBT.`target_date` >= %(from)s AND OBT.`target_date` <= %(to)s """,{
+				OBT.`parent` = OBA.`name` AND OBA.`docstatus`=1 AND OBA.`employee` = %(employee)s AND OBT.`target_date` >= %(from)s AND OBT.`target_date` <= %(to)s Order by OBT.`target_date` ASC""",{
 			"to": filters.to_date,
 			"from": filters.from_date,
 			"employee": emp.name,
