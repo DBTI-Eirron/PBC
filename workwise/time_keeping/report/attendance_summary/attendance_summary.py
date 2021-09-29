@@ -237,10 +237,11 @@ def get_data(filters):
 		template_map = get_template_map()
 		shift_map = get_shift_map()
 		emp_map = init_employee_map(employees, filters.employee, company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		enable_work_sched = frappe.db.get_single_value('Timekeeping Settings', 'enable_work_sched')
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 			complete_sched(emp_dict, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
-			if not filters.show_adjusted:
+			if not filters.show_adjusted and not (getdate(nowdate()) <= getdate(approval_cutoff) and enable_work_sched):
 				processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
 				if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:

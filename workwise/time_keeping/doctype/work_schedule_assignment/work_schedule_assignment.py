@@ -12,6 +12,12 @@ from workwise.time_keeping.application_utils import get_user_fullname
 
 class WorkScheduleAssignment(Document):
 	def assign_schedule(self):
+		enable_work_sched = frappe.db.get_single_value('Timekeeping Settings', 'enable_work_sched')
+		if enable_work_sched:
+			strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+			validation = self.validate_cutoff()
+			if validation:
+				frappe.throw(_(validation))
 		self.validate_fields()
 		self.validate_inactive_employee()
 		self.validate_self_scheduling()
@@ -21,6 +27,38 @@ class WorkScheduleAssignment(Document):
 		self.validate_schedule_with_csa()
 		return self.create_log(ss_list)
 
+	def validate_cutoff(self):
+		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+		conditions = []
+		validation_list = []
+		payroll_period = frappe.db.sql("""SELECT * FROM `tabPayroll Period` WHERE `company` = %s""",(self.company), as_dict=True)
+		if self.assignment == "Single":
+			for s_employee in self.single_employee:
+				payroll_schedule, company, period_group = frappe.db.get_value("Employee", s_employee.employee, ["payroll_schedule", "company", "period_group"])
+				for p in payroll_period:
+					if (getdate(p.attendance_from) <= getdate(s_employee.target_date) <= getdate(p.attendance_to)) and p.company == company and p.schedule == payroll_schedule:
+						if strict_period_group:
+							if p.period_group == period_group:
+								if getdate(nowdate()) > getdate(p.approval_cutoff):
+									validation_list.append(_("{0} The date {1} is Beyond Approval Cutoff of Payroll Period {2}").format(s_employee.employee, s_employee.target_date, p.name))
+						else:
+							if getdate(nowdate()) > getdate(p.approval_cutoff):
+								validation_list.append(_("{0} The date {1} is Beyond Approval Cutoff of Payroll Period {2}").format(s_employee.employee, s_employee.target_date, p.name))
+		else:
+			for emp in self.employees:
+				payroll_schedule, company, period_group = frappe.db.get_value("Employee", emp.employee, ["payroll_schedule", "company", "period_group"])
+				for p in payroll_period:
+					if not (getdate(self.from_date) > getdate(p.attendance_to) or getdate(self.to_date) < getdate(p.attendance_from)):
+						if strict_period_group:
+							if p.period_group == period_group:
+								if getdate(nowdate()) > getdate(p.approval_cutoff):
+									validation_list.append(_("{0} The Selected dates is Beyond Approval Cutoff of Payroll Period {1}").format(emp.employee, p.name))
+						else:
+							if getdate(nowdate()) > getdate(p.approval_cutoff):
+								validation_list.append(_("{0} The Selected dates is Beyond Approval Cutoff of Payroll Period {1}").format( emp.employee, p.name))
+
+		return "\n {}".format(" \n ".join(validation_list)) if validation_list else ""
+		
 	def validate_schedule_with_csa(self):
 		employees_selected = []
 		if self.assignment == "Single":
