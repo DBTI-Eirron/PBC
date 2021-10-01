@@ -19,6 +19,7 @@ class Company(Document):
 		delete_contact_and_address('Company', self.name)
 
 	def before_insert(self):
+		self.validate_duplicate_abbreviation()
 		self.validate_costcenter_origin_root()
 		self.validate_department_origin_root()
 
@@ -27,6 +28,12 @@ class Company(Document):
 		self.create_costcenter_root()
 		self.create_department_root()
 
+	def validate_duplicate_abbreviation(self):
+		company = frappe.db.sql(""" SELECT `name` FROM `tabCompany` WHERE abbr = %s """,(self.abbr))
+		if company:
+			for c in company:
+				frappe.throw(_("Duplicate Company abbreviation with {0}").format(c[0]))
+				
 	def create_costcenter_root(self):
 		if not frappe.db.exists("Cost Center", self.company_name):
 			cost_center = frappe.new_doc("Cost Center")
