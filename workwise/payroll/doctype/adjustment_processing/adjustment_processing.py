@@ -883,7 +883,6 @@ class AdjustmentProcessing(Document):
 							self.create_adjustment_register_processed(at, _type)
 
 					else:
-						frappe.throw(_("create_pass"))
 						self.create_adjustment_register_processed(at, _type)
 
 						# Save work For Next Day in Attendace Processing
