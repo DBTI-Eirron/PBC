@@ -1735,20 +1735,21 @@ class PayrollProcessing(Document):
 			lwop_deduction = 0
 			no_attendance = 1
 			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
-				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], self.attendance_from, self.attendance_to), as_dict=1)
+				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1) 
 			for at in attendance:
-				if not at.is_restday:
-					if at.is_lwop:
-						if at.lv_status == 1:
-							lwop_deduction += rates.get('daily_rate')
-						if at.lv_status in [2, 3]:
-							lwop_deduction += rates.get('daily_rate') / 2
-					else:
-						no_attendance = 0
+				if at.get("target_date") not in [add_days(self.attendance_from, -1)]:
+					if not at.is_restday:
+						if at.is_lwop:
+							if at.lv_status == 1:
+								lwop_deduction += rates.get('daily_rate')
+							if at.lv_status in [2, 3]:
+								lwop_deduction += rates.get('daily_rate') / 2
+						else:
+							no_attendance = 0
 
-				cost_center = emp.get("cost_center")
-				if at.cost_center:
-					cost_center = at.cost_center
+					cost_center = emp.get("cost_center")
+					if at.cost_center:
+						cost_center = at.cost_center
 
 			register.append({"pay_code": "AT", "amount": flt(lwop_deduction, 8), "cost_center": emp.get("cost_center")})
 			header['no_attendance'] = no_attendance
