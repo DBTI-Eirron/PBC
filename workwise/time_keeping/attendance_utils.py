@@ -3642,7 +3642,7 @@ def init_employee_map(employees, employee, company, pay_from, pay_to, approval_c
 	#applications
 	get_all_leaves(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment,monthly_approval_cutoffs)
 	get_all_ots(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
-	get_all_obs(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
+	get_all_obs(emp_map, employee, pay_from - datetime.timedelta(days=1), pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
 	get_all_uts(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
 	get_all_ext(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
 	get_all_cto(emp_map, employee, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
