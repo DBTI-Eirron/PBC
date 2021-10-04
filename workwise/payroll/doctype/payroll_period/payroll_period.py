@@ -30,6 +30,14 @@ class PayrollPeriod(Document):
 		self.validate_frequency()
 		self.validate_approval_cutoff()
 		self.validate_period_group()
+		self.validate_payroll_period()
+
+	def validate_payroll_period(self):
+		validate_payroll_date = frappe.db.get_single_value('Payroll Settings', 'validate_payroll_date')
+		if getdate(self.payroll_date) <= getdate(self.attendance_from) and validate_payroll_date:
+			frappe.throw(_("Payroll Date should be higher than the cut-off dates."))
+		if getdate(self.payroll_date) <= getdate(self.attendance_to) and validate_payroll_date:
+			frappe.throw(_("Payroll Date should be higher than the cut-off dates."))
 
 	def validate_approval_cutoff(self):
 		if getdate(self.approval_cutoff) <= getdate(self.attendance_to):
