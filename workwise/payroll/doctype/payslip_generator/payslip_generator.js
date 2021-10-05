@@ -14,7 +14,7 @@ frappe.ui.form.on('Payslip Generator', {
 		frm.set_query('payroll_period', function(doc) {
 			return {
 				filters: {
-					"status": "Open",
+					"status": "Closed",
 					"company": doc.company
 				}
 			};
