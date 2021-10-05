@@ -2731,6 +2731,7 @@ def get_actual_logs(employee, pay_from, pay_to, ot_app = None):
 				"end_preshift": add_to_date(get_datetime(str(getdate(sched['target_date']))+" "+ str(shifts[0].time_in)), hours= shifts[0].end_preshift ),
 				"post_shift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shifts[0].time_out)), hours= (0 - shifts[0].setup_postshift) ),
 				"end_postshift": add_to_date(get_datetime(str(post_shift_date)+" "+ str(shifts[0].time_out)), hours=shifts[0].end_postshift ),
+				"is_restday": shifts[0].is_restday,
 				"card_in": "",
 				"card_out": "",
 				"break_in": "",
