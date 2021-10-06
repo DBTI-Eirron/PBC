@@ -75,6 +75,9 @@ def execute(filters=None):
 
 					i += 1
 
+				if frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+					row += [format_precision(total_income, filters.value_precision)]
+
 				total_deduction = 0.00
 				i = 0
 				for deduction in deduction_types:
@@ -90,7 +93,11 @@ def execute(filters=None):
 				total_payroll = flt(total_income, 8) - flt(total_deduction, 8)
 				if total_payroll < 0:
 					total_payroll = 0.00
-				row += [format_precision(total_income, filters.value_precision), format_precision(total_deduction, filters.value_precision), format_precision(total_payroll, filters.value_precision)]
+
+				if not frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+					row += [format_precision(total_income, filters.value_precision), format_precision(total_deduction, filters.value_precision), format_precision(total_payroll, filters.value_precision)]
+				else:
+					row += [format_precision(total_deduction, filters.value_precision), format_precision(total_payroll, filters.value_precision)]
 				dtotal_income += total_income
 				dtotal_deduction += total_deduction
 				dtotal_payroll += total_payroll
@@ -105,11 +112,18 @@ def execute(filters=None):
 			total_row.append(format_precision(income_total[i], filters.value_precision))
 			i += 1
 
+		if frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+			total_row += [format_precision(dtotal_income, filters.value_precision)]
+
 		i = 0
 		for deduction in deduction_types:
 			total_row.append(format_precision(deduction_total[i], filters.value_precision))
 			i += 1
-		total_row += [format_precision(dtotal_income, filters.value_precision), format_precision(dtotal_deduction, filters.value_precision), format_precision(dtotal_payroll, filters.value_precision)]
+
+		if not frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+			total_row += [format_precision(dtotal_income, filters.value_precision), format_precision(dtotal_deduction, filters.value_precision), format_precision(dtotal_payroll, filters.value_precision)]
+		else:
+			total_row += [format_precision(dtotal_deduction, filters.value_precision), format_precision(dtotal_payroll, filters.value_precision)]
 		data.append(total_row)
 
 		if filters.hide_zero:
@@ -220,6 +234,16 @@ def get_columns(filters,employee_list):
 				"hidden": 0
 			})
 
+		if frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+			columns.append({			
+				"fieldname": "total_income",
+				"label": _("Total Income" if not filters.include_header else ""),
+				"fieldtype": "Data",
+				"width": 100,
+				"fieldlabel": "Total Income",
+				"hidden": 0
+			})
+
 		for pay_code in deduction_types:
 			pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
 			columns.append({			
@@ -231,16 +255,17 @@ def get_columns(filters,employee_list):
 				"hidden": 0
 			})
 
-	columns += [
-		{
+	if not frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+		columns += [{
 			"fieldname": "total_income",
 			"label": _("Total Income" if not filters.include_header else ""),
 			"fieldtype": "Data",
 			"width": 100,
 			"fieldlabel": "Total Income",
 			"hidden": 0
-		},
-		{
+		}]
+
+	columns += [{
 			"fieldname": "total_deduction",
 			"label": _("Total Deduction" if not filters.include_header else ""),
 			"fieldtype": "Data",
