@@ -148,7 +148,6 @@ class PayrollProcessing(Document):
 		nd_rate_class = frappe.db.get_single_value('Payroll Settings', 'nd_rate_class')
 		ws_pho = frappe.db.get_single_value('Payroll Settings', 'ws_pho')
 		#spho_nowork_nopay = frappe.db.get_single_value('Payroll Settings', 'spho_nowork_nopay')
-		seperate_ho = frappe.db.get_single_value('Payroll Settings', 'seperate_ho')
 
 		weekly_prev_map = frappe._dict()
 		loans_map = get_loans_map(employees, self.payroll_date, self.period_from, self.period_to)
@@ -273,14 +272,10 @@ class PayrollProcessing(Document):
 						'ot_rate_class': ot_rate_class,
 						'nd_rate_class': nd_rate_class,
 						'ws_pho': ws_pho,
-						'seperate_ho': seperate_ho,
 						#'spho_nowork_nopay': spho_nowork_nopay,
 						#Other
 						'daily_basic': 0,
 						'paying_cc': [],
-						#Holidays
-						'holiday_pay_amount': 0,
-						'pho_hours': 0,
 					}
 					
 					#Calculate Rates and Previous Entries
@@ -304,9 +299,6 @@ class PayrollProcessing(Document):
 					self.get_phic(emp, rates, header, register, tr_map, weekly_prev_map)
 					self.get_hdmf(emp, rates, header, register, tr_map, hdmf_table, weekly_prev_map)
 					self.get_whtax(emp, rates, header, register)
-
-					#Separate Holiday
-					self.get_holiday_pay(rates, header, register)
 
 					#Calculate Totals
 					self.calculate_payroll_totals(header)
@@ -474,30 +466,10 @@ class PayrollProcessing(Document):
 			amt = rates.get('semi_rate')
 			if header.get('paid_holidays'):
 				amt += flt(rates.get('daily_rate'), 8) * header.get('paid_holidays')
-
-		header['holiday_pay_amount'] = flt(rates.get('daily_rate'), 8) * header.get('paid_holidays')
 				
 		header['basic'] = amt
 		if not(emp.get('rate_type') == "Daily Rate" and emp.get('is_attendance_base') == 1):
 			register.append({"pay_code": "BS", "amount": amt})
-
-	def get_holiday_pay(self, rates, header, register):
-		if header.get("seperate_ho") and register:
-			header['holiday_pay_amount'] = flt(rates.get('daily_rate'), 8) * header.get('paid_holidays')
-			header['basic'] -= header['holiday_pay_amount']
-
-			bs_register = filter(lambda x: x['pay_code'] == 'BS', register)[0]
-			if bs_register:
-				if bs_register.get("amount") >= header['holiday_pay_amount']:
-					bs_register['amount'] = bs_register.get("amount") - header['holiday_pay_amount']
-				else:
-					bs_register['amount'] = 0
-			
-			register.append({
-				"pay_code": "HO",
-				"pay_time": header.get('pho_hours'),
-				"amount": header.get('holiday_pay_amount'),
-			})
 
 	def get_sss(self, emp, rates, header, register, tr_map, sss_table, weekly_prev_map):
 		sss_register = []
@@ -1849,7 +1821,7 @@ class PayrollProcessing(Document):
 				for at in attendance:
 					cto_days, work_days, absent_days, present_days, pho_days, hourly_basic, nwho_days, lv_days = 0, 0, 0, 0, 0, 0, 0, 0
 					basic_salary, absent, late, undertime, unpaid_holiday, cto, nightdiff = 0, 0, 0, 0, 0, 0, 0
-					dl_days, pho_days, uho_days, pho_hours = 0, 0, 0, 0
+					dl_days, pho_days, uho_days = 0, 0, 0
 					if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
 						no_previous = 1
 						if at.is_absent or at.is_lwop:
@@ -2257,7 +2229,6 @@ class PayrollProcessing(Document):
 						total_nwho_days += nwho_days
 						total_dl_days += dl_days
 						total_lv_days += lv_days
-						pho_hours += (pho_days * at.work_hours)
 
 						attendance_register.append({
 							"BS": basic_salary,
@@ -2305,7 +2276,6 @@ class PayrollProcessing(Document):
 				header['hourly_basic'] = total_hourly_basic
 				header['nwho_days'] = total_nwho_days
 				header['leave_days'] = total_lv_days
-				header['pho_hours'] = pho_hours
 			else:
 				header['no_attendance'] = 1
 
