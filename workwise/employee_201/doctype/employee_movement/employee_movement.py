@@ -308,7 +308,7 @@ class EmployeeMovement(Document):
 
 	def cmd_rehire(self, process):
 		if process == "validate":
-			self.effective_on = today()
+			#self.effective_on = today()
 			if not self.new_biometrics_id:
 				frappe.throw(_( 'New Biometrics ID is required' ))
 
@@ -345,7 +345,8 @@ class EmployeeMovement(Document):
 			emp_entry['role'] = self.new_role if self.new_role else emp_data[0]['role']
 			emp_entry['email'] = self.new_email if self.new_email else emp_data[0]['email']
 			emp_entry['is_active'] = 1
-			emp_entry['date_hired'] = today()
+			emp_entry['employment_status'] = self.new_employment_status_rehired
+			emp_entry['date_hired'] = self.effective_on
 			emp_entry['company'] = self.rh_new_company if self.rh_new_company else emp_data[0]['company']
 			emp_entry['job_grade'] = self.emp_new_job_grade if self.emp_current_job_grade else emp_data[0]['job_grade']
  
@@ -367,7 +368,8 @@ class EmployeeMovement(Document):
 				frappe.throw(_("Failed to Rehire Employee. Please try again later"))
 
 		elif process == "revert":
-			pass
+			frappe.db.sql("""DELETE FROM `tabEmployee` WHERE `name` = %s """,(self.created_employee))
+			frappe.db.commit()
 
 	def save_employee(self, emp):
 		self.add_additional_changes(emp, actiontype='save')
