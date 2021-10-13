@@ -304,7 +304,7 @@ def startfrom_regular(employee, method, method_condition, value, yearbased, targ
 	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 	reg_date = []
-	empmov = frappe.db.sql(""" SELECT effective_on FROM `tabEmployee Movement` WHERE `movement_type` = 'Regularization' AND `employee` = %s """,(employee), as_dict=1)
+	empmov = frappe.db.sql(""" SELECT effective_on FROM `tabEmployee Movement` WHERE `movement_type` = 'Regularization' AND `employee` = %s AND `docstatus` = 1 """,(employee), as_dict=1)
 	for reg in empmov:
 		if getdate(reg.effective_on) <= getdate(now_date):
 			reg_date.append(reg.effective_on)
@@ -522,6 +522,8 @@ def fix_approved_on_and_by():
 
 def get_retro_lbentry_dates(employee, effective_on, now_date):
 	#Get date list to create
+	if not effective_on:
+		return None
 
 	datetoday = str(getdate(now_date).year)+'-'+str(getdate(now_date).month)+'-01'
 	dates_to_create = [getdate(datetoday)]
