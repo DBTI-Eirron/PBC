@@ -1932,7 +1932,8 @@ def get_flexible(entry, obs):
 								#if there is no late computed with grace period, set flex start to late point
 								flex_start = late_point
 						else:
-							nd_late = (entry.get('late_interval') * 60) * int( nd_late / (entry.get('late_interval') * 60))
+							if entry.get('late_interval'):
+								nd_late = (entry.get('late_interval') * 60) * int( nd_late / (entry.get('late_interval') * 60))
 							entry['late'] = (flex_start - late_point ).total_seconds()
 							entry['late_list'].append({'from_time': late_point, 'to_time': flex_start})
 							flex_start = late_point
