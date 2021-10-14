@@ -17,6 +17,7 @@ def execute(filters=None):
 	return columns, data
 
 def get_columns(filters):
+	sep_name = frappe.db.get_single_value('Payroll Settings', 'separate_name')
 	columns = [
 		{
 		"fieldname": "phic_no",
@@ -28,12 +29,38 @@ def get_columns(filters):
 		"label": _("Monthly Rate"),
 		"fieldtype": "Data",
 		"width": 100
-		},{
-		"fieldname": "employee_name",
-		"label": _("Employee Name"),
-		"fieldtype": "Data",
-		"width": 120
-		},{
+		},
+	]
+	if sep_name:
+		columns += [
+			{
+			"fieldname": "last_name",
+			"label": _("Last Name"),
+			"fieldtype": "Data",
+			"width": 120
+			},{
+			"fieldname": "first_name",
+			"label": _("First Name"),
+			"fieldtype": "Data",
+			"width": 120
+			},{
+			"fieldname": "middle_name",
+			"label": _("Middle Name"),
+			"fieldtype": "Data",
+			"width": 120
+			},
+		]
+	else:
+		columns += [
+			{
+			"fieldname": "employee_name",
+			"label": _("Employee Name"),
+			"fieldtype": "Data",
+			"width": 120
+			},
+		]
+	columns += [
+		{
 		"fieldname": "employee_status",
 		"label": _("Employee Status"),
 		"fieldtype": "Data",
@@ -67,7 +94,7 @@ def get_data(filters):
 	#Initialize
 	data = []
 	transaction_type = ['PHIC','PHICE']
-
+	sep_name = frappe.db.get_single_value('Payroll Settings', 'separate_name')
 	gov_map = get_employees(filters,transaction_type)
 	if not gov_map:
 		frappe.msgprint("No Records Found");
@@ -76,29 +103,56 @@ def get_data(filters):
 		for emp in sorted(gov_map.items(), key = lambda k:k[1]['full_name']):
 			total_phic += gov_map[emp[0]]['PHIC']
 			total_phice += gov_map[emp[0]]['PHICE']
-
-			row = {
-				"phic_no": gov_map[emp[0]]['phic_no'],
-				"monthly_rate": gov_map[emp[0]]['rate'],
-				"employee_name": gov_map[emp[0]]['full_name'],
-				"employee_status": "Active" if gov_map[emp[0]]['status'] == 1 else "Inactive",
-				"date_hired": datetime.datetime.strftime(getdate(gov_map[emp[0]]['date_hired']), "%m/%d/%Y"),
-				"birth_day": datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%m/%d/%Y"),
-				"employee": format_precision(gov_map[emp[0]]['PHIC'], filters.value_precision),
-				"employer": format_precision(gov_map[emp[0]]['PHICE'], filters.value_precision),
-			}
+			if sep_name:
+				row = {
+					"phic_no": gov_map[emp[0]]['phic_no'],
+					"monthly_rate": gov_map[emp[0]]['rate'],
+					"last_name": gov_map[emp[0]]['last_name'],
+					"first_name": gov_map[emp[0]]['first_name'],
+					"middle_name": gov_map[emp[0]]['middle_name'],
+					"employee_status": "Active" if gov_map[emp[0]]['status'] == 1 else "Inactive",
+					"date_hired": datetime.datetime.strftime(getdate(gov_map[emp[0]]['date_hired']), "%m/%d/%Y"),
+					"birth_day": datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%m/%d/%Y"),
+					"employee": format_precision(gov_map[emp[0]]['PHIC'], filters.value_precision),
+					"employer": format_precision(gov_map[emp[0]]['PHICE'], filters.value_precision),
+				}
+			else:
+				row = {
+					"phic_no": gov_map[emp[0]]['phic_no'],
+					"monthly_rate": gov_map[emp[0]]['rate'],
+					"employee_name": gov_map[emp[0]]['full_name'],
+					"employee_status": "Active" if gov_map[emp[0]]['status'] == 1 else "Inactive",
+					"date_hired": datetime.datetime.strftime(getdate(gov_map[emp[0]]['date_hired']), "%m/%d/%Y"),
+					"birth_day": datetime.datetime.strftime(getdate(gov_map[emp[0]]['birthday']), "%m/%d/%Y"),
+					"employee": format_precision(gov_map[emp[0]]['PHIC'], filters.value_precision),
+					"employer": format_precision(gov_map[emp[0]]['PHICE'], filters.value_precision),
+				}
 			data.append(row)
 		#Totals
-		data.append({
-			"phic_no": "",
-			"monthly_rate": "",
-			"employee_name": "",
-			"employee_status": "",
-			"date_hired": "",
-			"birth_day": "",
-			"employee": format_precision(total_phic, filters.value_precision),
-			"employer": format_precision(total_phice, filters.value_precision),
-		})
+		if sep_name:
+			data.append({
+				"phic_no": "",
+				"monthly_rate": "",
+				"last_name": "",
+				"first_name": "",
+				"middle_name": "",
+				"employee_status": "",
+				"date_hired": "",
+				"birth_day": "",
+				"employee": format_precision(total_phic, filters.value_precision),
+				"employer": format_precision(total_phice, filters.value_precision),
+			})
+		else:
+			data.append({
+				"phic_no": "",
+				"monthly_rate": "",
+				"employee_name": "",
+				"employee_status": "",
+				"date_hired": "",
+				"birth_day": "",
+				"employee": format_precision(total_phic, filters.value_precision),
+				"employer": format_precision(total_phice, filters.value_precision),
+			})
 
 	return data
 

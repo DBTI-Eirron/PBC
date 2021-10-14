@@ -20,10 +20,13 @@ def execute(filters=None):
 	employee_list, gov_map = get_employees(filters, transaction_type)
 
 	final_employee, final_employer, final_ec, final_total, final_eempf, final_ermpf = 0, 0, 0, 0, 0, 0
-
+	sep_name = frappe.db.get_single_value('Payroll Settings', 'separate_name')
 	data = []
 	for emp in gov_map:
-		row = [gov_map[emp]['employee'], gov_map[emp]['full_name'], gov_map[emp]['sss_no']]
+		if sep_name:
+			row = [gov_map[emp]['employee'], gov_map[emp]['last_name'], gov_map[emp]['first_name'], gov_map[emp]['middle_name'], gov_map[emp]['sss_no']]
+		else:
+			row = [gov_map[emp]['employee'], gov_map[emp]['full_name'], gov_map[emp]['sss_no']]
 		total_sss = 0
 		for trans in transaction_type:
 			to_append = 1
@@ -64,13 +67,20 @@ def execute(filters=None):
 		data.append(row)
 	data = sorted(data, key=itemgetter(1))
 	if filters.mpf:
-		final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_eempf, filters.value_precision), format_precision(final_ermpf, filters.value_precision),format_precision(final_total, filters.value_precision)]
+		if sep_name:
+			final = ["<b>Total: </b>","","","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_eempf, filters.value_precision), format_precision(final_ermpf, filters.value_precision),format_precision(final_total, filters.value_precision)]
+		else:
+			final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_eempf, filters.value_precision), format_precision(final_ermpf, filters.value_precision),format_precision(final_total, filters.value_precision)]
 	else:
-		final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_total, filters.value_precision)]
+		if sep_name:
+			final = ["<b>Total: </b>","","","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_total, filters.value_precision)]
+		else:
+			final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_total, filters.value_precision)]
 	data.append(final)
 	return columns, data
 
 def get_columns(filters):
+	sep_name = frappe.db.get_single_value('Payroll Settings', 'separate_name')
 	columns = [
 		{
 			"fieldname": "employee",
@@ -79,12 +89,38 @@ def get_columns(filters):
 			"options": "Employee",
 			"width": 100
 		},
-		{
-			"fieldname": "employee_name",
-			"label": _("Employee Name"),
-			"fieldtype": "Data",
-			"width": 220
-		},
+	]
+	if sep_name:
+		columns += [
+			{
+				"fieldname": "last_name",
+				"label": _("Last Name"),
+				"fieldtype": "Data",
+				"width": 220
+			},
+			{
+				"fieldname": "first_name",
+				"label": _("First Name"),
+				"fieldtype": "Data",
+				"width": 220
+			},
+			{
+				"fieldname": "middle_name",
+				"label": _("Middle Name"),
+				"fieldtype": "Data",
+				"width": 220
+			},
+		]
+	else:
+		columns += [
+			{
+				"fieldname": "employee_name",
+				"label": _("Employee Name"),
+				"fieldtype": "Data",
+				"width": 220
+			},
+		]
+	columns += [
 		{
 			"fieldname": "sss_no",
 			"label": _("SSS Number"),
@@ -138,7 +174,7 @@ def get_columns(filters):
 	return columns
 
 def get_employees(filters,transaction_type):
-	employees = frappe.db.sql("""SELECT PRE.pay_code, PRE.amount, PR.posting_date, PR.employee as `name`, PR.employee_name as full_name, TE.sss_no
+	employees = frappe.db.sql("""SELECT PRE.pay_code, PRE.amount, PR.posting_date, PR.employee as `name`, PR.employee_name as full_name, TE.sss_no, TE.last_name, TE.first_name, TE.middle_name
 		FROM `tabPayroll Register Entries` PRE
 		INNER JOIN `tabPayroll Register` PR ON PRE.`parent` = PR.`name`
 		INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
@@ -161,7 +197,7 @@ def get_employees(filters,transaction_type):
 	gov_map = {}
 	for d in employees:
 		if d.name not in gov_map:
-			type_list.update({"full_name":d.full_name,"sss_no":d.sss_no,"employee":d.name})
+			type_list.update({"full_name":d.full_name,"last_name":d.last_name,"first_name":d.first_name,"middle_name":d.middle_name,"sss_no":d.sss_no,"employee":d.name})
 			gov_map.setdefault(d.name, frappe._dict(type_list))
 		gov_map[d.name][d.pay_code] += flt(d.amount)
 	return employees, gov_map
