@@ -288,7 +288,8 @@ def get_columns(filters,employee_list):
 def get_employees(filters):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income, TE.position_title
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, 
+			TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income, TE.position_title, PR.paid_holidays, PR.holiday_pay_amount
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
 			AND PR.on_hold = 0
@@ -301,7 +302,8 @@ def get_employees(filters):
 				"location": filters.location,
 			}, as_dict=1)
 	else:
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income, TE.position_title
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, 
+			TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income, TE.position_title, PR.paid_holidays, PR.holiday_pay_amount
 		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PR.period = %(period)s
 			AND PR.on_hold = 0
