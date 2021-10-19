@@ -35,6 +35,9 @@ cur_frm.add_fetch('employee', 'position_title', 'transfer_cur_position_title');
 //cur_frm.add_fetch('employee', 'min_take_home', 'new_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'new_attendance_base');
 cur_frm.add_fetch('employee', 'rate_class', 'current_rate_classification');
+cur_frm.add_fetch('employee', 'rate_class', 'new_rate_classification');
+cur_frm.add_fetch('employee', 'cost_center', 'new_cost_center');
+cur_frm.add_fetch('employee', 'job_grade', 'new_job_grade');
 
 frappe.ui.form.on('Employee Movement', {
 	onload: function(frm) {

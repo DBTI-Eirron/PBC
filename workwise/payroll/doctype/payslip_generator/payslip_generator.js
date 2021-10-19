@@ -29,6 +29,15 @@ frappe.ui.form.on('Payslip Generator', {
 			},
 			callback: function(r) {
 				var filter1 = new String("PR.company = '"+frm.doc.company+"' AND PR.period = '"+frm.doc.payroll_period+"'");
+				if (frm.doc.employee){
+					filter1 += " AND TE.name ='"+frm.doc.employee+"'";
+				}
+				if (frm.doc.department){
+					filter1 += " AND TE.department ='"+frm.doc.department+"'"
+				}
+				if (frm.doc.location){
+					filter1 += " AND TE.location ='"+frm.doc.location+"'";
+				}
 				if (!frappe.user.has_role("Administrator")){
 					filter1 += " AND E.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = '"+frappe.session.user+"')";
 				}
