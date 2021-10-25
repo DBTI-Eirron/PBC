@@ -997,7 +997,7 @@ class Blanket(Document):
 				"employee_name": d.full_name,
 				"posting_date": self.posting_date,
 				"company": self.company,
-				"target_date": self.dtr_target_date,
+				"dtr_date": self.dtr_target_date,
 				"reason": self.dtr_reason,
 				"attachment": self.dtr_attachment,
 				"approved_on": nowdate(),
