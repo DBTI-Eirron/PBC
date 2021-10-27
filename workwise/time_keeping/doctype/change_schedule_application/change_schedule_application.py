@@ -50,7 +50,8 @@ class ChangeScheduleApplication(Document):
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)
 		self.validate_dates()
-		self.validate_existing_application()
+		if self.workflow_state not in ['Rejected']:
+			self.validate_existing_application()
 		self.get_recipients()
 		change_owner(self)
 
@@ -65,8 +66,8 @@ class ChangeScheduleApplication(Document):
 
 		self.set('change_list', [])
 		for ue in unique_entries:
-			row = self.append('change_list', {})
-			row.update(ue)
+			self.append('change_list', ue)
+			#row.update(ue)
 		
 	def validate_existing_application(self):
 		for i in self.change_list:
@@ -211,8 +212,8 @@ class ChangeScheduleApplication(Document):
 		self.set('change_list', [])
 		
 		for d in entries:
-			row = self.append('change_list', {})
-			row.update(d)
+			self.append('change_list', d)
+			#row.update(d)
 
 		self.get_shift()
 
