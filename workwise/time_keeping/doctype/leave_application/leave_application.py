@@ -394,72 +394,109 @@ class LeaveApplication(Document):
 		self.get_leave_balance()
 
 	def get_leave_balance(self):
-		valid_entry = {}
-		less_entry = {}
-		from_balance = ""
-		add, less, total_balance = 0, 0, 0
-		min_date = None
-		deduct_to = frappe.get_value("Leave Type", self.leave_type, "deduct_to")
-		if not deduct_to:
-			deduct_to = self.leave_type
-		lb_entries = frappe.db.sql(""" SELECT * FROM `tabLB Entry` WHERE `employee` = %s AND 
-			(`leave_type` = %s OR `deduct_credits_to` = %s) AND `company` = %s ORDER BY `from_date` 
-			ASC """, (self.employee, deduct_to, deduct_to, self.company), as_dict=1)
+		data_entry = {}
+		data_result = {}
+		self.leave_balance = 0
+		self.from_balance = ""
 
-		for d in lb_entries:
-			if d.balance_type == "Add":
-				if deduct_to == d.leave_type:
-					if d.name not in valid_entry:
-						valid_entry[d.name] = {
-							"credits": d.credits,
-							"from": getdate(d.from_date),
-							"to": getdate(d.to_date),
-							"used": 0,
+		leave_balance = frappe.db.sql(""" SELECT LE.*, TE.full_name
+		FROM `tabLB Entry` LE INNER JOIN `tabEmployee` TE ON LE.`employee` = TE.`name` 
+		WHERE TE.`company` = %(company)s AND LE.`employee`=%(employee)s AND (LE.`leave_type`=%(leave_type)s OR LE.`deduct_credits_to`=%(leave_type)s) 
+		ORDER BY TE.full_name, LE.creation DESC """,{
+			"company": self.company,
+			"employee": self.employee,
+			"leave_type": self.leave_type
+		}, as_dict=1)
+
+		#Init Data
+		for lv in leave_balance:
+			if lv.company == self.company:
+				doc_nam = cstr(lv.employee)+cstr(lv.leave_type)
+				if lv.balance_type == 'Less':
+					doc_nam = cstr(lv.employee)+cstr(lv.deduct_credits_to)
+
+				if doc_nam not in data_entry:
+					data_entry[doc_nam] = {
+						"employee_name": cstr(lv.full_name),
+						"location": lv.location,
+						"valid_credits": 0,
+						"add_entry": [],
+						"less_entry": [],
+					}
+
+				if lv.balance_type == "Add":
+					data_entry[doc_nam]['add_entry'].append({
+						"name": lv.name,
+						"type": "Add",
+						"creation": lv.creation,
+						"credits": lv.credits,
+						"from_date": getdate(lv.from_date),
+						"to_date": getdate(lv.to_date),
+						"leave_type": lv.leave_type,
+						"deduct_credits_to": None,
+						"application": None,
+					})
+					
+				if lv.balance_type == "Less":
+					data_entry[doc_nam]['less_entry'].append({
+						"name": lv.name,
+						"type": "Less",
+						"creation": lv.creation,
+						"credits": lv.credits,
+						"from_date": getdate(lv.from_date),
+						"to_date": getdate(lv.to_date),
+						"leave_type": lv.leave_type,
+						"deduct_credits_to": lv.deduct_credits_to,
+						"application": lv.linked_document,
+						"included": 0,
+					})
+
+		#Process Data
+		all_included_less = []
+		for dt in data_entry:
+			for vl in data_entry[dt]['add_entry']:
+				included_less = []
+				if ( ( vl['from_date'] <= getdate(self.from_date) <= vl['to_date'] ) or ( vl['from_date'] <= getdate(self.to_date) <= vl['to_date'] ) )\
+				or ( ( getdate(self.from_date) <= vl['from_date'] <= getdate(self.to_date) ) or ( getdate(self.from_date) <= vl['to_date'] <= getdate(self.to_date) ) ):
+					if dt not in data_result:
+				 		data_result[dt] = {
+							"employee_name": cstr(data_entry[dt]['employee_name']),
+							"location": cstr(data_entry[dt]['location']),
+							"valid_credits": 0,
+							"entry": [],
 						}
-			else:
-				if d.deduct_credits_to == deduct_to:
-					if d.name not in less_entry:
-						less_entry[d.name] = {
-							"used": 0,
-							"credits": d.credits,
-							"from": getdate(d.from_date),
-							"to": getdate(d.to_date),
-						}
+					data_result[dt]['entry'].append({
+						"name": vl['name'],
+						"type": vl['type'],
+						"creation": vl['creation'],
+						"credits": vl['credits'],
+						"from_date": vl['from_date'],
+						"to_date": vl['to_date'],
+						"leave_type": vl['leave_type'],
+						"deduct_credits_to": vl['deduct_credits_to'],
+						"application": vl['application'],
+					})
 
-		have_lbentry = 0
-		for vl in valid_entry:
-			for le in less_entry:
-				to_less = 0
-				if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
-					if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
-						if less_entry[le]['credits'] > valid_entry[vl]['credits']:
-							to_less += valid_entry[vl]['credits']
-							less_entry[le]['credits'] -= valid_entry[vl]['credits']
-						else:
-							to_less += less_entry[le]['credits']
-							less_entry[le]['used'] = 1
-					valid_entry[vl]['credits'] -= to_less
-			if getdate(valid_entry[vl]['from']) <= getdate(self.from_date) and getdate(valid_entry[vl]['to']) >= getdate(self.to_date) and valid_entry[vl]['credits'] > 0:
-				if total_balance < self.total_leave_days:
-					from_balance += cstr(vl)
-				total_balance += valid_entry[vl]['credits']
-				valid_entry[vl]['used'] = 1
-				have_lbentry = 1
-				
-		if have_lbentry == 1:
-			for vl in valid_entry:
-				if valid_entry[vl]['used'] == 0 and valid_entry[vl]['credits'] > 0:
-					if ( valid_entry[vl]['from'] <= getdate(self.from_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] )\
-					or ( getdate(self.from_date) <= valid_entry[vl]['from'] <= getdate(self.to_date) ) or ( getdate(self.from_date) <= valid_entry[vl]['to'] <= getdate(self.to_date) ):
-						if total_balance < self.total_leave_days:
-							from_balance += cstr(vl)
-						total_balance += valid_entry[vl]['credits']
-						valid_entry[vl]['used'] = 1
+					to_less = 0
+					for le in data_entry[dt]['less_entry']:
+						if (vl['credits'] > 0) and not le['included']:
+							if (( vl['from_date'] <= le['from_date'] <= vl['to_date'] ) or ( vl['from_date'] <= le['to_date'] <= vl['to_date'] )) \
+							or (( le['from_date'] <= vl['from_date'] <= le['to_date'] ) or ( le['from_date'] <= vl['to_date'] <= le['to_date'] )):
+								to_less += le['credits']
+					 			le['included'] = 1
+					 			if le not in all_included_less:
+									included_less.append(le)
+									all_included_less.append(le)
+					vl['credits'] -= to_less
+					data_result[dt]['valid_credits'] += vl['credits']
+					if vl['credits'] > 0:
+						self.from_balance += str(vl['name'])
 
-		self.from_balance = from_balance
-		if total_balance <= 0:
-			total_balance = 0
-		self.leave_balance = total_balance
+		if data_result:
+			self.leave_balance = data_result[dt]['valid_credits']
+			if self.leave_balance < 0:
+				self.leave_balance = 0
+				self.from_balance = ""
 
 	def update_leave_credits(self):
 		if self.workflow_state == 'Approved' and not self.linked_lb_entry:
