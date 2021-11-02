@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 import frappe, datetime, math
-from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date
+from frappe.utils import cint, cstr, flt, nowdate, add_days, getdate, fmt_money, get_datetime, add_to_date, get_time
 from frappe import _
 from datetime import timedelta, date
 
@@ -968,9 +968,12 @@ def get_ndiff(entry):
 
 	if entry.get('nd_start') and entry.get('nd_end') and not frappe.db.get_value("Employee", entry['employee'], "ignore_nd") and not entry['is_restday']:
 		#get ND start and end
+		nd_early_start, nd_early_end = None, None
 		nd_start, nd_end  = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_start')) ), get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
 		if entry.get('nd_start') > entry.get('nd_end'):
 			nd_end = get_datetime( str( add_days(entry.get('target_date'), 1) ) +" "+ str(entry.get('nd_end')) )
+			nd_early_start = get_datetime( str( entry.get('target_date') ) +" 00:00:00" )
+			nd_early_end = get_datetime( str( entry.get('target_date') ) +" "+ str(entry.get('nd_end')) )
 
 		#set min ND and max ND
 		min_nd, max_nd, nd_pro  = entry.get('nd_start'),  entry.get('nd_end'), 1
@@ -1093,17 +1096,27 @@ def get_ndiff(entry):
 
 		#early nightdiff No need for early nightdiff ND should be insided shift
 		if card_in and card_out:
+			if nd_early_start and nd_early_end:
+				if nd_early_start <= entry.get('time_in') <= nd_early_end:
+					nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, card_out, card_in)
+					employee_nd_early_start = nd_early_start
+					if getdate(entry.get('time_in')) == getdate(entry.get("target_date")):
+						employee_nd_early_start = max(nd_early_start, entry.get('time_in'))
+					employee_nd_early_end = min(nd_early_end, entry.get('time_out'))
+					entry['early_nightdiff'] = 0
+					entry['early_nightdiff'] = (abs(( get_datetime(employee_nd_early_end) - employee_nd_early_start ).total_seconds()))
+					entry['nightdiff'] += entry['early_nightdiff']
+
 			nd_early_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
 			if entry.get('time_in') <= nd_early_start:
 				if get_datetime(entry.get('card_in')) < nd_early_start:
 					if get_datetime(entry.get('card_in')) < get_datetime(entry.get('time_in')):
-						entry['nightdiff'] = (abs(( get_datetime(entry.get('time_in')) - nd_early_start ).total_seconds())) + entry['nightdiff']
 						if not entry['is_holiday']:
 							early_diff, late_diff = get_early_and_late_nd(entry, entry['time_in'], nd_early_start)
 							if early_diff:
 								entry['earlynightdiff'] += early_diff
 							if late_diff:
-								entry['latenightdiff'] += late_diff							
+								entry['latenightdiff'] += late_diff					
 
 	return entry
 
