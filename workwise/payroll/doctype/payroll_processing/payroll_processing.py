@@ -1928,6 +1928,11 @@ class PayrollProcessing(Document):
 									max_cto += ( at.work_hours / 2 )
 								else:
 									max_cto += ( at.work_hours / 2 ) if at.is_halfday == 1 else at.work_hours
+									
+							if AT > 0 and at.is_absent == 0:
+								if at['is_halfday'] == 1:
+									max_cto += ( at.work_hours / 2)
+									cto_days += 0.5
 
 							if max_cto < at.cto:
 								cto += ( max_cto ) * flt(rates.get('hourly_rate'), 8)
