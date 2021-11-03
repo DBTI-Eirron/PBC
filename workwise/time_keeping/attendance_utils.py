@@ -1584,7 +1584,7 @@ def get_cto(entry, cto):
 						cto_logs = []
 						cto_logs.append({"start": ct['start'], "end": ct['end']})
 
-						if entry["late"]:
+						if entry["late"] or entry["late_list"]:
 							for l in entry["late_list"]:
 								start, end = None, None
 								cto = 0
@@ -1608,7 +1608,7 @@ def get_cto(entry, cto):
 										if cto <= entry["late"]:
 											entry['cto'] += cto
 
-						if entry["undertime"]:
+						if entry["undertime"] or entry["ut_list"]:
 							ut_start = None
 							ut_end = None
 
