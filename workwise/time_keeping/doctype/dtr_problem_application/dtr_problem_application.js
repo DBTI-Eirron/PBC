@@ -9,7 +9,19 @@ frappe.ui.form.on('DTR Problem Application', {
 		if (!frm.doc.posting_date) {
 			frm.set_value("posting_date", get_today());
 		}
-	},		
+	},
+
+	setup: function(frm) {
+		cur_frm.add_fetch('employee','full_name','employee_name');
+		cur_frm.add_fetch('employee','company','company');
+		cur_frm.add_fetch('employee','department','department');
+	},
+
+	before_save: function(frm) {
+		cur_frm.add_fetch('employee','full_name','employee_name');
+		cur_frm.add_fetch('employee','company','company');
+		cur_frm.add_fetch('employee','department','department');
+	},
 
 	refresh: function(frm) {
 		cur_frm.set_query("employee", function() {
