@@ -56,6 +56,7 @@ class Employee(Document):
 		self.validate_employee_approvers()
 		self.validate_user_status()
 		self.validate_cost_center()
+		self.set_default_name_and_company()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
@@ -196,6 +197,12 @@ class Employee(Document):
 						user.add_roles(self.role)
 					user.save()
 					frappe.defaults.set_user_default("Employee", self.name, self.user_id)
+
+	def set_default_name_and_company(self):
+		if self.user_id:
+			frappe.defaults.set_user_default("Employee", self.name, self.user_id)
+			frappe.defaults.set_user_default("Company", self.company, self.user_id)
+			frappe.defaults.set_user_default("Department", self.department, self.user_id)
 
 	def update_user(self):
 		if self.user_id:
