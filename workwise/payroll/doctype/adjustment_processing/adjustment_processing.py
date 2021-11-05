@@ -111,7 +111,7 @@ class AdjustmentProcessing(Document):
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 			processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
-				if sched['target_date'] not in [pay_from - datetime.timedelta(days=2), pay_to + datetime.timedelta(days=1)]:
+				if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
 					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
 					cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
 						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
@@ -277,22 +277,22 @@ class AdjustmentProcessing(Document):
 				"late": adjustment.get('LT') - processed.get('LT'),
 				"undertime":  adjustment.get('UT') - processed.get('UT'),
 				"compensatory":  adjustment.get('CTO') - processed.get('CTO'),
-				"processed_work_hrs": processed_time['work'],
-				"processed_absent_hrs": processed_time['absent'],
-				"processed_undertime_hrs": processed_time['undertime'],
-				"processed_nd_hrs": processed_time['nd'],
-				"processed_late_hrs": processed_time['late'],
-				"processed_overtime_hrs": processed_time['overtime'],
-				"processed_cto_hrs": processed_time['cto'],
-				"processed_uho_hrs": processed_time['uho'],
-				"adjusted_work_hrs": adjustment_time['work'],
-				"adjusted_absent_hrs": adjustment_time['absent'],
-				"adjusted_undertime_hrs": adjustment_time['undertime'],
-				"adjusted_nd_hrs": adjustment_time['nd'],
-				"adjusted_late_hrs": adjustment_time['late'],
-				"adjusted_overtime_hrs": adjustment_time['overtime'],
-				"adjusted_cto_hrs": adjustment_time['cto'],
-				"adjusted_uho_hrs": adjustment_time['uho'],
+				"processed_work_hrs": processed_time.get('work'),
+				"processed_absent_hrs": processed_time.get('absent'),
+				"processed_undertime_hrs": processed_time.get('undertime'),
+				"processed_nd_hrs": processed_time.get('nd'),
+				"processed_late_hrs": processed_time.get('late'),
+				"processed_overtime_hrs": processed_time.get('overtime'),
+				"processed_cto_hrs": processed_time.get('cto'),
+				"processed_uho_hrs": processed_time.get('uho'),
+				"adjusted_work_hrs": adjustment_time.get('work'),
+				"adjusted_absent_hrs": adjustment_time.get('absent'),
+				"adjusted_undertime_hrs": adjustment_time.get('undertime'),
+				"adjusted_nd_hrs": adjustment_time.get('nd'),
+				"adjusted_late_hrs": adjustment_time.get('late'),
+				"adjusted_overtime_hrs": adjustment_time.get('overtime'),
+				"adjusted_cto_hrs": adjustment_time.get('cto'),
+				"adjusted_uho_hrs": adjustment_time.get('uho'),
 				#Processed Links
 				"processed_leave_application_links": str(processed.get('processed_leave_application_links')),
 				"processed_overtime_application_links": str(processed.get('processed_overtime_application_links')),
@@ -480,39 +480,39 @@ class AdjustmentProcessing(Document):
 				is_uho, no_previous, dho_amount, work_hrs, paid_leave, total_work = 0, 0, 0, 0, 0, 0
 				for at in attendance:
 					if _type == 'processed':
-						if at["leave_application_links"]:
-							attendance_result["processed_leave_application_links"].extend(eval(at["leave_application_links"]))
-						if at["overtime_application_links"]:
-							attendance_result["processed_overtime_application_links"].extend(eval(at["overtime_application_links"]))
-						if at["official_business_application_links"]:
-							attendance_result["processed_official_business_application_links"].extend(eval(at["official_business_application_links"]))
-						if at["excuse_tardiness_application_links"]:
-							attendance_result["processed_excuse_tardiness_application_links"].extend(eval(at["excuse_tardiness_application_links"]))
-						if at["undertime_application_links"]:
-							attendance_result["processed_undertime_application_links"].extend(eval(at["undertime_application_links"]))
-						if at["dtr_problem_application_links"]:
-							attendance_result["processed_dtr_problem_application_links"].extend(eval(at["dtr_problem_application_links"]))
-						if at["compensatory_time_off_links"]:
-							attendance_result["processed_compensatory_time_off_links"].extend(eval(at["compensatory_time_off_links"]))
-						if at["timelogs_application_links"]:
-							attendance_result["processed_timelogs_application_links"].extend(eval(at["timelogs_application_links"]))
+						if at.get("leave_application_links"):
+							attendance_result["processed_leave_application_links"].extend(eval(at.get("leave_application_links")))
+						if at.get("overtime_application_links"):
+							attendance_result["processed_overtime_application_links"].extend(eval(at.get("overtime_application_links")))
+						if at.get("official_business_application_links"):
+							attendance_result["processed_official_business_application_links"].extend(eval(at.get("official_business_application_links")))
+						if at.get("excuse_tardiness_application_links"):
+							attendance_result["processed_excuse_tardiness_application_links"].extend(eval(at.get("excuse_tardiness_application_links")))
+						if at.get("undertime_application_links"):
+							attendance_result["processed_undertime_application_links"].extend(eval(at.get("undertime_application_links")))
+						if at.get("dtr_problem_application_links"):
+							attendance_result["processed_dtr_problem_application_links"].extend(eval(at.get("dtr_problem_application_links")))
+						if at.get("compensatory_time_off_links"):
+							attendance_result["processed_compensatory_time_off_links"].extend(eval(at.get("compensatory_time_off_links")))
+						if at.get("timelogs_application_links"):
+							attendance_result["processed_timelogs_application_links"].extend(eval(at.get("timelogs_application_links")))
 					if _type == 'adjustment':
-						if at['lv_links']:
-							attendance_result["adjusted_leave_application_links"].extend(at['lv_links'])
-						if at['ot_links']:
-							attendance_result["adjusted_overtime_application_links"].extend(at['ot_links'])
-						if at['ob_links']:
-							attendance_result["adjusted_official_business_application_links"].extend(at['ob_links'])
-						if at['ext_links']:
-							attendance_result["adjusted_excuse_tardiness_application_links"].extend(at['ext_links'])
-						if at['ut_links']:
-							attendance_result["adjusted_undertime_application_links"].extend(at['ut_links'])
-						if at['dtrp_links']:
-							attendance_result["adjusted_dtr_problem_application_links"].extend(at['dtrp_links'])
-						if at['cto_links']:
-							attendance_result["adjusted_compensatory_time_off_links"].extend(at['cto_links'])
-						if at['tla_links']:
-							attendance_result["adjusted_timelogs_application_links"].extend(at['tla_links'])
+						if at.get('lv_links'):
+							attendance_result["adjusted_leave_application_links"].extend(at.get('lv_links'))
+						if at.get('ot_links'):
+							attendance_result["adjusted_overtime_application_links"].extend(at.get('ot_links'))
+						if at.get('ob_links'):
+							attendance_result["adjusted_official_business_application_links"].extend(at.get('ob_links'))
+						if at.get('ext_links'):
+							attendance_result["adjusted_excuse_tardiness_application_links"].extend(at.get('ext_links'))
+						if at.get('ut_links'):
+							attendance_result["adjusted_undertime_application_links"].extend(at.get('ut_links'))
+						if at.get('dtrp_links'):
+							attendance_result["adjusted_dtr_problem_application_links"].extend(at.get('dtrp_links'))
+						if at.get('cto_links'):
+							attendance_result["adjusted_compensatory_time_off_links"].extend(at.get('cto_links'))
+						if at.get('tla_links'):
+							attendance_result["adjusted_timelogs_application_links"].extend(at.get('tla_links'))
 						
 					cto_days, work_days, absent_days, present_days, pho_days, hourly_basic, nwho_days = 0, 0, 0, 0, 0, 0, 0
 					basic_salary, absent, late, undertime, unpaid_holiday, cto, nightdiff = 0, 0, 0, 0, 0, 0, 0
@@ -975,29 +975,29 @@ class AdjustmentProcessing(Document):
 		new_doc = None
 		if _type == "adjustment":
 			new_doc = frappe.new_doc("Adjustment Register Adjusted")
-			new_doc.worked_hours = at["work"]
-			new_doc.overtime_nd_ex_hours = at["overtime_ndex"]
+			new_doc.worked_hours = at.get("work")
+			new_doc.overtime_nd_ex_hours = at.get("overtime_ndex")
 		if _type == "processed":
 			new_doc = frappe.new_doc("Adjustment Register Processed")
-			new_doc.worked_hours = at["work"]
-			new_doc.overtime_nd_ex_hours = at["ot_ndex"]
+			new_doc.worked_hours = at.get("work")
+			new_doc.overtime_nd_ex_hours = at.get("ot_ndex")
 			
 		if new_doc:
-			new_doc.employee = at["employee"]
-			new_doc.employee_name = frappe.db.get_value('Employee', at["employee"], 'full_name')
+			new_doc.employee = at.get("employee")
+			new_doc.employee_name = frappe.db.get_value('Employee', at.get("employee"), 'full_name')
 			new_doc.company = self.company
 			new_doc.payroll_period = self.period
 			new_doc.target_period = self.target_period
 			new_doc.date = at["target_date"]
-			new_doc.late_hours = at["late"]
+			new_doc.late_hours = at.get("late")
 			new_doc.overtime_hours = at["overtime"]
-			new_doc.overtime_nd_hours = at["overtime_nd"]
-			new_doc.overtime_ex_hours = at["overtime_ex"]
-			new_doc.night_difference_hours = at["nightdiff"]
-			new_doc.undertime_hrs = at["undertime"]
-			new_doc.cto = at["cto"]
-			new_doc.tags = at["tags"]
-			new_doc.links = at["links"]
+			new_doc.overtime_nd_hours = at.get("overtime_nd")
+			new_doc.overtime_ex_hours = at.get("overtime_ex")
+			new_doc.night_difference_hours = at.get("nightdiff")
+			new_doc.undertime_hrs = at.get("undertime")
+			new_doc.cto = at.get("cto")
+			new_doc.tags = at.get("tags")
+			new_doc.links = at.get("links")
 			new_doc.flags.ignore_permissions = True
 			new_doc.insert()
 
