@@ -111,7 +111,7 @@ class AdjustmentProcessing(Document):
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 			processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
-				if sched['target_date'] not in [pay_from - datetime.timedelta(days=2), pay_to + datetime.timedelta(days=1)]:
+				if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
 					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
 					cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
 						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
@@ -470,7 +470,7 @@ class AdjustmentProcessing(Document):
 						"target_date": target_date,
 						"employee": employee,
 					})
-			
+
 			suc_list = []
 			attendance_register = []
 			attendance_time = {"work": 0, "absent": 0, "overtime": 0, "nd": 0, "late": 0, "undertime": 0, "cto": 0, "uho": 0}
@@ -966,6 +966,7 @@ class AdjustmentProcessing(Document):
 		new_doc.ot_code = otr.get("pay_code")
 		new_doc.hrs = otr.get("pay_time")
 		new_doc.linked_ot = None
+		new_doc.amount = otr.get("amount")
 		new_doc.early_nd = otr.get("early_nd")
 		new_doc.late_nd = otr.get("late_nd")
 		new_doc.flags.ignore_permissions = True
