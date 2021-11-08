@@ -52,3 +52,24 @@ class LBEntry(Document):
 
 		if not is_active:
 			frappe.throw(_('Employee is not active'))
+
+		if self.balance_type == "Add":
+			self.deduct_add_lbentry_to_overused()
+
+	def deduct_add_lbentry_to_overused(self):
+		total_add_credit = abs(self.credits)
+		overused_list = frappe.get_all("Overused LB Entry", filters={"employee": self.employee, "leave_type": self.deduct_credits_to, "status": "Pending"}, fields=["name"])
+		for overused in overused_list:
+			if total_add_credit > 0:
+				total_remaining_credit = 0
+				total_deduction_credit = total_add_credit
+				doc = frappe.get_doc("Overused LB Entry", overused.name)
+				total_remaining_credit = flt(doc.remaining_overused_credits)
+				if total_remaining_credit < total_add_credit:
+					total_deduction_credit = total_add_credit - total_remaining_credit
+				doc.append('deduction_history', {
+						"lb_entry": self.deduct_credits_to,
+						"credits": total_deduction_credit
+					})
+				doc.flags.ignore_permissions = True
+				doc.save()
