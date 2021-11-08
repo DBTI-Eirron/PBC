@@ -399,21 +399,23 @@ class LeaveApplication(Document):
 		self.leave_balance = 0
 		self.from_balance = ""
 
+		deduct_to = frappe.get_value("Leave Type", self.leave_type, "deduct_to")
+		if not deduct_to:
+			deduct_to = self.leave_type
+
 		leave_balance = frappe.db.sql(""" SELECT LE.*, TE.full_name
 		FROM `tabLB Entry` LE INNER JOIN `tabEmployee` TE ON LE.`employee` = TE.`name` 
 		WHERE TE.`company` = %(company)s AND LE.`employee`=%(employee)s AND (LE.`leave_type`=%(leave_type)s OR LE.`deduct_credits_to`=%(leave_type)s) 
 		ORDER BY TE.full_name, LE.creation DESC """,{
 			"company": self.company,
 			"employee": self.employee,
-			"leave_type": self.leave_type
+			"leave_type": deduct_to
 		}, as_dict=1)
 
 		#Init Data
 		for lv in leave_balance:
 			if lv.company == self.company:
-				doc_nam = cstr(lv.employee)+cstr(lv.leave_type)
-				if lv.balance_type == 'Less':
-					doc_nam = cstr(lv.employee)+cstr(lv.deduct_credits_to)
+				doc_nam = cstr(lv.employee)+cstr(deduct_to)
 
 				if doc_nam not in data_entry:
 					data_entry[doc_nam] = {
