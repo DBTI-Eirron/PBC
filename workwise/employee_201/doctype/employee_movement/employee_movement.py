@@ -18,7 +18,7 @@ class EmployeeMovement(Document):
 	def validate(self):
 		self.clear_fields()
 		self.get_sensitivity_level()
-		if self.movement_type in ["Job Rotation", "Retirement", "Resignation", "Regularization", "Transfer", "Termination", "Salary Adjustment", "Extension of Services"]:
+		if self.movement_type in ["Job Rotation", "Retirement", "Resignation", "Regularization", "Transfer", "Termination", "Salary Adjustment", "Promotion", "Extension of Services"]:
 			validate_inactive_employee(self)
 		if self.movement_type in ["Rehire"]:
 			validate_active_employee(self)
@@ -254,6 +254,43 @@ class EmployeeMovement(Document):
 					"is_attendance_base": self.current_attendance_base,
 					"cost_center": self.current_cost_center,
 					"rate_class": self.current_rate_classification,
+				})
+			self.revert_employee(emp)
+			
+	def cmd_promotion(self, process):
+		if process == "validate":
+			fields = ["new_rate_type", "new_rate"]
+			self.validate_fields(fields)
+
+		elif process == "update":
+			emp = frappe.get_doc("Employee", self.employee)
+			emp.update({
+					"employment_status": self.change_employment_status if self.change_employment_status else self.current_employment_status,
+					"position_title": self.change_position_title if self.change_position_title else self.current_position_title,
+					"rate_type": self.new_rate_type if self.new_rate_type else self.current_rate_type,
+					"rate": flt(self.new_rate, 2) if self.new_rate else flt(self.current_rate, 2),
+					"min_take_home": flt(self.new_minimum_take_home, 2) if self.new_minimum_take_home else flt(self.current_minimum_take_home, 2),
+					"is_attendance_base": self.new_attendance_base,
+					"cost_center": self.new_cost_center if self.new_cost_center else self.current_cost_center,
+					"rate_class": self.new_rate_classification,
+					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
+					"date_promoted": self.effective_on,
+				})
+			self.save_employee(emp)
+
+		elif process == "revert":
+			emp = frappe.get_doc("Employee", self.employee)
+			emp.update({
+					"rate_type": self.current_rate_type,
+					"employment_status": self.current_employment_status,
+					"position_title": self.current_position_title,
+					"rate": flt(self.current_rate, 2),
+					"min_take_home": flt(self.current_minimum_take_home, 2),
+					"is_attendance_base": self.current_attendance_base,
+					"cost_center": self.current_cost_center,
+					"rate_class": self.current_rate_classification,
+					"job_grade": self.current_job_grade,
+					"date_promoted": self.current_date_promoted,
 				})
 			self.revert_employee(emp)
 
