@@ -31,6 +31,7 @@ cur_frm.add_fetch('employee', 'end_of_contract', 'new_end_of_contract');
 cur_frm.add_fetch('employee', 'date_hired', 'new_date_hired');
 cur_frm.add_fetch('employee', 'rate_type', 'new_rate_type');
 cur_frm.add_fetch('employee', 'position_title', 'transfer_cur_position_title');
+cur_frm.add_fetch('employee', 'date_promoted', 'current_date_promoted');
 //cur_frm.add_fetch('employee', 'rate', 'new_rate');
 //cur_frm.add_fetch('employee', 'min_take_home', 'new_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'new_attendance_base');
@@ -191,7 +192,7 @@ frappe.ui.form.on('Employee Movement', {
 
 	filter_employees: function(frm) {
 		//Filter Employee
-		if (frm.doc.movement_type == "Job Rotation" || frm.doc.movement_type == "Retirement" || frm.doc.movement_type == "Resignation" || frm.doc.movement_type == "Regularization" || frm.doc.movement_type == "Transfer" || frm.doc.movement_type == "Termination" || frm.doc.movement_type == "Salary Adjustment" || frm.doc.movement_type == "Extension of Services" ){
+		if (frm.doc.movement_type == "Job Rotation" || frm.doc.movement_type == "Retirement" || frm.doc.movement_type == "Resignation" || frm.doc.movement_type == "Regularization" || frm.doc.movement_type == "Transfer" || frm.doc.movement_type == "Termination" || frm.doc.movement_type == "Salary Adjustment"|| frm.doc.movement_type == "Promotion" || frm.doc.movement_type == "Extension of Services" ){
 			cur_frm.set_query("employee", function() {
 				return {
 					"filters": {
