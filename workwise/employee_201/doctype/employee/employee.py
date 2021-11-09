@@ -89,11 +89,11 @@ class Employee(Document):
 				if self.role_profile:
 					if us.role_profile_name != self.role_profile:
 						us.update({ "role_profile_name":  self.role_profile, })
-				else:
-					us.update({ 
-						"role_profile_name": "",
-						"roles": None,
-					})
+				#else:
+				#	us.update({ 
+				#		"role_profile_name": "",
+				#		"roles": None,
+				#	})
 				us.save()
 			
 	def on_update(self):
