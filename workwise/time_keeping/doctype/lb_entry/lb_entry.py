@@ -53,6 +53,7 @@ class LBEntry(Document):
 		if not is_active:
 			frappe.throw(_('Employee is not active'))
 
+	def after_insert(self):
 		if self.balance_type == "Add":
 			self.deduct_add_lbentry_to_overused()
 
@@ -68,7 +69,7 @@ class LBEntry(Document):
 				if total_remaining_credit < total_add_credit:
 					total_deduction_credit = total_add_credit - total_remaining_credit
 				doc.append('deduction_history', {
-						"lb_entry": self.deduct_credits_to,
+						"lb_entry": self.name,
 						"credits": total_deduction_credit
 					})
 				doc.flags.ignore_permissions = True
