@@ -19,12 +19,13 @@ class BatchEntry(Document):
 			frappe.throw(_("No Employee found"))
 
 	def validate_transaction_type(self):
-		is_bat, is_act = frappe.db.get_value("Transaction Type", self.transaction_type, ["is_batch", "is_active"])
-		if not is_bat:
-			frappe.throw(_("Transaction Type is not Allowed for Batch"))
+		if self.transaction_type:
+			is_bat, is_act = frappe.db.get_value("Transaction Type", self.transaction_type, ["is_batch", "is_active"])
+			if not is_bat:
+				frappe.throw(_("Transaction Type is not Allowed for Batch"))
 
-		if not is_act:
-			frappe.throw(_("Transaction Type is not Active"))
+			if not is_act:
+				frappe.throw(_("Transaction Type is not Active"))
 
 	def remove_duplicates(self):
 		existing_row = []
