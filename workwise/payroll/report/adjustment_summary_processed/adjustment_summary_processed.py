@@ -126,60 +126,65 @@ def get_data(filters):
 		})
 		data.append({})
 
+	period = frappe.get_doc("Payroll Period", filters.previous_payroll_period)
+
 	for emp in employees:
 		register_filters["employee"] = emp['employee']
 		adjusted_registers = frappe.get_all("Adjustment Register Adjusted", filters=register_filters, fields=["*"], order_by="date")
 		has_adjustment = 0
 		datarow = []
 		for adjusted in adjusted_registers:
-			processed_registers_filters = register_filters
-			processed_registers_filters['date'] = adjusted.get("date")
-			processed_registers = frappe.get_all("Adjustment Register Processed", filters=processed_registers_filters, fields=["*"])
-			#Check if has difference
-			has_diff = 0
-			if processed_registers:
-				if processed_registers[0].get("worked_hours") != adjusted.get("worked_hours"):
+			if getdate(period.attendance_from) <= getdate(adjusted.date) <= getdate(period.attendance_to):
+				processed_registers_filters = register_filters
+				processed_registers_filters['date'] = adjusted.get("date")
+				processed_registers = frappe.get_all("Adjustment Register Processed", filters=processed_registers_filters, fields=["*"])
+				#Check if has difference
+				has_diff = 0
+				if processed_registers:
+					if getdate(period.attendance_from) <= getdate(processed_registers[0].date) <= getdate(period.attendance_to):
+						if processed_registers[0].get("worked_hours") != adjusted.get("worked_hours"):
+							has_diff = 1
+						if processed_registers[0].get("break") != adjusted.get("break"):
+							has_diff = 1
+						if processed_registers[0].get("late_hours") != adjusted.get("late_hours"):
+							has_diff = 1
+						if processed_registers[0].get("overtime_hours") != adjusted.get("overtime_hours"):
+							has_diff = 1
+						if processed_registers[0].get("overtime_nd_hours") != adjusted.get("overtime_nd_hours"):
+							has_diff = 1
+						if processed_registers[0].get("overtime_ex_hours") != adjusted.get("overtime_ex_hours"):
+							has_diff = 1
+						if processed_registers[0].get("night_difference_hours") != adjusted.get("night_difference_hours"):
+							has_diff = 1
+						if processed_registers[0].get("cto") != adjusted.get("cto"):
+							has_diff = 1
+						if processed_registers[0].get("undertime_hrs") != adjusted.get("undertime_hrs"):
+							has_diff = 1
+						if processed_registers[0].get("tags") != adjusted.get("tags"):
+							has_diff = 1
+						if processed_registers[0].get("links") != adjusted.get("links"):
+							has_diff = 1
+				else:
 					has_diff = 1
-				if processed_registers[0].get("break") != adjusted.get("break"):
-					has_diff = 1
-				if processed_registers[0].get("late_hours") != adjusted.get("late_hours"):
-					has_diff = 1
-				if processed_registers[0].get("overtime_hours") != adjusted.get("overtime_hours"):
-					has_diff = 1
-				if processed_registers[0].get("overtime_nd_hours") != adjusted.get("overtime_nd_hours"):
-					has_diff = 1
-				if processed_registers[0].get("overtime_ex_hours") != adjusted.get("overtime_ex_hours"):
-					has_diff = 1
-				if processed_registers[0].get("night_difference_hours") != adjusted.get("night_difference_hours"):
-					has_diff = 1
-				if processed_registers[0].get("cto") != adjusted.get("cto"):
-					has_diff = 1
-				if processed_registers[0].get("undertime_hrs") != adjusted.get("undertime_hrs"):
-					has_diff = 1
-				if processed_registers[0].get("tags") != adjusted.get("tags"):
-					has_diff = 1
-				if processed_registers[0].get("links") != adjusted.get("links"):
-					has_diff = 1
-			else:
-				has_diff = 1
 
-			if has_diff:
-				has_adjustment = 1
-				row = {
-					"target_date": adjusted.get("date"),
-					"work": adjusted.get("worked_hours"),
-					"break": adjusted.get("break"),
-					"late": adjusted.get("late_hours"),
-					"overtime": adjusted.get("overtime_hours"),
-					"overtime_nd": adjusted.get("overtime_nd_hours"),
-					"overtime_ex": adjusted.get("overtime_ex_hours"),
-					"nightdiff": adjusted.get("night_difference_hours"),
-					"cto": adjusted.get("cto"),
-					"undertime": adjusted.get("undertime_hrs"),
-					"tags": adjusted.get("tags"),
-					"links": adjusted.get("links"),
-				}
-				datarow.append(row)
+				if has_diff:
+					has_adjustment = 1
+					row = {
+						"target_date": adjusted.get("date"),
+						"work": adjusted.get("worked_hours"),
+						"break": adjusted.get("break"),
+						"late": adjusted.get("late_hours"),
+						"overtime": adjusted.get("overtime_hours"),
+						"overtime_nd": adjusted.get("overtime_nd_hours"),
+						"overtime_ex": adjusted.get("overtime_ex_hours"),
+						"nightdiff": adjusted.get("night_difference_hours"),
+						"cto": adjusted.get("cto"),
+						"undertime": adjusted.get("undertime_hrs"),
+						"tags": adjusted.get("tags"),
+						"links": adjusted.get("links"),
+					}
+					datarow.append(row)
+
 		if has_adjustment:
 			data.append({"target_date":"<b>"+emp['employee_name']+"</b>"})
 			data.extend(datarow)
