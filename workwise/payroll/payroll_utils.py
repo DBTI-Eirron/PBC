@@ -4,12 +4,16 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 
-def get_rates(emp):
+def get_rates(emp, specified_rate=None):
 	monthly_rate = 0.0
 	hourly_rate = 0.0
 	semi_rate = 0.0
 	daily_rate = 0.0
 	weekly_rate = 0.0
+
+	if specified_rate:
+		emp['rate'] = specified_rate
+
 	if emp['rate'] > 0 and  emp['total_yr_days'] > 0 and emp['no_hours'] > 0:
 		month_days = (flt(emp['total_yr_days'], 8) / 12)
 		if emp['rate_type'] == "Monthly Rate":
