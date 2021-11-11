@@ -384,11 +384,7 @@ def get_data():
 		},		
 		{
 			"label": _("Tools"),
-			"items": [							
-				{
-					"type": "doctype",
-					"name": "Statement of Account",
-				},
+			"items": [
 				{
 					"type": "doctype",
 					"name": "Payroll Process Logs",
