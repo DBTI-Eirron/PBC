@@ -109,7 +109,7 @@ class SpecialProcessing(Document):
 		}
 
 		func = switcher.get(self.method, lambda: frapp.throw(_("Invalid Method")))
-		func(header, entries)
+		func(header, entries, ss_list)
 
 		if self.method not in ["Special Period", "No Work"]:
 			batch = frappe.new_doc("Batch Entry")
@@ -126,7 +126,7 @@ class SpecialProcessing(Document):
 
 		return self.create_log(ss_list)
 
-	def special_period(self, header, entries):
+	def special_period(self, header, entries, ss_list):
 		status, is_special = frappe.db.get_value("Payroll Period", self.period, ["status","is_special"])
 		if status == "Closed":
 			frappe.throw(_("Selected Period is Already Closed"))
@@ -135,7 +135,7 @@ class SpecialProcessing(Document):
 			if not is_special:
 				frappe.throw(_("Selected Period must be Special"))
 
-		ss_list = []
+		#ss_list = []
 		employees = self.get_employees()
 		tr_map = get_transaction_map()
 		ot_map = get_overtime_map()
@@ -327,7 +327,7 @@ class SpecialProcessing(Document):
 		return assumed_bonus
 
 
-	def bonus_pay(self, header, entries):
+	def bonus_pay(self, header, entries, ss_list):
 		bonus_transaction = frappe.db.get_single_value("Payroll Settings", "bonus_transaction") 
 		if not bonus_transaction:
 			frappe.throw(_("No Default Bonus Transaction Type"))
@@ -455,7 +455,7 @@ class SpecialProcessing(Document):
 
 		return header, entries
 
-	def leave_to_cash(self, header, entries):
+	def leave_to_cash(self, header, entries, ss_list):
 		header['transaction_type'] = self.convert_to
 		header['remarks'] = ("Leave to cash for year {0}").format(self.payroll_year)
 
@@ -512,7 +512,9 @@ class SpecialProcessing(Document):
 		return header, entries
 
 	def create_log(self, ss_list):
-		log = "<p>" + _("Special Entries created") + "</p>"
+		log = "<p>" + _("No Special Entries created") + "</p>"
+		if ss_list:
+			log = "<p>" + _("Special Entries created") + "</p>"
 		return log
 
 	def get_recurring(self, emp, rates, header, register):
