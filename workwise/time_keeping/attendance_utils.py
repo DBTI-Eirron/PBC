@@ -213,8 +213,8 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 	entry['late_without_int'] = 0
 	entry['flex_in_out'] = []
 	get_late(entry)
-	get_overtime(entry, ots)
 	get_undertime(entry)
+	get_overtime(entry, ots)
 	get_ndiff(entry)
 	get_absent(entry)
 	get_work(entry)
