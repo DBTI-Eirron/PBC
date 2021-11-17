@@ -138,7 +138,7 @@ class PayrollProcessing(Document):
 		hdmf_strm = frappe.db.get_single_value('Payroll Settings', 'hdmf_strm')
 		whtax_persemi = frappe.db.get_single_value('Payroll Settings', 'whtax_persemi')
 		ignore_nd = frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd')
-		govt_use_old = frappe.db.get_single_value('Payroll Settings', 'govt_use_old')
+		#govt_use_old = frappe.db.get_single_value('Payroll Settings', 'govt_use_old')
 		ab_regho = frappe.db.get_single_value('Timekeeping Settings', 'ab_regho')
 		mo_abho = frappe.db.get_single_value('Timekeeping Settings', 'mo_abho')
 		disable_pdhord = frappe.db.get_single_value('Payroll Settings', 'disable_pdhord')
@@ -260,7 +260,7 @@ class PayrollProcessing(Document):
 						'hdmf_strm': hdmf_strm,
 						'ignore_nd': ignore_nd,
 						'whtax_persemi': whtax_persemi,
-						'govt_use_old': govt_use_old,
+						#'govt_use_old': govt_use_old,
 						'no_attendance': 0,
 						'ab_regho': ab_regho,
 						'mo_abho': mo_abho,
@@ -515,16 +515,16 @@ class PayrollProcessing(Document):
 					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('sss_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('sss_inc') - header.get('sss_ded')
 
-					if header.get("govt_use_old"):
-						target_amt = (rates.get('monthly_rate') + flt(header.get('sss_inc'), 8)) - flt(header.get('sss_ded'), 8)
+					#if header.get("govt_use_old"):
+						#target_amt = (rates.get('monthly_rate') + flt(header.get('sss_inc'), 8)) - flt(header.get('sss_ded'), 8)
 
 			if emp.get('payroll_schedule') == "Semi-Monthly" and self.schedule == emp['payroll_schedule']:
 				if self.frequency == emp.get('sss_freq') or emp.get('sss_freq') in ['Both', 'All']:
 					target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
 						(header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
 
-					if header.get("govt_use_old"):
-						target_amt = (rates.get('monthly_rate') + flt(header.get('sss_inc'), 8)) - flt(header.get('sss_ded'), 8) 
+					#if header.get("govt_use_old"):
+						#target_amt = (rates.get('monthly_rate') + flt(header.get('sss_inc'), 8)) - flt(header.get('sss_ded'), 8) 
 
 					if emp.get('sss_freq') == '1st' and emp.get("rate_type") != "Daily Rate":
 						target_amt = rates.get('monthly_rate') + header.get('sss_inc') - header.get('sss_ded')
@@ -534,8 +534,8 @@ class PayrollProcessing(Document):
 							target_amt = (rates.get('monthly_rate') / 2)+ \
 								(header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
 
-						if header.get("govt_use_old"):
-							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_sss_inc'), 8)) - flt(header.get('prev_sss_ded'), 8)
+						#if header.get("govt_use_old"):
+							#target_amt = (rates.get('monthly_rate') + flt(header.get('prev_sss_inc'), 8)) - flt(header.get('prev_sss_ded'), 8)
 
 					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('sss_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_sss_inc') + header.get('sss_inc')) - (header.get('prev_sss_ded') + header.get('sss_ded'))
@@ -696,16 +696,16 @@ class PayrollProcessing(Document):
 					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('phic_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('phic_inc') - header.get('phic_ded')
 
-					if header.get("govt_use_old"):
-						target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8)
+					#if header.get("govt_use_old"):
+						#target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8)
 
 			if emp.get('payroll_schedule') == "Semi-Monthly" and self.schedule == emp['payroll_schedule']:
 				if self.frequency == emp.get('phic_freq') or emp.get('phic_freq') in ['Both', 'All']:
 					target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
 						(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
 
-					if header.get("govt_use_old"):
-						target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8) 
+					#if header.get("govt_use_old"):
+						#target_amt = (rates.get('monthly_rate') + flt(header.get('phic_inc'), 8)) - flt(header.get('phic_ded'), 8) 
 
 					if emp.get('phic_freq') == '1st' and emp.get("rate_type") != "Daily Rate":
 						target_amt = rates.get('monthly_rate') + header.get('phic_inc') - header.get('phic_ded')
@@ -715,8 +715,8 @@ class PayrollProcessing(Document):
 							target_amt = (rates.get('monthly_rate') / 2)+ \
 								(header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
 
-						if header.get("govt_use_old"):
-							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_phic_inc'), 8)) - flt(header.get('prev_phic_ded'), 8)
+						#if header.get("govt_use_old"):
+							#target_amt = (rates.get('monthly_rate') + flt(header.get('prev_phic_inc'), 8)) - flt(header.get('prev_phic_ded'), 8)
 
 					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('phic_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_phic_inc') + header.get('phic_inc')) - (header.get('prev_phic_ded') + header.get('phic_ded'))
@@ -903,16 +903,16 @@ class PayrollProcessing(Document):
 					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('hdmf_smdl'):
 						target_amt = rates.get('monthly_rate') + header.get('hdmf_inc') - header.get('hdmf_ded')
 
-					if header.get("govt_use_old"):
-						target_amt = (rates.get('monthly_rate') + flt(header.get('hdmf_inc'), 8)) - flt(header.get('hdmf_ded'), 8)
+					#if header.get("govt_use_old"):
+						#target_amt = (rates.get('monthly_rate') + flt(header.get('hdmf_inc'), 8)) - flt(header.get('hdmf_ded'), 8)
 
 			if emp.get('payroll_schedule') == "Semi-Monthly" and self.schedule == emp['payroll_schedule']:
 				if self.frequency == emp.get('hdmf_freq') or emp.get('hdmf_freq') in ['Both', 'All']:
 					target_amt = header.get('prev_govt_basic') + header.get('govt_basic') + \
 						(header.get('prev_hdmf_inc') + header.get('hdmf_inc')) - (header.get('prev_hdmf_ded') + header.get('hdmf_ded'))
 
-					if header.get("govt_use_old"):
-						target_amt = (rates.get('monthly_rate') + flt(header.get('hdmf_inc'), 8)) - flt(header.get('hdmf_ded'), 8) 
+					#if header.get("govt_use_old"):
+						#target_amt = (rates.get('monthly_rate') + flt(header.get('hdmf_inc'), 8)) - flt(header.get('hdmf_ded'), 8) 
 
 					if emp.get('hdmf_freq') == '1st' and emp.get("rate_type") != "Daily Rate":
 						target_amt = rates.get('monthly_rate') + header.get('hdmf_inc') - header.get('hdmf_ded')
@@ -922,8 +922,8 @@ class PayrollProcessing(Document):
 							target_amt = (rates.get('monthly_rate') / 2)+ \
 								(header.get('prev_hdmf_inc') + header.get('hdmf_inc')) - (header.get('prev_hdmf_ded') + header.get('hdmf_ded'))
 
-						if header.get("govt_use_old"):
-							target_amt = (rates.get('monthly_rate') + flt(header.get('prev_hdmf_inc'), 8)) - flt(header.get('prev_hdmf_ded'), 8)
+						#if header.get("govt_use_old"):
+							#target_amt = (rates.get('monthly_rate') + flt(header.get('prev_hdmf_inc'), 8)) - flt(header.get('prev_hdmf_ded'), 8)
 
 					if emp.get("rate_type") == "Daily Rate" and header.get('mo_amt_smdl') and header.get('hdmf_smdl'):
 						target_amt = rates.get('monthly_rate') + (header.get('prev_hdmf_inc') + header.get('hdmf_inc')) - (header.get('prev_hdmf_ded') + header.get('hdmf_ded'))
