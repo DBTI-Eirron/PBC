@@ -81,10 +81,6 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "System Policy",
-				},
-				{
-					"type": "doctype",
 					"name": "Account",
 					"icon": "fa fa-sitemap",
 					"label": _("Chart of Accounts"),
