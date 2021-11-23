@@ -501,6 +501,23 @@ class LeaveApplication(Document):
 				self.leave_balance = 0
 				self.from_balance = ""
 
+		self.deduct_overused_entry_to_balance() 
+ 
+	def deduct_overused_entry_to_balance(self): 
+		total_overused_credits = 0 
+ 
+		deduct_to = frappe.get_value("Leave Type", self.leave_type, "deduct_to") 
+		if not deduct_to: 
+			deduct_to = self.leave_type 
+ 
+		overused_list = frappe.get_all("Overused LB Entry", filters={"employee": self.employee, "leave_type": deduct_to, "status": "Pending"}, fields=["name", "remaining_overused_credits"]) 
+		for overused in overused_list: 
+			total_overused_credits += flt(overused.remaining_overused_credits) 
+		 
+		self.leave_balance -= total_overused_credits 
+		if self.leave_balance < 0: 
+			self.leave_balance = 0 
+
 	def update_leave_credits(self):
 		if self.workflow_state == 'Approved' and not self.linked_lb_entry:
 			deduct_to = frappe.get_value("Leave Type", self.leave_type, "deduct_to")
