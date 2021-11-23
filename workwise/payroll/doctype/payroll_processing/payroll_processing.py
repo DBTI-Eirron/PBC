@@ -2020,6 +2020,12 @@ class PayrollProcessing(Document):
 								elif at.is_halfday:
 									if at.work or at.cto:
 										dl_days += 0.5
+							else:
+								if at.lv_status and not at.is_lwop:
+									if at.lv_status == 1:
+										dl_days += 1
+									if at.lv_status > 1:
+										dl_days += 0.5
 
 						if header.get("ws_pho"):
 							for ws in ws_wholeday_tag:
