@@ -30,7 +30,8 @@ def get_employees_with_overused_credits():
 	data_result = {}
 	from_date = nowdate()
 	to_date = nowdate()
-
+	included_lawle = []
+	leave_applications_without_less_lbentry = get_leave_applications_without_less_lbentry(from_date, to_date)
 	leave_balance = frappe.db.sql(""" SELECT LE.*, TE.full_name
 	FROM `tabLB Entry` LE INNER JOIN `tabEmployee` TE ON LE.`employee` = TE.`name` 
 	ORDER BY TE.full_name, LE.creation DESC """, as_dict=1)
@@ -83,6 +84,11 @@ def get_employees_with_overused_credits():
 	all_included_less = []
 	for dt in data_entry:
 		for vl in data_entry[dt]['add_entry']:
+			lv_apps_wo_less_amount = 0
+			if leave_applications_without_less_lbentry and data_entry[dt]['employee'] in leave_applications_without_less_lbentry:
+				if data_entry[dt]['leave_type'] in leave_applications_without_less_lbentry[data_entry[dt]['employee']]:
+					lv_apps_wo_less_amount = leave_applications_without_less_lbentry[data_entry[dt]['employee']][data_entry[dt]['leave_type']]
+
 			included_less = []
 			if from_date and to_date:
 				if ( ( vl['from_date'] <= getdate(from_date) <= vl['to_date'] ) or ( vl['from_date'] <= getdate(to_date) <= vl['to_date'] ) )\
@@ -93,9 +99,10 @@ def get_employees_with_overused_credits():
 							"employee_name": cstr(data_entry[dt]['employee_name']),
 							"location": cstr(data_entry[dt]['location']),
 							"leave_type": data_entry[dt]['leave_type'],
-							"valid_credits": 0,
+							"valid_credits": 0 - lv_apps_wo_less_amount,
 							"entry": [],
 						}
+
 					data_result[dt]['entry'].append({
 						"name": vl['name'],
 						"type": vl['type'],
@@ -127,9 +134,10 @@ def get_employees_with_overused_credits():
 						"employee_name": cstr(data_entry[dt]['employee_name']),
 						"location": cstr(data_entry[dt]['location']),
 						"leave_type": data_entry[dt]['leave_type'],
-						"valid_credits": 0,
+						"valid_credits": 0 - lv_apps_wo_less_amount,
 						"entry": [],
 					}
+
 				data_result[dt]['entry'].append({
 					"name": vl['name'],
 					"type": vl['type'],
@@ -163,6 +171,15 @@ def get_employees_with_overused_credits():
 				"credits": data_result[dr]['valid_credits'],
 			})
 
+	if leave_applications_without_less_lbentry:
+		for lawll_employee in leave_applications_without_less_lbentry:
+			for lawll_lvtype in leave_applications_without_less_lbentry[lawll_employee]:
+				if not (filter(lambda d: lawll_employee == d.get('employee') and lawll_lvtype == d.get('leave_type'), result)):
+					result.append({
+						"employee": lawll_employee,
+						"leave_type": lawll_lvtype,
+						"credits": leave_applications_without_less_lbentry[lawll_employee][lawll_lvtype],
+					})
 
 	return result
 
@@ -181,3 +198,33 @@ def create_overused_entry_for_employees():
 			doc.remaining_overused_credits = abs(i.get("credits"))
 			doc.flags.ignore_permissions = True
 			doc.insert()
+
+def get_leave_applications_without_less_lbentry(from_date, to_date):
+	result = {}
+	range_from_date = None
+	range_to_date = None
+	py_list = frappe.get_all('Payroll Year', fields=['name', 'from_date', 'to_date'])
+	for pay_year in py_list:
+		if getdate(pay_year.from_date) <= getdate(from_date) <= getdate(pay_year.to_date) or getdate(pay_year.from_date) <= getdate(to_date) <= getdate(pay_year.to_date):
+			range_from_date = getdate(pay_year.from_date)
+			range_to_date = getdate(pay_year.to_date)
+
+	if range_from_date and range_to_date:
+		lv_list = frappe.get_all('Leave Application', filters={'linked_lb_entry': None, 'workflow_state': 'Approved'}, fields=['name', 'employee', 'leave_type', 'total_leave_days', 'from_date', 'to_date', 'linked_lb_entry'])
+		for lv in lv_list:
+			if not lv.linked_lb_entry:
+				if range_from_date <= getdate(lv.from_date) <= range_to_date or range_from_date <= getdate(lv.to_date) <= range_to_date:
+					deduct_credits_to = lv.leave_type
+					deduct_to = frappe.db.get_value("Leave Type", lv.leave_type, "deduct_to")
+					if deduct_to:
+						deduct_credits_to = deduct_to
+
+					if lv.employee not in result:
+						result[lv.employee] = {}
+
+					if deduct_credits_to not in result[lv.employee]:
+						result[lv.employee][deduct_credits_to] = 0
+
+					result[lv.employee][deduct_credits_to] += flt(lv.total_leave_days, 2)
+
+	return result
