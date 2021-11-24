@@ -46,6 +46,9 @@ class LeaveApplication(Document):
 		#validate_approver_userperm(self)
 		validate_cutoff_approval_date(self)
 
+	def after_submit(self):
+		self.validate_without_linked_lbentry()
+
 	def on_update(self):
 		validate_reject_cancel_own_application(self)
 
@@ -519,7 +522,7 @@ class LeaveApplication(Document):
 			self.leave_balance = 0 
 
 	def update_leave_credits(self):
-		if self.workflow_state == 'Approved' and not self.linked_lb_entry:
+		if self.workflow_state == 'Approved':
 			deduct_to = frappe.get_value("Leave Type", self.leave_type, "deduct_to")
 			if not deduct_to:
 				deduct_to = self.leave_type
@@ -551,6 +554,11 @@ class LeaveApplication(Document):
 	def validate_without_lbentry(self):
 		if self.without_lbentry:
 			frappe.throw(_('You cant cancel Leave Application without LB Entry'))
+
+	def validate_without_linked_lbentry(self):
+		if self.workflow_state == 'Approved':
+			if not self.linked_lb_entry:
+				frappe.throw(_('No LB Entry created. Please Try Again'))
 
 
 @frappe.whitelist()
