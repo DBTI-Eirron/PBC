@@ -137,9 +137,11 @@ frappe.ui.form.on('Employee Movement', {
 				method: "get_custom_fields",
 				doc: frm.doc,
 				callback: function(r) {
-					r.message.forEach(function(item) {
-						cur_frm.add_fetch('employee', item.fieldname, item.custom_fieldname);
-					});
+					if (r.message){
+						r.message.forEach(function(item) {
+							cur_frm.add_fetch('employee', item.fieldname, item.custom_fieldname);
+						});
+					}
 				}
 			});
 
@@ -147,14 +149,16 @@ frappe.ui.form.on('Employee Movement', {
 				method: "visible_additional_changes",
 				doc: frm.doc,
 				callback: function(r) {
-					r.message['show'].forEach(function(item) {
-						frm.toggle_display(item, true);
-						frm.refresh_fields();
-					});
-					r.message['hide'].forEach(function(item) {
-						frm.toggle_display(item, false);
-						frm.refresh_fields();
-					});
+					if (r.message){
+						r.message['show'].forEach(function(item) {
+							frm.toggle_display(item, true);
+							frm.refresh_fields();
+						});
+						r.message['hide'].forEach(function(item) {
+							frm.toggle_display(item, false);
+							frm.refresh_fields();
+						});
+					}
 				}
 			});
 		}
