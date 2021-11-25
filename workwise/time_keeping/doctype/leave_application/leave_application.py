@@ -497,10 +497,10 @@ class LeaveApplication(Document):
 					 			if le not in all_included_less:
 									included_less.append(le)
 									all_included_less.append(le)
+					if vl['credits'] > 0 and to_less > 0:
+						self.from_balance += str(vl['name'])
 					vl['credits'] -= to_less
 					data_result[dt]['valid_credits'] += vl['credits']
-					if vl['credits'] > 0:
-						self.from_balance += str(vl['name'])
 
 		if data_result:
 			self.leave_balance = data_result[dt]['valid_credits']
