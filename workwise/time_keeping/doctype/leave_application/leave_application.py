@@ -120,11 +120,15 @@ class LeaveApplication(Document):
 		#Days Before Filing
 		dbf = frappe.db.sql(""" SELECT * FROM `tabLeave Type Before Filing Table` WHERE `parent` = %s """,(self.leave_type), as_dict=1)
 		if dbf:
+			total_lv_count = 0
 			date_hired = frappe.get_value("Employee", self.employee, "date_hired")
 			lv_count = frappe.db.sql(""" SELECT SUM(total_leave_days) as count FROM `tabLeave Application` WHERE workflow_state = 'Approved' AND docstatus = 1
 				AND `company` = %s AND `employee` = %s AND `leave_type` = %s AND `from_date` >= %s """,(self.company, self.employee, self.leave_type, date_hired), as_dict=1)
+			if lv_count:
+				if lv_count[0].count:
+					total_lv_count = lv_count[0].count
 
-			count_lv = lv_count[0].count+self.total_leave_days
+			count_lv = total_lv_count+self.total_leave_days
 			if frappe.db.get_single_value('Timekeeping Settings', 'lv_before_filing_per_app'):
 				count_lv = self.total_leave_days
 
