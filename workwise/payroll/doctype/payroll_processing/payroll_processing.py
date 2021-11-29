@@ -1572,11 +1572,11 @@ class PayrollProcessing(Document):
 					amt = amt - ((amt / ( header.get('work_days') * emp.get('no_hours') )) * ( header.get('absent_days') * emp.get('no_hours')))
 
 			batch_register.append({
-					"linked_document": d.name,
-					"linked_doctype": "Batch Entry",
-					"pay_code": d.transaction_type,
-					"amount": flt(d.amount, 8),
-				})
+				"linked_document": d.name,
+				"linked_doctype": "Batch Entry",
+				"pay_code": d.transaction_type,
+				"amount": flt(amt, 8),
+			})
 
 		for d in batch_register:
 			register.append(d)
