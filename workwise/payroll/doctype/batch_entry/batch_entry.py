@@ -70,7 +70,7 @@ class BatchEntry(Document):
 
 		clist, conditions = [], ""
 		if frappe.session.user != "Administrator":
-			clist.append("TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)")
+			clist.append("(TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) OR TE.sensitivity IS NULL)")
 
 		if self.sensitivity_level:
 			clist.append("TE.sensitivity = %(sensitivity)s")
