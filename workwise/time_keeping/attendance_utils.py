@@ -2926,13 +2926,16 @@ def get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
 	next_shift_in = None
 	next_shift_out = None
 	if next_shift:
-		next_shift = next_shift[0]['work_shift']
-		next_shift_in = get_datetime(str(next_target_date)+" "+str(shift_map[next_shift]['time_in']))
-		if shift_map[next_shift]['time_in'] > shift_map[next_shift]['time_out']:
-			next_target_date = next_target_date + datetime.timedelta(days=1)
-		next_shift_out = get_datetime(str(next_target_date)+" "+str(shift_map[next_shift]['time_out']))
-		if shift_map[next_shift]['grace_period']:
-			next_shift_in = next_shift_in + datetime.timedelta(minutes=shift_map[next_shift]['grace_period'])
+		if next_shift[0]['work_shift']:
+			next_shift = next_shift[0]['work_shift']
+		if next_target_date and shift_map[next_shift]['time_in']:
+			next_shift_in = get_datetime(str(next_target_date)+" "+str(shift_map[next_shift]['time_in']))
+			if shift_map[next_shift]['time_in'] > shift_map[next_shift]['time_out']:
+				next_target_date = next_target_date + datetime.timedelta(days=1)
+		if next_target_date and shift_map[next_shift]['time_out']:
+			next_shift_out = get_datetime(str(next_target_date)+" "+str(shift_map[next_shift]['time_out']))
+			if shift_map[next_shift]['grace_period']:
+				next_shift_in = next_shift_in + datetime.timedelta(minutes=shift_map[next_shift]['grace_period'])
 
 	#Current Shift
 	current_shift = filter(lambda empid: target_date == empid['target_date'], schedules)
