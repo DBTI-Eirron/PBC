@@ -558,3 +558,63 @@ def employees_regularization_date_map(now_date):
 		result[employee] = regularization_date
 
 	return result
+
+def check_cto_balance():
+	employees_without_transaction_history = []
+	usectos_without_transaction_history = []
+	filectos_with_balance = []
+	employee_balance_dict = {}
+	cto_dict = {}
+	cto_list = frappe.get_all('Compensatory Time Off', filters={'workflow_state': 'Approved'}, fields=['*'])
+	for cto in cto_list:
+		if cto.employee not in cto_dict:
+			cto_dict[cto.employee] = {
+				'file_total_credits_earned': 0,
+				'file_total_credits_used': 0,
+				'file_total_balance': 0,
+				'use_total_credits_earned': 0,
+				'use_total_required_credits': 0,
+			}
+
+		if cto.type in ['File']:
+			cto_dict[cto.employee]['file_total_credits_earned'] += cto.total_credits_earned
+			cto_dict[cto.employee]['file_total_credits_used'] += cto.total_credits_used
+			cto_dict[cto.employee]['file_total_balance'] += cto.total_balance
+			if cto.total_balance > 0:
+				filectos_with_balance.append(cto.name)
+				if cto.employee not in employee_balance_dict:
+					employee_balance_dict[cto.employee] = {'filectos_with_balance': []}
+				employee_balance_dict[cto.employee]['filectos_with_balance'].append(cto.name)
+		if cto.type in ['Use']:
+			cto_dict[cto.employee]['use_total_credits_earned'] += cto.total_credits_earned
+			cto_dict[cto.employee]['use_total_required_credits'] += cto.total_required_credits
+			cto_table = frappe.db.sql(""" SELECT `name` FROM `tabCompensatory Time Off Table` WHERE `parent`=%s """,(cto.name), as_dict=1)
+			if not cto_table:
+				employees_without_transaction_history.append(cto.employee)
+				usectos_without_transaction_history.append(cto.name)
+
+	for cto_wth in usectos_without_transaction_history:
+		cto_data = filter(lambda k: cto_wth == k['name'], cto_list)
+		if cto_data:
+			cto_data = cto_data[0]
+			total_required_credits = cto_data.total_required_credits
+			remaining_required_credits = flt(total_required_credits, 3)
+			if cto_data.employee in employee_balance_dict:
+				for fcto in employee_balance_dict[cto_data.employee]['filectos_with_balance']:
+					fcto_data = frappe.get_doc('Compensatory Time Off', fcto)
+					if fcto_data:
+						total_balance = fcto_data.total_balance
+						for cto_target in fcto_data.cto_targets:
+							if remaining_required_credits > 0 and cto_target.balance > 0:
+								deduct_cred = min(remaining_required_credits, cto_target.balance)
+								rem_balance = cto_target.balance - deduct_cred
+								if rem_balance < 0:
+									rem_balance = 0
+								frappe.db.sql("""UPDATE `tabCompensatory Time Off Targets` SET credits_used=(credits_used+%s), balance=(balance-%s) WHERE `name`=%s""",(deduct_cred, deduct_cred, cto_target.name) )
+								frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET total_credits_used=(total_credits_used+%s), total_balance=(total_balance-%s) WHERE `name` = %s""",(deduct_cred, deduct_cred, fcto_data.name) )
+								frappe.db.sql(""" INSERT INTO `tabCompensatory Time Off Table` (`name`,`creation`,`modified`,`docstatus`,`parent`,`parentfield`,`parenttype`,`idx`,`date`,`filed_cto`,`balance`,`forfeited_balance`,`credits_used`,`cto_target`) VALUES (SUBSTR(MD5(RAND()), 1, 10),%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """,(
+									cto_data.creation, cto_data.modified, cto_data.docstatus, cto_data.name, 'use_cto_table', 'Compensatory Time Off', 1, cto_target.target_date, fcto_data.name, rem_balance, 0, deduct_cred, cto_target.name
+								))
+								remaining_required_credits -= deduct_cred
+							else:
+								break;
