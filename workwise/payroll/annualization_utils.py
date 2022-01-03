@@ -32,6 +32,7 @@ def get_annual_employees(employee, company, department, location, payroll_schedu
 		ORDER BY TE.full_name ASC """.format( conditions=conditions),
 			({ 
 				"company": company,
+				"location": location,
 				"schedule": payroll_schedule,
 				"employee": employee,
 				"from_year": from_year,
