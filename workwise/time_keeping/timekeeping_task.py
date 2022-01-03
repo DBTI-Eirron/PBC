@@ -154,7 +154,7 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 	if setup_included:
 		setup_cond = ','.join(setup_included)
 		setups = frappe.db.sql(""" SELECT LB.name, LBS.leave_type, LBS.method, LBS.allocation_start, LBS.method_condition, LBS.value, LBS.credits, 
-			LBS.is_continuous, LBS.end_type, LBS.by_count_value, LBS.by_end_of_year
+			LBS.is_continuous, LBS.end_type, LBS.by_count_value, LBS.by_end_of_year, LBS.add_from_movement
 			FROM `tabLeave Balance Setup` LB INNER JOIN `tabLeave Balance Schedule` LBS ON LBS.`parent` = LB.`name` 
 			WHERE LB.`name` IN ("""+setup_cond+""") """, as_dict=1)
 
@@ -236,9 +236,10 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 
 				if add_credits and validate_create_lbentry({'employee': e['name'], 'leave_type': d.leave_type}):
 					dates_to_create = [getdate(now_date)]
-					retro_lbentry_dates = get_retro_lbentry_dates(e['name'], e['regularization_date'], now_date)
-					if retro_lbentry_dates:
-						dates_to_create = retro_lbentry_dates
+					if d.method == 'Every Month' and not d.add_from_movement:
+						retro_lbentry_dates = get_retro_lbentry_dates(e['name'], e['regularization_date'], now_date)
+						if retro_lbentry_dates:
+							dates_to_create = retro_lbentry_dates
 
 					for lb_date in dates_to_create:
 						row = {
@@ -553,9 +554,10 @@ def employees_regularization_date_map(now_date):
 			reg_date[reg.employee].append(reg.effective_on)
 
 	for employee in reg_date:
-		regularization_date = max(reg_date[employee])
-		regularization_date = datetime.datetime.strptime(cstr(getdate(regularization_date)), '%Y-%m-%d')
-		result[employee] = regularization_date
+		if reg_date[employee]:
+			regularization_date = max(reg_date[employee])
+			regularization_date = datetime.datetime.strptime(cstr(getdate(regularization_date)), '%Y-%m-%d')
+			result[employee] = regularization_date
 
 	return result
 
