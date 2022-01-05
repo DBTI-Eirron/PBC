@@ -167,6 +167,11 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 					if row['name'] in regularization_date_map:
 						regularization_date = regularization_date_map[row['name']]
 						row['regularization_date'] = regularization_date
+					else:
+						date_regular = frappe.get_value("Employee", row['name'], 'date_regular')
+						if date_regular:
+							date_regular = getdate(date_regular)
+							row['regularization_date'] = date_regular
 	
 	#Gather total lb entries created per employee
 	total_lb_entries = gather_total_lb_entries()
@@ -555,6 +560,10 @@ def employees_regularization_date_map(now_date):
 
 	for employee in reg_date:
 		if reg_date[employee]:
+			date_regular = frappe.get_value("Employee", employee, 'date_regular')
+			if date_regular:
+				date_regular = getdate(date_regular)
+				reg_date[employee].append(date_regular)
 			regularization_date = max(reg_date[employee])
 			regularization_date = datetime.datetime.strptime(cstr(getdate(regularization_date)), '%Y-%m-%d')
 			result[employee] = regularization_date
