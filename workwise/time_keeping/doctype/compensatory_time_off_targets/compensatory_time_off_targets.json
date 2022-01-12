@@ -680,7 +680,7 @@
   }, 
   {
    "allow_bulk_edit": 0, 
-   "allow_on_submit": 0, 
+   "allow_on_submit": 1, 
    "bold": 0, 
    "collapsible": 0, 
    "collapsible_depends_on": "", 
@@ -717,7 +717,7 @@
   }, 
   {
    "allow_bulk_edit": 0, 
-   "allow_on_submit": 0, 
+   "allow_on_submit": 1, 
    "bold": 0, 
    "collapsible": 0, 
    "collapsible_depends_on": "", 
@@ -763,7 +763,7 @@
  "issingle": 0, 
  "istable": 1, 
  "max_attachments": 0, 
- "modified": "2020-10-19 13:59:14.158892", 
+ "modified": "2022-01-12 09:22:14.158892", 
  "modified_by": "Administrator", 
  "module": "Time Keeping", 
  "name": "Compensatory Time Off Targets", 
