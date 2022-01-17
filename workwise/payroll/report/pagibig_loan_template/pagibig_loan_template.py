@@ -70,7 +70,6 @@ def get_employees(filters):
 				WHERE PR.company = %(company)s 
 				AND PR.posting_date >= %(from_date)s
 				AND PR.posting_date <= %(to_date)s
-				AND TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name`)
 				GROUP BY PR.employee
 				ORDER BY PR.employee_name """,{ 
 				"company": filters.company,
@@ -166,19 +165,20 @@ def validate_filters(filters):
 		frappe.throw(_("From Date must be before To Date"))
 
 def get_HDMF_map(filters, employee_list):
-	HDMF_details = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
-		FROM `tabPayroll Register` PR 
-		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
-		WHERE employee in (%s) GROUP BY PRE.`name` """ %
-		', '.join(['%s']*len(employee_list)), tuple([emp.name for emp in employee_list]), as_dict=1)
-
 	HDMF_map = {}
-	for d in HDMF_details:
-		if getdate(filters.from_date) <= getdate(d.posting_date) <= getdate(filters.to_date):
-			HDMF_map.setdefault(d.employee, frappe._dict()).setdefault(d.pay_code, [])
-			if HDMF_map[d.employee][d.pay_code]:
-				HDMF_map[d.employee][d.pay_code] += flt(d.amount, 2)
-			else:
-				HDMF_map[d.employee][d.pay_code] = flt(d.amount, 2)
+	if employee_list:
+		HDMF_details = frappe.db.sql(""" SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
+			FROM `tabPayroll Register` PR 
+			INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
+			WHERE employee in (%s) GROUP BY PRE.`name` """ %
+			', '.join(['%s']*len(employee_list)), tuple([emp.name for emp in employee_list]), as_dict=1)
+	
+		for d in HDMF_details:
+			if getdate(filters.from_date) <= getdate(d.posting_date) <= getdate(filters.to_date):
+				HDMF_map.setdefault(d.employee, frappe._dict()).setdefault(d.pay_code, [])
+				if HDMF_map[d.employee][d.pay_code]:
+					HDMF_map[d.employee][d.pay_code] += flt(d.amount, 2)
+				else:
+					HDMF_map[d.employee][d.pay_code] = flt(d.amount, 2)
 	
 	return HDMF_map
