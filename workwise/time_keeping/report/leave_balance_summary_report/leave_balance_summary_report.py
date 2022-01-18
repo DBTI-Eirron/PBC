@@ -102,7 +102,9 @@ def get_data(filters):
 	from_date, to_date = frappe.db.get_value("Payroll Year", filters.year, ["from_date", "to_date"])
 	emp_map = init_employee_map(filters, data_entry)
 	leave_types = get_leave_types()
-	get_balances(emp_map, filters, from_date, to_date)
+	#get_balances(emp_map, filters, from_date, to_date)
+	from workwise.time_keeping.report.detailed_leave_balance_report.detailed_leave_balance_report import get_leave_balance_summary_via_detailed_balance_report
+	leave_balance_summary_via_detailed_balance_report = get_leave_balance_summary_via_detailed_balance_report(company=filters.company, as_of_date=to_date, employee=filters.employee)
 
 	for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
 		sub_data = []
@@ -130,15 +132,15 @@ def get_data(filters):
 					}
 				})
 
-			for bal in emp_dict.get('balances'):
-				if lt.name == bal['leave_type']:
-					sub_entry['credits'] += bal['credits']
-					sub_entry['used_credits'] += bal['used_credits']
-					sub_entry['balance'] += bal['valid_credits']
-
-					company[lt.name]['credits'] += bal['credits']
-					company[lt.name]['used_credits'] += bal['used_credits']
-					company[lt.name]['balance'] += bal['valid_credits']
+			if leave_balance_summary_via_detailed_balance_report and emp in leave_balance_summary_via_detailed_balance_report:
+				if lt.name in leave_balance_summary_via_detailed_balance_report[emp]:
+					leave_balance = leave_balance_summary_via_detailed_balance_report[emp][lt.name]
+					sub_entry['credits'] += leave_balance['original_credits']
+					sub_entry['used_credits'] += (leave_balance['original_credits'] - leave_balance['remaining_balance'])
+					sub_entry['balance'] += leave_balance['remaining_balance']
+					company[lt.name]['credits'] += leave_balance['original_credits']
+					company[lt.name]['used_credits'] += (leave_balance['original_credits'] - leave_balance['remaining_balance'])
+					company[lt.name]['balance'] += leave_balance['remaining_balance']
 
 			sub_data.append(sub_entry)
 		data_entry[emp_dict.period_group][emp_dict.location].append(sub_data)
@@ -156,16 +158,16 @@ def get_data(filters):
 		data.append({})
 	
 	for per in sorted(data_entry.keys()):
-		data += [{"employee":"<b>"+cstr(per)+"</b>"}]
+		data += [{"employee":"<b>"+str(per)+"</b>"}]
 		for loc in sorted(data_entry[per].keys()):
-			data += [{"employee":"<b>"+cstr(loc)+"</b>"}]
+			data += [{"employee":"<b>"+str(loc)+"</b>"}]
 			for ent in data_entry[per][loc]:
 				if ent:
 					data += ent
 					data.append({})
 					
 	return data
- 
+
 def get_result_as_list(data, filters):
 	result = []
 	for d in data:
