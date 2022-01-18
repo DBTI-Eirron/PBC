@@ -36,5 +36,6 @@ scheduler_events = {
 		"workwise.employee_201.doctype.employee_movement.employee_movement.run_effective_movement",
 		"workwise.time_keeping.timekeeping_task.automated_leave_balance",
 		"workwise.time_keeping.timekeeping_task.holiday_recurring_yearly",		
+		"workwise.employee_201.employee_utils.get_age_and_service_years_sched",
 	],
 }
