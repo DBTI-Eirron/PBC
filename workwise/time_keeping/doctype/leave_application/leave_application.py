@@ -411,104 +411,14 @@ class LeaveApplication(Document):
 		if not deduct_to:
 			deduct_to = self.leave_type
 
-		leave_balance = frappe.db.sql(""" SELECT LE.*, TE.full_name
-		FROM `tabLB Entry` LE INNER JOIN `tabEmployee` TE ON LE.`employee` = TE.`name` 
-		WHERE TE.`company` = %(company)s AND LE.`employee`=%(employee)s AND (LE.`leave_type`=%(leave_type)s OR LE.`deduct_credits_to`=%(leave_type)s) 
-		ORDER BY TE.full_name, LE.creation DESC """,{
-			"company": self.company,
-			"employee": self.employee,
-			"leave_type": deduct_to
-		}, as_dict=1)
-
-		#Init Data
-		for lv in leave_balance:
-			if lv.company == self.company:
-				doc_nam = cstr(lv.employee)+cstr(deduct_to)
-
-				if doc_nam not in data_entry:
-					data_entry[doc_nam] = {
-						"employee_name": cstr(lv.full_name),
-						"location": lv.location,
-						"valid_credits": 0,
-						"add_entry": [],
-						"less_entry": [],
-					}
-
-				if lv.balance_type == "Add":
-					data_entry[doc_nam]['add_entry'].append({
-						"name": lv.name,
-						"type": "Add",
-						"creation": lv.creation,
-						"credits": lv.credits,
-						"from_date": getdate(lv.from_date),
-						"to_date": getdate(lv.to_date),
-						"leave_type": lv.leave_type,
-						"deduct_credits_to": None,
-						"application": None,
-					})
-					
-				if lv.balance_type == "Less":
-					data_entry[doc_nam]['less_entry'].append({
-						"name": lv.name,
-						"type": "Less",
-						"creation": lv.creation,
-						"credits": lv.credits,
-						"from_date": getdate(lv.from_date),
-						"to_date": getdate(lv.to_date),
-						"leave_type": lv.leave_type,
-						"deduct_credits_to": lv.deduct_credits_to,
-						"application": lv.linked_document,
-						"included": 0,
-					})
-
-		#Process Data
-		all_included_less = []
-		for dt in data_entry:
-			for vl in data_entry[dt]['add_entry']:
-				included_less = []
-				if ( ( vl['from_date'] <= getdate(self.from_date) <= vl['to_date'] ) or ( vl['from_date'] <= getdate(self.to_date) <= vl['to_date'] ) )\
-				or ( ( getdate(self.from_date) <= vl['from_date'] <= getdate(self.to_date) ) or ( getdate(self.from_date) <= vl['to_date'] <= getdate(self.to_date) ) ):
-					if dt not in data_result:
-				 		data_result[dt] = {
-							"employee_name": cstr(data_entry[dt]['employee_name']),
-							"location": cstr(data_entry[dt]['location']),
-							"valid_credits": 0,
-							"entry": [],
-						}
-					data_result[dt]['entry'].append({
-						"name": vl['name'],
-						"type": vl['type'],
-						"creation": vl['creation'],
-						"credits": vl['credits'],
-						"from_date": vl['from_date'],
-						"to_date": vl['to_date'],
-						"leave_type": vl['leave_type'],
-						"deduct_credits_to": vl['deduct_credits_to'],
-						"application": vl['application'],
-					})
-
-					to_less = 0
-					for le in data_entry[dt]['less_entry']:
-						if (vl['credits'] > 0) and not le['included']:
-							if (( vl['from_date'] <= le['from_date'] <= vl['to_date'] ) or ( vl['from_date'] <= le['to_date'] <= vl['to_date'] )) \
-							or (( le['from_date'] <= vl['from_date'] <= le['to_date'] ) or ( le['from_date'] <= vl['to_date'] <= le['to_date'] )):
-								to_less += le['credits']
-					 			le['included'] = 1
-					 			if le not in all_included_less:
-									included_less.append(le)
-									all_included_less.append(le)
-					if vl['credits'] > 0 and to_less > 0:
-						self.from_balance += str(vl['name'])
-					vl['credits'] -= to_less
-					data_result[dt]['valid_credits'] += vl['credits']
-
-		if data_result:
-			self.leave_balance = data_result[dt]['valid_credits']
+		from workwise.time_keeping.report.detailed_leave_balance_report.detailed_leave_balance_report import get_leave_balance_via_detailed_balance_report
+		leave_balance_via_detailed_balance_report = get_leave_balance_via_detailed_balance_report(company=self.company, employee=self.employee, leave_type=deduct_to, as_of_date=self.from_date)
+		if leave_balance_via_detailed_balance_report:
+			self.leave_balance = leave_balance_via_detailed_balance_report['balance']
+			self.from_balance = leave_balance_via_detailed_balance_report['from_balance']
 			if self.leave_balance < 0:
 				self.leave_balance = 0
 				self.from_balance = ""
-
-		self.deduct_overused_entry_to_balance() 
  
 	def deduct_overused_entry_to_balance(self): 
 		total_overused_credits = 0 
@@ -517,9 +427,10 @@ class LeaveApplication(Document):
 		if not deduct_to: 
 			deduct_to = self.leave_type 
  
-		overused_list = frappe.get_all("Overused LB Entry", filters={"employee": self.employee, "leave_type": deduct_to, "status": "Pending"}, fields=["name", "remaining_overused_credits"]) 
+		overused_list = frappe.get_all("Overused LB Entry", filters={"employee": self.employee, "leave_type": deduct_to}, fields=["name", "remaining_overused_credits", "overused_credits", "deducted_credits"]) 
 		for overused in overused_list: 
-			total_overused_credits += flt(overused.remaining_overused_credits) 
+			total_overused_credits += flt(overused.overused_credits) 
+			total_overused_credits -= flt(overused.deducted_credits) 
 		 
 		self.leave_balance -= total_overused_credits 
 		if self.leave_balance < 0: 
