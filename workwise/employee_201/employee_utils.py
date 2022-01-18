@@ -90,3 +90,29 @@ def tool_check_emp_consistency():
 		frappe.db.commit()
 
 	print("Complete")
+
+def get_age_and_service_years_sched():
+	#Get Age
+	employees = frappe.db.sql(""" SELECT * FROM `tabEmployee`; """, as_dict=1)
+	for emp in employees:
+		today = date.today()
+		bday = getdate(emp.birthday)
+		age = today.year - bday.year - ((today.month, today.day) < (bday.month, bday.day))
+		print(age)
+		emp.age = age
+	
+		#Get Years in Service
+		dte_hired = getdate(emp.date_hired)
+		serv_date = date.today()
+		if emp.date_retired:
+			serv_date = getdate(emp.date_retired)
+		if emp.date_resigned:
+			serv_date = getdate(emp.date_resigned)
+		if emp.date_terminated:
+			serv_date = getdate(emp.date_terminated)
+	
+		if serv_date and dte_hired:
+			yrs_in_serv = serv_date.year - dte_hired.year - ((serv_date.month, serv_date.day) < (dte_hired.month, dte_hired.day))
+		emp.years_in_service = yrs_in_serv
+		employee_update = frappe.db.sql(""" UPDATE `tabEmployee` SET `years_in_service`= %s, `age` = %s WHERE name = %s """, (emp['years_in_service'], emp['age'], emp['name']))
+		frappe.db.commit()
