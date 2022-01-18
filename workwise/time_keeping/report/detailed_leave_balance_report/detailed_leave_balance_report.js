@@ -1,4 +1,4 @@
-// Copyright (c) 2016, HDI Systech and contributors
+// Copyright (c) 2016, OSI and contributors
 // For license information, please see license.txt
 /* eslint-disable */
 
@@ -12,14 +12,8 @@ frappe.query_reports["Detailed Leave Balance Report"] = {
 			"reqd": 1
 		},
 		{
-			"fieldname": "from_date",
-			"label": __("From Date"),
-			"fieldtype": "Date",
-			"reqd": 1
-		},
-		{
-			"fieldname": "to_date",
-			"label": __("To Date"),
+			"fieldname": "as_of_date",
+			"label": __("As of Date"),
 			"fieldtype": "Date",
 			"reqd": 1
 		},
@@ -46,6 +40,11 @@ frappe.query_reports["Detailed Leave Balance Report"] = {
 			"label": __("Period Group"),
 			"fieldtype": "Link",
 			"options": "Period Group"
+		},
+		{
+			"fieldname": "allow_negative",
+			"label": __("Allow Negative"),
+			"fieldtype": "Check"
 		},
 	]
 }
