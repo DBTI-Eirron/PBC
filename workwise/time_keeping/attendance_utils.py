@@ -2928,7 +2928,7 @@ def get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
 	if next_shift:
 		if next_shift[0]['work_shift']:
 			next_shift = next_shift[0]['work_shift']
-		if next_target_date and shift_map[next_shift]['time_in']:
+		if next_target_date:
 			next_shift_in = get_datetime(str(next_target_date)+" "+str(shift_map[next_shift]['time_in']))
 			if shift_map[next_shift]['time_in'] > shift_map[next_shift]['time_out']:
 				next_target_date = next_target_date + datetime.timedelta(days=1)
