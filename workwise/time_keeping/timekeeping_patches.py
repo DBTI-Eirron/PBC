@@ -1395,3 +1395,21 @@ def add_derpartment_on_tk_applications():
 			frappe.db.sql("""UPDATE `tab{0}` AP SET AP.`department`=(SELECT `department` FROM `tabEmployee` WHERE `name`=AP.`employee` ) WHERE AP.`department` IS NULL """.format(application))
 		except Exception as e:
 			pass
+
+def overused_lbentry_fix_deduction_history():
+	olbe_list = frappe.get_all("Overused LB Entry", fields=['name'])
+	for olbe in olbe_list:
+		doc = frappe.get_doc("Overused LB Entry", olbe.name)
+		with_changes = 0
+		for dedhisto in doc.deduction_history:
+			olbe_doc = frappe.get_doc("LB Entry", dedhisto.lb_entry)
+			if olbe_doc:
+				new_deducted_credits = flt(doc.deducted_credits)
+				if olbe_doc.leave_type != doc.leave_type:
+					with_changes = 1
+					new_deducted_credits -= dedhisto.credits
+					frappe.db.set_value( 'Overused LB Entry', doc.name, 'deducted_credits', new_deducted_credits )
+					frappe.db.sql("""DELETE FROM `tabOveruse LB Entry Deduction History` WHERE `name` = %s """,(dedhisto.name), as_dict=1)
+		if with_changes:
+			frappe.db.sql("""UPDATE `tabOverused LB Entry` SET remaining_overused_credits=overused_credits-deducted_credits, status='Pending' WHERE `name`=%s """,(doc.name), as_dict=True)
+			print("Overuse LB Entry: "+doc.name)
