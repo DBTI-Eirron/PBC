@@ -234,7 +234,7 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 			for inc in included_less:
 				if dt in data_result:
 					data_result[dt]['entry'].append(inc)
-	cid = []
+
 	#Generate Data
 	for employee in data_per_add_entry:
 		for lv_type in data_per_add_entry[employee]:
