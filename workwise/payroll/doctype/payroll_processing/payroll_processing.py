@@ -1755,8 +1755,14 @@ class PayrollProcessing(Document):
 			header['no_attendance'] = no_attendance
 
 		if emp.get('is_attendance_base') > 0:
-			attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
-				WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
+			date_hired = frappe.get_value("Employee", emp['name'], "date_hired")
+			min_date = add_days(self.attendance_from, -1)
+			if getdate(min_date) < getdate(date_hired) <  getdate(self.attendance_to) and emp["rate_type"] == "Daily Rate":
+				attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
+					WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], date_hired, self.attendance_to), as_dict=1)
+			else:
+				attendance = frappe.db.sql("""SELECT * FROM `tabAttendance Register` 
+					WHERE employee = %s AND target_date >= %s AND target_date <= %s ORDER BY target_date """,(emp['name'], add_days(self.attendance_from, -1), self.attendance_to), as_dict=1)
 			
 			#Get Overtime
 			unique_ot = ["00000000"]
