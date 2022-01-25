@@ -60,8 +60,10 @@ class LBEntry(Document):
 				self.deduct_add_lbentry_to_overused()
 
 	def deduct_add_lbentry_to_overused(self):
+		deduct_to = frappe.db.get_value("Leave Type", self.leave_type, "deduct_to")
+		deduct_credits_to = deduct_to if deduct_to else self.leave_type
 		total_add_credit = abs(self.credits)
-		overused_list = frappe.get_all("Overused LB Entry", filters={"employee": self.employee, "leave_type": self.deduct_credits_to, "status": "Pending"}, fields=["name"])
+		overused_list = frappe.get_all("Overused LB Entry", filters={"employee": self.employee, "leave_type": self.leave_type, "status": "Pending"}, fields=["name"])
 		for overused in overused_list:
 			if total_add_credit > 0:
 				total_remaining_credit = 0
