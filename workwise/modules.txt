@@ -4,7 +4,7 @@ Payroll
 My Profile
 Notifications
 Dashboard
-Learning And Development
+Learning and Development
 Performance Management
 Talent Acquisition
 Setup
