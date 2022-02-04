@@ -3363,7 +3363,9 @@ def get_multi_breaks(entry, cards_in, cards_out):
 	sorted_out = sorted(cards_out, key=lambda k: k['card_datetime'])
 	time_in = get_datetime(str(getdate(entry['target_date']))+" "+str(entry['time_in']))
 	time_out = get_datetime(str(getdate(entry['target_date']))+" "+str(entry['time_out']))
-
+	if entry['time_in'] >= entry['time_out']:
+		time_out = get_datetime(str(add_days(getdate(entry['target_date']), 1))+" "+str(entry['time_out']))
+		
 	for card in sorted_in:
 		if card['card_type'] == 2:
 			if card['card_datetime'] < time_in:
