@@ -2020,6 +2020,7 @@ def get_flexible(entry, obs):
 			entry['undertime'] = 0
 
 def get_final_processing(entry):
+	undertime_is_deducted = 0
 	if entry['is_multi_break'] and entry.get('is_attendance_base'):
 		total_break = 0
 		entry['break_out'] = min(entry['break_pairs'])['break_out'] if entry['break_pairs'] else None
@@ -2042,10 +2043,12 @@ def get_final_processing(entry):
 
 		if entry['undertime']:
 			entry['work'] -= entry['undertime']
-	
+			undertime_is_deducted = 1
+
 	if not entry.get('is_flexible'):
 		entry['work'] -= entry['late']
-		entry['work'] -= entry['undertime']
+		if undertime_is_deducted == 0:
+			entry['work'] -= entry['undertime']
 		if entry['ext_deduct']:
 			for et in entry['ex_tardiness']:
 				exc_start, exc_end = None, None
@@ -2149,29 +2152,39 @@ def get_final_processing(entry):
 
 	ch_tr=0 
 	ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'consider_halfday'), 8)	 
+	dis_ch = flt(frappe.db.get_single_value('Timekeeping Settings', 'disable_consider_halfday'), 8)	 
+	halfday_work = flt((entry.get('work_hours') * 60 * 60) / 2)
 	lt_job_grade = frappe.db.sql(""" SELECT JGT.`job_grade`, JGT.`lt_value` FROM `tabJob Grade Table` JGT INNER JOIN `tabEmployee` E ON E.`job_grade` = JGT.`job_grade` WHERE E.name = %s """,(entry['employee']), as_dict=1) 
-	 
-	 
 	if lt_job_grade: 
 		for j in lt_job_grade: 
 			if flt(entry["late"], 8) >= int(j['lt_value']) and int(j['lt_value']) > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']: 
-				entry["late"] = 0 
-				entry["absent"] = 1 
-				entry["is_halfday"] = 1
-				entry['actual_work'] = entry['work']
-				if not frappe.db.get_single_value('Timekeeping Settings', 'hd_actualwork'):
-					entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-				ch_tr=1 
+				if dis_ch and flt(entry["late"], 8) <= halfday_work:
+					entry["late"] = 0 
+					entry["absent"] = 1 
+					entry["is_halfday"] = 1 
+					entry['work'] = (entry.get('work_hours') * 60 * 60) / 2 
+					ch_tr=1 
+				if not dis_ch:	
+					entry["late"] = 0 
+					entry["absent"] = 1 
+					entry["is_halfday"] = 1 
+					entry['work'] = (entry.get('work_hours') * 60 * 60) / 2 
+					ch_tr=1 
  
 	if not lt_job_grade: 
-		if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:		 
-			entry["late"] = 0 
-			entry["absent"] = 1 
-			entry["is_halfday"] = 1
-			entry['actual_work'] = entry['work']
-			if not frappe.db.get_single_value('Timekeeping Settings', 'hd_actualwork'):
-				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-			ch_tr=1 
+		if flt(entry["late"], 8) >= ch and ch > 0 and entry.get('lv_status') != 2 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:
+			if dis_ch and flt(entry["late"], 8) <= halfday_work:
+				entry["late"] = 0 
+				entry["absent"] = 1 
+				entry["is_halfday"] = 1 
+				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2 
+				ch_tr=1 
+			if not dis_ch:	 
+				entry["late"] = 0 
+				entry["absent"] = 1 
+				entry["is_halfday"] = 1 
+				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2 
+				ch_tr=1 
  
 	chu_tr=0 
 	chu = flt(frappe.db.get_single_value('Timekeeping Settings', 'ut_consider_halfday'), 8) 
@@ -2179,24 +2192,34 @@ def get_final_processing(entry):
 	 
 	if ut_job_grade: 
 		for j in ut_job_grade: 
-			if flt(entry["undertime"], 8) >= int(j['ut_value']) and int(j['ut_value'])  > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:		 
-				entry["undertime"] = 0		 
-				entry["absent"] = 1		 
-				entry["is_halfday"] = 1
-				entry['actual_work'] = entry['work']
-				if not frappe.db.get_single_value('Timekeeping Settings', 'hd_actualwork'):
-					entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-				chu_tr=1 
+			if flt(entry["undertime"], 8) >= int(j['ut_value']) and int(j['ut_value'])  > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:
+				if dis_ch and flt(entry["undertime"], 8) <= halfday_work:		 
+					entry["undertime"] = 0		 
+					entry["absent"] = 1		 
+					entry["is_halfday"] = 1		 
+					entry['work'] = (entry.get('work_hours') * 60 * 60) / 2 
+					chu_tr=1 
+				if not dis_ch:		 
+					entry["undertime"] = 0		 
+					entry["absent"] = 1		 
+					entry["is_halfday"] = 1		 
+					entry['work'] = (entry.get('work_hours') * 60 * 60) / 2 
+					chu_tr=1 
 					 
 	if not ut_job_grade:				 
-		if flt(entry["undertime"], 8) >= chu and chu > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:		 
-			entry["undertime"] = 0		 
-			entry["absent"] = 1		 
-			entry["is_halfday"] = 1
-			entry['actual_work'] = entry['work']
-			if not frappe.db.get_single_value('Timekeeping Settings', 'hd_actualwork'):
-				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2
-			chu_tr=1 
+		if flt(entry["undertime"], 8) >= chu and chu > 0 and entry.get('lv_status') != 3 and entry.get('lv_status') != 1 and not entry.get('is_restday') and not entry['is_holiday']:	
+			if dis_ch and flt(entry["undertime"], 8) <= halfday_work:	 
+				entry["undertime"] = 0		 
+				entry["absent"] = 1		 
+				entry["is_halfday"] = 1		 
+				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2 
+				chu_tr=1 
+			if not dis_ch:
+				entry["undertime"] = 0		 
+				entry["absent"] = 1		 
+				entry["is_halfday"] = 1		 
+				entry['work'] = (entry.get('work_hours') * 60 * 60) / 2 
+				chu_tr=1 
 
 	if chu_tr == 1 and ch_tr == 1:
 		entry["late"] = 0		
