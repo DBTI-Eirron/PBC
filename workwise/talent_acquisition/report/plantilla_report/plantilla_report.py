@@ -121,30 +121,6 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 100
 		},
-		{
-			"fieldname": "employment_status",
-			"label": _("Employment Status"),
-			"fieldtype": "Data",
-			"width": 100
-		},
-		{
-			"fieldname": "job_level",
-			"label": _("Job Level"),
-			"fieldtype": "Data",
-			"width": 100
-		},
-		{
-			"fieldname": "location",
-			"label": _("Location"),
-			"fieldtype": "Data",
-			"width": 100
-		},
-		{
-			"fieldname": "department",
-			"label": _("Department"),
-			"fieldtype": "Data",
-			"width": 100
-		},
 	]
 
 	return columns
@@ -237,10 +213,6 @@ def get_result_as_list(data, filters):
 					"hdmf_no": d.get("hdmf_no"),
 					"tin": d.get("tin"),
 					"phic_no": d.get("phic_no"),
-					"job_level": d.get("job_level"),
-					"employment_status": d.get("employment_status"),
-					"location": d.get("location"),
-					"department": d.get("department"),
 				}
 			else:
 				row = {
@@ -256,10 +228,6 @@ def get_result_as_list(data, filters):
 					"birth_place": d.get("birth_place"),
 					"gender": d.get("gender"),
 					"civil_status": d.get("civil_status"),
-					"job_level": d.get("job_level"),
-					"employment_status": d.get("employment_status"),
-					"location": d.get("location"),
-					"department": d.get("department"),
 				}
 		else:
 			row = {
@@ -280,10 +248,6 @@ def get_result_as_list(data, filters):
 				"hdmf_no": d.get("hdmf_no"),
 				"tin": d.get("tin"),
 				"phic_no": d.get("phic_no"),
-				"job_level": d.get("job_level"),
-				"employment_status": d.get("employment_status"),
-				"location": d.get("location"),
-				"department": d.get("department"),
 			}
 
 		result.append(row)
