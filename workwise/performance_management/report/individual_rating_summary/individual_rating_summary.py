@@ -21,39 +21,22 @@ def get_data(filters):
 		for emp in employees:
 			row = []
 			row = {"employee":emp.appraisee,"employee_name":emp.appraisee_name}
-			if filters.year:
-				periods = get_appraisal_period(filters,year.name)
-				for period in periods:
-					total = get_emp_total(filters,period,emp.appraisee)
-					row.update({period.period_name:total})
 			ctotal = get_emp_total(filters,year,emp.appraisee)
 			row.update({"total":'{:,.2f}'.format(flt(ctotal))})
 			data.append(row)
 		#subtotal
 
-		if filters.year:
-			periods = get_appraisal_period(filters,year.name)
-			row = []
-			row = {"employee_name":"Total"}
-			for period in periods:
-				total = get_total(filters,period)
-				row.update({period.period_name:total})
-			ctotal = get_total(filters,year)
-			row.update({"total":'{:,.2f}'.format(flt(ctotal))})
-			data.append(row)
-		else:
-			row = []
-			row = {"employee_name":"Total"}
-			ctotal = get_total(filters,year)
-			row.update({"total":'{:,.2f}'.format(flt(ctotal))})
-			data.append(row)
-
-	if filters.year is None:
 		row = []
-		row = {"employee_name":"Grand Total"}
-		ctotal = get_grand_total(filters)
+		row = {"employee_name":"<b>Total Average Score</b>"}
+		ctotal = get_total(filters,year)
 		row.update({"total":'{:,.2f}'.format(flt(ctotal))})
 		data.append(row)
+
+	row = []
+	row = {"employee_name":"<b>Grand Total Average Scor</b>e"}
+	ctotal = get_grand_total(filters)
+	row.update({"total":'{:,.2f}'.format(flt(ctotal))})
+	data.append(row)
 
 	return data
 
@@ -78,19 +61,6 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 180
 		},
-	]
-	if filters.year:
-		periods = get_appraisal_period(filters,filters.year)
-		for d in periods:
-			columns += [
-				{
-					"fieldname": d.period_name,
-					"label": _(d.period_name),
-					"fieldtype": "Data",
-					"width": 120
-				},
-			]
-	columns += [
 		{
 			"fieldname": "total",
 			"label": _("Total"),
@@ -108,10 +78,6 @@ def get_employees(filters,period):
 	else:
 		employees = frappe.db.sql("""SELECT DISTINCT `appraisee`, appraisee_name FROM `tabEvaluation` WHERE docstatus = 1  AND `from_date` >= %s AND `to_date` <= %s AND company = %s""",(period.from_date,period.to_date,filters.company),as_dict=True)
 	return employees
-
-def get_appraisal_period(filters,year):
-	periods = frappe.db.sql("""SELECT `period_name`,from_date,to_date FROM `tabTarget Setting Period` WHERE `payroll_year` = %s""",(year),as_dict=True)
-	return periods
 
 def get_payroll_year(filters):
 	if filters.year:

@@ -15,13 +15,29 @@ frappe.query_reports["Plantilla Report"] = {
 			"fieldname":"location",
 			"label": __("Location"),
 			"fieldtype": "Link",
-			"options": "Location"
+			"options": "Location",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company,
+					}
+				};
+			},
 		},
 		{
 			"fieldname":"department",
 			"label": __("Department"),
 			"fieldtype": "Link",
-			"options": "Department"
+			"options": "Department",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company,
+					}
+				};
+			},
 		},
 	]
 }
