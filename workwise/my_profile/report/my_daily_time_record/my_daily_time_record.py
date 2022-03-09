@@ -192,35 +192,36 @@ def get_data(filters):
 			complete_sched(emp_dict, pay_from, pay_to, template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 			if filters.show_adjusted:
-				processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
+				processed_def_sched(emp, pay_from - datetime.timedelta(days=1), pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
-				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
-				cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
-					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
-				get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
-				get_multi_breaks(entry, cards_in, cards_out)
-				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), emp_dict.get('ots'), 
-					emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
-
-				entry['break'] = convert_secs(filters, entry['break'])
-				totals['break'] += entry['break']
-				entry['work'] = convert_secs(filters, entry['work'])
-				totals['work'] += entry['work']
-				entry['late'] = convert_secs(filters, entry['late'])
-				totals['late'] += entry['late']
-				entry['overtime'] = convert_secs(filters, entry['overtime'])
-				totals['overtime'] += entry['overtime']
-				entry['overtime_nd'] = convert_secs(filters, entry['overtime_nd'])
-				totals['overtime_nd'] += entry['overtime_nd']
-				entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
-				totals['overtime_ex'] += entry['overtime_ex']
-				entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
-				totals['nightdiff'] += entry['nightdiff']
-				entry['undertime'] = convert_secs(filters, entry['undertime'])
-				totals['undertime'] += entry['undertime']			
-				entry['cto'] = convert_secs(filters, entry['cto'])
-				totals['cto'] += entry['cto']
-				data.append(entry)
+				if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
+					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
+					cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
+						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+					get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
+					get_multi_breaks(entry, cards_in, cards_out)
+					get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), emp_dict.get('ots'), 
+						emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+	
+					entry['break'] = convert_secs(filters, entry['break'])
+					totals['break'] += entry['break']
+					entry['work'] = convert_secs(filters, entry['work'])
+					totals['work'] += entry['work']
+					entry['late'] = convert_secs(filters, entry['late'])
+					totals['late'] += entry['late']
+					entry['overtime'] = convert_secs(filters, entry['overtime'])
+					totals['overtime'] += entry['overtime']
+					entry['overtime_nd'] = convert_secs(filters, entry['overtime_nd'])
+					totals['overtime_nd'] += entry['overtime_nd']
+					entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
+					totals['overtime_ex'] += entry['overtime_ex']
+					entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
+					totals['nightdiff'] += entry['nightdiff']
+					entry['undertime'] = convert_secs(filters, entry['undertime'])
+					totals['undertime'] += entry['undertime']			
+					entry['cto'] = convert_secs(filters, entry['cto'])
+					totals['cto'] += entry['cto']
+					data.append(entry)
 		data.append(totals)
 		
 	return data
