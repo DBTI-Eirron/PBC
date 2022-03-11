@@ -116,3 +116,4 @@ def update_loans(payroll_date, loan_doc, loan_idx, period):
 
 		doc = frappe.get_doc("Loan Application", loan_doc)
 		doc.run_method("update_loan_status")
+		doc.save()
