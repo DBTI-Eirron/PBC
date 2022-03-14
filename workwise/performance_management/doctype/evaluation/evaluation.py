@@ -58,8 +58,11 @@ class Evaluation(Document):
 				self.equivalent_rating = d.name
 
 	def validate_score(self):
-		if self.equivalent_rating == "Did Not Meed Expectations (DME)" or self.equivalent_rating == "Barely Meets Expections(BME)":
-			pip = frappe.db.sql_list("""SELECT COUNT(`name`) FROM `tabPerformance Improvement Plan` WHERE evaluation = '%s' AND employee = %s""",(self.name,self.appraisee))
-			frappe.throw(_(pip))
-			if pip <= 0:
-				frappe.throw(_("Create Performance Improvement Plan"))
+		if self.total_score < 2:
+			pip = frappe.db.sql("""SELECT COUNT(`name`) as count FROM `tabPerformance Improvement Plan` WHERE evaluation = %s AND employee = %s""",(self.name,self.appraisee),as_dict=True)
+			if pip[0]['count'] <= 0:
+				doc = frappe.new_doc('Performance Improvement Plan')
+				doc.employee = self.appraisee
+				doc.evaluation = self.name
+				doc.insert()
+				frappe.msgprint("Performance Improvement Plan Created")

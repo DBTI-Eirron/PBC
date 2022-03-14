@@ -3,10 +3,16 @@
 
 frappe.ui.form.on('Talent Acquisition Planning', {
 	refresh: function(frm) {
-
 	},
 
 	setup: function(frm) {
+		frm.set_query("department", function() {
+			return {
+				filters: [
+					["Department","company", "=", frm.doc.company]
+				]
+			}
+		});
 		frappe.ui.form.on('Talent Acquisition Planning Position', {
 			rate: function(frm, cdt, cdn) {
 				var row = frappe.get_doc(cdt, cdn);
