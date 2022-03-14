@@ -56,11 +56,11 @@ def get_data():
 					"name": "Rating Classification",
 					"description": _("Rating Classification"),
 				},
-				{
-					"type": "doctype",
-					"name": "Target Standard",
-					"description": _("Target Standard"),
-				},
+				# {
+				# 	"type": "doctype",
+				# 	"name": "Target Standard",
+				# 	"description": _("Target Standard"),
+				# },
 
 			]
 		},

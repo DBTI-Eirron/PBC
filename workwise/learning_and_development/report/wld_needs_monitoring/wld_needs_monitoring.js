@@ -15,7 +15,12 @@ frappe.query_reports["WLD Needs Monitoring"] = {
 			"fieldname": "department",
 			"label": __("Department"),
 			"fieldtype": "Link",
-			"options": "Department"
+			"options": "Department",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				var filters_list = {'company': company};
+				return{filters: filters_list};
+			},
 		},
 	]
 }

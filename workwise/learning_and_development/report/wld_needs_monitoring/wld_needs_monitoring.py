@@ -24,7 +24,7 @@ def execute(filters=None):
 			"provider": emp.provider,
 			"contact": "",
 			"lrf_date": "",
-			"reg_date": emp.schedule,
+			"reg_date": emp.target_date,
 			"amount": emp.budget,
 			"paid": "",
 			"savings": "",
@@ -119,7 +119,7 @@ def get_employees(filters):
 		WN.employee_name,
 		WN.training,
 		WN.provider,
-		WN.`schedule`,
+		WN.`target_date`,
 		WN.budget,
 		WN.status,
 		WL.department
