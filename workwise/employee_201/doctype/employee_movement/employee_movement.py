@@ -157,7 +157,6 @@ class EmployeeMovement(Document):
 					"employment_status": self.change_employment_status if self.change_employment_status else self.current_employment_status,
 					"is_active": 1,
 					"position_title": self.change_position_title if self.change_position_title else self.current_position_title,
-					"date_regular": self.effective_on
 				})
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
@@ -169,7 +168,6 @@ class EmployeeMovement(Document):
 					"employment_status": self.current_employment_status,
 					"is_active": 1,
 					"position_title": self.current_position_title,
-					"date_regular": self.current_date_of_regularization if self.current_date_of_regularization else None
 				})
 			self.revert_employee(emp)
 			self.cmd_salary_adjustment(process=process)
@@ -502,7 +500,7 @@ class EmployeeMovement(Document):
 
 		if target == 'specific':
 			filters={'movement_type': self.movement_type}
-
+		movement = self.movement_type.lower()
 		setup_list = frappe.get_all('Employee Movement Setup', filters=filters)
 		for setp in setup_list:
 			doc = frappe.get_doc('Employee Movement Setup', setp.name)
@@ -510,11 +508,11 @@ class EmployeeMovement(Document):
 				for df in doc.fields:
 					result.append({
 						'fieldname': df.fieldname,
-						'custom_fieldname': 'current_'+str(df.fieldname)
+						'custom_fieldname': 'current_'+str(df.fieldname)+'_'+ movement
 					})
 					result.append({
 						'fieldname': df.fieldname,
-						'custom_fieldname': 'new_'+str(df.fieldname)
+						'custom_fieldname': 'new_'+str(df.fieldname)+'_'+ movement
 					})
 
 		cf_list = []
