@@ -27,6 +27,17 @@ frappe.ui.form.on('Performance Improvement Plan', {
 			});
 		}
 	},
+	onload: function(frm){
+		frm.doc.items = null;
+		return frappe.call({
+			method: "get_appraisal",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.refresh_field("items");
+				frm.refresh_fields();
+			}
+		});
+	},
 
 	evaluation: function(frm) {
 		frm.doc.items = null;
