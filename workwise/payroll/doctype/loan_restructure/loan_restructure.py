@@ -20,7 +20,7 @@ class LoanRestructure(Document):
 			else:
 				frappe.db.sql("""UPDATE `tabLoan Application Payments` SET payment_amount = %s, due_date = %s WHERE parent = %s AND idx = %s  """,( flt(d.new_amount, 8), d.new_due_date, self.loan_id, d.target_idx ), as_dict=True )
 
-		frappe.db.sql("""DELETE FROM `tabLoan Application Payments` WHERE `idx` > %s """,(target_idx), as_dict=1)
+		frappe.db.sql("""DELETE FROM `tabLoan Application Payments` WHERE `idx` > %s  AND parent = %s""",(target_idx, self.loan_id), as_dict=1)
 
 	def validate_payment_amount(self):
 		amount = 0.0
