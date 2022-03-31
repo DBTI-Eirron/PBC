@@ -500,7 +500,7 @@ class EmployeeMovement(Document):
 
 		if target == 'specific':
 			filters={'movement_type': self.movement_type}
-		movement = self.movement_type.lower()
+		movement = str(self.movement_type).replace(" ", "_").lower()
 		setup_list = frappe.get_all('Employee Movement Setup', filters=filters)
 		for setp in setup_list:
 			doc = frappe.get_doc('Employee Movement Setup', setp.name)
