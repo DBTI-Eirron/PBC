@@ -64,18 +64,20 @@ class IncidentReport(Document):
 #@frappe.whitelist()
 	def make_notice_to_explain(self):
 		message_print = "" 
+
 		for ie in self.involved_employees:
+
 			employee_name = frappe.get_value("Employee", ie.employee, "full_name")
 			make_notice = frappe.new_doc("Notice to Explain")
 			make_notice.update({
 				"incident_report": self.name,
 				"employee": ie.employee,
 				"offense": self.offense,
-				"involvement": ie.involvement,
+				"involved_employees": [{"employee": ie.employee, "employee_name": employee_name, "involvement": ie.involvement, "department":  ie.department}],
 				"date_time_offense": self.date_time_offense,
 				"incident_location": self.incident_location,
 				"employee_name": employee_name, 
-				"workflow_state": "Pending",
+				"workflow_state": "Draft",
 				"explanation" : ""
 			})
 			make_notice.insert()

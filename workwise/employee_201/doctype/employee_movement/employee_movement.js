@@ -42,9 +42,9 @@ cur_frm.add_fetch('employee', 'job_grade', 'new_job_grade');
 
 frappe.ui.form.on('Employee Movement', {
 	onload: function(frm) {
-		if (frm.doc.__islocal){
-			frm.set_value("employee", "");
-		}
+		//if (frm.doc.__islocal){
+		//	frm.set_value("employee", "");
+		//}
 	},
 	
 	on_submit: function(frm) {

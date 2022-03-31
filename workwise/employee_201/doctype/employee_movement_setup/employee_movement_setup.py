@@ -33,9 +33,10 @@ class EmployeeMovementSetup(Document):
 		if self.enabled:
 			if self.fields:
 				last_current = str(self.movement_type).replace(" ", "_").lower()+'_additional_sectionbreak'
+				movement = str(self.movement_type).replace(" ", "_").lower()
 				last_new = None
 				for d in self.fields:
-					current_fields = frappe.get_all('Custom Field', filters={'dt': 'Employee Movement', 'label': 'Current '+str(d.label), 'fieldname': 'current_'+str(d.fieldname)+'_'+str(movement)}, fields=['*'])
+					current_fields = frappe.get_all('Custom Field', filters={'dt': 'Employee Movement', 'label': 'Current '+str(d.label), 'fieldname': 'current_'+str(d.fieldname)}+'_'+self.movement_type, fields=['*'])
 
 					if not current_fields:
 						cur_custom = frappe.new_doc("Custom Field")
@@ -43,7 +44,7 @@ class EmployeeMovementSetup(Document):
 							'dt': 'Employee Movement',
 							'label': 'Current '+str(d.label),
 							'insert_after': 'additional_changes_section',
-							'fieldname': 'current_'+str(d.fieldname)+'_'+self.movement_type,
+							'fieldname': 'current_'+str(movement),
 							'fieldtype': d.fieldtype,
 							'options': d.options,
 							'read_only': 1
@@ -54,7 +55,7 @@ class EmployeeMovementSetup(Document):
 							raise
 						last_current = 'current_'+str(d.fieldname)
 
-					new_fields = frappe.get_all('Custom Field', filters={'dt': 'Employee Movement', 'label': 'New '+str(d.label), 'fieldname': 'new_'+str(d.fieldname)+'_'+str(movement)}, fields=['*'])
+					new_fields = frappe.get_all('Custom Field', filters={'dt': 'Employee Movement', 'label': 'New '+str(d.label), 'fieldname': 'new_'+str(d.fieldname)}+'_'+self.movement_type, fields=['*'])
 					
 					if not new_fields:
 						if not last_new:
@@ -65,7 +66,7 @@ class EmployeeMovementSetup(Document):
 							'dt': 'Employee Movement',
 							'label': 'New '+str(d.label),
 							'insert_after': last_current,
-							'fieldname': 'new_'+str(d.fieldname)+'_'+self.movement_type,
+							'fieldname': 'new_'+str(movement),
 							'fieldtype': d.fieldtype,
 							'options': d.options,
 						})

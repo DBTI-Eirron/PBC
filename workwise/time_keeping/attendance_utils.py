@@ -1100,12 +1100,16 @@ def get_ndiff(entry):
 				if nd_early_start <= entry.get('time_in') <= nd_early_end:
 					nd_in, nd_out, get_nd = get_ndiff_min_max(min_nd, max_nd, card_out, card_in)
 					employee_nd_early_start = nd_early_start
-					if getdate(entry.get('time_in')) == getdate(entry.get("target_date")):
-						employee_nd_early_start = max(nd_early_start, entry.get('time_in'))
-					employee_nd_early_end = min(nd_early_end, entry.get('time_out'))
-					entry['early_nightdiff'] = 0
-					entry['early_nightdiff'] = (abs(( get_datetime(employee_nd_early_end) - employee_nd_early_start ).total_seconds()))
-					entry['nightdiff'] += entry['early_nightdiff']
+					if get_datetime(card_in) < get_datetime(nd_early_end):
+						start_nd_early = get_datetime(entry.get('time_in'))
+						if get_datetime(entry.get('time_in')) < get_datetime(card_in):
+							start_nd_early = get_datetime(card_in)
+						if getdate(entry.get('time_in')) == getdate(entry.get("target_date")):
+							employee_nd_early_start = max(nd_early_start, start_nd_early)
+						employee_nd_early_end = min(nd_early_end, entry.get('time_out'))
+						entry['early_nightdiff'] = 0
+						entry['early_nightdiff'] = (abs(( get_datetime(employee_nd_early_end) - employee_nd_early_start ).total_seconds()))
+						entry['nightdiff'] += entry['early_nightdiff']
 
 			nd_early_start = get_datetime(str(entry.get('target_date')) +" "+ str(entry.get('nd_end')) )
 			if entry.get('time_in') <= nd_early_start:
@@ -1879,6 +1883,9 @@ def get_flexible(entry, obs):
 		if entry.get('card_in') and entry.get('card_out'):
 			#Reset Flexible values
 			entry['late'], entry['undertime'], entry['work']= 0, 0 ,entry.get('worker_secs')
+			if entry['override_hrs']:
+				entry['worker_secs'] = int(entry['override_hrs']) * 60 * 60
+				entry['work'] = entry['worker_secs']
 			if entry.get('flexible_type') == "In-Out":		
 				diff = (entry.get('card_out') - entry.get('card_in')).total_seconds() + flex_ob_time
 				if entry['lv_status'] == 2 or entry['lv_status'] == 3:
@@ -2827,7 +2834,8 @@ def get_shift_map():
 			"break_start":d.break_start,
 			"break_end":d.break_end,
 			"break_mins":d.break_mins,
-			"allow_ot_in_shift": d.allow_ot_in_shift
+			"allow_ot_in_shift": d.allow_ot_in_shift,
+			"override_hrs": d.override_hrs
 		}
 
 	return shift_map
@@ -3542,6 +3550,7 @@ def get_defaults(emp, sched, shift_map, overrides):
 		"is_multi_break": shift_map[sched['work_shift']]['is_multi_break'],
 		"max_break": shift_map[sched['work_shift']]['max_break'],
 		"is_default_schedule": sched['is_default_schedule'],
+		"override_hrs": shift_map[sched['work_shift']]['override_hrs'],
 		#general policy
 		"is_processed": 0,
 		#timecard data

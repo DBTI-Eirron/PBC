@@ -38,11 +38,12 @@ frappe.query_reports["Attendance Summary Processed"] = {
 		{
 			"fieldname": "time_options",
 			"label": __("Options"),
-			"fieldtype": "Data",
+			"fieldtype": "Select",
 			"options": [
+				{ "value": "Mins", "label": __("Mins") },
 				{ "value": "Hrs	", "label": __("Hrs") }
 			],
-			"default": "Hrs",
+			"default": "Mins",
 			"reqd": 1
 		},
 		{
