@@ -205,6 +205,17 @@ def get_data(filters):
 				emp_dict['sub_nightdiff'] += r.nightdiff
 				emp_dict['sub_cto'] += r.cto
 				emp_dict['sub_undertime'] += r.undertime
+
+				
+				r.work = convert_secs(filters, r.work)
+				r.late = convert_secs(filters, r.late)
+				r.overtime = convert_secs(filters, r.overtime)
+				r.overtime_nd = convert_secs(filters, r.overtime_nd)
+				r.overtime_ex = convert_secs(filters, r.overtime_ex)
+				r.nightdiff = convert_secs(filters, r.nightdiff)
+				r.cto = convert_secs(filters, r.cto)
+				r.undertime = convert_secs(filters, r.undertime)
+
 				if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
 					emp_dict['sub_earlynightdiff'] += r['earlynightdiff']
 					emp_dict['sub_latenightdiff'] += r['latenightdiff']
@@ -333,3 +344,18 @@ def get_result_as_list(data, filters):
 		result.append(d)
 
 	return result
+
+def convert_secs(filters, secs):
+	con = 0
+	if filters.time_options == "Mins":
+		con = flt(secs, 8) * 60
+	else:
+		con = flt(secs, 8) / 1
+
+	return flt(con, 8)
+
+def convert_to_list(dic):
+	data = []
+	for d in dic:
+		data.append(d.name)
+	return data
