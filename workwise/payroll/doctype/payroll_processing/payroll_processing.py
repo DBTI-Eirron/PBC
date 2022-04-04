@@ -1654,7 +1654,8 @@ class PayrollProcessing(Document):
 						"amount": abs(flt(d.compensatory, 8)),
 					})
 
-			if frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd') == 0:
+			ignore_nd = frappe.get_value("Employee", emp['name'], "ignore_nd")
+			if ignore_nd == 0:
 				if d.nightdiff != 0:
 					if d.nightdiff < 0:
 						adjustment_register.append({
