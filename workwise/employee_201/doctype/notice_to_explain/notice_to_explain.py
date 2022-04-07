@@ -5,6 +5,11 @@
 from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
+from frappe import throw, _, scrub
 
 class NoticetoExplain(Document):
-	pass
+	def on_submit(self):
+		if not self.report_on:
+			frappe.throw(_("Report On is Mandatory"))
+		if not self.report_to:
+			frappe.throw(_("Report To is Mandatory"))
