@@ -490,26 +490,37 @@ def create_lb_entry_logs(entry):
 def holiday_recurring_yearly(targetdate=None):
 	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
-
+	created_new = []
+	already_created = 0
 	if now_date.day == 01 and now_date.month == 01:
 		holidays = frappe.db.sql(""" SELECT * FROM `tabHoliday` WHERE recurring_yearly = 1 AND YEAR(holiday_date) = %s """,(now_date.year-1), as_dict=1)
+		now_holidays = frappe.db.sql(""" SELECT * FROM `tabHoliday` WHERE recurring_yearly = 1 AND YEAR(holiday_date) = %s """,(now_date.year), as_dict=1)
 		if holidays:
 			for ho in holidays:
-				new_ho = frappe.new_doc("Holiday")
-				new_ho.update({
-					"holiday_name": ho.holiday_name,
-					"holiday_date": getdate(addYears(ho.holiday_date, 1)),
-					"is_special": ho.is_special,
-					"recurring_yearly": ho.recurring_yearly,
-					"description": ho.description,
-					"company": ho.company,
-					"location": ho.location,
-				})
-				new_ho.flags.ignore_permissions = True
-				try:
-					new_ho.save()
-				except Exception as e:
-					pass
+				already_created = 0
+				for nh in now_holidays:
+					if getdate(addYears(ho.holiday_date, 1)) ==  getdate(nh.holiday_date):
+						already_created = 1
+						break
+				if already_created == 0:
+					created_new.append(ho)
+		for cr in created_new:
+			new_ho = frappe.new_doc("Holiday")
+			new_ho.update({
+				"holiday_name": cr.holiday_name,
+				"holiday_date": getdate(addYears(cr.holiday_date, 1)),
+				"is_special": cr.is_special,
+				"recurring_yearly": cr.recurring_yearly,
+				"description": cr.description,
+				"company": cr.company,
+				"location": cr.location,
+				"is_automated": 1,
+			})
+			new_ho.flags.ignore_permissions = True
+			try:
+				new_ho.save()
+			except Exception as e:
+				pass
 
 def fix_approved_on_and_by():
 	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application", "Timelogs Application"]
