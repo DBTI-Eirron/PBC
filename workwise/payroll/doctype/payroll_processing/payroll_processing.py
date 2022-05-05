@@ -2028,7 +2028,7 @@ class PayrollProcessing(Document):
 									if at.work or at.cto:
 										dl_days += 0.5
 							else:
-								if at.lv_status and not at.is_lwop:
+								if at.lv_status and dl_days != 1 and not at.is_lwop:
 									if at.lv_status == 1:
 										dl_days += 1
 									if at.lv_status > 1:
