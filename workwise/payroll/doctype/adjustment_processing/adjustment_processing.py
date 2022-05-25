@@ -25,6 +25,7 @@ class AdjustmentProcessing(Document):
 			WHERE TE.company = %(company)s
 			AND TE.payroll_schedule = %(pay_sched)s 
 			AND TE.is_active = 1
+			AND TE.is_attendance_base = 1
 			AND TE.date_hired <= %(attendance_to)s
 			{conditions}
 			ORDER BY TE.last_name, TE.first_name""".format( conditions=self.get_conditions() ),
