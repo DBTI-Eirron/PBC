@@ -19,7 +19,7 @@ class IncidentReport(Document):
 		self.make_memo()
 
 	def validate_datetime(self):
-		if self.date_time_offense and get_datetime(self.date_time_offense) > get_datetime(today()):
+		if self.date_time_offense and get_datetime(self.date_time_offense) > datetime.today() + timedelta(days=1):
 			throw(_("Date and Time of Incident cannot be greater than today."))
 
 	def make_memo(self):
