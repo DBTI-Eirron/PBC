@@ -2966,7 +2966,7 @@ def get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
 		if next_target_date and shift_map[next_shift]['time_out']:
 			next_shift_out = get_datetime(str(next_target_date)+" "+str(shift_map[next_shift]['time_out']))
 			if shift_map[next_shift]['grace_period']:
-				next_shift_in = next_shift_in + datetime.timedelta(minutes=shift_map[next_shift]['grace_period'])
+				next_shift_in = get_datetime(next_shift_in) + datetime.timedelta(minutes=shift_map[next_shift]['grace_period'])
 
 	#Current Shift
 	current_shift = filter(lambda empid: target_date == empid['target_date'], schedules)
