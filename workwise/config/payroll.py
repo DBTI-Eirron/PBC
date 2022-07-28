@@ -95,6 +95,10 @@ def get_data():
 					"type": "doctype",
 					"name": "Rate Classification",
 				},
+				{
+					"type": "doctype",
+					"name": "Job Grade",
+				},
 			]
 		},
 		{
