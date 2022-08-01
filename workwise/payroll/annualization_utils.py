@@ -478,7 +478,7 @@ def get_employee_wise_register(payroll_year, registers, previous_bir, lastpay, e
 						emp_map[reg.employee].total_housing += reg.amount if _type == "Income" else -(reg.amount)
 
 					if btype == "Commission":
-						mp_map[reg.employee].total_comm += reg.amount if _type == "Income" else -(reg.amount)
+						emp_map[reg.employee].total_comm += reg.amount if _type == "Income" else -(reg.amount)
 
 					if btype == "Profit Sharing":
 						emp_map[reg.employee].total_sharing += reg.amount if _type == "Income" else -(reg.amount)
@@ -625,7 +625,7 @@ def get_employee_wise_register(payroll_year, registers, previous_bir, lastpay, e
 						emp_map[lp.employee].total_housing += lp.amount if _type == "Income" else -(lp.amount)
 
 					if btype == "Commission":
-						mp_map[lp.employee].total_comm += lp.amount if _type == "Income" else -(lp.amount)
+						emp_map[lp.employee].total_comm += lp.amount if _type == "Income" else -(lp.amount)
 
 					if btype == "Profit Sharing":
 						emp_map[lp.employee].total_sharing += lp.amount if _type == "Income" else -(lp.amount)
