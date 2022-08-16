@@ -2241,14 +2241,14 @@ def get_final_processing(entry):
 		entry["is_halfday"] = 0
 
 	strict_card = flt(frappe.db.get_single_value('Timekeeping Settings', 'strict_nocard'), 8)	
-	if entry.get('lv_status') != 1 and not entry.get('card_out') and strict_card:
+	if entry.get('lv_status') != 1 and not entry.get('card_out') and strict_card and not entry['ob_stat'] == 1 and not entry['ob_stat'] == 3:
 		entry['is_absent'] = 1
 		entry["is_halfday"] = 0
 		entry["work"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
-
-	if entry.get('lv_status') != 1 and not entry.get('card_in') and strict_card:
+	
+	if entry.get('lv_status') != 1 and not entry.get('card_in') and strict_card and not entry['ob_stat'] == 1 and not entry['ob_stat'] == 2:
 		entry['is_absent'] = 1
 		entry["is_halfday"] = 0
 		entry["work"] = 0
