@@ -244,6 +244,7 @@ class EmployeeMovement(Document):
 					"is_attendance_base": self.new_attendance_base,
 					"cost_center": self.new_cost_center if self.new_cost_center else self.current_cost_center,
 					"rate_class": self.new_rate_classification,
+					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
 				})
 			self.save_employee(emp)
 
@@ -256,6 +257,7 @@ class EmployeeMovement(Document):
 					"is_attendance_base": self.current_attendance_base,
 					"cost_center": self.current_cost_center,
 					"rate_class": self.current_rate_classification,
+					"job_grade": self.current_job_grade,
 				})
 			self.revert_employee(emp)
 			
