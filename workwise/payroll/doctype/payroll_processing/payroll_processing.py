@@ -304,6 +304,7 @@ class PayrollProcessing(Document):
 					self.get_phic(emp, rates, header, register, tr_map, weekly_prev_map)
 					self.get_hdmf(emp, rates, header, register, tr_map, hdmf_table, weekly_prev_map)
 					self.get_whtax(emp, rates, header, register)
+					self.validate_loan(header, rates, register, tr_map)
 
 					#Separate Holiday
 					self.get_holiday_pay(rates, header, register)
@@ -373,8 +374,38 @@ class PayrollProcessing(Document):
 
 		self.create_payroll_processing_logs(header)
 		
-		return self.create_log(ss_list)
 
+	def validate_loan(self, header, rates, register, tr_map):
+		loan_application = []
+		valid_loan = []
+		amount = 0
+		for d in register:
+			if "linked_doctype" in d:
+				if d['linked_doctype'] == "Loan Application":
+					loan_application.append(d['linked_document'])
+				else:
+					if tr_map[d.get('pay_code')]['type'] == "Income":
+						amount += d['amount']
+					else:
+						amount -= d['amount']
+			else:
+				if tr_map[d.get('pay_code')]['type'] == "Income":
+					amount += d['amount']
+				else:
+					amount -= d['amount']
+		for d in register:
+			if "linked_document" in d:
+				if d['linked_document'] in loan_application:
+					if d['amount'] >=  amount:
+						valid_loan.append(d['linked_document'])
+						amount -= d['amount']
+		for d in register:
+			if "linked_doctype" in d:
+				if d['linked_doctype'] == "Loan Application":
+					if d['linked_document'] not in valid_loan:
+						register.remove(d)
+						header['total_deduction'] -= d.get('amount')
+						
 	def calculate_basic_header(self, register, header, tr_map):
 		for d in register:
 			if d.get('amount') > 0 and d.get('pay_code') in tr_map:	
