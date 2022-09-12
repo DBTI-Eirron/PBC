@@ -374,6 +374,8 @@ class PayrollProcessing(Document):
 
 		self.create_payroll_processing_logs(header)
 		
+		return self.create_log(ss_list)
+		
 
 	def validate_loan(self, header, rates, register, tr_map):
 		loan_application = []
