@@ -398,7 +398,7 @@ class PayrollProcessing(Document):
 		for d in register:
 			if "linked_document" in d:
 				if d['linked_document'] in loan_application:
-					if d['amount'] >=  amount:
+					if d['amount'] <=  amount:
 						valid_loan.append(d['linked_document'])
 						amount -= d['amount']
 		for d in register:
