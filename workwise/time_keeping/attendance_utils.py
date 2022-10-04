@@ -295,7 +295,7 @@ def get_work(entry):
 					entry['work'] = (entry.get('work_hours') * 60) * 60
 					if entry["is_halfday"] == 1:
 						entry['actual_work'] = entry['work']
-						if not frappe.get_single_value('Timekeeping Settings', 'hd_actualwork'): 
+						if not frappe.db.get_single_value('Timekeeping Settings', 'hd_actualwork'):
 							entry['work'] = entry['work'] / 2 
 			if entry.get('ob_stat') > 1 and not entry['card_in'] and not entry['card_out']:
 				if not entry["lv_status"]:
