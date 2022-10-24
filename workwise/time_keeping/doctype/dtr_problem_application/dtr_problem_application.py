@@ -54,6 +54,8 @@ class DTRProblemApplication(Document):
 		self.target_date = self.dtr_date
 		if self.is_previous:
 			self.target_date = getdate(self.dtr_date) - timedelta(days=1)
+		if self.employee:
+			self.employee_name, self.company, self.department = frappe.db.get_value("Employee", self.employee, ["full_name","company","department"])
 
 	def validate_application(self):
 		if datetime.strptime(str(self.target_date), '%Y-%m-%d').date() > datetime.strptime(str(nowdate()), '%Y-%m-%d').date():
