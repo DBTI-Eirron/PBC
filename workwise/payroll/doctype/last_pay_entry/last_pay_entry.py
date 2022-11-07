@@ -139,6 +139,7 @@ class LastPayEntry(Document):
 
 		self.net_pay=net_pay
 		self.pre_annualization(tax_included_reg)
+		self.net_pay = self.net_pay + (self.tax_refund - abs(self.deficit_tax))
 
 	def get_on_hold(self, employee ,register, entry):
 		included_transactions = {}
