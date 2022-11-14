@@ -131,6 +131,9 @@ class SpecialProcessing(Document):
 		if status == "Closed":
 			frappe.throw(_("Selected Period is Already Closed"))
 
+		if not is_special:
+			frappe.throw(_("Selected Period must be Special"))
+
 		if header.get("method") not in ["No Work"]:
 			if not is_special:
 				frappe.throw(_("Selected Period must be Special"))

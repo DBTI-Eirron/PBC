@@ -2956,7 +2956,7 @@ def get_last_current_next_shift(target_date, schedules, timelogs_map, shift_map)
 	next_shift = filter(lambda empid: next_target_date == empid['target_date'], schedules)
 	next_shift_in = None
 	next_shift_out = None
-	if next_shift:
+	if next_shift and next_shift[0]['work_shift']:
 		if next_shift[0]['work_shift']:
 			next_shift = next_shift[0]['work_shift']
 		if next_target_date:
