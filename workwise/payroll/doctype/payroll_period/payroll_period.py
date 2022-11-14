@@ -60,7 +60,11 @@ class PayrollPeriod(Document):
 			self.validate_duplicate_set()
 
 		if self.is_special:
-			self.frequency = "Special"
+			if self.frequency != "Special":
+				frappe.throw(_(str("Frequency must be Special")))
+
+		if self.frequency == "Special":
+			self.is_special = 1
 
 	def validate_duplicate_set(self):
 		duplicate = frappe.db.sql(""" SELECT `name` FROM `tabPayroll Period` 
