@@ -410,7 +410,9 @@ def get_data(filters, columns):
 		if reg.work_hours > 0 and reg.is_restday < 1 and reg.is_sp_holiday < 1 and reg.is_holiday < 1: 
 			data_register[reg.employee_id]["reg_hrs"] += reg.work
 		if reg.is_absent > 0 or reg.is_lwop > 0 or reg.is_halfday > 0:
-			if reg.work > 0 and reg.lv_status > 1 or reg.is_halfday > 0:
+			if reg.lv_status > 1 or reg.is_halfday:
+				data_register[reg.employee_id]["absent"] += flt(reg.work_hours, 2) * .5
+			elif reg.work > 0 and reg.lv_status > 1 or reg.is_halfday > 0:
 				data_register[reg.employee_id]["absent"] += reg.work_hours - reg.work
 			else:
 				data_register[reg.employee_id]["absent"] += reg.work_hours
