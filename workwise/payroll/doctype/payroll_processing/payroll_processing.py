@@ -2161,6 +2161,9 @@ class PayrollProcessing(Document):
 							if at.is_absent and at.work_hours <= at.cto:
 								is_uho = 0
 
+							if at.cto:
+								is_uho = 0
+
 						else:
 							is_uho = 0
 							if (at.is_absent or at.is_lwop) and not at.is_ob:
