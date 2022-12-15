@@ -329,7 +329,8 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 					view_add_entry_balance = add_entry_balance
 					if not filters.allow_negative and add_entry_balance < 0:
 						view_add_entry_balance = 0
-					positive_balance += add_entry_balance
+					if add_entry_balance > 0:
+						positive_balance += add_entry_balance
 
 					data.append({
 						"employee_name": "",
@@ -355,7 +356,7 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 						})
 			#Total Remaining Balance
 			if inlucded:
-				total_add_entry_balance = positive_balance - (negative_balance + deducted_overuse_balance)
+				total_add_entry_balance = positive_balance + (negative_balance + deducted_overuse_balance)
 				if positive_balance <= 0:
 					total_add_entry_balance = positive_balance
 				if not filters.allow_negative and total_add_entry_balance < 0:
