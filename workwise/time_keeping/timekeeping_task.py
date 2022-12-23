@@ -236,8 +236,8 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 						year_diff = relativedelta(now_date, regular_date).years
 						add_credits = check_rundate(d.method, now_date)
 
-				if is_continuous:
-					add_credits = 1
+				#if is_continuous:
+				#	add_credits = 1
 
 				if add_credits and validate_create_lbentry({'employee': e['name'], 'leave_type': d.leave_type}):
 					dates_to_create = [getdate(now_date)]
