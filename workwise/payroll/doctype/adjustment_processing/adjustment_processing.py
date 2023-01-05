@@ -868,7 +868,8 @@ class AdjustmentProcessing(Document):
 						attendance_time['late'] += at['late']
 						attendance_time['undertime'] += at['undertime']
 						attendance_time['cto'] += at['cto']
-						attendance_time['uho'] += unpaid_holiday / flt(rates.get('hourly_rate'), 8)
+						if unpaid_holiday:
+							attendance_time['uho'] += unpaid_holiday / flt(rates.get('hourly_rate'), 8)
 
 					#Create Adjustment Register Processed
 					if self.exclude_processed_adjustment:
