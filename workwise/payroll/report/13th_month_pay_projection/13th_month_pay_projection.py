@@ -143,7 +143,7 @@ def get_data(filters):
 
 def init_map(filters):
 	init_data = frappe.db.sql("""SELECT `name`, full_name, employee_id, no_hours, total_yr_days, rate_type, rate FROM `tabEmployee` PR
-		WHERE company = %(company)s {conditions} """.format(conditions=get_conditions_emp(filters)), filters, as_dict=1)
+		WHERE company = %(company)s AND is_active = 1 {conditions} """.format(conditions=get_conditions_emp(filters)), filters, as_dict=1)
 	get_period_list(filters)
 
 	_map = frappe._dict()

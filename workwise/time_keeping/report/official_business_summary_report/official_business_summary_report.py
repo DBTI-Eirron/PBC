@@ -117,7 +117,7 @@ def convert_secs(filters, secs):
 
 def get_employees(filters):
 	register = frappe.db.sql("""SELECT `name`, full_name FROM `tabEmployee` 
-		WHERE company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
+		WHERE company = %(company)s AND is_active = 1 {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	return register
 

@@ -67,7 +67,7 @@ def get_employees(filters):
 
 	employees = frappe.db.sql("""SELECT `name`, `full_name`, `rate_type`, `rate`, `total_yr_days`, `no_hours` FROM `tabEmployee`
 		WHERE sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` {conditions})
-		AND company = %(company)s ORDER BY `full_name` """.format( conditions=conditions ),{ 
+		AND company = %(company)s AND is_active = 1 ORDER BY `full_name` """.format( conditions=conditions ),{ 
 			"company": filters.company
 		}, as_dict=True)
 
