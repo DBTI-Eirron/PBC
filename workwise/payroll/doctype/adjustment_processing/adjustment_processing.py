@@ -192,6 +192,7 @@ class AdjustmentProcessing(Document):
 			"ignore_uho": frappe.db.get_single_value('Payroll Settings', 'ignore_uho'),
 			"ignore_nd": frappe.db.get_single_value('Timekeeping Settings', 'ignore_nd'),
 			"dis_dho_tran": frappe.db.get_single_value('Payroll Settings', 'disable_dho_tran'),
+			"dho": frappe.db.get_single_value('Payroll Settings', 'def_adj_inc_dho'),
 			"nd_rate_class": frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'),
 			"ot_rate_class": frappe.db.get_single_value('Payroll Settings', 'ot_rate_class'),
 		}
@@ -666,12 +667,12 @@ class AdjustmentProcessing(Document):
 								if emp.get("rate_type") == "Daily Rate":
 									if ho_paid == 1 and dh_exemption == 0:
 										dho_amount += flt(rates.get('daily_rate'), 8)*1
-										register.append({"pay_code": header.get('dho'), "amount": dho_amount})
+										#register.append({"pay_code": header.get('dho'), "amount": dho_amount})
 
 								if emp.get("rate_type") != "Daily Rate":
 									if not is_uho or at['work']:
 										dho_amount += flt(rates.get('daily_rate'), 8)*1
-										register.append({"pay_code": header.get('dho'), "amount": dho_amount})
+										#register.append({"pay_code": header.get('dho'), "amount": dho_amount})
 									
 						if ho_paid == 1:
 							pho_days += ho_paid
