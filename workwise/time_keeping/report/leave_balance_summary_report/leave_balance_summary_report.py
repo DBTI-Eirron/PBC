@@ -177,7 +177,7 @@ def get_result_as_list(data, filters):
 def init_employee_map(filters, data_entry):
 	employees = frappe.db.sql("""SELECT TE.`name`, TE.`full_name`, TE.`period_group`, TE.`location`, TE.`company` FROM `tabEmployee` TE
 		LEFT JOIN `tabLocation` LOC ON TE.`location` = LOC.`name`
-		WHERE TE.company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
+		WHERE TE.company = %(company)s AND TE.is_active = 1 {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	emp_map = frappe._dict()
 	for emp in employees:
