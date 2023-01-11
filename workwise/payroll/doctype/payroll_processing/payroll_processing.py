@@ -18,7 +18,7 @@ class PayrollProcessing(Document):
 		employees = frappe.db.sql("""SELECT TE.`name`, TE.full_name, TE.location, TE.company, TE.total_yr_days, TE.rate_type, TE.rate, TE.rate_class, 
 			TE.payroll_schedule, TE.min_take_home, TE.mth_percentage, TE.cost_center, TE.no_hours, TE.is_active,
 			TE.sss_mode, TE.sss_manual, TE.sss_freq, TE.phic_mode, TE.phic_manual, TE.phic_freq, TE.hdmf_mode, TE.hdmf_manual, TE.hdmf_freq, TE.whtax_mode, 
-			TE.whtax_manual, TE.whtax_freq, TE.is_attendance_base, TE.ignore_late, TE.ignore_nd, TE.ignore_ut, TE.on_hold, TE.sensitivity
+			TE.whtax_manual, TE.whtax_freq, TE.is_attendance_base, TE.ignore_late, TE.ignore_nd, TE.ignore_ut, TE.on_hold, TE.sensitivity, TE.project
 			FROM `tabEmployee` TE LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 			WHERE TE.company = %(company)s
 			AND TE.payroll_schedule = %(pay_sched)s
@@ -168,6 +168,7 @@ class PayrollProcessing(Document):
 						'employee_name': emp.full_name,
 						'company': emp.company,
 						'location': emp.location,
+						'project': emp.project,
 						'on_hold': emp.on_hold,
 						'period_group': self.period_group,
 						'posting_date': self.payroll_date,
