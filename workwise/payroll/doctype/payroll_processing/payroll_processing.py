@@ -1913,6 +1913,11 @@ class PayrollProcessing(Document):
 								else:
 									before_holiday_work = 0
 									before_sp_work = 0
+						if at.is_holiday:
+							is_uho = 0
+							cur_suc_hol_wout_before = 0
+							before_sp_work = 1
+							before_holiday_work = 1
 					else:
 						if getdate(at.target_date) == getdate(self.attendance_from):
 							if no_previous == 0:
