@@ -2218,7 +2218,7 @@ class PayrollProcessing(Document):
 						
 						if not at.is_holiday and not at.is_restday:
 							cur_suc_hol_wout_before = 0
-							if at.work:
+							if at.work or at.cto:
 								before_holiday_work = 1
 								before_sp_work = 1
 							else:
