@@ -17,7 +17,7 @@ def addYears(d, years):
 def addMonths(d, months):
 	return d + relativedelta(months=+months)
 
-def check_condition(condition, diff, value):
+def check_condition(condition, diff, value, from_value = None, to_value = None):
 	result = 0
 	if condition == "equal to":
 		if diff == value:
@@ -33,6 +33,9 @@ def check_condition(condition, diff, value):
 			result = 1
 	if condition == "greater than and equal to":
 		if diff >= value:
+			result = 1
+	if condition == "between":
+		if from_value <= diff <= to_value:
 			result = 1
 	
 	return result
@@ -153,7 +156,7 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 	#Get leave balance setups
 	if setup_included:
 		setup_cond = ','.join(setup_included)
-		setups = frappe.db.sql(""" SELECT LB.name, LBS.leave_type, LBS.method, LBS.allocation_start, LBS.method_condition, LBS.value, LBS.credits, 
+		setups = frappe.db.sql(""" SELECT LB.name, LBS.leave_type, LBS.method, LBS.allocation_start, LBS.method_condition, LBS.value, LBS.credits, LBS.from_value, LBS.to_value,
 			LBS.is_continuous, LBS.end_type, LBS.by_count_value, LBS.by_end_of_year, LBS.add_from_movement
 			FROM `tabLeave Balance Setup` LB INNER JOIN `tabLeave Balance Schedule` LBS ON LBS.`parent` = LB.`name` 
 			WHERE LB.`name` IN ("""+setup_cond+""") """, as_dict=1)
@@ -195,7 +198,11 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 					setup_year_end = getdate(str(d.by_end_of_year)+'-12-31')
 					if getdate(targetdate) >= getdate(setup_year_end):
 						valid_setup = 0
-			
+
+			if d.method == 'Every Anniversary Date':
+				if not (now_date.month == e['date_hired'].month and now_date.day == e['date_hired'].day):
+					valid_setup = 0
+
 			if valid_setup:
 				add_credits = 0
 				datehired = None
@@ -236,8 +243,16 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 						year_diff = relativedelta(now_date, regular_date).years
 						add_credits = check_rundate(d.method, now_date)
 
-				#if is_continuous:
-				#	add_credits = 1
+				if e['date_hired'] and d.allocation_start in ['Years in Service'] and d.method in ['Every Anniversary Date']:
+					reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" with "+cstr(d.credits)+" credits"
+					datehired = getdate(e['date_hired'])
+					datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
+					if getdate(datehired) < getdate(now_date):
+						year_diff = relativedelta(now_date, datehired).years
+						add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+
+				if is_continuous:
+					add_credits = 1
 
 				if add_credits and validate_create_lbentry({'employee': e['name'], 'leave_type': d.leave_type}):
 					dates_to_create = [getdate(now_date)]
