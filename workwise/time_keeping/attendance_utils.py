@@ -269,8 +269,8 @@ def get_work(entry):
 		if entry.get('card_in') and entry.get('card_out'):
 			entry['work'] = (entry.get('work_hours') * 60) * 60
 			if entry['suspension']:
-				if entry['suspension'] == 1:
-					entry['work'] = 0
+				#if entry['suspension'] == 1:
+					#entry['work'] = 0
 				if entry['suspension'] == 2:
 					if entry.get('card_in') < entry.get('break_start'):
 						if entry.get('card_out') < entry.get('break_start'):
@@ -2375,7 +2375,7 @@ def get_final_processing(entry):
 		entry["is_halfday"] = 0
 		entry["late"] = 0
 		entry["undertime"] = 0
-		entry["work"] = 0
+		#entry["work"] = 0
 
 	if entry.get('suspension') == 2 and (entry.get('ob_stat') == 3 or entry.get('ob_stat') == 1):
 		entry["is_halfday"] = 0
