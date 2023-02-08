@@ -57,6 +57,8 @@ class Employee(Document):
 		self.validate_user_status()
 		self.validate_cost_center()
 		self.set_default_name_and_company()
+		if not self.is_active:
+			self.disable_role()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
@@ -65,6 +67,12 @@ class Employee(Document):
 
 	def after_insert(self):
 		self.update_subordinates()
+
+	def disable_role(self):
+		if self.user_id:
+			frappe.db.sql("""UPDATE `tabUser` SET `role_profile_name` = '' WHERE `name` = %s """, (self.user_id))
+			frappe.db.sql("""DELETE FROM `tabHas Role` WHERE parent = %s and parenttype = 'User'""", (self.user_id), as_dict=True)
+			frappe.db.commit()
 
 	def validate_cost_center(self):
 		if self.cost_center and self.company:
