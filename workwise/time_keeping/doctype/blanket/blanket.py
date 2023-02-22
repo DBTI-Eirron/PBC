@@ -4,6 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
+from datetime import timedelta, datetime
 from frappe import msgprint, _
 from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_link_to_form, comma_or, get_fullname, nowdate, data, add_days, get_time, get_datetime
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
@@ -990,6 +991,10 @@ class Blanket(Document):
 	def make_dtr_problem_application(self):
 		#frappe.throw(_('req.type'))
 		timecard_info = {}
+		target_date = self.dtr_target_date
+		if self.is_previous:
+			target_date = getdate(self.dtr_target_date) - timedelta(days=1)
+		#frappe.throw(_(str(target_date)))
 		for d in self.get("bad_table"):
 			new_dtr_app = frappe.new_doc("DTR Problem Application")
 			new_dtr_app.update({
@@ -998,6 +1003,8 @@ class Blanket(Document):
 				"posting_date": self.posting_date,
 				"company": self.company,
 				"dtr_date": self.dtr_target_date,
+				"target_date": target_date,
+				"is_previous": self.is_previous,
 				"reason": self.dtr_reason,
 				"attachment": self.dtr_attachment,
 				"approved_on": nowdate(),
