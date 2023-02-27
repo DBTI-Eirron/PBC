@@ -1936,6 +1936,9 @@ class PayrollProcessing(Document):
 						if at.lv_status and (not at.is_lwop) and at.lv_status == 1:
 							lv_days += 1
 
+						if at.lv_status and (not at.is_lwop) and at.lv_status > 1:
+							lv_days += 0.5
+
 						if at.late > 0:
 							late += flt(at.late, 8) * flt(rates.get('hourly_rate'), 8)
 						
