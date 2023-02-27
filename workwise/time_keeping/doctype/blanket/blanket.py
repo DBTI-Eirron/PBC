@@ -4,7 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
-from datetime import timedelta, datetime
+from datetime import timedelta, date
 from frappe import msgprint, _
 from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_link_to_form, comma_or, get_fullname, nowdate, data, add_days, get_time, get_datetime
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
