@@ -17,6 +17,7 @@ def execute(filters=None):
 	to_date = datetime.date(int(filters.payroll_year),12,31)
 	employee_list = get_employees(filters,from_date,to_date)
 
+
 	columns, income_types, deduction_types = get_columns(filters,employee_list)
 	if not employee_list:
 		msgprint(_("No record found"))
@@ -203,9 +204,11 @@ def get_employees(filters, from_date, to_date):
 	if not "Administrator" in frappe.get_roles(cur_user):
 		employees = frappe.db.sql("""SELECT PR.employee, TE.full_name as employee_name, PR.present_days, PR.total_income, PR.total_deduction, PR.net_payroll
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
+		INNER JOIN `tabPayroll Period` PRY on PR.`period` = PRY.`name`
+		INNER JOIN `tabPayroll Year` PRYY on PRY.`payroll_year` = PRYY.`name`
 		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
 		AND PR.on_hold = 0
-		AND PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s
+		AND (%(year)s = PRYY.`name`)
 		AND PR.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 			"from_date": from_date,
 			"to_date": to_date,
@@ -214,17 +217,21 @@ def get_employees(filters, from_date, to_date):
 			"employee": filters.employee,
 			"location": filters.location,
 		}, as_dict=1)
+
 	else:
 		employees = frappe.db.sql("""SELECT PR.employee, TE.full_name as employee_name, PR.present_days, PR.total_income, PR.total_deduction, PR.net_payroll
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
+		INNER JOIN `tabPayroll Period` PRY on PR.`period` = PRY.`name`
+		INNER JOIN `tabPayroll Year` PRYY on PRY.`payroll_year` = PRYY.`name`
 		WHERE PR.on_hold = 0
-		AND (PR.posting_date >= %(from_date)s AND PR.posting_date <= %(to_date)s)
+		AND (%(year)s = PRYY.`name`)
 		AND PR.company = %(company)s {conditions} ORDER BY PR.employee_name""".format(conditions=get_conditions(filters)), { 
 			"from_date": from_date,
 			"to_date": to_date,
 			"company": filters.company,
 			"employee": filters.employee,
-			"location": filters.location
+			"location": filters.location,
+			"year": filters.payroll_year
 		}, as_dict=1)
 
 	employee_map = {}
@@ -253,8 +260,11 @@ def get_income_map(filters, employee_list, from_date, to_date):
 	income_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
+		INNER JOIN `tabPayroll Period` PRY on PR.`period` = PRY.`name`
+		INNER JOIN `tabPayroll Year` PRYY on PRY.`payroll_year` = PRYY.`name`
 		WHERE PR.posting_date BETWEEN %s and %s AND employee in (%s) GROUP BY PRE.`name` """ %
 		('%s','%s',', '.join(['%s']*len(employee_list))), tuple([from_date]+ [to_date]  + [emp for emp in employee_list]), as_dict=1)
+
 
 	income_map = {}
 	for d in income_details:
@@ -270,6 +280,8 @@ def get_deduction_map(filters, employee_list, from_date, to_date):
 	deduction_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
+		INNER JOIN `tabPayroll Period` PRY on PR.`period` = PRY.`name`
+		INNER JOIN `tabPayroll Year` PRYY on PRY.`payroll_year` = PRYY.`name`
 		WHERE PR.posting_date BETWEEN %s and %s AND employee in (%s) GROUP BY PRE.`name` """ %
 		('%s','%s',', '.join(['%s']*len(employee_list))), tuple([from_date]+ [to_date] + [emp for emp in employee_list]), as_dict=1)
 
