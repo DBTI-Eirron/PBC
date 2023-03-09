@@ -12,7 +12,8 @@ from frappe.model.document import Document
 
 class PayrollPeriod(Document):
 	def autoname(self):
-		pay_year = getdate(self.payroll_date).strftime("%Y")
+		#pay_year = getdate(self.payroll_date).strftime("%Y")
+		pay_year = self.payroll_year
 		from_year = getdate(self.from_date).strftime("%Y")
 		from_month = getdate(self.from_date).strftime("%b")
 		from_day = getdate(self.from_date).strftime("%d")
