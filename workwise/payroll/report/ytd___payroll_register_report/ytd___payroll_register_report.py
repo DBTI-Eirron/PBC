@@ -216,6 +216,7 @@ def get_employees(filters, from_date, to_date):
 			"user": cur_user,
 			"employee": filters.employee,
 			"location": filters.location,
+			"year": filters.payroll_year
 		}, as_dict=1)
 
 	else:
