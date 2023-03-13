@@ -285,24 +285,38 @@ def get_columns(filters):
 				"fieldtype": "Data",
 				"width": 180
 			},
-			{
-				"fieldname": "last_name",
-				"label": _("Last Name"),
-				"fieldtype": "Data",
-				"width": 160
-			},
-			{
-				"fieldname": "first_name",
-				"label": _("First Name"),
-				"fieldtype": "Data",
-				"width": 160
-			},
-			{
-				"fieldname": "middle_name",
-				"label": _("Midlle Name"),
-				"fieldtype": "Data",
-				"width": 160
-			},
+		]
+		if filters.sep_name:
+			columns += [
+				{
+					"fieldname": "last_name",
+					"label": _("Last Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "first_name",
+					"label": _("First Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "middle_name",
+					"label": _("Midlle Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+		else:
+			columns += [
+				{
+					"fieldname": "employee_name",
+					"label": _("Employee Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+		columns += [
 			{
 				"fieldname": "branch_code",
 				"label": _("Branch Code"),
@@ -588,25 +602,46 @@ def get_result_as_list(data_list, filters):
 
 	elif filters.bank in ["Metrobank", "Metro Bank", "MB"]:
 		count = 1
-		for d in data:
-			row = {
-			"employee_code": count,
-			"last_name": d.get("last_name"),
-			"first_name": d.get("first_name"),
-			"middle_name": d.get("middle_name"),
-			"branch_code": d.get("branch_code"),
-			"payroll_acct_no": d.get("employee_account"),
-			"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+		if filters.sep_name:
+			for d in data:
+				row = {
+				"employee_code": count,
+				"last_name": d.get("last_name"),
+				"first_name": d.get("first_name"),
+				"middle_name": d.get("middle_name"),
+				"branch_code": d.get("branch_code"),
+				"payroll_acct_no": d.get("employee_account"),
+				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+				}
+				result.append(row)
+				count += 1
+			total = {
+				"employee_code": "",
+				"last_name": "",
+				"first_name": "",
+				"middle_name": "",
+				"branch_code":"",
+				"payroll_acct_no": "",
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 			}
-			result.append(row)
-			count += 1
-		total = {
-			"employee_code": "",
-			"employee_name": "",
-			"branch_code":"",
-			"payroll_acct_no": "",
-			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
-		}
+		else:
+			for d in data:
+				row = {
+				"employee_code": count,
+				"employee_name": d.get("employee_name"),
+				"branch_code": d.get("branch_code"),
+				"payroll_acct_no": d.get("employee_account"),
+				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+				}
+				result.append(row)
+				count += 1
+			total = {
+				"employee_code": "",
+				"employee_name": "",
+				"branch_code":"",
+				"payroll_acct_no": "",
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+			}
 		result.append(total)
 
 	elif filters.bank in ["Banco de Oro", "BDO"]:
