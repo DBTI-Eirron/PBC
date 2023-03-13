@@ -2928,7 +2928,7 @@ def get_csa_list(employee, from_date, to_date, approval_cutoff, adjustment):
 def get_dtrp_list(employee, from_date, to_date, approval_cutoff, adjustment):
 	by_adjustment = "" #if adjustment == 1 else "AND DA.approved_on <= '"+ cstr(getdate(approval_cutoff)) +"' "
 
-	dtrp_apps = frappe.db.sql("""SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`target_date`, DT.`request`) as card_datetime, 
+	dtrp_apps = frappe.db.sql("""SELECT DA.`name`, DA.`employee`, TIMESTAMP(DA.`dtr_date`, DT.`request`) as card_datetime, 
 		DA.`target_date`, DT.`request`, DT.`type`, DA.`approved_on`, DT.`card_type`
 		FROM `tabDTR Problem Table` DT INNER JOIN `tabDTR Problem Application` DA ON DT.`parent`=DA.`name` 
 		WHERE DA.`workflow_state` = 'Approved' AND DA.`employee` = %s
