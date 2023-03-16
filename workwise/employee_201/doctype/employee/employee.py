@@ -408,6 +408,10 @@ class Employee(Document):
 			if user_list[ch] not in ext_role_list:
 
 				user_perm = frappe.new_doc("User Permission")
+				
+				if not user_list[ch]:
+					frappe.throw(_(str('No user ID for {0}').format(ch)))
+
 				user_perm.update({
 					"allow": "Employee",
 					"for_value": self.name,
