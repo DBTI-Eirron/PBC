@@ -142,12 +142,14 @@ def get_data(filters, columns):
 	emp_entries = {}
 	gross_entry = ["LT", "UT", "UHO", "ND", "CTO", "BS", "AT", "ATADJ DED", "ATAdj"] 
 	gross_throw = []
+	pay_from = filters.pay_from
+	pay_to = filters.pay_to
 
-	if filters.month and filters.year:
-		pay_from = filters.year+"-"+str(filters.month)+"-01"
-		pay_to = filters.year+"-"+str(filters.month)+"-"+str(calendar.monthrange(int(filters.year), int(filters.month))[1])
-		pay_from = getdate(str(pay_from))
-		pay_to = getdate(str(pay_to))
+	#if filters.month and filters.year:
+		#pay_from = filters.year+"-"+str(filters.month)+"-01"
+		#pay_to = filters.year+"-"+str(filters.month)+"-"+str(calendar.monthrange(int(filters.year), int(filters.month))[1])
+		#pay_from = getdate(str(pay_from))
+		#pay_to = getdate(str(pay_to))
 
 	employee_list = get_employees(filters, pay_from, pay_to)
 	tr_map = get_transaction_map()
@@ -209,7 +211,11 @@ def get_data(filters, columns):
 					emp_entries[emp.employee]["de_minimis"] -= emp['amount']
 				if emp['pay_code'] == "SSS":
 					emp_entries[emp.employee]["sss_hdmf_phic"] += emp['amount']
+				if emp['pay_code'] == "SSSEEMPF":
+					emp_entries[emp.employee]["sss_hdmf_phic"] += emp['amount']
 				if emp['pay_code'] == "HDMF":
+					emp_entries[emp.employee]["sss_hdmf_phic"] += emp['amount']
+				if emp['pay_code'] == "HDMFE":
 					emp_entries[emp.employee]["sss_hdmf_phic"] += emp['amount']
 				if emp['pay_code'] == "PHIC":
 					emp_entries[emp.employee]["sss_hdmf_phic"] += emp['amount']
@@ -246,6 +252,7 @@ def get_data(filters, columns):
 		#frappe.throw(_(gross_throw))
 		for e in emp_entries:
 			if filters.is_standard:
+
 				row = {
 					"employee": e,
 					"employee_name": emp_entries[e]["employee_name"],
@@ -274,6 +281,7 @@ def get_data(filters, columns):
 				}
 
 			total_amount_compensation += flt(emp_entries[e]["amount_compensation"] , 8)
+			#frappe.throw(_(str(emp_entries[e]["amount_compensation"])))
 			total_gross_pay += flt(emp_entries[e]["gross_salary"] , 8)
 			total_holiday_pay += flt(emp_entries[e]["holiday_pay"] , 8)
 			total_overtime_pay += flt(emp_entries[e]["overtime_pay"] , 8)
@@ -335,13 +343,15 @@ def get_employees(filters, pay_from, pay_to):
 		INNER JOIN `tabPayroll Register` PR ON PRE.`parent` = PR.`name`
 		INNER JOIN `tabEmployee` TE ON PR.`employee` = TE.`name`
 		INNER JOIN `tabLocation` TL ON TE.`location` = TL.`name`
+		INNER JOIN `tabPayroll Period` PP ON PR.period = PP.name
 		WHERE PR.company = %(company)s 
-		AND (PR.posting_date BETWEEN %(from_date)s AND %(to_date)s)
-		{conditions}
+		AND PP.payroll_year = %(payroll_year)s
+		AND PP.payroll_month = %(payroll_month)s
+		
 		GROUP BY PRE.`name` """.format(conditions=get_conditions(filters)),{ 
 		"company": filters.company,
-		"from_date": getdate(pay_from),
-		"to_date": getdate(pay_to),
+		"payroll_year": filters.year,
+		"payroll_month": filters.month,
 	}, as_dict=True)
 
 	return employees
