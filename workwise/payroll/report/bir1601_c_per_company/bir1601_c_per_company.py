@@ -112,7 +112,6 @@ def get_columns(filters):
 def get_data(filters):
 	data = []
 	company = get_company(filters)
-	pay_from,pay_to = get_pay_date(filters)
 	data.append({})
 	data.append({"company":"Company","compensation":"Total Amount Compensation","statutory":"Statutory Minimum Wage","holiday_pay":"Holiday Pay, Overtime","13th":"13th Month Pay and","de_minimis":"De Minimis Benefits","sss_hdmf_phic":"SSS,PHIC,HDMF","other_non_taxable":"Other Non-Taxable","total_non_taxable":"Total Non Taxable","total_taxable":"Total Taxable","less_taxable":"Less: Taxable","net_taxable":"Net Taxable","total_wth":"Total Taxes Withheld","adjustment":"Add/(Less):Adjustment","taxes_remittance":"Taxes Withheld for"})
 	data.append({"statutory":"for Minimum Wage","holiday_pay":"Pay, Night Differential","13th":"other benifits","sss_hdmf_phic":"Mandatory","other_non_taxable":"Compensation","total_non_taxable":"Employees","total_taxable":"Compensation","less_taxable":"Compensation not","net_taxable":"Compensation","adjustment":"of taxes Withheld from","taxes_remittance":"Remittance"})
@@ -135,13 +134,17 @@ def get_data(filters):
 		INNER JOIN `tabTransaction Type` TT ON PRE.pay_code = TT.`code`
 		INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		INNER JOIN `tabLocation` TL ON TE.location = TL.`name`
-		WHERE TE.company = %(company)s AND PR.posting_date BETWEEN %(from_date)s AND %(to_date)s
+		INNER JOIN `tabPayroll Period` PP ON PR.period = PP.name
+		WHERE TE.company = %(company)s
+		AND PP.payroll_year = %(payroll_year)s
+		AND PP.payroll_month = %(payroll_month)s
 		{conditions}
 		GROUP BY PRE.`name`""".format(conditions=get_conditions(filters)),{ 
 		"company": comp,
-		"from_date": getdate(pay_from),
-		"to_date": getdate(pay_to),
+		"payroll_year": filters.year,
+		"payroll_month": filters.month,
 		}, as_dict=True)
+
 		overtime_pay = holiday_pay = trtnt_month_pay = de_minimis = sss_hdmf_phic = wht = statutory = amount_compensation = taxable_salary = other = night_dif = 0.00
 		done = []
 		for ent in entries:
@@ -204,14 +207,6 @@ def get_data(filters):
 			"taxes_remittance":format_precision(wht,filters.value_precision)
 		})
 	return data
-
-def get_pay_date(filters):
-	pay_from = filters.year+"-"+str(filters.month)+"-01"
-	pay_to = filters.year+"-"+str(filters.month)+"-"+str(calendar.monthrange(int(filters.year), int(filters.month))[1])
-	pay_from = getdate(str(pay_from))
-	pay_to = getdate(str(pay_to))
-
-	return pay_from, pay_to
 
 def get_company(filters):
 	company = frappe.db.sql("""SELECT `name` FROM `tabCompany`""",as_dict=True)
