@@ -258,13 +258,13 @@ def get_conditions(filters):
 	return "and {}".format(" and ".join(conditions)) if conditions else "" 
 
 def get_income_map(filters, employee_list, from_date, to_date):
-	income_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount
+	income_details = frappe.db.sql("""SELECT PR.employee, PR.posting_date, PRE.pay_code, PRE.amount, PRY.payroll_year
 		FROM `tabPayroll Register` PR 
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
 		INNER JOIN `tabPayroll Period` PRY on PR.`period` = PRY.`name`
-		INNER JOIN `tabPayroll Year` PRYY on PRY.`payroll_year` = PRYY.`name`
-		WHERE PR.posting_date BETWEEN %s and %s AND employee in (%s) GROUP BY PRE.`name` """ %
-		('%s','%s',', '.join(['%s']*len(employee_list))), tuple([from_date]+ [to_date]  + [emp for emp in employee_list]), as_dict=1)
+		WHERE PRY.payroll_year = %(year)s""", {"year":filters.payroll_year}, as_dict=1)
+
+	#frappe.throw(_(str(filters.payroll_year)))
 
 
 	income_map = {}
@@ -274,7 +274,7 @@ def get_income_map(filters, employee_list, from_date, to_date):
 			income_map[d.employee][d.pay_code] += flt(d.amount, 8)
 		else:
 			income_map[d.employee][d.pay_code] = flt(d.amount, 8)
-
+	#frappe.throw(_(str(income_map)))
 	return income_map
 
 def get_deduction_map(filters, employee_list, from_date, to_date):
@@ -283,8 +283,8 @@ def get_deduction_map(filters, employee_list, from_date, to_date):
 		INNER JOIN `tabPayroll Register Entries` PRE ON PR.`name` = PRE.`parent` 
 		INNER JOIN `tabPayroll Period` PRY on PR.`period` = PRY.`name`
 		INNER JOIN `tabPayroll Year` PRYY on PRY.`payroll_year` = PRYY.`name`
-		WHERE PR.posting_date BETWEEN %s and %s AND employee in (%s) GROUP BY PRE.`name` """ %
-		('%s','%s',', '.join(['%s']*len(employee_list))), tuple([from_date]+ [to_date] + [emp for emp in employee_list]), as_dict=1)
+		WHERE PRY.payroll_year = %(year)s""", {"year":filters.payroll_year}, as_dict=1)
+
 
 	deduction_map = {}
 	for d in deduction_details:
