@@ -45,7 +45,7 @@ class PayrollPeriod(Document):
 			frappe.throw(_("Last Cutoff Date of Approval should be greater than To Date"))
 
 	def validate_frequency(self):
-		if self.schedule == "Monthly":
+		if self.schedule == "Monthly" and not self.is_special:
 			self.frequency = "2nd"
 			frappe.msgprint("Frequency Changed to ( 2nd ) because Schedule was set to Monthly")
 
