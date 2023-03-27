@@ -202,7 +202,6 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 			if d.method == 'Every Anniversary Date':
 				if not (now_date.month == e['date_hired'].month and now_date.day == e['date_hired'].day):
 					valid_setup = 0
-
 			if valid_setup:
 				add_credits = 0
 				datehired = None
@@ -217,7 +216,14 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 					datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
 					if getdate(datehired) < getdate(now_date):
 						year_diff = relativedelta(now_date, datehired).years
-						if check_rundate(d.method, now_date):
+						month_diff = relativedelta(now_date, datehired).months
+						if not is_continuous and d.method == 'Every Month':
+							if ((year_diff * 12) + month_diff)>= 13:
+								add_credits = 0
+							else:
+								add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+
+						elif check_rundate(d.method, now_date):
 							if (d.method_condition and d.value):
 								add_credits = check_condition(d.method_condition, year_diff, d.value)
 							else:
@@ -228,8 +234,18 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 					regular_date = getdate(e['regularization_date'])
 					regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
 					if getdate(regular_date) < getdate(now_date):
+						
 						year_diff = relativedelta(now_date, regular_date).years
-						if check_rundate(d.method, now_date):
+						month_diff = relativedelta(now_date, regular_date).months
+						#for d in employees:
+						
+						if is_continuous == 0 and d.method == 'Every Month':
+							if ((year_diff * 12) + month_diff)>= 13:
+								add_credits = 0
+							else:
+								add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+
+						elif check_rundate(d.method, now_date):
 							if (d.method_condition and d.value):
 								add_credits = check_condition(d.method_condition, year_diff, d.value)
 							else:
@@ -241,7 +257,14 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 					regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
 					if getdate(regular_date) < getdate(now_date):
 						year_diff = relativedelta(now_date, regular_date).years
-						add_credits = check_rundate(d.method, now_date)
+						month_diff = relativedelta(now_date, regular_date).months
+						if is_continuous == 0 and d.method == 'Every Month':
+							if ((year_diff * 12) + month_diff)>= 13:
+								add_credits = 0
+							else:
+								add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+						else:
+							add_credits = check_rundate(d.method, now_date)
 
 				if e['date_hired'] and d.allocation_start in ['Years in Service'] and d.method in ['Every Anniversary Date']:
 					reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" with "+cstr(d.credits)+" credits"
@@ -249,18 +272,24 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 					datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
 					if getdate(datehired) < getdate(now_date):
 						year_diff = relativedelta(now_date, datehired).years
-						add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+						month_diff = relativedelta(now_date, datehired).months
+						if is_continuous == 0 and d.method == 'Every Month':
+							if ((year_diff * 12) + month_diff)>= 13:
+								add_credits = 0
+							else:
+								add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+						else:
+							add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
 
-				if is_continuous:
-					add_credits = 1
-
+				#if is_continuous:
+				#	add_credits = 1
+				
 				if add_credits and validate_create_lbentry({'employee': e['name'], 'leave_type': d.leave_type}):
 					dates_to_create = [getdate(now_date)]
 					if d.method == 'Every Month' and not d.add_from_movement:
 						retro_lbentry_dates = get_retro_lbentry_dates(e['name'], e['regularization_date'], now_date)
 						if retro_lbentry_dates:
 							dates_to_create = retro_lbentry_dates
-
 					for lb_date in dates_to_create:
 						row = {
 							"employee": e['name'],
@@ -287,6 +316,7 @@ def automated_leave_balance(is_forced=0, targetdate=None):
 								lb_entries_created = 1
 								if is_forced:
 									created_lb_entries += 1
+					
 
 	if is_forced:
 		create_lb_entry_logs(created_lb_entries)
