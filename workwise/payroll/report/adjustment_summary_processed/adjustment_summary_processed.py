@@ -126,10 +126,16 @@ def get_data(filters):
 		})
 		data.append({})
 
+	adjustment = get_adjustment(filters)
+
 	period = frappe.get_doc("Payroll Period", filters.previous_payroll_period)
 
 	for emp in employees:
+		if emp['employee'] not in adjustment:
+			continue
 		register_filters["employee"] = emp['employee']
+		if 'date' in register_filters:
+			del register_filters['date']
 		adjusted_registers = frappe.get_all("Adjustment Register Adjusted", filters=register_filters, fields=["*"], order_by="date")
 		has_adjustment = 0
 		datarow = []
@@ -219,3 +225,18 @@ def get_employees(filters):
 	), as_dict=1)
 
 	return employees
+
+def get_adjustment(filters):
+	adjusted_employee_list = []
+
+	employees = frappe.db.sql("""SELECT  `employee` FROM `tabAdjustment Register` 
+		WHERE `company` = %s AND `payroll_period` = %s 
+		AND `target_period` = %s """,(
+		filters.get("company"), 
+		filters.get("previous_payroll_period"), 
+		filters.get("current_payroll_period")
+	), as_dict=1)
+	for e in employees:
+		adjusted_employee_list.append(e['employee'])
+
+	return adjusted_employee_list

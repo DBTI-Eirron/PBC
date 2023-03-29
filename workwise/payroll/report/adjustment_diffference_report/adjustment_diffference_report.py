@@ -238,6 +238,13 @@ def formatted_report(filters, columns):
 				if at == 'Work Hours':
 					row['row_2'] = reg.processed_work_hrs
 					row['row_3'] = reg.adjusted_work_hrs
+					if reg.processed_dtr_problem_application_links:
+						for d in eval(reg.processed_dtr_problem_application_links):
+							row['row_4'] += "<span class='label label-info'><a href='/desk#Form/DTR Problem Application/"+d+"'> "+d+" </a></span>"
+					if reg.adjusted_dtr_problem_application_links:
+						for d in eval(reg.adjusted_dtr_problem_application_links):
+							row['row_5'] += "<span class='label label-info'><a href='/desk#Form/DTR Problem Application/"+d+"'> "+d+" </a></span>"
+							
 				if at == 'Overtime':
 					row['row_2'] = reg.processed_overtime_hrs
 					row['row_3'] = reg.adjusted_overtime_hrs
