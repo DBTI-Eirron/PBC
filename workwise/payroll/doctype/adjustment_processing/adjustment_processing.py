@@ -854,8 +854,8 @@ class AdjustmentProcessing(Document):
 						attendance_register.append({
 							"BS": basic_salary,
 							"AT": absent,
-							"LT": late,
-							"UT": undertime,
+							"LT": flt(late, 3),
+							"UT": flt(undertime, 3),
 							"UHO": unpaid_holiday,
 							"CTO": cto,
 							"ND": nightdiff,
@@ -866,8 +866,8 @@ class AdjustmentProcessing(Document):
 						attendance_time['absent'] += absent_days * at['work_hours']
 						attendance_time['overtime'] += at['overtime']
 						attendance_time['nd'] += at['nightdiff']
-						attendance_time['late'] += at['late']
-						attendance_time['undertime'] += at['undertime']
+						attendance_time['late'] += flt(at['late'], 6)
+						attendance_time['undertime'] += flt(at['undertime'], 6)
 						attendance_time['cto'] += at['cto']
 						if unpaid_holiday:
 							attendance_time['uho'] += unpaid_holiday / flt(rates.get('hourly_rate'), 8)
