@@ -1883,12 +1883,12 @@ class PayrollProcessing(Document):
 			if attendance:
 				ws_halfday_tags = ["1sthalf Work Suspension", "2ndhalf Work Suspension"]
 				ws_wholeday_tag = ["Work Suspension"]
-				total_cto_days, total_work_days, total_absent_days, total_present_days, total_pho_days, total_hourly_basic, total_nwho_days, total_dl_days, total_lv_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
+				total_cto_hrs, total_cto_days, total_work_days, total_absent_days, total_present_days, total_pho_days, total_hourly_basic, total_nwho_days, total_dl_days, total_lv_days = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 				cur_suc_hol_wout_before, before_holiday_work, before_sp_work = 0, 0, 0
 				is_uho, no_previous, dho_amount, work_hrs, paid_leave, total_work = 0, 0, 0, 0, 0, 0
 				all_restday_sched, total_restday_count = 1, 0
 				for at in attendance:
-					cto_days, work_days, absent_days, present_days, pho_days, hourly_basic, nwho_days, lv_days = 0, 0, 0, 0, 0, 0, 0, 0
+					cto_hours, cto_days, work_days, absent_days, present_days, pho_days, hourly_basic, nwho_days, lv_days = 0, 0, 0, 0, 0, 0, 0, 0, 0
 					basic_salary, absent, late, undertime, unpaid_holiday, cto, nightdiff = 0, 0, 0, 0, 0, 0, 0
 					dl_days, pho_days, uho_days, pho_hours = 0, 0, 0, 0
 					if getdate(at.target_date) == getdate(add_days(self.attendance_from, -1)):
@@ -1985,8 +1985,10 @@ class PayrollProcessing(Document):
 
 							if max_cto < at.cto:
 								cto += ( max_cto ) * flt(rates.get('hourly_rate'), 8)
+								cto_hours += max_cto
 							else:
 								cto += ( at.cto ) * flt(rates.get('hourly_rate'), 8)
+								cto_hours += at.cto
 							if at.is_absent == 1:
 								if at.is_halfday == 1 and max_cto >= (at.work_hours / 2):
 									cto_days += 0.5
@@ -2311,6 +2313,7 @@ class PayrollProcessing(Document):
 							basic_salary = (((dl_days + pho_days) - uho_days) * at.work_hours) * flt(rates.get('hourly_rate'), 8)
 							work_hrs += ((dl_days) * at.work_hours)
 
+						total_cto_hrs += cto_hours
 						total_cto_days += cto_days
 						total_work_days += work_days
 						total_absent_days += absent_days
@@ -2359,7 +2362,7 @@ class PayrollProcessing(Document):
 				self.create_attendance_registers(header, register, attendance_register)
 				for otr in overtimes_register:
 					register.append(otr)
-
+				header['cto_hours'] = total_cto_hrs
 				header['cto_days'] = total_cto_days
 				header['work_days'] = total_work_days
 				header['absent_days'] = total_absent_days
