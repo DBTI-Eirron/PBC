@@ -1413,3 +1413,15 @@ def overused_lbentry_fix_deduction_history():
 		if with_changes:
 			frappe.db.sql("""UPDATE `tabOverused LB Entry` SET remaining_overused_credits=overused_credits-deducted_credits, status='Pending' WHERE `name`=%s """,(doc.name), as_dict=True)
 			print("Overuse LB Entry: "+doc.name)
+
+
+def add_approved_on_dtr():
+	dtr_list = ['DTR00014715', 'DTR00014740', 'DTR00014731-1']
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET approved_on=modified WHERE `name` = %s """,('DTR00014715'), as_dict=1)
+	print('Patching........ DTR00014715')
+
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET approved_on=modified WHERE `name` = %s """,('DTR00014740'), as_dict=1)
+	print('Patching........ DTR00014740')
+
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET approved_on=modified WHERE `name` = %s """,('DTR00014731-1'), as_dict=1)
+	print('Patching........ DTR00014731-1')
