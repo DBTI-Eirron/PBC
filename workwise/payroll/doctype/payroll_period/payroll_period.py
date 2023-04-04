@@ -152,11 +152,11 @@ class PayrollPeriod(Document):
 				to_less = 0
 				for le in less_entry:
 					if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
-						if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+						if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ) or (valid_entry[vl]['from'] <= getdate(self.from_date) <= getdate(self.to_date)):
 							to_less += less_entry[le]['credits']
 							less_entry[le]['used'] = 1
 				valid_entry[vl]['credits'] -= to_less
-				if ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ):
+				if ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] or (valid_entry[vl]['from'] <= getdate(self.from_date) <= getdate(self.to_date)) ):
 					total_balance += valid_entry[vl]['credits']
 
 			if total_balance <= 0:
