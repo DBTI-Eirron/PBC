@@ -21,15 +21,18 @@ def get_notification_config():
 			"Blanket": {"workflow_state": "Pending"},
 			"Work Suspension": {"workflow_state": "Pending"},
 			"Loan Application": {"workflow_state": "Pending"},
+			"Change Request Application": {"workflow_state": "Pending"},
 			"Appraisal": {"appraisal_type": "360-Degree"},
-			"Job Applicant": {"status": "Open"},
-			
+			"Certificate of Employment": {"docstatus": 0},
+			"Certificate of Maternity": {"docstatus": 0},
+			"Employee Accountability": {"docstatus": 0},
+			"Employee Movement": {"docstatus": 0},
 		}
 	}
 
 	doctype = [d for d in notification_for_doctype.get('for_doctype')]
 	for doc in frappe.get_all('DocType',
 		fields= ["name"], filters = {"name": ("not in", doctype), 'is_submittable': 1}):
-		notification_for_doctype["for_doctype"][doc.name] = {"docstatus": 0}
+		notification_for_doctype["for_doctype"][doc.name] = {"docstatus": 1}
 
 	return notification_for_doctype
