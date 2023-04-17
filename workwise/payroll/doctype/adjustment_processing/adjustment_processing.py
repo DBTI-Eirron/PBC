@@ -854,8 +854,8 @@ class AdjustmentProcessing(Document):
 						attendance_register.append({
 							"BS": basic_salary,
 							"AT": absent,
-							"LT": flt(late, 3),
-							"UT": flt(undertime, 3),
+							"LT": flt(late, 2),
+							"UT": flt(undertime, 2),
 							"UHO": unpaid_holiday,
 							"CTO": cto,
 							"ND": nightdiff,
