@@ -131,16 +131,21 @@ class CompensatoryTimeOff(Document):
 				from_datetime = None
 				to_datetime = None
 				#Validate Date
+
 				if d.from_date and d.from_time and d.to_date and d.to_time:
 					from_datetime = datetime.strptime(str(d.from_date) + ' ' + str(d.from_time), '%Y-%m-%d %H:%M:%S')
 					to_datetime = datetime.strptime(str(d.to_date) + ' ' + str(d.to_time), '%Y-%m-%d %H:%M:%S')
+					#frappe.throw(_(str(self.to_date)))
+
+
+				#frappe.throw(_(str("{0} {1}").format(from_datetime, to_datetime)))
 		
-				if from_datetime > to_datetime:
+				if self.from_date > self.to_date:
 					frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> File From must be less than File To").format(self.name))
 
 				#Get data
-				d.target_date = get_target_date(from_date=d.from_date, is_previous=d.is_previous)
-				d.cto_hours = get_cto_hours(from_date=d.from_date, to_date=d.to_date, from_time=d.from_time, to_time=d.to_time)
+				d.target_date = get_target_date(from_date=d.to_date, is_previous=d.is_previous)
+				d.cto_hours = get_cto_hours(from_date=d.from_date, to_date=d.to_date, from_time=d.from_time, to_time=d.to_time, todate=self.to_date)
 				d.break_hours = self.get_autobreak_hrs(employee=self.employee, target_date=d.target_date, cto_hours=d.cto_hours)
 				d.cto_hours = d.cto_hours - d.break_hours
 
@@ -361,9 +366,11 @@ def generate_target_dates(**entry):
 	dates = []
 	target_table = []
 
-	start = datetime.strptime(str(entry['from_date']), '%Y-%m-%d')
-	end = datetime.strptime(str(entry['to_date']), '%Y-%m-%d')
+	start = datetime.strptime(str(entry['from_date']) + ' ' +entry['from_time'], '%Y-%m-%d %H:%M:%S')
+	end = datetime.strptime(str(entry['to_date']) + ' ' +entry['to_time'], '%Y-%m-%d %H:%M:%S')
 	step = timedelta(days=1)
+	#frappe.throw(_(str("{0} {1}").format(start, end)))
+	#frappe.throw(_(str(start)))
 
 	if (end-start).days <= 30:
 		while start <= end:
@@ -398,7 +405,9 @@ def get_target_date(**entry):
 def get_cto_hours(**entry):
 	total_hrs = 0
 	from_date = datetime.strptime(str(entry['from_date']) + ' ' + str(entry['from_time']), '%Y-%m-%d %H:%M:%S')
-	to_date = datetime.strptime(str(entry['to_date']) + ' ' + str(entry['to_time']), '%Y-%m-%d %H:%M:%S')
+	#to_date = datetime.strptime(str(entry['to_date']) + ' ' + str(entry['to_time']), '%Y-%m-%d %H:%M:%S')
+	to_date = datetime.strptime(str(entry['todate']) + ' ' + str(entry['to_time']), '%Y-%m-%d %H:%M:%S')
+	#frappe.throw(_(str("{0} {1}").format(from_date, to_date)))
 	if from_date <= to_date:
 		total_hrs = (to_date - from_date).total_seconds() / 60 / 60
 
