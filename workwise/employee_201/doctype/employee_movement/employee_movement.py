@@ -53,10 +53,13 @@ class EmployeeMovement(Document):
 		cmd_move(process="validate")
 
 	def update_movement(self):
+
 		if getdate(self.effective_on) <= getdate(today()):
+
 			movement_type = "cmd_"+cstr(self.movement_type.replace(" ", "_").lower())
 			cmd_move = getattr(self, movement_type)
 			cmd_move(process="update")
+			self.cmd_job_rotation(process="update")
 
 	def revert_movement(self):
 		movement_type = "cmd_"+cstr(self.movement_type.replace(" ", "_").lower())
@@ -70,6 +73,7 @@ class EmployeeMovement(Document):
 				frappe.throw(_(" {0} is Required ").format(fname))
 
 	def cmd_job_rotation(self, process):
+
 		if process == "validate":
 			fields = ["new_position", "new_job_level"]
 			self.validate_fields(fields)
@@ -77,11 +81,18 @@ class EmployeeMovement(Document):
 
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
-			emp.update({
-					"position_title": self.new_position if self.new_position else self.current_position,
-					"job_level": self.new_job_level if self.new_job_level else self.current_job_level,
+			if self.movement_type == 'Promotion':
+				emp.update({
+					"position_title": self.change_position_title if self.change_position_title else self.current_position,
+					"job_level": self.new_job_level_promotion if self.new_job_level_promotion else self.current_job_level,
 					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
 				})
+			else:
+				emp.update({
+						"position_title": self.new_position if self.new_position else self.current_position,
+						"job_level": self.new_job_level if self.new_job_level else self.current_job_level,
+						"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
+					})
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
 
