@@ -6,6 +6,7 @@ cur_frm.add_fetch('employee', 'sensitivity', 'sensitivity_level');
 cur_frm.add_fetch('employee', 'company', 'company');
 cur_frm.add_fetch('employee', 'position_title', 'current_position');
 cur_frm.add_fetch('employee', 'job_level', 'current_job_level');
+cur_frm.add_fetch('employee', 'job_level', 'current_job_level_promotion');
 cur_frm.add_fetch('employee', 'employment_status', 'current_employment_status');
 cur_frm.add_fetch('employee', 'employment_status', 'employment_status');
 cur_frm.add_fetch('employee', 'company', 'current_company');
@@ -23,6 +24,7 @@ cur_frm.add_fetch('employee', 'is_attendance_base', 'current_attendance_base');
 cur_frm.add_fetch('employee', 'job_grade', 'current_job_grade');
 cur_frm.add_fetch('employee', 'position_title', 'new_position');
 cur_frm.add_fetch('employee', 'job_level', 'new_job_level');
+
 cur_frm.add_fetch('employee', 'employment_status', 'change_employment_status');
 cur_frm.add_fetch('employee', 'position_title', 'current_position_title');
 cur_frm.add_fetch('employee', 'department', 'new_department');
@@ -130,6 +132,8 @@ frappe.ui.form.on('Employee Movement', {
 		if (frm.doc.movement_type == "Resignation"){
 			frm.trigger("get_resignation");
 		}
+
+	
 		frm.trigger("filter_employees");
 
 		if(frm.doc.movement_type){
