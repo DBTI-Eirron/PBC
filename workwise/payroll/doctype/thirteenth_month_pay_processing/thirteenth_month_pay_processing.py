@@ -134,25 +134,32 @@ class ThirteenthMonthPayProcessing(Document):
 
 		bonus_method = frappe.db.get_single_value("Payroll Settings", "bonus_method") 
 		from_year, to_year = frappe.db.get_value("Payroll Year", self.payroll_year, ["from_date", "to_date"])
+		payroll_date = frappe.db.get_value("Payroll Period", self.period, "payroll_date")
 		employees = self.get_employees()
 		if employees:
 			for emp in employees:
 				rates = get_rates(emp)
 				total_bonus = 0
 				if bonus_method == "Standard":
-					registerx = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`
+					registerx = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`, PR.`name` as payreg_name
 						FROM `tabPayroll Register Entries` PRE 
 						INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
+						INNER JOIN `tabPayroll Period` PRR on PRR.`name` = PR.`period`
 						WHERE PRE.`pay_code` = 'BS' AND PR.`employee` = %(employee)s 
-						AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s AND is_special = 0  """,{ 
+						AND PRR.`payroll_date` <= %(date)s
+						AND PRR.`payroll_year` = %(year)s AND PR.is_special = 0  """,{ 
 						"employee": emp.name,
 						"from_year": from_year,
 						"to_year": to_year,
+						"year": self.payroll_year,
+						"date": payroll_date
 					}, as_dict=True)
-
+					payreg = []
 					for d in registerx:
 						if d.pay_code == 'BS':
 							total_bonus += d.amount
+						if d.payreg_name not in payreg:
+							payreg.append(d.payreg_name)
 
 					if self.assume_last_month:
 						if self.assume_cutoffs:
@@ -163,11 +170,14 @@ class ThirteenthMonthPayProcessing(Document):
 					total_bonus = total_bonus / 12
 
 				elif bonus_method == "Bonus Basis":
-					bonus_basis = frappe.db.sql(""" SELECT bonus FROM `tabPayroll Register` WHERE employee = %(employee)s 
-						AND posting_date >= %(from_year)s AND posting_date <= %(to_year)s AND is_special = 0 """,{ 
+					bonus_basis = frappe.db.sql(""" SELECT PR.`bonus` FROM `tabPayroll Register` PR INNER JOIN `tabPayroll Period` PRR on PRR.`name` = PR.`period`  WHERE PR.`employee` = %(employee)s 
+						AND PRR.`payroll_date` <= %(date)s
+						AND PRR.`payroll_year` = %(year)s AND PR.is_special = 0  """,{ 
 							"employee": emp.name,
 							"from_year": from_year,
 							"to_year": to_year,
+							"year": self.payroll_year,
+							"date": payroll_date
 					}, as_dict=True)
 
 					for d in bonus_basis:
@@ -200,11 +210,13 @@ class ThirteenthMonthPayProcessing(Document):
 					att = frappe.db.sql(""" SELECT PRE.`name`, PRE.`pay_code`, PRE.`amount`, TT.`entry_type`, TT.`type` 
 						FROM `tabPayroll Register Entries` PRE 
 						INNER JOIN `tabPayroll Register` PR ON PRE.`parent`=PR.`name`
+						INNER JOIN `tabPayroll Period` PRR on PRR.`name` = PR.`period`
 						INNER JOIN `tabTransaction Type` TT ON PRE.`pay_code`=TT.`name` 
-						WHERE PR.`employee` = %(employee)s AND PR.`posting_date` >= %(from_year)s AND PR.`posting_date` <= %(to_year)s AND PR.is_special = 0  """,{ 
+						WHERE PR.`employee` = %(employee)s AND PRR.`payroll_year` = %(year)s AND PR.is_special = 0  """,{ 
 						"employee": emp.name,
 						"from_year": from_year,
 						"to_year": to_year,
+						"year": self.payroll_year
 					}, as_dict=True)
 
 					for d in att:
