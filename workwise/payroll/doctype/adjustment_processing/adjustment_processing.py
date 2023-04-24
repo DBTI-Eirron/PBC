@@ -324,7 +324,7 @@ class AdjustmentProcessing(Document):
 				adjr.insert()
 				ss_list.append(" " + emp_dict['employee_name'] +"")
 		
-		self.create_adjustment_processing_logs(reg)
+		self.create_adjustment_processing_logs()
 
 		return self.create_log(ss_list)
 
@@ -1068,9 +1068,8 @@ class AdjustmentProcessing(Document):
 			data.append(d.name)
 		return data
 
-	def create_adjustment_processing_logs(self, header):
+	def create_adjustment_processing_logs(self):
 		pr = frappe.new_doc("Adjustment Processing Logs")
-		pr.update(header)
 		pr.update({
 			'company': self.company,
 			'period': self.period,
