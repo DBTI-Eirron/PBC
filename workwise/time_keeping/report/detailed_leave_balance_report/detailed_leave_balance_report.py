@@ -116,10 +116,6 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 		FROM `tabLB Entry` LE INNER JOIN `tabEmployee` TE ON LE.`employee` = TE.`name` 
 		INNER JOIN `tabLocation` LOC ON TE.`location` = LOC.`name`
 		WHERE TE.`company` = %(company)s {conditions} ORDER BY TE.full_name, LE.creation ASC """.format(conditions=get_conditions(filters)), filters, as_dict=1)
-	
-	#for lv in leave_balance:
-		#if lv.name == 'LBE09523':
-			
 
 	#Init Data
 	for lv in leave_balance:
@@ -213,11 +209,8 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 			})
 
 			to_less = 0
-			check = []
 			for le in data_entry[dt]['less_entry']:
-				check.append(le)
 				if (vl['credits'] > 0) and not le['included']:
-				#if (vl['credits'] > 0):
 					if (( vl['from_date'] <= le['from_date'] <= vl['to_date'] ) or ( vl['from_date'] <= le['to_date'] <= vl['to_date'] )) \
 					or (( le['from_date'] <= vl['from_date'] <= le['to_date'] ) or ( le['from_date'] <= vl['to_date'] <= le['to_date'] )):
 						le_included = 0
@@ -237,16 +230,12 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 								included_less.append(le)
 								all_included_less.append(le)
 			vl['credits'] -= to_less
-		
-
 			data_per_add_entry[vl['employee']][vl['leave_type']]['included_less'][vl['name']]["balance"] = vl['credits']
 			data_result[dt]['valid_credits'] += vl['credits']
-			
 
 			for inc in included_less:
 				if dt in data_result:
 					data_result[dt]['entry'].append(inc)
-
 
 	#Generate Data
 	for employee in data_per_add_entry:
@@ -300,8 +289,7 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 				if ( ( getdate(add_entry_data.get("from_date")) <= getdate(from_date) <= getdate(add_entry_data.get("to_date")) ) or \
 					( getdate(add_entry_data.get("from_date")) <= getdate(to_date) <= getdate(add_entry_data.get("to_date")) ) ) or \
 					( ( getdate(from_date) <= getdate(add_entry_data.get("from_date")) <= getdate(to_date) ) or \
-					( getdate(from_date) <= getdate(add_entry_data.get("to_date")) <= getdate(to_date) ) ) or \
-					( getdate(add_entry_data.get("from_date")) <= getdate(from_date) <= getdate(to_date) ): 
+					( getdate(from_date) <= getdate(add_entry_data.get("to_date")) <= getdate(to_date) ) ):
 					inlucded = 1
 					row = {
 						"employee_name": add_entry_data.get("employee_name"),
@@ -317,10 +305,8 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 					
 					balance_only_data['original_credits'] += add_entry_data.get("original_credits")
 					summary_only_data[employee][lv_type]['original_credits'] += add_entry_data.get("original_credits")
-					check = []
 					if data_per_add_entry[employee][lv_type]['included_less'][add_entry]['included_less']:
 						for less_entry in data_per_add_entry[employee][lv_type]['included_less'][add_entry]['included_less']:
-							check.append(less_entry)
 							row = {
 								"employee_name": less_entry.get("employee_name"),
 								"leave_type": less_entry.get("leave_type"),
@@ -329,8 +315,7 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 								"to_date": less_entry.get("to_date"),
 								"credits": less_entry.get("original_credits"),
 								"used_in": less_entry.get("application"),
-								"deduct_to": less_entry.get("deduct_credits_to"),
-								"valid": less_entry
+								"deduct_to": less_entry.get("deduct_credits_to")
 							}
 							data.append(row)
 					#Remaining Balance
@@ -350,7 +335,7 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 					if add_entry_balance > 0:
 						positive_balance += add_entry_balance
 
-					"""data.append({
+					data.append({
 						"employee_name": "",
 						"leave_type": "<b>Remaining Balance",
 						"credits": view_add_entry_balance,
@@ -358,8 +343,8 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 						"from_date": "",
 						"to_date": "",
 						"used_in": "",
-						"deduct_to": "test",
-					})"""
+						"deduct_to": "",
+					})
 					if add_entry_data.get("name") in overuse_lb_entries:
 						deducted_overuse_balance += overuse_lb_entries[add_entry_data.get("name")]
 						data.append({
