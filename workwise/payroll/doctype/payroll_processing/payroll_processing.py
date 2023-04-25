@@ -389,13 +389,13 @@ class PayrollProcessing(Document):
 				else:
 					if tr_map[d.get('pay_code')]['type'] == "Income":
 						amount += d['amount']
-					else:
+					if tr_map[d.get('pay_code')]['type'] == "Deduction":
 						amount -= d['amount']
 			else:
 				if tr_map[d.get('pay_code')]['type'] == "Income":
 					amount += d['amount']
-				else:
-					amount -= d['amount']
+				if tr_map[d.get('pay_code')]['type'] == "Deduction":
+					amount -= d['amount']		
 		for d in register:
 			if "linked_document" in d:
 				if d['linked_document'] in loan_application:
