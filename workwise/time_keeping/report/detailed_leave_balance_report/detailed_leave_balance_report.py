@@ -115,7 +115,7 @@ def get_data(filters, generate_overuse=0, balance_only=0, summary_only=0):
 	leave_balance = frappe.db.sql(""" SELECT LE.*, TE.full_name, TE.`location`
 		FROM `tabLB Entry` LE INNER JOIN `tabEmployee` TE ON LE.`employee` = TE.`name` 
 		INNER JOIN `tabLocation` LOC ON TE.`location` = LOC.`name`
-		WHERE TE.`company` = %(company)s {conditions} ORDER BY TE.full_name, LE.creation ASC """.format(conditions=get_conditions(filters)), filters, as_dict=1)
+		WHERE TE.`company` = %(company)s {conditions} ORDER BY TE.full_name, LE.creation DESC """.format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	#Init Data
 	for lv in leave_balance:
