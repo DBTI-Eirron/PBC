@@ -2110,7 +2110,7 @@ class PayrollProcessing(Document):
 							pho_days += ho_paid
 						
 						#set Special holiday to UHO if not work On the Day Before Holiday
-						if at.is_holiday and at.is_sp_holiday:
+						if at.is_holiday and at.is_sp_holiday and not at.is_restday:
 							if emp.get("rate_type") == "Daily Rate":
 								if cur_suc_hol_wout_before <= 1:
 									is_uho = 1
