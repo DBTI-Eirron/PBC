@@ -59,7 +59,12 @@ class EmployeeMovement(Document):
 			movement_type = "cmd_"+cstr(self.movement_type.replace(" ", "_").lower())
 			cmd_move = getattr(self, movement_type)
 			cmd_move(process="update")
-			self.cmd_job_rotation(process="update")
+			
+
+			if self.movement_type == 'Salary Adjustment':
+				self.cmd_salary_adjustment(process="update")
+			else:
+				self.cmd_job_rotation(process="update")
 
 	def revert_movement(self):
 		movement_type = "cmd_"+cstr(self.movement_type.replace(" ", "_").lower())
@@ -87,6 +92,9 @@ class EmployeeMovement(Document):
 					"job_level": self.new_job_level_promotion if self.new_job_level_promotion else self.current_job_level,
 					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
 				})
+
+
+				self.cmd_salary_adjustment(process="update")
 			else:
 				emp.update({
 						"position_title": self.new_position if self.new_position else self.current_position,
