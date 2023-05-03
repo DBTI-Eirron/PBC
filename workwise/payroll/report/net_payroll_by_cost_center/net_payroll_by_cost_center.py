@@ -58,7 +58,7 @@ def get_data(filters):
 		register = frappe.db.sql(""" SELECT PR.employee, PR.employee_name, PR.net_payroll, E.cost_center
 			FROM `tabPayroll Register` PR 
 			INNER JOIN tabEmployee E ON E.`name` = PR.employee WHERE 
-			E.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
+			E.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %s)
 			AND E.cost_center = %s AND PR.period = %s """, (frappe.session.user, filters.cost_center, filters.period), as_dict=1)
 	else:
 		register = frappe.db.sql(""" SELECT PR.employee, PR.employee_name, PR.net_payroll, E.cost_center
