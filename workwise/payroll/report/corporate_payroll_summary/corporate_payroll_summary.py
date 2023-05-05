@@ -90,10 +90,12 @@ def get_PR_dict(filters):
 	PR_dict = {}
 
 	for entry in PR_entries:
-		if str(entry.company)+"+"+cstr(entry.location) not in PR_dict:
+		if cstr(entry.company)+"+"+cstr(entry.location) not in PR_dict:
 			PR_dict.setdefault(cstr(entry.company)+"+"+cstr(entry.location), frappe._dict({"company":entry.company,"location":entry.location,"Regular":0,"Probationary":0,"worked_days":0,"total_income":0,"total_deduction":0}))
+		
+		employment_status = str(entry.employment_status).title()
 		PR_dict[cstr(entry.company)+"+"+cstr(entry.location)]["worked_days"] += entry.present_days 
-		PR_dict[cstr(entry.company)+"+"+cstr(entry.location)][entry.employment_status] += 1
+		PR_dict[cstr(entry.company)+"+"+cstr(entry.location)][employment_status] += 1
 		PR_dict[cstr(entry.company)+"+"+cstr(entry.location)]["total_income"] += entry.total_income 
 		PR_dict[cstr(entry.company)+"+"+cstr(entry.location)]["total_deduction"] += entry.total_deduction 
 

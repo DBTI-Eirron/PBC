@@ -81,10 +81,6 @@ def get_data():
 				},
 				{
 					"type": "doctype",
-					"name": "System Policy",
-				},
-				{
-					"type": "doctype",
 					"name": "Account",
 					"icon": "fa fa-sitemap",
 					"label": _("Chart of Accounts"),
@@ -98,6 +94,10 @@ def get_data():
 				{
 					"type": "doctype",
 					"name": "Rate Classification",
+				},
+				{
+					"type": "doctype",
+					"name": "Job Grade",
 				},
 			]
 		},
@@ -137,6 +137,11 @@ def get_data():
 				},{
 					"type": "report",
 					"name": "13th Month",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "13th Month Pay Projection",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
 				},{
@@ -187,6 +192,16 @@ def get_data():
 				},{
 					"type": "report",
 					"name": "Adjustment Report",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Adjustment Summary Processed",
+					"doctype": "Payroll Register",	
+					"is_query_report": True
+				},{
+					"type": "report",
+					"name": "Adjustment Diffference Report",
 					"doctype": "Payroll Register",	
 					"is_query_report": True
 				},{
@@ -313,7 +328,6 @@ def get_data():
 				{
 					"type": "report",
 					"name": "SSS Premium Contribution",
-					"doctype": "SSS Premium Contribution",	
 					"is_query_report": True
 				},
 				{
@@ -324,7 +338,6 @@ def get_data():
 				{
 					"type": "report",
 					"name": "PhilHealth Premium Contribution",
-					"doctype": "PhilHealth Premium Contribution",	
 					"is_query_report": True
 				},
 				{
@@ -371,11 +384,7 @@ def get_data():
 		},		
 		{
 			"label": _("Tools"),
-			"items": [							
-				{
-					"type": "doctype",
-					"name": "Statement of Account",
-				},
+			"items": [
 				{
 					"type": "doctype",
 					"name": "Payroll Process Logs",

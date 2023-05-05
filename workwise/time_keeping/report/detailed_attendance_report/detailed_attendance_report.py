@@ -88,6 +88,41 @@ def get_columns(filters):
 			"hidden": 0,
 		},
 		{
+			"fieldname": "ml",
+			"label": _("ML"),
+			"fieldtype": "Data",
+			"width": 100,
+			"hidden": 0,
+		},
+		{
+			"fieldname": "mcwl",
+			"label": _("MCWL"),
+			"fieldtype": "Data",
+			"width": 100,
+			"hidden": 0,
+		},
+		{
+			"fieldname": "spl",
+			"label": _("SPL"),
+			"fieldtype": "Data",
+			"width": 100,
+			"hidden": 0,
+		},
+		{
+			"fieldname": "sil",
+			"label": _("SIL"),
+			"fieldtype": "Data",
+			"width": 100,
+			"hidden": 0,
+		},
+		{
+			"fieldname": "pl",
+			"label": _("PL"),
+			"fieldtype": "Data",
+			"width": 100,
+			"hidden": 0,
+		},
+		{
 			"fieldname": "cto",
 			"label": _("CTO"),
 			"fieldtype": "Data",
@@ -299,7 +334,7 @@ def get_data(filters, columns):
 	data_register = {}
 	total_dict = {}
 
-	field_list = ["reg_hrs", "absent", "tardy", "ut", "sl", "vl", "bl", "cto", "ot_ex", "ot", "nd", "nd_ot", "rd_reg", "rd_ot", "rd_nd", "rd_nd_ot", "sh_reg", "sh_ot", 
+	field_list = ["reg_hrs", "absent", "tardy", "ut", "sl", "vl", "bl", "ml", "mcwl", "spl", "sil", "pl", "cto", "ot_ex", "ot", "nd", "nd_ot", "rd_reg", "rd_ot", "rd_nd", "rd_nd_ot", "sh_reg", "sh_ot", 
 	"sh_nd", "sh_nd_ot", "lh_reg", "lh_ot", "lh_nd", "lh_nd_ot", "rd_sh_reg", "rd_sh_ot", "rd_sh_nd", "rd_sh_nd_ot", "rd_lh_reg", "rd_lh_ot", "rd_lh_nd", "rd_lh_nd_ot"]
 
 	for fld in field_list:
@@ -323,6 +358,11 @@ def get_data(filters, columns):
 					"sl": 0.00,
 					"vl": 0.00,
 					"bl": 0.00,
+					"ml": 0.00,
+					"mcwl": 0.00,
+					"spl": 0.00,
+					"sil": 0.00,
+					"pl": 0.00,
 					"cto": 0.00,
 					"ot_ex": 0.00,
 					"ot": 0.00,
@@ -357,6 +397,11 @@ def get_data(filters, columns):
 					"tot_sl": 0.00,
 					"tot_vl": 0.00,
 					"tot_bl": 0.00,
+					"tot_ml": 0.00,
+					"tot_mcwl": 0.00,
+					"tot_spl": 0.00,
+					"tot_sil": 0.00,
+					"tot_pl": 0.00,
 					"emp_total": 0.00
 				}
 			})
@@ -365,7 +410,9 @@ def get_data(filters, columns):
 		if reg.work_hours > 0 and reg.is_restday < 1 and reg.is_sp_holiday < 1 and reg.is_holiday < 1: 
 			data_register[reg.employee_id]["reg_hrs"] += reg.work
 		if reg.is_absent > 0 or reg.is_lwop > 0 or reg.is_halfday > 0:
-			if reg.work > 0 and reg.lv_status > 1 or reg.is_halfday > 0:
+			if reg.lv_status > 1 or reg.is_halfday:
+				data_register[reg.employee_id]["absent"] += flt(reg.work_hours, 2) * .5
+			elif reg.work > 0 and reg.lv_status > 1 or reg.is_halfday > 0:
 				data_register[reg.employee_id]["absent"] += reg.work_hours - reg.work
 			else:
 				data_register[reg.employee_id]["absent"] += reg.work_hours
@@ -388,6 +435,31 @@ def get_data(filters, columns):
 				data_register[reg.employee_id]["bl"] += flt(reg.work_hours, 2) * .5
 			if reg.lv_status == 1:
 				data_register[reg.employee_id]["bl"] += flt(reg.work_hours, 2) * 1
+		if "Maternity Leave" in reg.leave_name and reg.lv_status > 0:
+			if reg.lv_status > 1:
+				data_register[reg.employee_id]["ml"] += flt(reg.work_hours, 2) * .5
+			if reg.lv_status == 1:
+				data_register[reg.employee_id]["ml"] += flt(reg.work_hours, 2) * 1
+		if "Magna Carta of Women Leave" in reg.leave_name and reg.lv_status > 0:
+			if reg.lv_status > 1:
+				data_register[reg.employee_id]["mcwl"] += flt(reg.work_hours, 2) * .5
+			if reg.lv_status == 1:
+				data_register[reg.employee_id]["mcwl"] += flt(reg.work_hours, 2) * 1
+		if "Solo Parent Leave" in reg.leave_name and reg.lv_status > 0:
+			if reg.lv_status > 1:
+				data_register[reg.employee_id]["spl"] += flt(reg.work_hours, 2) * .5
+			if reg.lv_status == 1:
+				data_register[reg.employee_id]["spl"] += flt(reg.work_hours, 2) * 1
+		if "Service Incentive Leave" in reg.leave_name and reg.lv_status > 0:
+			if reg.lv_status > 1:
+				data_register[reg.employee_id]["sil"] += flt(reg.work_hours, 2) * .5
+			if reg.lv_status == 1:
+				data_register[reg.employee_id]["sil"] += flt(reg.work_hours, 2) * 1
+		if "Paternity Leave" in reg.leave_name and reg.lv_status > 0:
+			if reg.lv_status > 1:
+				data_register[reg.employee_id]["pl"] += flt(reg.work_hours, 2) * .5
+			if reg.lv_status == 1:
+				data_register[reg.employee_id]["pl"] += flt(reg.work_hours, 2) * 1
 		if reg.cto > 0:
 			data_register[reg.employee_id]["cto"] += reg.cto
 		if reg.overtime_ex > 0 and not reg.is_restday > 0 and not reg.is_sp_holiday > 0  and not reg.is_holiday > 0:

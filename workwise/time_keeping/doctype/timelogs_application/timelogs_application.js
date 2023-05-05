@@ -2,6 +2,7 @@
 // For license information, please see license.txt
 cur_frm.add_fetch('employee','full_name','employee_name');
 cur_frm.add_fetch('employee','company','company');
+cur_frm.add_fetch('employee','department','department');
 
 frappe.ui.form.on('Timelogs Application', {
 	onload: function(frm) {
@@ -58,6 +59,26 @@ frappe.ui.form.on('Timelogs Application', {
 		if(frm.doc.employee) {
 			return frappe.call({
 				method: "get_current_timecard",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_field("timelogs");
+				}
+			});
+		}
+	},
+
+	from_date: function(frm) {
+		frm.trigger("populate_dates");
+	},
+
+	to_date: function(frm) {
+		frm.trigger("populate_dates");
+	},
+
+	populate_dates: function(frm){
+		if(frm.doc.employee) {
+			return frappe.call({
+				method: "populate_dates",
 				doc: frm.doc,
 				callback: function(r) {
 					frm.refresh_field("timelogs");

@@ -22,13 +22,21 @@ frappe.ui.form.on('Attendance Processing', {
 		frm.set_query('period', function(doc) {
 			return {
 				filters: {
-					"status": "Open",
+					"time_keeping_status": "Open",
 					"company": doc.company
 				}
 			};
 		});
 
 		frm.set_query("location", function() {
+			return {
+				"filters": {
+					"company": frm.doc.company,
+				}
+			};
+		});
+
+		frm.set_query("department", function() {
 			return {
 				"filters": {
 					"company": frm.doc.company,

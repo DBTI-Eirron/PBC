@@ -7,12 +7,6 @@ def get_data():
 			"label": _("Dashboard"),
 			"items": [
 				{
-					"type": "report",
-					"name": "test report",
-					"doctype": "User",	
-					"is_query_report": True
-				},
-				{
 					"type": "doctype",
 					"name": "Dashboard",
 					"description": _("Dashboard"),

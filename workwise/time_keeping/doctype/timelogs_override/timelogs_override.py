@@ -7,7 +7,7 @@ from frappe.model.document import Document
 from frappe	import _
 from frappe.utils import flt, getdate, formatdate, cstr, nowdate, add_to_date
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
-from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_all_dtrp,
+from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_all_dtrp, get_all_tla, 
 get_shift_map, get_card_within, get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_sorted_card, get_datetime)
 
 class TimelogsOverride(Document):
@@ -142,10 +142,10 @@ class TimelogsOverride(Document):
 			}
 			if str(d['target_date']) in override_list:
 				row.update({
-					"o_time_in": override_list[str(d['target_date'])]['time_in'],
-					"o_break_in": override_list[str(d['target_date'])]['break_in'],
-					"o_break_out": override_list[str(d['target_date'])]['break_out'],
-					"o_time_out": override_list[str(d['target_date'])]['time_out'],
+					"o_time_in": get_datetime(override_list[str(d['target_date'])]['time_in']) if override_list[str(d['target_date'])]['time_in'] else None,
+					"o_break_in": get_datetime(override_list[str(d['target_date'])]['break_in']) if override_list[str(d['target_date'])]['break_in'] else None,
+					"o_break_out": get_datetime(override_list[str(d['target_date'])]['break_out']) if override_list[str(d['target_date'])]['break_out'] else None,
+					"o_time_out": get_datetime(override_list[str(d['target_date'])]['time_out']) if override_list[str(d['target_date'])]['time_out'] else None,
 				})
 			entries.append(row);
 
@@ -162,17 +162,45 @@ class TimelogsOverride(Document):
 		return final_list
 
 	def print_entries(self,pay_from,pay_to):
+		emp_map = frappe._dict()
+		emp_map.setdefault(self.employee, frappe._dict({
+				"employee": self.employee,
+				#"employee_name": emp.full_name,
+				#"company": emp.company,
+				#"employee_details": emp,
+				"schedules": [],
+				"timecards": [],
+				"overrides": [],
+				"hls": [],
+				"lvs": [],
+				"ots": [],
+				"obs": [],
+				"uts": [],
+				"ext": [],
+				"cto": [],
+				"wss": [],
+				"csa": [],
+				"dtrp": [],
+				"tla": [],
+				"timelogs_map": {},
+			})
+		)
+
 		emp = frappe.get_doc('Employee',self.employee)
 		shift_map = get_shift_map()
 		overrides = []
 		bio_id = frappe.get_value('Employee',self.employee,'biometrics_id')
-		timecard_list = get_timecard_list(bio_id, pay_from, pay_to + datetime.timedelta(days=1))
-		dtrp = self.get_dtrp(self.employee, pay_from, pay_to)
+		timecard_list = get_timecard_list(bio_id, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1))
+		dtrp = self.get_dtrp(self.employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1))
+		tla = get_all_tla(emp_map, self.employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), 0, 0)
+		emp_map[self.employee]['schedules'] = get_schedule(self.employee, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1))
+
 		for d in self.get("timelogs_override"):
 			sched = {'target_date':d.target_date,'work_shift':d.work_shift,'is_default_schedule':d.is_default}
 			entry = get_defaults(emp, sched, shift_map, overrides)
-			cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list, dtrp)
-			sorted_card_list = get_sorted_card(entry, cards_in, cards_out)
+			cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_map[self.employee]['timelogs_map'], emp_map[self.employee]['schedules'], 
+				shift_map, entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), entry.get('end_postshift'), timecard_list, dtrp, tla)
+			sorted_card_list = get_sorted_card(entry, cards_in, cards_out, emp_map[self.employee]['timelogs_map'])
 			d.time_in = sorted_card_list['card_in']
 			d.break_in = sorted_card_list['break_in']
 			d.break_out = sorted_card_list['break_out']

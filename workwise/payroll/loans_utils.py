@@ -77,7 +77,7 @@ def get_employee_loan(emp, header, register, loans_map, frequency):
 					elif cint(header.get("no_weeks")) == cint(4) and frequency == "4th":
 						append_al(al, loans_register)
 			else:
-				if al.payment_frequency == frequency or al.payment_frequency == 'Both':
+				if str(al.payment_frequency).strip() == str(frequency).strip() or str(al.payment_frequency).strip() == 'Both':
 					append_al(al, loans_register)
 		#dated loans
 		for dl in loans_map[emp.get('name')].dated_loans:
@@ -97,7 +97,7 @@ def reload_loans(employee_name, payroll_date):
 		LAP.payment_date = NULL WHERE LA.employee = %s AND LAP.payment_date = %s AND LAP.payment_status = 'Paid' """,( employee_name, payroll_date), as_dict=True )
 
 def update_loans(payroll_date, loan_doc, loan_idx, period):
-	if loan_doc:
+	if loan_doc and frappe.get_all("Loan Application", filters={"name": loan_doc}):
 		total_paid, total_unpaid = 0, 0
 		frappe.db.sql("""UPDATE `tabLoan Application Payments` SET payment_status = 'Paid', payment_date = %s, payroll_period = %s
 			WHERE parent = %s AND idx = %s AND payment_status = 'Unpaid'   """,(payroll_date, period, loan_doc, loan_idx), as_dict=True )
@@ -113,3 +113,7 @@ def update_loans(payroll_date, loan_doc, loan_idx, period):
 
 		frappe.db.sql("""UPDATE `tabLoan Application` SET unpaid_amount = %s, paid_amount = %s
 			WHERE name = %s LIMIT 1 """,(total_unpaid, total_paid, loan_doc), as_dict=True )
+
+		doc = frappe.get_doc("Loan Application", loan_doc)
+		doc.run_method("update_loan_status")
+		doc.save()

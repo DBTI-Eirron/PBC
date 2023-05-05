@@ -9,6 +9,15 @@ from frappe.utils import getdate, cstr, flt, nowdate
 from frappe.model.document import Document
 
 class EmployeeAccountability(Document):
+	def validate(self):
+		self.validate_mandatory()
+		if self.type == 'Issuance':
+			self.date_issued = nowdate()
+			issued_name = frappe.db.sql("""SELECT `name`, full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
+			if issued_name:
+				self.issued_by = issued_name[0].name
+				self.issued_by_name = issued_name[0].full_name
+
 	def validate_fields(self):
 		if self.is_new() and self.employee_id:
 			self.employee_id = None
@@ -20,15 +29,6 @@ class EmployeeAccountability(Document):
 				if issued_name:
 					self.issued_by = issued_name[0].name
 					self.issued_by_name = issued_name[0].full_name
-	
-	def validate(self):
-		self.validate_mandatory()
-		if self.type == 'Issuance':
-			self.date_issued = nowdate()
-			issued_name = frappe.db.sql("""SELECT `name`, full_name FROM `tabEmployee` WHERE `user_id` = %s LIMIT 1""",( frappe.session.user ), as_dict=1)
-			if issued_name:
-				self.issued_by = issued_name[0].name
-				self.issued_by_name = issued_name[0].full_name
 
 	def on_submit(self):
 		for d in self.return_table:
@@ -39,8 +39,31 @@ class EmployeeAccountability(Document):
 		if self.type == 'Issuance' and not self.issuance_table:
 			frappe.throw(_("Fill in Issuance Table"))
 
-		if self.type == 'Return' and not self.return_table:
-			frappe.throw(_("You have no Issued Items to Return"))
+		if self.type == 'Return':
+			if not self.return_table:
+				frappe.throw(_("You have no Issued Items to Return"))
+			else:
+				missing_fields = {}
+				for d in self.return_table:
+					if not d.returned_to:
+						if d.idx not in missing_fields:
+							missing_fields[d.idx] = []
+						missing_fields[d.idx].append('Returned To')
+
+					if not d.date_returned:
+						if d.idx not in missing_fields:
+							missing_fields[d.idx] = []
+						missing_fields[d.idx].append('Date Returned')
+
+				if missing_fields:
+					complete_msg = ""
+					for mf in missing_fields:
+						validation_msg = "Mandatory fields required in Table row {0}:<br>".format(mf)
+						for mff in missing_fields[mf]:
+							validation_msg += "• {0} <br>".format(mff)
+						complete_msg += validation_msg+"<br>"
+					if complete_msg != "":
+						frappe.throw(_(complete_msg))
 
 	def set_issued_by(self):
 		for d in self.issuance_table:

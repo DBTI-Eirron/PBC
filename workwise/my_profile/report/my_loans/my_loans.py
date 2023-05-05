@@ -177,7 +177,9 @@ def get_result(filters):
 			LA.`loan_amount`,
 			LA.`interest`,
 			LA.`total_loan`,
-			LP.`payment_amount` as amortization
+			LP.`payment_amount`,
+			LA.`unpaid_amount`,
+			LA.`amortization`
 			FROM `tabLoan Application Payments` LP 
 			INNER JOIN `tabLoan Application` LA ON LP.`parent`=LA.`name` 
 			INNER JOIN `tabEmployee` TE ON LA.`employee`=TE.`name`
@@ -201,11 +203,10 @@ def get_result(filters):
 						"total_loan": l.total_loan,
 						"amortization": l.amortization,
 						"total_paid": 0.00,
-						"total_unpaid": 0.00,
+						"total_unpaid": l.unpaid_amount,
 					} 
 				})
-			loan_app[l.name]['total_paid'] += flt(l.amortization, 8)
-			loan_app[l.name]['total_unpaid'] += flt(l.total_loan, 8) - flt(l.amortization, 8)
+			loan_app[l.name]['total_paid'] += flt(l.payment_amount, 8)
 
 		for dat in loan_app:
 			row = {

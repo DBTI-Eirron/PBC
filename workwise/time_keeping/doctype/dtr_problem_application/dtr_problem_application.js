@@ -2,14 +2,28 @@
 // For license information, please see license.txt
 cur_frm.add_fetch('employee','full_name','employee_name');
 cur_frm.add_fetch('employee','company','company');
+cur_frm.add_fetch('employee','department','department');
 
 frappe.ui.form.on('DTR Problem Application', {
 	onload: function(frm) {
-
 		if (!frm.doc.posting_date) {
 			frm.set_value("posting_date", get_today());
 		}
-		
+	},
+
+	setup: function(frm) {
+		cur_frm.add_fetch('employee','full_name','employee_name');
+		cur_frm.add_fetch('employee','company','company');
+		cur_frm.add_fetch('employee','department','department');
+	},
+
+	before_save: function(frm) {
+		cur_frm.add_fetch('employee','full_name','employee_name');
+		cur_frm.add_fetch('employee','company','company');
+		cur_frm.add_fetch('employee','department','department');
+	},
+
+	refresh: function(frm) {
 		cur_frm.set_query("employee", function() {
 			return {
 				"filters": {
@@ -17,12 +31,35 @@ frappe.ui.form.on('DTR Problem Application', {
 				}
 			};
 		});
-		
-	},		
 
-	refresh: function(frm) {
-
+		frappe.call({
+			method: "enable_isprevious",
+			doc: frm.doc,
+			callback: function(r) {
+				frm.toggle_display("is_previous", r.message);
+			}
+		});
 	},
+
+	dtr_date: function(frm) {
+		frm.trigger("get_target_date");
+	},
+
+	is_previous: function(frm) {
+		frm.trigger("get_target_date");
+	},
+
+	get_target_date: function(frm) {
+		if (frm.doc.dtr_date) {
+			frappe.call({
+				method: "get_target_date",
+				doc: frm.doc,
+				callback: function(r) {
+					frm.refresh_fields();
+				}
+			});
+		}
+	}
 
 });
 

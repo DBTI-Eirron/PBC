@@ -35,6 +35,12 @@ frappe.query_reports["Employee Tardiness Report"] = {
 			"options": "Department",
 		},
 		{
+			"fieldname": "location",
+			"label": __("Location"),
+			"fieldtype": "Link",
+			"options": "Location",
+		},
+		{
 			"fieldname": "time_options",
 			"label": __("Options"),
 			"fieldtype": "Select",

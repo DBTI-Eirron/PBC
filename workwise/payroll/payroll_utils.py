@@ -4,12 +4,16 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import cint, flt, getdate, cstr, add_to_date
 
-def get_rates(emp):
+def get_rates(emp, specified_rate=None):
 	monthly_rate = 0.0
 	hourly_rate = 0.0
 	semi_rate = 0.0
 	daily_rate = 0.0
 	weekly_rate = 0.0
+
+	if specified_rate:
+		emp['rate'] = specified_rate
+
 	if emp['rate'] > 0 and  emp['total_yr_days'] > 0 and emp['no_hours'] > 0:
 		month_days = (flt(emp['total_yr_days'], 8) / 12)
 		if emp['rate_type'] == "Monthly Rate":
@@ -240,6 +244,7 @@ def get_ot_class_map():
 			"transaction_type": t.transaction_type if t.transaction_type else "OT",
 		}
 	return ot_class_map
+
 def get_rateclass_map():
 	rateclass_map = {}
 	rateclass = frappe.db.sql(""" SELECT * FROM `tabRate Classification` """, as_dict=1)
@@ -260,3 +265,18 @@ def get_rateclass_map():
 			})
 
 	return rateclass_map
+
+def get_company_map():
+	co_map = {}
+	co = frappe.db.sql(""" SELECT name, tax_id, sss_id, phic_id, hdmf_id, rdo_code FROM `tabCompany` """, as_dict=1)
+	for c in co:
+		co_map[c.name] = {
+			"company_name": c.name,
+			"tax_id": c.tax_id,
+			"sss_id": c.sss_id,
+			"phic_id": c.phic_id,
+			"hdmf_id": c.hdmf_id,
+			"rdo_code": c.rdo_code
+		}
+
+	return co_map

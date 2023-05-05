@@ -21,9 +21,12 @@ def get_notification_config():
 			"Blanket": {"workflow_state": "Pending"},
 			"Work Suspension": {"workflow_state": "Pending"},
 			"Loan Application": {"workflow_state": "Pending"},
+			"Change Request Application": {"workflow_state": "Pending"},
 			"Appraisal": {"appraisal_type": "360-Degree"},
-			"Job Applicant": {"status": "Open"},
-			
+			"Certificate of Employment": {"docstatus": 0},
+			"Certificate of Maternity": {"docstatus": 0},
+			"Employee Accountability": {"docstatus": 0},
+			"Employee Movement": {"docstatus": 0},
 		}
 	}
 

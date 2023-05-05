@@ -56,7 +56,16 @@ frappe.query_reports["Attendance Summary"] = {
 			"fieldname": "flt_precision",
 			"label": __("Float Precision"),
 			"fieldtype": "Int",
-			"default": 4,
+			"default": function(query_report) {
+				frappe.model.get_value('Timekeeping Settings', {'name': 'Timekeeping Settings'}, 'default_decimal_places',
+				function(d) {
+					frappe.query_report_filters_by_name.flt_precision.set_input(d.default_decimal_places);
+					if (!d.default_decimal_places){
+						frappe.query_report_filters_by_name.flt_precision.set_input(2);
+					}
+					query_report.trigger_refresh();
+				})
+			},
 		},
 	]/*,
 	"formatter": function(row, cell, value, columnDef, dataContext, default_formatter) {

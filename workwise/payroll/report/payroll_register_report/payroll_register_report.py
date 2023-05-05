@@ -58,7 +58,13 @@ def execute(filters=None):
 				final_rate = (emp.total_income * (emp.min_take_home/100))
 
 			if final_rate < emp.net_payroll and emp.net_payroll > 0:
-				row = [emp.employee, emp.employee_name, emp.present_days]
+				if filters.show_project:
+					project = " "
+					if emp.project:
+						project = emp.project
+					row = [emp.employee, emp.employee_name, emp.project, emp.present_days]
+				else:	
+					row = [emp.employee, emp.employee_name, emp.present_days]
 				if filters.employee_details:
 					row.append(emp.position_title)
 				total_present += emp.present_days
@@ -75,6 +81,9 @@ def execute(filters=None):
 
 					i += 1
 
+				if frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+					row += [format_precision(total_income, filters.value_precision)]
+
 				total_deduction = 0.00
 				i = 0
 				for deduction in deduction_types:
@@ -90,34 +99,75 @@ def execute(filters=None):
 				total_payroll = flt(total_income, 8) - flt(total_deduction, 8)
 				if total_payroll < 0:
 					total_payroll = 0.00
-				row += [format_precision(total_income, filters.value_precision), format_precision(total_deduction, filters.value_precision), format_precision(total_payroll, filters.value_precision)]
+
+				if not frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+					row += [format_precision(total_income, filters.value_precision), format_precision(total_deduction, filters.value_precision), format_precision(total_payroll, filters.value_precision)]
+				else:
+					row += [format_precision(total_deduction, filters.value_precision), format_precision(total_payroll, filters.value_precision)]
 				dtotal_income += total_income
 				dtotal_deduction += total_deduction
 				dtotal_payroll += total_payroll
 				data.append(row)
 
 		if filters.employee_details:
-			total_row = ["<b> Total</b>","",total_present,""]
+			if filters.include_header:
+				if filters.show_project:
+					total_row = ["<b> Total</b>","","",total_present,""]
+				else:
+					total_row = ["<b> Total</b>","",total_present,""]
+
+			else:
+				if filters.show_project:
+					total_row = ["<b> Total</b>","","",total_present,""]
+				else:
+					total_row = ["<b> Total</b>","",total_present,""]
 		else:
-			total_row = ["<b> Total</b>","",total_present]
+			if filters.show_project:
+				total_row = ["<b> Total</b>","","",total_present]
+			else:
+				total_row = ["<b> Total</b>","",total_present]
+
 		i = 0
 		for income in income_types:
 			total_row.append(format_precision(income_total[i], filters.value_precision))
 			i += 1
 
+		if frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+			total_row += [format_precision(dtotal_income, filters.value_precision)]
+
 		i = 0
 		for deduction in deduction_types:
 			total_row.append(format_precision(deduction_total[i], filters.value_precision))
 			i += 1
-		total_row += [format_precision(dtotal_income, filters.value_precision), format_precision(dtotal_deduction, filters.value_precision), format_precision(dtotal_payroll, filters.value_precision)]
+
+		if not frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+			total_row += [format_precision(dtotal_income, filters.value_precision), format_precision(dtotal_deduction, filters.value_precision), format_precision(dtotal_payroll, filters.value_precision)]
+		else:
+			total_row += [format_precision(dtotal_deduction, filters.value_precision), format_precision(dtotal_payroll, filters.value_precision)]
 		data.append(total_row)
 
 		if filters.hide_zero:
 			colen = len(columns)
 			x = 0
 			while x < colen:
-				if columns[x]['fieldname'] not in ["employee", "employee_name", "present_days", "position_title", "total_income", "total_deduction", "total_payroll"]:
-					if totals[columns[x]['fieldname']] <= 0:
+				if columns[x]['fieldname'] not in ["employee", "employee_name", "project", "position_title", "present_days", "total_income", "total_deduction", "total_payroll"]:
+					if columns[x]['fieldname'] in totals:
+						if totals[columns[x]['fieldname']] <= 0.001:
+							del columns[x]
+							if filters.include_header:
+								row_num = 3
+								if filters.location:
+									row_num = 4
+									
+								for y,d in enumerate(data[row_num:]):
+									del data[y+row_num][x]
+							else:
+								for y,d in enumerate(data):
+									del data[y][x]
+							colen -= 1
+						else:
+							x +=1
+					else:
 						del columns[x]
 						if filters.include_header:
 							row_num = 3
@@ -130,8 +180,6 @@ def execute(filters=None):
 							for y,d in enumerate(data):
 								del data[y][x]
 						colen -= 1
-					else:
-						x +=1
 				else:
 					x += 1
 
@@ -150,6 +198,7 @@ def validate_filters(filters):
 			frappe.throw(_("Employee {0} Does not belong to company {1}").format(filters.employee, filters.company))
 
 def get_columns(filters,employee_list):
+
 	columns = [
 		{
 			"fieldname": "employee",
@@ -168,6 +217,31 @@ def get_columns(filters,employee_list):
 			"fieldlabel": "Employee Name",
 			"hidden": 0
 		},
+	]
+
+	
+
+	if filters.show_project:
+		columns.append({
+			"fieldname": "project",
+			"label": _("Project" if not filters.include_header else ""),
+			"fieldtype": "Data",
+			"width": 200,
+			"fieldlabel": "Project",
+			"hidden": 0
+			})
+
+	"""columns += [
+		{
+			"fieldname": "present_days",
+			"label": _("Present Days" if not filters.include_header else ""),
+			"fieldtype": "Data",
+			"width": 120,
+			"fieldlabel": "Present Days",
+			"hidden": 0
+		},
+	]"""
+	columns += [
 		{
 			"fieldname": "present_days",
 			"label": _("Present Days" if not filters.include_header else ""),
@@ -177,7 +251,6 @@ def get_columns(filters,employee_list):
 			"hidden": 0
 		},
 	]
-	
 	if filters.employee_details:
 		columns.append({
 			"fieldname": "position_title",
@@ -187,6 +260,8 @@ def get_columns(filters,employee_list):
 			"fieldlabel": "Position Title",
 			"hidden": 0
 			})
+
+
 
 	income_types = frappe.db.sql_list(""" SELECT code
 		FROM `tabTransaction Type` WHERE `type` = 'Income' ORDER BY sort """)
@@ -206,6 +281,16 @@ def get_columns(filters,employee_list):
 				"hidden": 0
 			})
 
+		if frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+			columns.append({			
+				"fieldname": "total_income",
+				"label": _("Total Income" if not filters.include_header else ""),
+				"fieldtype": "Data",
+				"width": 100,
+				"fieldlabel": "Total Income",
+				"hidden": 0
+			})
+
 		for pay_code in deduction_types:
 			pay_title = frappe.db.get_value("Transaction Type", pay_code, 'title')
 			columns.append({			
@@ -217,16 +302,17 @@ def get_columns(filters,employee_list):
 				"hidden": 0
 			})
 
-	columns += [
-		{
+	if not frappe.db.get_single_value('Payroll Settings', 'format_pr_totals'):
+		columns += [{
 			"fieldname": "total_income",
 			"label": _("Total Income" if not filters.include_header else ""),
 			"fieldtype": "Data",
 			"width": 100,
 			"fieldlabel": "Total Income",
 			"hidden": 0
-		},
-		{
+		}]
+
+	columns += [{
 			"fieldname": "total_deduction",
 			"label": _("Total Deduction" if not filters.include_header else ""),
 			"fieldtype": "Data",
@@ -244,12 +330,14 @@ def get_columns(filters,employee_list):
 		},
 	]
 
+
 	return columns, income_types, deduction_types
 
 def get_employees(filters):
 	cur_user = frappe.session.user
 	if not "Administrator" in frappe.get_roles(cur_user):
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income, TE.position_title
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, PR.project,
+			TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income, TE.position_title, PR.paid_holidays, PR.holiday_pay_amount
 		FROM `tabPayroll Register` PR INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)
 			AND PR.on_hold = 0
@@ -262,7 +350,8 @@ def get_employees(filters):
 				"location": filters.location,
 			}, as_dict=1)
 	else:
-		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income, TE.position_title
+		employees = frappe.db.sql("""SELECT DISTINCT PR.employee, PR.employee_name, PR.present_days, TE.rate, TE.total_yr_days, TE.rate_type, TE.no_hours, PR.project,
+			TE.mth_percentage, TE.min_take_home, PR.net_payroll, PR.total_income, TE.position_title, PR.paid_holidays, PR.holiday_pay_amount
 		FROM `tabPayroll Register` PR JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		WHERE PR.period = %(period)s
 			AND PR.on_hold = 0

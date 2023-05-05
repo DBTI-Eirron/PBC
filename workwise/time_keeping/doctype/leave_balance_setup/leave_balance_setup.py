@@ -26,7 +26,14 @@ class LeaveBalanceSetup(Document):
 					'allocation_start': d.allocation_start,
 					'method_condition': d.method_condition,
 					'value': d.value,
+					'from_value': d.from_value,
+					'to_value': d.to_value,
 					'credits': d.credits,
+					'add_from_movement': d.add_from_movement,
+					'is_continuous': d.is_continuous,
+					'end_type': d.end_type,
+					'by_count_value': d.by_count_value,
+					'by_end_of_year': d.by_end_of_year,
 				});
 
 		self.set('balance_schedules', [])

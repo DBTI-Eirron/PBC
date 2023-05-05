@@ -11,8 +11,8 @@ from workwise.time_keeping.timekeeping_utils import chk_time_format
 
 class WorkSuspension(Document):
 	def validate(self):
-		self.validate_time_format()
-		self.get_suspension_range()
+		#self.validate_time_format()
+		#self.get_suspension_range()
 		self.validate_is_active()
 
 	def validate_time_format(self):

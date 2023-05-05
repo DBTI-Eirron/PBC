@@ -45,6 +45,8 @@ class EmployeeSubordinates(Document):
 		else:
 			frappe.throw(_("Employee {0} has no User ID.").format(self.employee))
 
+		self.remove_as_approver()
+
 	# def removed_permissions(self):
 	# 	user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 	# 	if user_id:
@@ -70,8 +72,25 @@ class EmployeeSubordinates(Document):
 
 	def on_trash(self):
 		self.remove_all_permissions()
+		self.remove_as_approver(remove_all=1)
 
-	
+	def remove_as_approver(self, remove_all=0):
+		if not remove_all:
+			as_approver_included = []
+			if self.get("subordinates"):
+				for subs in self.get("subordinates"):
+					as_approver_included.append(subs.subordinate)
+
+				as_approver_list = frappe.db.sql("""SELECT `parent` FROM `tabEmployee Approvers` WHERE approver = %s  """, (self.employee), as_dict=1)
+				for as_approver in as_approver_list:
+					if as_approver.approver not in as_approver_included:
+						frappe.db.sql("""DELETE FROM `tabEmployee Approvers` WHERE `approver` = %s AND `parent` = %s """, (self.employee, as_approver.parent), as_dict=1)
+			else:
+				remove_all = 1
+
+		if remove_all:
+			frappe.db.sql("""DELETE FROM `tabEmployee Approvers` WHERE `approver` = %s """, (self.employee), as_dict=1)
+
 	def remove_all_permissions(self):
 		user_id = frappe.db.get_value("Employee", self.employee, "user_id")
 		if user_id:

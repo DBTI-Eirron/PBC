@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 import frappe, datetime, calendar
-from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_to_date, cstr
+from frappe.utils import cint, flt, nowdate, add_days, getdate, fmt_money, add_to_date, cstr, today
 from workwise.time_keeping.attendance_utils import get_schedule
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
 from frappe import _
@@ -22,16 +22,20 @@ def update_cost_center_company():
 				frappe.db.sql("""UPDATE `tabCost Center` SET company = %s WHERE name = %s""",(center['name'],cost['name']))
 
 def update_approved_on_and_by():
-	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application"]
+	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application", "Timelogs Application"]
 	for app in application_type_list:
 		table = "`tab"+app+"`"
 		table = str(table)
 
-		application_list = frappe.db.sql(""" SELECT `name`, DATE(modified) as date, modified_by FROM """+table+""" WHERE docstatus = 1 AND approved_on IS NULL AND approved_by IS NULL """, as_dict=1)
-		for a in application_list:
-			frappe.db.sql("""UPDATE """+table+""" SET `approved_on` = DATE(modified), approved_by = modified_by WHERE `docstatus` = 1 AND `name` = %s """, (a.name))
-			frappe.db.commit()
-
+		if app in ['DTR Problem Application', 'Change Schedule Application', 'Timelogs Application']:
+			frappe.db.sql("""UPDATE """+table+""" APP SET APP.`approved_on`=APP.`modified`, APP.`approved_by`=APP.`modified_by`, 
+			APP.`approver_name`=(SELECT TE.`full_name` FROM `tabEmployee` TE WHERE TE.`user_id`=APP.modified_by LIMIT 1) 
+			WHERE APP.`docstatus` = 1 AND APP.`workflow_state` IN ('Approved', 'Approval in Progress') AND (APP.approved_on IS NULL OR APP.approved_by IS NULL) """)
+		else:
+			frappe.db.sql("""UPDATE """+table+""" APP SET APP.`approved_on`=DATE(APP.`modified`), APP.`approved_by`=APP.`modified_by`, 
+			APP.`approver_name`=(SELECT TE.`full_name` FROM `tabEmployee` TE WHERE TE.`user_id`=APP.modified_by LIMIT 1) 
+			WHERE APP.`docstatus` = 1 AND APP.`workflow_state` IN ('Approved', 'Approval in Progress') AND (APP.approved_on IS NULL OR APP.approved_by IS NULL) """)
+			
 def update_old_change_schedule_application():
 	application_list = frappe.db.sql(""" SELECT `name`, old_shift, new_shift, target_date, new_time_in, new_time_out FROM `tabChange Schedule Application` WHERE docstatus = 1; """, as_dict=1)
 	existing_list = frappe.db.sql(""" SELECT `parent` FROM `tabChange Schedule Application Table` GROUP BY `parent`; """, as_list=1)
@@ -1292,3 +1296,132 @@ def update_old_loan_application_frequency_method():
 
 def worksuspension_to_datetime():
 	frappe.db.sql("""UPDATE `tabWork Suspension` SET to_time=suspension_end, from_time=suspension_start """)
+
+def set_employee_gsis_setup():
+	frappe.db.sql("""UPDATE `tabEmployee` SET gsis_mode='None', gsis_frequency='1st' WHERE gsis_mode IS NULL and gsis_frequency IS NULL """)
+
+def set_movement_processed():
+	frappe.db.sql("""UPDATE `tabEmployee Movement` SET is_processed=1, date_processed=effective_on WHERE effective_on<=%s AND is_processed!=1 AND docstatus=1 ORDER BY `modified` ASC """,(today()),as_dict=True)
+
+def update_user_perm_period_group():
+	employee = frappe.db.sql(""" SELECT `name`, `user_id`, `period_group` FROM `tabEmployee` """, as_dict=1)
+	for emp in employee:
+		if emp.period_group and emp.user_id:
+			user_perm = frappe.db.sql(""" SELECT `for_value` FROM `tabUser Permission` WHERE `user` = %s AND `allow` = "Period Group" """,(emp.user_id) , as_dict=1)
+			if user_perm != emp.period_group:
+				frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(emp.user_id),as_dict=True)
+				frappe.permissions.add_user_permission("Period Group", emp.period_group, emp.user_id)
+		else:
+			frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(emp.user_id),as_dict=True)
+
+def workschedule_set_employeename():
+	frappe.db.sql("""UPDATE `tabWork Schedule` WS INNER JOIN `tabEmployee` TE ON WS.`employee`=TE.`name` SET WS.`employee_name`=TE.`full_name` WHERE WS.`employee_name` IS NULL """)
+
+def leave_days_before_filing_setup():
+	leave_types = frappe.get_all('Leave Type')
+	for lt in leave_types:
+		doc = frappe.get_doc('Leave Type', lt.name)
+		if doc.filing_days and not doc.days_before_filing:
+			row = {
+				"days_before_filing": doc.filing_days,
+			}
+			doc.append('days_before_filing', row)
+		doc.save()
+
+def reset_administrator_roles():
+	import string
+	import random
+
+	roles = ["Administrator", "System Manager", "Accounts Manager", "Accounts User", "All", "Blogger", "Guest", "Knowledge Base Contributor", "Knowledge Base Editor", 
+		"Maintenance Manager", "Maintenance User", "Newsletter Manager", "Purchase Manager", "Purchase Master Manager", "Purchase User", "Report Manager", 
+		"Sales Master Manager", "Sales User", "Website Manager", "HR Manager", "Time Keeping Manager", "Payroll Manager", "Rank and File", "Leave Approver", 
+		"Overtime Approver", "Official Business Approver", "Employee", "Change Schedule Approver", "DTR Problem Approver", "Excused Tardiness Approver", "Undertime Approver", 
+		"Change Request Approver", "Station Supervisor", "Officer", "Manager", "HR Admin", "HR User", "Compensatory Time Off Approver", "Admin Approver", "PA CA Approver", 
+		"HR Comp Ben", "Public Post", "Sales Manager", "Timekeeper Approver", "Timelogs Application Approver", "Approver", "Query Report Manager"]
+
+	idx = 0
+
+	for role in roles:
+		N = 10
+		res = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(N))
+		res = res.lower()
+		if not frappe.get_all('Has Role', fields={'name', 'role'}, filters={'name': res, 'role': role}):
+			idx += 1
+			frappe.db.sql(""" INSERT INTO `tabHas Role`
+				(`name`, `creation`, `modified`, `modified_by`, `owner`, `docstatus`, `parent`, `parentfield`, `parenttype`, `idx`, `role`) 
+				VALUES 
+				(%s, NOW(), NOW(), 'Administrator', 'Administrator', 0, 'Administrator', 'roles', 'User', %s, %s) """,( str(res), idx, role ),as_dict=1)
+
+def add_dtrp_targetdate():
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET dtr_date=target_date """)
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET target_date=DATE_SUB(dtr_date, INTERVAL 1 DAY) WHERE is_previous = 1 """)
+
+#Patch v1.91.00
+def add_payrollprocesslogs_to_payslipgenerationlogs():
+	payroll_process_logs = frappe.get_all('Payroll Process Logs', fields=['*'])
+	for ppl in payroll_process_logs:
+		payslip_generation = frappe.new_doc("Payslip Generation Logs")
+		payslip_generation.update(ppl)
+		payslip_generation.insert(ignore_permissions=True)
+
+#Patch v1.92.00
+def update_loans_status():
+	loans = frappe.get_all('Loan Application', fields=['name'])
+	for loan in loans:
+		doc = frappe.get_doc("Loan Application", loan.name)
+		if doc.docstatus != 0:
+			status = "Entered"
+			if doc.on_hold:
+				status = "On Hold"
+			elif not doc.on_hold and flt(doc.unpaid_amount) == 0:
+				status = "Fully Paid"
+			elif not doc.on_hold and flt(doc.paid_amount) < 1 and flt(doc.unpaid_amount) > 0:
+				status = "Entered"
+			elif not doc.on_hold and flt(doc.paid_amount) > 0 and flt(doc.unpaid_amount) > 0:
+				status = "Active"
+
+			if doc.docstatus == 2:
+				status = "Cancelled"
+
+			doc.db_set("status", status)
+
+def remove_loan_payment_frequency_whitespaces():
+	frappe.db.sql("""UPDATE `tabLoan Application` SET payment_frequency=TRIM(payment_frequency) """)
+
+def add_derpartment_on_tk_applications():
+	applications = ["Leave Application", "Overtime Application", "Official Business Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "DTR Problem Application", "Compensatory Time Off", "Timelogs Application"]
+	for application in applications:
+		try:
+			frappe.db.sql("""UPDATE `tab{0}` AP SET AP.`department`=(SELECT `department` FROM `tabEmployee` WHERE `name`=AP.`employee` ) WHERE AP.`department` IS NULL """.format(application))
+		except Exception as e:
+			pass
+
+def overused_lbentry_fix_deduction_history():
+	olbe_list = frappe.get_all("Overused LB Entry", fields=['name'])
+	for olbe in olbe_list:
+		doc = frappe.get_doc("Overused LB Entry", olbe.name)
+		with_changes = 0
+		for dedhisto in doc.deduction_history:
+			olbe_doc = frappe.get_doc("LB Entry", dedhisto.lb_entry)
+			if olbe_doc:
+				new_deducted_credits = flt(doc.deducted_credits)
+				if olbe_doc.leave_type != doc.leave_type:
+					with_changes = 1
+					new_deducted_credits -= dedhisto.credits
+					frappe.db.set_value( 'Overused LB Entry', doc.name, 'deducted_credits', new_deducted_credits )
+					frappe.db.sql("""DELETE FROM `tabOveruse LB Entry Deduction History` WHERE `name` = %s """,(dedhisto.name), as_dict=1)
+		if with_changes:
+			frappe.db.sql("""UPDATE `tabOverused LB Entry` SET remaining_overused_credits=overused_credits-deducted_credits, status='Pending' WHERE `name`=%s """,(doc.name), as_dict=True)
+			print("Overuse LB Entry: "+doc.name)
+
+
+def add_approved_on_dtr():
+	dtr_list = ['DTR00014715', 'DTR00014740', 'DTR00014731-1']
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET approved_on=modified WHERE `name` = %s """,('DTR00014715'), as_dict=1)
+	print('Patching........ DTR00014715')
+
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET approved_on=modified WHERE `name` = %s """,('DTR00014740'), as_dict=1)
+	print('Patching........ DTR00014740')
+
+	frappe.db.sql("""UPDATE `tabDTR Problem Application` SET approved_on=modified WHERE `name` = %s """,('DTR00014731-1'), as_dict=1)
+	print('Patching........ DTR00014731-1')

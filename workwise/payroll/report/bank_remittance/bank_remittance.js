@@ -71,6 +71,11 @@ frappe.query_reports["Bank Remittance"] = {
 			"reqd": 1
 		},
 		{
+			"fieldname": "sep_name",
+			"label": __("Separate full name into columns"),
+			"fieldtype": "Check",
+		},
+		{
 			"fieldname": "include_header",
 			"label": __("Include Header"),
 			"fieldtype": "Check",

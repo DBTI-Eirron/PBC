@@ -57,9 +57,9 @@ class OvertimeApplication(Document):
 
 	def validate_cto_strict(self):
 		if frappe.db.get_single_value('Timekeeping Settings', 'cto_strict'):
-			ot_app = frappe.db.sql("""SELECT * FROM `tabCompensatory Time Off` WHERE (`use_target_date` = %s OR `file_target_date` = %s) AND `employee` = %s AND `workflow_state` = "Approved" 
-				AND (((%s BETWEEN `use_fromtime` AND `use_totime`) OR (%s BETWEEN `use_fromtime` AND `use_totime`)) 
-				OR ((%s BETWEEN file_from_time AND file_to_time) OR (%s BETWEEN file_from_time AND file_to_time))) """,(self.target_date, self.target_date, self.employee, self.from_time, self.to_time,  self.from_time, self.to_time), as_dict=True)
+			target = getdate(self.target_date)
+			ot_app = frappe.db.sql("""SELECT * FROM `tabCompensatory Time Off` C INNER JOIN  `tabCompensatory Time Off Targets` CT ON C.`name` = CT.`parent` WHERE `employee` = %s AND `workflow_state` = "Approved" 
+				AND CT.`target_date` = %s AND (( %s BETWEEN CT.`from_time` AND CT.`to_time`) OR (%s BETWEEN CT.`from_time` AND CT.`to_time`)) """,(self.employee, target, self.from_time, self.to_time), as_dict=True)
 			if ot_app:
 				frappe.throw(_("There's already an Compensatory Time Off Application filed with the same date."))
 
@@ -233,10 +233,10 @@ class OvertimeApplication(Document):
 		if override:
 			for o in override:
 				if o.time_in:
-					self.actual_in = o.time_in
+					self.actual_in = get_datetime(o.time_in)
 
 				if o.time_out:
-					self.actual_out = o.time_out
+					self.actual_out = get_datetime(o.time_out)
 	
 		if ob_apps:
 			for ob in ob_apps:

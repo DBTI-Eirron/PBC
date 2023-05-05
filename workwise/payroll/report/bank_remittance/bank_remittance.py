@@ -23,12 +23,38 @@ def get_columns(filters):
 			"options": "Employee",
 			"width": 120
 		},
-		{
-			"fieldname": "employee_name",
-			"label": _("Employee Name"),
-			"fieldtype": "Data",
-			"width": 180
-		},
+	]
+	if filters.sep_name:
+		columns += [
+			{
+				"fieldname": "last_name",
+				"label": _("Last Name"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "first_name",
+				"label": _("First Name"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+			{
+				"fieldname": "middle_name",
+				"label": _("Midlle Name"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+		]
+	else:
+		columns += [
+			{
+				"fieldname": "employee_name",
+				"label": _("Employee Name"),
+				"fieldtype": "Data",
+				"width": 180
+			},
+		]
+	columns += [
 		{
 			"fieldname": "employee_account",
 			"label": _("Account Number"),
@@ -48,7 +74,7 @@ def get_columns(filters):
 			"width": 250
 		},
 	]
-	if filters.bank == "Asia United Bank":
+	if filters.bank in ["Asia United Bank", "AUB"]:
 		columns = [
 			{
 				"fieldname": "employee_account",
@@ -62,15 +88,39 @@ def get_columns(filters):
 				"fieldtype": "Data",
 				"width": 120
 			},
-			{
-				"fieldname": "employee_name",
-				"label": _("Employee Name"),
-				"fieldtype": "Data",
-				"width": 180
-			},
 		]
-
-	if filters.bank == "EastWest Bank":
+		if filters.sep_name:
+			columns += [
+				{
+					"fieldname": "last_name",
+					"label": _("Last Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "first_name",
+					"label": _("First Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "middle_name",
+					"label": _("Midlle Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+		else:
+			columns += [
+				{
+					"fieldname": "employee_name",
+					"label": _("Employee Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+	
+	if filters.bank in ["EastWest Bank"]:
 		columns = [
 			{
 				"fieldname": "hdr",
@@ -98,7 +148,7 @@ def get_columns(filters):
 			},
 		]
 
-	if filters.bank == "China Banking Corporation" or filters.bank == "Chinabank" or filters.bank == "China Bank" or filters.bank == "CBC":
+	if filters.bank in ["China Banking Corporation", "Chinabank", "China Bank", "CBC"]:
 		columns = [
 			{
 				"fieldname": "last_name",
@@ -131,7 +181,7 @@ def get_columns(filters):
 			},
 		]
 
-	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI" :
+	if filters.bank in ["Bank of the Philippine Islands", "BPI"]:
 		columns = [
 			{
 				"fieldname": "detail",
@@ -139,12 +189,38 @@ def get_columns(filters):
 				"fieldtype": "Data",
 				"width": 120
 			},
-			{
-				"fieldname": "employee_name",
-				"label": _(""),
-				"fieldtype": "Data",
-				"width": 120
-			},
+		]
+		if filters.sep_name:
+			columns += [
+				{
+					"fieldname": "last_name",
+					"label": _("Last Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "first_name",
+					"label": _("First Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "middle_name",
+					"label": _("Midlle Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+		else:
+			columns += [
+				{
+					"fieldname": "employee_name",
+					"label": _("Employee Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+		columns += [
 			{
 				"fieldname": "employee_account",
 				"label": _(""),
@@ -201,7 +277,7 @@ def get_columns(filters):
 			},
 		]
 
-	if filters.bank == "Metrobank" or filters.bank == "Metro Bank" or filters.bank == "MB":
+	if filters.bank in ["Metrobank", "Metro Bank", "MB"]:
 		columns = [
 			{
 				"fieldname": "employee_code",
@@ -209,12 +285,38 @@ def get_columns(filters):
 				"fieldtype": "Data",
 				"width": 180
 			},
-			{
-				"fieldname": "employee_name",
-				"label": _("Employee Name"),
-				"fieldtype": "Data",
-				"width": 180
-			},
+		]
+		if filters.sep_name:
+			columns += [
+				{
+					"fieldname": "last_name",
+					"label": _("Last Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "first_name",
+					"label": _("First Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "middle_name",
+					"label": _("Midlle Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+		else:
+			columns += [
+				{
+					"fieldname": "employee_name",
+					"label": _("Employee Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+		columns += [
 			{
 				"fieldname": "branch_code",
 				"label": _("Branch Code"),
@@ -235,7 +337,7 @@ def get_columns(filters):
 			},
 		]
 
-	if filters.bank == "Banco de Oro" or filters.bank == "BDO":
+	if filters.bank in ["Banco de Oro", "BDO"]:
 		columns = [
 			{
 				"fieldname": "account_number",
@@ -249,12 +351,38 @@ def get_columns(filters):
 				"fieldtype": "Data",
 				"width": 180
 			},
-			{
-				"fieldname": "employee_name",
-				"label": _("Name"),
-				"fieldtype": "Data",
-				"width": 200
-			},
+		]
+		if filters.sep_name:
+			columns += [
+				{
+					"fieldname": "last_name",
+					"label": _("Last Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "first_name",
+					"label": _("First Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+				{
+					"fieldname": "middle_name",
+					"label": _("Midlle Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+		else:
+			columns += [
+				{
+					"fieldname": "employee_name",
+					"label": _("Employee Name"),
+					"fieldtype": "Data",
+					"width": 180
+				},
+			]
+		columns += [
 			{
 				"fieldname": "remarks",
 				"label": _("Remarks"),
@@ -346,76 +474,121 @@ def get_result_as_list(data_list, filters):
 			payroll_time = d.payroll_time
 		funding_account = d.funding_account
 
-	if filters.bank == "Bank of the Philippine Islands" or filters.bank == "BPI":
+	if filters.bank in ["Bank of the Philippine Islands", "BPI"]:
 		if filters.include_header:
 			payroll_date = frappe.db.get_value("Payroll Period", filters.payroll_period, "payroll_date")
 			if payroll_time == "Pay Now":
 				payroll_time = ""
 			else:
 				payroll_time = payroll_schedule 
-			headers = {
-				"detail": "H", 
-				"employee_name": "Payroll Date",
-				"employee_account": datetime.datetime.strftime(payroll_date, "%B %d, %Y"),
-				"amount": "Payroll Time",
-				"remarks": payroll_time,
-				"lbl_total_amount": "Total Amount",
-				"total_amount": format_align_right(format_precision(total_amount, filters.value_precision)),
-				"lbl_total_count": "Total Count",
-				"total_count": total_count, 
-				"lbl_funding_account": "Funding Account", 
-				"funding_account": funding_account
-			}
+			if filters.sep_name:
+				headers = {
+					"detail": "H",
+					"last_name": "Payroll Date",
+					"employee_account": datetime.datetime.strftime(payroll_date, "%B %d, %Y"),
+					"amount": "Payroll Time",
+					"remarks": payroll_time,
+					"lbl_total_amount": "Total Amount",
+					"total_amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+					"lbl_total_count": "Total Count",
+					"total_count": total_count, 
+					"lbl_funding_account": "Funding Account", 
+					"funding_account": funding_account
+				}
+			else:
+				headers = {
+					"detail": "H", 
+					"employee_name": "Payroll Date",
+					"employee_account": datetime.datetime.strftime(payroll_date, "%B %d, %Y"),
+					"amount": "Payroll Time",
+					"remarks": payroll_time,
+					"lbl_total_amount": "Total Amount",
+					"total_amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+					"lbl_total_count": "Total Count",
+					"total_count": total_count, 
+					"lbl_funding_account": "Funding Account", 
+					"funding_account": funding_account
+				}
 			result.append(headers)
-		fields = {
-			"detail": "DETAIL CONSTANT",
-			"employee_name": "EMPLOYEE NAME",
-			"employee_account": "EMPLOYEE ACCOUNT",
-			"amount": "AMOUNT",
-			"remarks": "REMARKS",
-		}
-		result.append(fields)
-		for d in data:
-			row = {
-				"detail": "D",
-				"employee_name": d.get("employee_name"),
-				"employee_account": d.get("employee_account"),
-				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
-				"remarks": d.get("remarks"),
+
+		if filters.sep_name:
+			fields = {
+				"detail": "DETAIL CONSTANT",
+				"last_name": "Last NAME",
+				"first_name": "First NAME",
+				"last_name": "Midlle NAME",
+				"employee_account": "EMPLOYEE ACCOUNT",
+				"amount": "AMOUNT",
+				"remarks": "REMARKS",
 			}
-			result.append(row)
-		total = {
-			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
-			"employee": "TOTAL",
-			"employee_name": total_count
-		}
+		else:
+			fields = {
+				"detail": "DETAIL CONSTANT",
+				"employee_name": "EMPLOYEE NAME",
+				"employee_account": "EMPLOYEE ACCOUNT",
+				"amount": "AMOUNT",
+				"remarks": "REMARKS",
+			}		
+		result.append(fields)
+		if filters.sep_name:
+			for d in data:
+				row = {
+					"detail": "D",
+					"last_name": d.get("last_name"),
+					"first_name": d.get("first_name"),
+					"middle_name": d.get("middle_name"),
+					"employee_account": d.get("employee_account"),
+					"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+					"remarks": d.get("remarks"),
+				}
+				result.append(row)
+			total = {
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+				"employee": "TOTAL",
+				"employee_name": total_count
+			}
+		else:
+			for d in data:
+				row = {
+					"detail": "D",
+					"employee_name": d.get("employee_name"),
+					"employee_account": d.get("employee_account"),
+					"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+					"remarks": d.get("remarks"),
+				}
+				result.append(row)
+			total = {
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+				"employee": "TOTAL",
+				"employee_name": total_count
+			}
 		result.append(total)
 
-	elif filters.bank == "EastWest Bank":
+	elif filters.bank in ["EastWest Bank"]:
 		for d in data:
 			row = {
 				"hdr": "DTL",
 				"account_number": d.get("employee_account"),
-				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+				"amount": format_precision(d.get("amount"), filters.value_precision),
 				"remarks": str(d.get("last_name"))+", "+str(d.get("first_name"))+", "+str(d.get("middle_name")),
 			}
 			result.append(row)
 		total = {
 			"hdr": "TLR",
 			"account_number": total_count,
-			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+			"amount": format_precision(total_amount, filters.value_precision),
 			"remarks": "",
 		}
 		result.append(total)
 
-	elif filters.bank == "China Banking Corporation" or filters.bank == "Chinabank" or filters.bank == "China Bank" or filters.bank == "CBC":
+	elif filters.bank in ["China Banking Corporation", "Chinabank", "China Bank", "CBC"]:
 		for d in data:
 			row = {
 				"last_name" : d.get("last_name"),
 				"first_name" : d.get("first_name"),
 				"account_number" : d.get("employee_account"),
 				"account_type" : d.get("bank_type"),
-				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+				"amount": format_precision(d.get("amount"), filters.value_precision),
 			}
 			result.append(row)
 		total = {
@@ -423,66 +596,164 @@ def get_result_as_list(data_list, filters):
 			"first_name" : "",
 			"account_number" : "",
 			"account_type" : "Total",
-			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+			"amount": format_precision(total_amount, filters.value_precision),
 		}
 		result.append(total)
 
-	elif filters.bank == "Metrobank" or filters.bank == "Metro Bank" or filters.bank == "MB":
+	elif filters.bank in ["Metrobank", "Metro Bank", "MB"]:
 		count = 1
-		for d in data:
-			row = {
-			"employee_code": count,
-			"employee_name": d.get("employee_name"),
-			"branch_code": d.get("branch_code"),
-			"payroll_acct_no": d.get("employee_account"),
-			"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+		if filters.sep_name:
+			for d in data:
+				row = {
+				"employee_code": count,
+				"last_name": d.get("last_name"),
+				"first_name": d.get("first_name"),
+				"middle_name": d.get("middle_name"),
+				"branch_code": d.get("branch_code"),
+				"payroll_acct_no": d.get("employee_account"),
+				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+				}
+				result.append(row)
+				count += 1
+			total = {
+				"employee_code": "",
+				"last_name": "",
+				"first_name": "",
+				"middle_name": "",
+				"branch_code":"",
+				"payroll_acct_no": "",
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
 			}
-			result.append(row)
-			count += 1
-		total = {
-			"employee_code": "",
-			"employee_name": "",
-			"branch_code":"",
-			"payroll_acct_no": "",
-			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
-		}
+		else:
+			for d in data:
+				row = {
+				"employee_code": count,
+				"employee_name": d.get("employee_name"),
+				"branch_code": d.get("branch_code"),
+				"payroll_acct_no": d.get("employee_account"),
+				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+				}
+				result.append(row)
+				count += 1
+			total = {
+				"employee_code": "",
+				"employee_name": "",
+				"branch_code":"",
+				"payroll_acct_no": "",
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+			}
 		result.append(total)
 
-	elif filters.bank == "Banco de Oro" or filters.bank == "BDO":
-		for d in data:
-			row = {
-				"account_number": d.get("employee_account"),
-				"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
-				"employee_name": d.get("employee_name"),
-				"remarks": d.get("remarks"),	
+	elif filters.bank in ["Banco de Oro", "BDO"]:
+		if filters.sep_name:
+			for d in data:
+				row = {
+					"account_number": d.get("employee_account"),
+					"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+					"last_name": d.get("last_name"),
+					"first_name": d.get("first_name"),
+					"middle_name": d.get("middle_name"),
+					"remarks": d.get("remarks"),	
+				}
+				result.append(row)
+			total = {
+				"account_number": "Headcount: "+str(total_count),
+				"amount": "Total Amount:    "+format_align_right(format_precision(total_amount, filters.value_precision)),
+				"last_name": "",
+				"first_name": "",
+				"middle_name": "",
+				"remarks": "",
 			}
-			result.append(row)
-		total = {
-			"account_number": "Headcount: "+str(total_count),
-			"amount": "Total Amount:    "+format_precision(total_amount, filters.value_precision),
-			"employee_name": "",
-			"remarks": "",
-		}
+
+		else:
+			for d in data:
+				row = {
+					"account_number": d.get("employee_account"),
+					"amount": format_align_right(format_precision(d.get("amount"), filters.value_precision)),
+					"employee_name": d.get("employee_name"),
+					"remarks": d.get("remarks"),	
+				}
+				result.append(row)
+			total = {
+				"account_number": "Headcount: "+str(total_count),
+				"amount": "Total Amount:    "+format_align_right(format_precision(total_amount, filters.value_precision)),
+				"employee_name": "",
+				"remarks": "",
+			}
+		result.append(total)
+
+	elif filters.bank in ["Asia United Bank", "AUB"]:
+		if filters.sep_name:
+			for d in data:
+				row = {
+					"employee_account": d.get("employee_account"),
+					"amount": format_align_right(format_precision(d.amount, filters.value_precision)),
+					"last_name": d.get("last_name"),
+					"first_name": d.get("first_name"),
+					"middle_name": d.get("middle_name"),
+				}
+				result.append(row)
+			total = {
+				"employee_account": "TOTAL",
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+				"last_name": total_count,
+				"first_name": "",
+				"middle_name": "",
+			}
+		else:
+			for d in data:
+				row = {
+					"employee_account": d.get("employee_account"),
+					"amount": format_align_right(format_precision(d.amount, filters.value_precision)),
+					"employee_name": d.get("employee_name"),
+				}
+				result.append(row)
+			total = {
+				"employee_account": "TOTAL",
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+				"employee_name": total_count,
+			}
 		result.append(total)
 
 	else:
-		for d in data:
-			row = {
-				"employee": d.get("employee"),
-				"employee_name": d.get("employee_name"),
-				"employee_account": d.get("employee_account"),
-				"amount": format_align_right(format_precision(d.amount, filters.value_precision)),
-				"remarks": d.get("remarks"),
+		if filters.sep_name:
+			for d in data:
+				row = {
+					"employee": d.get("employee"),
+					"last_name": d.get("last_name"),
+					"first_name": d.get("first_name"),
+					"middle_name": d.get("middle_name"),
+					"employee_account": d.get("employee_account"),
+					"amount": format_align_right(format_precision(d.amount, filters.value_precision)),
+					"remarks": d.get("remarks"),
+				}
+				result.append(row)
+			total = {
+				"employee": "TOTAL",
+				"employee_account": None,
+				"last_name": total_count,
+				"first_name": "",
+				"middle_name": "",
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+				"remarks": "",
 			}
-			result.append(row)
-		total = {
-			"employee": "TOTAL",
-			"employee_account": "TOTAL" if filters.bank == "Asia United Bank" else None,
-			"employee_name": total_count,
-			"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
-			"remarks": "",
-		}
-
+		else:
+			for d in data:
+				row = {
+					"employee": d.get("employee"),
+					"employee_name": d.get("employee_name"),
+					"employee_account": d.get("employee_account"),
+					"amount": format_align_right(format_precision(d.amount, filters.value_precision)),
+					"remarks": d.get("remarks"),
+				}
+				result.append(row)
+			total = {
+				"employee": "TOTAL",
+				"employee_account": None,
+				"employee_name": total_count,
+				"amount": format_align_right(format_precision(total_amount, filters.value_precision)),
+				"remarks": "",
+			}
 		result.append(total)
 
 	return result

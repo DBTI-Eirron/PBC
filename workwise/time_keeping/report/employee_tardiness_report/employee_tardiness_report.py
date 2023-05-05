@@ -61,6 +61,7 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 100
 		},
+		
 	]
 
 	return columns
@@ -138,7 +139,7 @@ def get_data(filters):
 	return data
 
 def get_employees(filters):
-	register = frappe.db.sql("""SELECT DISTINCT TE.`name`, TE.full_name FROM `tabEmployee` TE
+	register = frappe.db.sql("""SELECT DISTINCT TE.`name`, TE.full_name, TE.location FROM `tabEmployee` TE
 		LEFT JOIN `tabDepartment` DEPT ON TE.`department`=DEPT.`name`
 		WHERE TE.is_active = 1 AND (TE.employment_status != 'Retired' OR TE.employment_status IS NULL) AND TE.company = %(company)s {conditions} ORDER BY TE.`full_name` """.format(conditions=get_conditions(filters)), filters, as_dict=1)
 
@@ -155,6 +156,9 @@ def get_conditions(filters):
 
 	if filters.get("period_group"):
 		conditions.append("TE.`period_group`='{0}'".format(filters.get("period_group")))
+
+	if filters.get("location"):
+		conditions.append("TE.`location`='{0}'".format(filters.get("location")))
 
 	return "AND {}".format(" AND ".join(conditions)) if conditions else "" 
 

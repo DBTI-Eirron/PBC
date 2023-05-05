@@ -18,4 +18,6 @@ class PerformanceImprovementPlan(Document):
 		for d in entries:
 			row = self.append('items', {})
 			row.update(d)
-			
+
+
+		self.subsidiary,self.employee,self.pa_rating,self.pa_period,self.employee_name,self.department = frappe.db.get_value('Evaluation',self.evaluation,['company','appraisee','total_score','target_setting','appraisee_name','department'])

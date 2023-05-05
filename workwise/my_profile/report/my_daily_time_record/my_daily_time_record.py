@@ -8,7 +8,7 @@ from time import strptime
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
-get_attendance, get_defaults, get_ob_list, get_ot_list, 
+get_attendance, get_defaults, get_ob_list, get_ot_list, get_multi_breaks,
 get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,init_employee_map,complete_sched,change_sched,get_template_map, processed_def_sched)
 
 def execute(filters=None):
@@ -189,37 +189,39 @@ def get_data(filters):
 		emp_map = init_employee_map(employees, filters.employee, filters.company, pay_from, pay_to, approval_cutoff, adjustment, monthly_approval_cutoffs)
 
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
-			complete_sched(emp_dict, pay_from, pay_to, template_map)
+			complete_sched(emp_dict, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 			if filters.show_adjusted:
 				processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
-				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
-				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), 
-					entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'), entry)
-				get_sorted_card(entry, cards_in, cards_out)
-				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), emp_dict.get('ots'), 
-					emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
-
-				entry['break'] = convert_secs(filters, entry['break'])
-				totals['break'] += entry['break']
-				entry['work'] = convert_secs(filters, entry['work'])
-				totals['work'] += entry['work']
-				entry['late'] = convert_secs(filters, entry['late'])
-				totals['late'] += entry['late']
-				entry['overtime'] = convert_secs(filters, entry['overtime'])
-				totals['overtime'] += entry['overtime']
-				entry['overtime_nd'] = convert_secs(filters, entry['overtime_nd'])
-				totals['overtime_nd'] += entry['overtime_nd']
-				entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
-				totals['overtime_ex'] += entry['overtime_ex']
-				entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
-				totals['nightdiff'] += entry['nightdiff']
-				entry['undertime'] = convert_secs(filters, entry['undertime'])
-				totals['undertime'] += entry['undertime']			
-				entry['cto'] = convert_secs(filters, entry['cto'])
-				totals['cto'] += entry['cto']
-				data.append(entry)
+				if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
+					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
+					cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
+						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+					get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
+					get_multi_breaks(entry, cards_in, cards_out)
+					get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), emp_dict.get('ots'), 
+						emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+	
+					entry['break'] = convert_secs(filters, entry['break'])
+					totals['break'] += entry['break']
+					entry['work'] = convert_secs(filters, entry['work'])
+					totals['work'] += entry['work']
+					entry['late'] = convert_secs(filters, entry['late'])
+					totals['late'] += entry['late']
+					entry['overtime'] = convert_secs(filters, entry['overtime'])
+					totals['overtime'] += entry['overtime']
+					entry['overtime_nd'] = convert_secs(filters, entry['overtime_nd'])
+					totals['overtime_nd'] += entry['overtime_nd']
+					entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
+					totals['overtime_ex'] += entry['overtime_ex']
+					entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
+					totals['nightdiff'] += entry['nightdiff']
+					entry['undertime'] = convert_secs(filters, entry['undertime'])
+					totals['undertime'] += entry['undertime']			
+					entry['cto'] = convert_secs(filters, entry['cto'])
+					totals['cto'] += entry['cto']
+					data.append(entry)
 		data.append(totals)
 		
 	return data

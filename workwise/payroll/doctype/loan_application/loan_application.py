@@ -22,6 +22,13 @@ class LoanApplication(Document):
 		self.validate_date()
 		self.validate_user_sensitivity_level()
 		self.update_amounts()
+		self.update_loan_status()
+
+	def on_change(self):
+		self.update_loan_status()
+
+	def before_cancel(self):
+		self.status = "Cancelled"
 
 	def validate_loan(self):
 		loan_type = frappe.db.sql("""SELECT `name` FROM `tabTransaction Type` WHERE `code` = %s and `entry_type` = 'Loan'""", self.loan_type, as_dict=True)
@@ -84,7 +91,7 @@ class LoanApplication(Document):
 					
 				total_payables = unpaid_amount 
 				actual_beginning_balance = self.beginning_balance
-				start = datetime.datetime.strptime(self.payment_start, '%Y-%m-%d')
+				start = datetime.datetime.strptime(str(getdate(self.payment_start)), '%Y-%m-%d')
 				
 				if self.freq_method == "Relative Month":
 					relative = cint(self.relative_month) or 1 
@@ -197,6 +204,23 @@ class LoanApplication(Document):
 
 	def get_sensitivity_level(self):
 		self.sensitivity_level = frappe.db.get_value("Employee", self.employee, 'sensitivity')
+
+	def update_loan_status(self):
+		if self.docstatus != 0:
+			status = "Entered"
+			if self.on_hold:
+				status = "On Hold"
+			elif not self.on_hold and flt(self.unpaid_amount) == 0:
+				status = "Fully Paid"
+			elif not self.on_hold and flt(self.paid_amount) < 1 and flt(self.unpaid_amount) > 0:
+				status = "Entered"
+			elif not self.on_hold and flt(self.paid_amount) > 0 and flt(self.unpaid_amount) > 0:
+				status = "Active"
+
+			if self.docstatus == 2:
+				self.status = "Cancelled"
+
+			self.status = status
 
 @frappe.whitelist()
 def make_restructure(source_name, target_doc=None):

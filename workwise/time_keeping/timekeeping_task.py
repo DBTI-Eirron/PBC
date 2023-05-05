@@ -17,7 +17,7 @@ def addYears(d, years):
 def addMonths(d, months):
 	return d + relativedelta(months=+months)
 
-def check_condition(condition, diff, value):
+def check_condition(condition, diff, value, from_value = None, to_value = None):
 	result = 0
 	if condition == "equal to":
 		if diff == value:
@@ -33,6 +33,9 @@ def check_condition(condition, diff, value):
 			result = 1
 	if condition == "greater than and equal to":
 		if diff >= value:
+			result = 1
+	if condition == "between":
+		if from_value <= diff <= to_value:
 			result = 1
 	
 	return result
@@ -68,15 +71,37 @@ def check_rundate(method, datesource):
 
 	return result
 
-def automated_leave_balance(is_forced=0):
+def gather_total_lb_entries():
+	result = {}
+	fields=['name', 'employee', 'employee_name', 'posting_date', 'company', 'leave_type', 'balance_type', 
+		'created_from', 'linked_document', 'from_date', 'to_date', 'credits', 'deduct_credits_to']
+
+	lb_entries = frappe.get_all('LB Entry', filters={'created_from': 'LB Scheduler', 'balance_type': 'Add'}, fields=fields)
+	for lb in lb_entries:
+		if lb.employee not in result:
+			result[lb.employee] = {}
+
+		if lb.leave_type not in result[lb.employee]:
+			result[lb.employee][lb.leave_type] = 0
+
+		result[lb.employee][lb.leave_type] += 1
+
+	return result
+
+def automated_leave_balance(is_forced=0, targetdate=None):
 	lb_entries_created = 0
 	created_lb_entries = 0
-	now_date = nowdate()
+	if targetdate:
+		targetdate = getdate(targetdate)
+	else:
+		targetdate = nowdate()
+
+	now_date = targetdate
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
-	year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
+	year_end = getdate(datetime.date(now_date.year, 12, 31))
 
 	#Check for Carry Over Leave Balance
-	carry_overs = get_carryover_lvbal()
+	carry_overs = get_carryover_lvbal(targetdate)
 	for co in carry_overs:
 		if validate_create_lbentry({'employee': co['employee'], 'leave_type': co['leave_type']}):
 			crow = {
@@ -131,108 +156,177 @@ def automated_leave_balance(is_forced=0):
 	#Get leave balance setups
 	if setup_included:
 		setup_cond = ','.join(setup_included)
-		setups = frappe.db.sql(""" SELECT LB.name, LBS.leave_type, LBS.method, LBS.allocation_start, LBS.method_condition, LBS.value, LBS.credits
+		setups = frappe.db.sql(""" SELECT LB.name, LBS.leave_type, LBS.method, LBS.allocation_start, LBS.method_condition, LBS.value, LBS.credits, LBS.from_value, LBS.to_value,
+			LBS.is_continuous, LBS.end_type, LBS.by_count_value, LBS.by_end_of_year, LBS.add_from_movement
 			FROM `tabLeave Balance Setup` LB INNER JOIN `tabLeave Balance Schedule` LBS ON LBS.`parent` = LB.`name` 
 			WHERE LB.`name` IN ("""+setup_cond+""") """, as_dict=1)
 
 	#Get Employee Regularization Date
 	if employee_setup:
-		reg_date = {}
-		empmov = frappe.db.sql(""" SELECT employee, effective_on FROM `tabEmployee Movement` WHERE `movement_type` = 'Regularization' AND docstatus = 1 """, as_dict=1)
-		for reg in empmov:
-			if reg.employee in included_employees:
-				if reg.employee not in reg_date:
-					reg_date[reg.employee] = []
-
-				if getdate(reg.effective_on) <= getdate(now_date):
-					reg_date[reg.employee].append(reg.effective_on)
-
-		for ems in employee_setup:
-			for row in employee_setup[ems]:
-				if row['name'] in reg_date:
-					if reg_date[row['name']]:
-						regularization_date = max(reg_date[row['name']])
-						regularization_date = datetime.datetime.strptime(cstr(getdate(regularization_date)), '%Y-%m-%d')
+		regularization_date_map = employees_regularization_date_map(now_date)
+		if regularization_date_map:
+			for ems in employee_setup:
+				for row in employee_setup[ems]:
+					if row['name'] in regularization_date_map:
+						regularization_date = regularization_date_map[row['name']]
 						row['regularization_date'] = regularization_date
+					else:
+						date_regular = frappe.get_value("Employee", row['name'], 'date_regular')
+						if date_regular:
+							date_regular = getdate(date_regular)
+							row['regularization_date'] = date_regular
 	
+	#Gather total lb entries created per employee
+	total_lb_entries = gather_total_lb_entries()
+
 	#Accumulate LB Entry
 	for d in setups:
 		for e in employee_setup[d.name]:
-			add_credits = 0
-			datehired = None
-			reference = cstr(d.method)+" from Calendar with "+cstr(d.credits)+" credits"
-			#Calendar
-			if not d.allocation_start:
-				add_credits = check_rundate(d.method, now_date)
+			valid_setup = 1
+			is_continuous = 0
+			if d.method == 'Every Month' and d.is_continuous:
+				is_continuous = 1
 
-			if e['date_hired'] and d.allocation_start in ['Date Hired in Years']:
-				reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" "+cstr(d.method_condition)+" "+cstr(d.value)+" with "+cstr(d.credits)+" credits"
-				datehired = getdate(e['date_hired'])
-				datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
-				if getdate(datehired) < getdate(now_date):
-					year_diff = relativedelta(now_date, datehired).years
-					if check_rundate(d.method, now_date):
-						if (d.method_condition and d.value):
-							add_credits = check_condition(d.method_condition, year_diff, d.value)
-						else:
-							add_credits = 1
+			if d.method == 'Every Month' and not d.is_continuous:
+				if d.end_type == 'By Count' and d.by_count_value:
+					if e['name'] in total_lb_entries and d.leave_type in total_lb_entries[e['name']]:
+						lbentry_count = total_lb_entries[e['name']][d.leave_type]
+						if lbentry_count >= d.by_count_value:
+							valid_setup = 0
 
-			if e['regularization_date'] and d.allocation_start in ['Regularization in Years']:
-				reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" "+cstr(d.method_condition)+" "+cstr(d.value)+" with "+cstr(d.credits)+" credits"
-				regular_date = getdate(e['regularization_date'])
-				regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
-				if getdate(regular_date) < getdate(now_date):
-					year_diff = relativedelta(now_date, regular_date).years
-					if check_rundate(d.method, now_date):
-						if (d.method_condition and d.value):
-							add_credits = check_condition(d.method_condition, year_diff, d.value)
-						else:
-							add_credits = 1
+				if d.end_type == 'By End of Year' and d.by_end_of_year:
+					setup_year_end = getdate(str(d.by_end_of_year)+'-12-31')
+					if getdate(targetdate) >= getdate(setup_year_end):
+						valid_setup = 0
 
-			if e['regularization_date'] and d.allocation_start in ['Regular']:
-				reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" with "+cstr(d.credits)+" credits"
-				regular_date = getdate(e['regularization_date'])
-				regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
-				if getdate(regular_date) < getdate(now_date):
-					year_diff = relativedelta(now_date, regular_date).years
+			if d.method == 'Every Anniversary Date':
+				if not (now_date.month == e['date_hired'].month and now_date.day == e['date_hired'].day):
+					valid_setup = 0
+			if valid_setup:
+				add_credits = 0
+				datehired = None
+				reference = cstr(d.method)+" from Calendar with "+cstr(d.credits)+" credits"
+				#Calendar
+				if not d.allocation_start:
 					add_credits = check_rundate(d.method, now_date)
 
-			if add_credits and validate_create_lbentry({'employee': e['name'], 'leave_type': d.leave_type}):
-				row = {
-					"employee": e['name'],
-					"company": e['company'],
-					"posting_date": getdate(now_date),
-					"leave_type": d.leave_type,
-					"balance_type": 'Add',
-					"created_from": 'Leave Balance Setup',
-					"from_date": getdate(now_date),
-					"to_date": year_end,
-					"credits": d.credits,
-					"linked_document": reference,
-				}
-				if is_forced:
-					row['created_from'] = 'LB Scheduler'
-				if validate_duplicate_lbentry(row, is_forced):
-					row["employee_name"] = e['full_name']
-					row["deduct_credits_to"] = None
-					lb = frappe.new_doc("LB Entry")
-					lb.update(row)
-					lb.flags.ignore_permissions = True
-					lb.flags.ignore_validate = True
-					if lb.insert():
-						lb_entries_created = 1
+				if e['date_hired'] and d.allocation_start in ['Date Hired in Years']:
+					reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" "+cstr(d.method_condition)+" "+cstr(d.value)+" with "+cstr(d.credits)+" credits"
+					datehired = getdate(e['date_hired'])
+					datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
+					if getdate(datehired) < getdate(now_date):
+						year_diff = relativedelta(now_date, datehired).years
+						month_diff = relativedelta(now_date, datehired).months
+						if not is_continuous and d.method == 'Every Month':
+							if ((year_diff * 12) + month_diff)>= 13:
+								add_credits = 0
+							else:
+								add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+
+						elif check_rundate(d.method, now_date):
+							if (d.method_condition and d.value):
+								add_credits = check_condition(d.method_condition, year_diff, d.value)
+							else:
+								add_credits = 1
+
+				if e['regularization_date'] and d.allocation_start in ['Regularization in Years']:
+					reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" "+cstr(d.method_condition)+" "+cstr(d.value)+" with "+cstr(d.credits)+" credits"
+					regular_date = getdate(e['regularization_date'])
+					regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
+					if getdate(regular_date) < getdate(now_date):
+						
+						year_diff = relativedelta(now_date, regular_date).years
+						month_diff = relativedelta(now_date, regular_date).months
+						#for d in employees:
+						
+						if is_continuous == 0 and d.method == 'Every Month':
+							if ((year_diff * 12) + month_diff)>= 13:
+								add_credits = 0
+							else:
+								add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+
+						elif check_rundate(d.method, now_date):
+							if (d.method_condition and d.value):
+								add_credits = check_condition(d.method_condition, year_diff, d.value)
+							else:
+								add_credits = 1
+
+				if e['regularization_date'] and d.allocation_start in ['Regular']:
+					reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" with "+cstr(d.credits)+" credits"
+					regular_date = getdate(e['regularization_date'])
+					regular_date = datetime.datetime.strptime(cstr(getdate(regular_date)), '%Y-%m-%d')
+					if getdate(regular_date) < getdate(now_date):
+						year_diff = relativedelta(now_date, regular_date).years
+						month_diff = relativedelta(now_date, regular_date).months
+						if is_continuous == 0 and d.method == 'Every Month':
+							if ((year_diff * 12) + month_diff)>= 13:
+								add_credits = 0
+							else:
+								add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+						else:
+							add_credits = check_rundate(d.method, now_date)
+
+				if e['date_hired'] and d.allocation_start in ['Years in Service'] and d.method in ['Every Anniversary Date']:
+					reference = cstr(d.method)+" from "+cstr(d.allocation_start)+" with "+cstr(d.credits)+" credits"
+					datehired = getdate(e['date_hired'])
+					datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
+					if getdate(datehired) < getdate(now_date):
+						year_diff = relativedelta(now_date, datehired).years
+						month_diff = relativedelta(now_date, datehired).months
+						if is_continuous == 0 and d.method == 'Every Month':
+							if ((year_diff * 12) + month_diff)>= 13:
+								add_credits = 0
+							else:
+								add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+						else:
+							add_credits = check_condition(d.method_condition, year_diff, d.value, d.from_value, d.to_value)
+
+				#if is_continuous:
+				#	add_credits = 1
+				
+				if add_credits and validate_create_lbentry({'employee': e['name'], 'leave_type': d.leave_type}):
+					dates_to_create = [getdate(now_date)]
+					if d.method == 'Every Month' and not d.add_from_movement:
+						retro_lbentry_dates = get_retro_lbentry_dates(e['name'], e['regularization_date'], now_date)
+						if retro_lbentry_dates:
+							dates_to_create = retro_lbentry_dates
+					for lb_date in dates_to_create:
+						row = {
+							"employee": e['name'],
+							"company": e['company'],
+							"posting_date": getdate(lb_date),
+							"leave_type": d.leave_type,
+							"balance_type": 'Add',
+							"created_from": 'Leave Balance Setup',
+							"from_date": getdate(lb_date),
+							"to_date": year_end,
+							"credits": d.credits,
+							"linked_document": reference,
+						}
 						if is_forced:
-							created_lb_entries += 1
+							row['created_from'] = 'LB Scheduler'
+						if validate_duplicate_lbentry(row, is_forced):
+							row["employee_name"] = e['full_name']
+							row["deduct_credits_to"] = None
+							lb = frappe.new_doc("LB Entry")
+							lb.update(row)
+							lb.flags.ignore_permissions = True
+							lb.flags.ignore_validate = True
+							if lb.insert():
+								lb_entries_created = 1
+								if is_forced:
+									created_lb_entries += 1
+					
 
 	if is_forced:
 		create_lb_entry_logs(created_lb_entries)
 
 	return lb_entries_created
 
-def startfrom_datehired(employee, datehired, method, method_condition, value, yearbased):
+def startfrom_datehired(employee, datehired, method, method_condition, value, yearbased, targetdate=None):
 	add_credits = 0
 	if datehired:
-		now_date = nowdate()
+		now_date = nowdate() if not targetdate else getdate(targetdate)
 		now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 		datehired = datetime.datetime.strptime(cstr(getdate(datehired)), '%Y-%m-%d')
 		year_diff, year_diff_res, year_diff_date = get_yeardiff(now_date, datehired)
@@ -256,12 +350,12 @@ def startfrom_datehired(employee, datehired, method, method_condition, value, ye
 
 	return add_credits
 
-def startfrom_regular(employee, method, method_condition, value, yearbased):
+def startfrom_regular(employee, method, method_condition, value, yearbased, targetdate=None):
 	add_credits = 0
-	now_date = nowdate()
+	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
 	reg_date = []
-	empmov = frappe.db.sql(""" SELECT effective_on FROM `tabEmployee Movement` WHERE `movement_type` = 'Regularization' AND `employee` = %s """,(employee), as_dict=1)
+	empmov = frappe.db.sql(""" SELECT effective_on FROM `tabEmployee Movement` WHERE `movement_type` = 'Regularization' AND `employee` = %s AND `docstatus` = 1 """,(employee), as_dict=1)
 	for reg in empmov:
 		if getdate(reg.effective_on) <= getdate(now_date):
 			reg_date.append(reg.effective_on)
@@ -325,11 +419,11 @@ def validate_create_lbentry(entry, data=None):
 
 	return create
 
-def get_carryover_lvbal():
+def get_carryover_lvbal(targetdate=None):
 	result = []
-	now_date = nowdate()
+	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
-	year_end = getdate(datetime.date(datetime.date.today().year, 12, 31))
+	year_end = getdate(datetime.date(now_date.year, 12, 31))
 	pastyear = now_date.year - 1
 	pastdate_start = getdate(str(pastyear)+'-01-01')
 	pastdate_end = getdate(str(pastyear)+'-12-31')
@@ -410,7 +504,7 @@ def validate_duplicate_lbentry(entry, is_forced):
 		row['created_from'] = ['in', ['Carry Over', 'LB Scheduler - Carry Over']]
 		del row['credits']
 
-	lb_list = frappe.db.get_list('LB Entry', filters=row)
+	lb_list = frappe.db.get_all('LB Entry', filters=row)
 	if lb_list:
 		result = 0
 
@@ -433,30 +527,161 @@ def create_lb_entry_logs(entry):
 		"created_by_name": full_name,
 		"button_pressed": 'Force LB Scheduler',
 		"number_created": entry,
+		"user_ip": frappe.local.request_ip,
 	})
 	logs.flags.ignore_permissions = True
 	logs.save()
 
-def holiday_recurring_yearly():
-	now_date = nowdate()
+def holiday_recurring_yearly(targetdate=None):
+	now_date = nowdate() if not targetdate else getdate(targetdate)
 	now_date = datetime.datetime.strptime(cstr(getdate(now_date)), '%Y-%m-%d')
-
+	created_new = []
+	already_created = 0
 	if now_date.day == 01 and now_date.month == 01:
 		holidays = frappe.db.sql(""" SELECT * FROM `tabHoliday` WHERE recurring_yearly = 1 AND YEAR(holiday_date) = %s """,(now_date.year-1), as_dict=1)
+		now_holidays = frappe.db.sql(""" SELECT * FROM `tabHoliday` WHERE recurring_yearly = 1 AND YEAR(holiday_date) = %s """,(now_date.year), as_dict=1)
 		if holidays:
 			for ho in holidays:
-				new_ho = frappe.new_doc("Holiday")
-				new_ho.update({
-					"holiday_name": ho.holiday_name,
-					"holiday_date": getdate(addYears(ho.holiday_date, 1)),
-					"is_special": ho.is_special,
-					"recurring_yearly": ho.recurring_yearly,
-					"description": ho.description,
-					"company": ho.company,
-					"location": ho.location,
-				})
-				new_ho.flags.ignore_permissions = True
-				try:
-					new_ho.save()
-				except Exception as e:
-					pass
+				already_created = 0
+				for nh in now_holidays:
+					if getdate(addYears(ho.holiday_date, 1)) ==  getdate(nh.holiday_date):
+						already_created = 1
+						break
+				if already_created == 0:
+					created_new.append(ho)
+		for cr in created_new:
+			new_ho = frappe.new_doc("Holiday")
+			new_ho.update({
+				"holiday_name": cr.holiday_name,
+				"holiday_date": getdate(addYears(cr.holiday_date, 1)),
+				"is_special": cr.is_special,
+				"recurring_yearly": cr.recurring_yearly,
+				"description": cr.description,
+				"company": cr.company,
+				"location": cr.location,
+				"is_automated": 1,
+			})
+			new_ho.flags.ignore_permissions = True
+			try:
+				new_ho.save()
+			except Exception as e:
+				pass
+
+def fix_approved_on_and_by():
+	application_type_list = ["Official Business Application", "Leave Application", "Overtime Application", "Change Schedule Application", "Excuse Tardiness Application", "Undertime Application", "Compensatory Time Off", "DTR Problem Application", "Timelogs Application"]
+	for app in application_type_list:
+		table = "`tab"+app+"`"
+		table = str(table)
+
+		if app in ['DTR Problem Application', 'Change Schedule Application', 'Timelogs Application']:
+			frappe.db.sql("""UPDATE """+table+""" APP SET APP.`approved_on`=APP.`modified`, APP.`approved_by`=APP.`modified_by`, 
+			APP.`approver_name`=(SELECT TE.`full_name` FROM `tabEmployee` TE WHERE TE.`user_id`=APP.modified_by LIMIT 1), APP.`docstatus`=1
+			WHERE APP.`workflow_state` IN ('Approved', 'Approval in Progress') AND (APP.approved_on IS NULL OR APP.approved_by IS NULL) """)
+		else:
+			frappe.db.sql("""UPDATE """+table+""" APP SET APP.`approved_on`=DATE(APP.`modified`), APP.`approved_by`=APP.`modified_by`, 
+			APP.`approver_name`=(SELECT TE.`full_name` FROM `tabEmployee` TE WHERE TE.`user_id`=APP.modified_by LIMIT 1), APP.`docstatus`=1
+			WHERE APP.`workflow_state` IN ('Approved', 'Approval in Progress') AND (APP.approved_on IS NULL OR APP.approved_by IS NULL) """)
+
+def get_retro_lbentry_dates(employee, effective_on, now_date):
+	#Get date list to create
+	if not effective_on:
+		return None
+
+	datetoday = str(getdate(now_date).year)+'-'+str(getdate(now_date).month)+'-01'
+	dates_to_create = [getdate(datetoday)]
+	if effective_on.month in [1, '01']:
+		dates_to_create.append(getdate(effective_on))
+	monthcount_diff = relativedelta(getdate(now_date), getdate(effective_on)).months
+	monthcount_diff = abs(monthcount_diff)
+	while monthcount_diff >= 0:
+		create_date = getdate(effective_on) + relativedelta(months=+monthcount_diff)
+		create_date = getdate(str(create_date.year)+"-"+str(create_date.month)+"-01")
+		if getdate(effective_on) <= create_date <= getdate(now_date):
+			if create_date not in dates_to_create:
+				dates_to_create.append(create_date)
+		monthcount_diff -= 1
+
+	return dates_to_create
+
+def employees_regularization_date_map(now_date):
+	result = {}
+	reg_date = {}
+	empmov = frappe.db.sql(""" SELECT employee, effective_on FROM `tabEmployee Movement` WHERE `movement_type` = 'Regularization' AND docstatus = 1 """, as_dict=1)
+	for reg in empmov:
+		if reg.employee not in reg_date:
+			reg_date[reg.employee] = []
+
+		if getdate(reg.effective_on) <= getdate(now_date):
+			reg_date[reg.employee].append(reg.effective_on)
+
+	for employee in reg_date:
+		if reg_date[employee]:
+			date_regular = frappe.get_value("Employee", employee, 'date_regular')
+			if date_regular:
+				date_regular = getdate(date_regular)
+				reg_date[employee].append(date_regular)
+			regularization_date = max(reg_date[employee])
+			regularization_date = datetime.datetime.strptime(cstr(getdate(regularization_date)), '%Y-%m-%d')
+			result[employee] = regularization_date
+
+	return result
+
+def check_cto_balance():
+	employees_without_transaction_history = []
+	usectos_without_transaction_history = []
+	filectos_with_balance = []
+	employee_balance_dict = {}
+	cto_dict = {}
+	cto_list = frappe.get_all('Compensatory Time Off', filters={'workflow_state': 'Approved'}, fields=['*'])
+	for cto in cto_list:
+		if cto.employee not in cto_dict:
+			cto_dict[cto.employee] = {
+				'file_total_credits_earned': 0,
+				'file_total_credits_used': 0,
+				'file_total_balance': 0,
+				'use_total_credits_earned': 0,
+				'use_total_required_credits': 0,
+			}
+
+		if cto.type in ['File']:
+			cto_dict[cto.employee]['file_total_credits_earned'] += cto.total_credits_earned
+			cto_dict[cto.employee]['file_total_credits_used'] += cto.total_credits_used
+			cto_dict[cto.employee]['file_total_balance'] += cto.total_balance
+			if cto.total_balance > 0:
+				filectos_with_balance.append(cto.name)
+				if cto.employee not in employee_balance_dict:
+					employee_balance_dict[cto.employee] = {'filectos_with_balance': []}
+				employee_balance_dict[cto.employee]['filectos_with_balance'].append(cto.name)
+		if cto.type in ['Use']:
+			cto_dict[cto.employee]['use_total_credits_earned'] += cto.total_credits_earned
+			cto_dict[cto.employee]['use_total_required_credits'] += cto.total_required_credits
+			cto_table = frappe.db.sql(""" SELECT `name` FROM `tabCompensatory Time Off Table` WHERE `parent`=%s """,(cto.name), as_dict=1)
+			if not cto_table:
+				employees_without_transaction_history.append(cto.employee)
+				usectos_without_transaction_history.append(cto.name)
+
+	for cto_wth in usectos_without_transaction_history:
+		cto_data = filter(lambda k: cto_wth == k['name'], cto_list)
+		if cto_data:
+			cto_data = cto_data[0]
+			total_required_credits = cto_data.total_required_credits
+			remaining_required_credits = flt(total_required_credits, 3)
+			if cto_data.employee in employee_balance_dict:
+				for fcto in employee_balance_dict[cto_data.employee]['filectos_with_balance']:
+					fcto_data = frappe.get_doc('Compensatory Time Off', fcto)
+					if fcto_data:
+						total_balance = fcto_data.total_balance
+						for cto_target in fcto_data.cto_targets:
+							if remaining_required_credits > 0 and cto_target.balance > 0:
+								deduct_cred = min(remaining_required_credits, cto_target.balance)
+								rem_balance = cto_target.balance - deduct_cred
+								if rem_balance < 0:
+									rem_balance = 0
+								frappe.db.sql("""UPDATE `tabCompensatory Time Off Targets` SET credits_used=(credits_used+%s), balance=(balance-%s) WHERE `name`=%s""",(deduct_cred, deduct_cred, cto_target.name) )
+								frappe.db.sql("""UPDATE `tabCompensatory Time Off` SET total_credits_used=(total_credits_used+%s), total_balance=(total_balance-%s) WHERE `name` = %s""",(deduct_cred, deduct_cred, fcto_data.name) )
+								frappe.db.sql(""" INSERT INTO `tabCompensatory Time Off Table` (`name`,`creation`,`modified`,`docstatus`,`parent`,`parentfield`,`parenttype`,`idx`,`date`,`filed_cto`,`balance`,`forfeited_balance`,`credits_used`,`cto_target`) VALUES (SUBSTR(MD5(RAND()), 1, 10),%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) """,(
+									cto_data.creation, cto_data.modified, cto_data.docstatus, cto_data.name, 'use_cto_table', 'Compensatory Time Off', 1, cto_target.target_date, fcto_data.name, rem_balance, 0, deduct_cred, cto_target.name
+								))
+								remaining_required_credits -= deduct_cred
+							else:
+								break;

@@ -11,7 +11,7 @@ from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.application_utils import validate_inactive_employee
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime,
-init_employee_map,complete_sched,change_sched,get_template_map)
+init_employee_map,complete_sched,change_sched,get_template_map, get_multi_breaks)
 from workwise.time_keeping.application_utils import get_user_fullname
 
 class AttendanceProcessing(Document):
@@ -53,7 +53,7 @@ class AttendanceProcessing(Document):
 
 	def validate_period(self):
 		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
-		company, period_stats = frappe.db.get_value("Payroll Period", self.period, ["company", "status"])
+		company, period_stats = frappe.db.get_value("Payroll Period", self.period, ["company", "time_keeping_status"])
 
 		if not self.period:
 			frappe.throw(_("Please Select Payroll Period"))
@@ -76,7 +76,7 @@ class AttendanceProcessing(Document):
 		ss_list = 0
 
 		if employees:
-			pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to", "approval_cutoff"])
+			pay_from, pay_to, approval_cutoff, disable_straight_shift = frappe.db.get_value("Payroll Period", self.period, ["attendance_from", "attendance_to", "approval_cutoff", "disable_straight_shift"])
 			employee_list = self.convert_to_list(employees)
 			data = []
 			ot_list = []
@@ -99,42 +99,54 @@ class AttendanceProcessing(Document):
 				ss_list += 1
 				issue_tag = ""
 				no_work = 1
-				complete_sched(emp_dict, pay_from, pay_to, template_map)
+				all_restday_sched, has_restday = 1, 0
+				complete_sched(emp_dict, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), template_map)
 				change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
 				for sched in emp_dict['schedules']:
-					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
-					cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), entry.get('post_shift'), 
-						entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'), entry)
-					get_sorted_card(entry, cards_in, cards_out)
-					get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), emp_dict.get('ots'), 
-						emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
-					
-					entry['break'] = self.convert_secs(entry['break'])
-					entry['work'] = self.convert_secs(entry['work'])
-					entry['late'] = self.convert_secs(entry['late'])
-					entry['undertime'] = self.convert_secs(entry['undertime'])
-					entry['overtime'] = self.convert_secs(entry['overtime'])
-					entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
-					entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
-					entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
-					entry['earlynightdiff'] = self.convert_secs(entry['earlynightdiff'])
-					entry['latenightdiff'] = self.convert_secs(entry['latenightdiff'])
-					entry['cto'] = self.convert_secs(entry['cto'])
-					entry['ot_early_nd'] = self.convert_secs(entry['ot_early_nd'])
-					entry['ot_late_nd'] = self.convert_secs(entry['ot_late_nd'])
-					ot_list.extend(entry.get('ot_list'))
-					insert_overtime(entry)
-					reg_list.append(entry)
+					if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
+						entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
+						cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
+							entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'), disable_straight_shift)
+						get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
+						get_multi_breaks(entry, cards_in, cards_out)
+						get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
+							emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+						
+						entry['break'] = self.convert_secs(entry['break'])
+						entry['work'] = self.convert_secs(entry['work'])
+						entry['late'] = self.convert_secs(entry['late'])
+						entry['undertime'] = self.convert_secs(entry['undertime'])
+						entry['overtime'] = self.convert_secs(entry['overtime'])
+						entry['overtime_nd'] = self.convert_secs(entry['overtime_nd'])
+						entry['overtime_ex'] = self.convert_secs(entry['overtime_ex'])
+						entry['nightdiff'] = self.convert_secs(entry['nightdiff'])
+						entry['earlynightdiff'] = self.convert_secs(entry['earlynightdiff'])
+						entry['latenightdiff'] = self.convert_secs(entry['latenightdiff'])
+						entry['cto'] = self.convert_secs(entry['cto'])
+						entry['ot_early_nd'] = self.convert_secs(entry['ot_early_nd'])
+						entry['ot_late_nd'] = self.convert_secs(entry['ot_late_nd'])
+						ot_list.extend(entry.get('ot_list'))
+						insert_overtime(entry)
+						reg_list.append(entry)
 
-					#Get Processing Logs
-					if no_work == 1:
-						if entry['work'] > 0:
-							no_work = 0
-						if entry['cto'] > 0:
-							no_work = 0
-						if not entry['is_restday'] and not entry['is_holiday']:
-							if entry['is_absent'] == 0 and entry['is_lwop'] == 0:
+						#Get Processing Logs
+						if no_work == 1:
+							if entry['work'] > 0:
 								no_work = 0
+							if entry['cto'] > 0:
+								no_work = 0
+							if not entry['is_restday'] and not entry['is_holiday']:
+								if entry['is_absent'] == 0 and entry['is_lwop'] == 0:
+									no_work = 0
+
+						if not entry['is_restday']:
+							all_restday_sched = 0
+						if entry['is_restday']:
+							has_restday = 1
+
+				if frappe.db.get_single_value('Timekeeping Settings', 'rdwork_always'):
+					if emp_dict['employee_details']['rate_type'] == 'Monthly Rate' and has_restday:
+						no_work = 0
 
 				if not emp_dict['schedules']:
 					issue_tag += " <span class='label label-danger'> No Schedule </span>"
@@ -159,6 +171,7 @@ class AttendanceProcessing(Document):
 				"no_work": no_work_count,
 				"no_schedule": no_sched_count,
 				"employee_list": employee_log_list,
+				"user_ip": frappe.local.request_ip,
 			})
 			processing_logs.flags.ignore_permissions = True
 			processing_logs.save()
@@ -223,6 +236,14 @@ class AttendanceProcessing(Document):
 					'card_out': reg['card_out'],
 					'tags': reg['tags'],
 					'links': reg['links'],
+					'leave_application_links': str(reg['lv_links']) if reg['lv_links'] else None,
+					'overtime_application_links': str(reg['ot_links']) if reg['ot_links'] else None,
+					'official_business_application_links': str(reg['ob_links']) if reg['ob_links'] else None,
+					'excuse_tardiness_application_links': str(reg['ext_links']) if reg['ext_links'] else None,
+					'undertime_application_links': str(reg['ut_links']) if reg['ut_links'] else None,
+					'dtr_problem_application_links': str(reg['dtrp_links']) if reg['dtrp_links'] else None,
+					'compensatory_time_off_links': str(reg['cto_links']) if reg['cto_links'] else None,
+					'timelogs_application_links': str(reg['tla_links']) if reg['tla_links'] else None,
 				}
 
 				register = frappe.new_doc("Attendance Register")

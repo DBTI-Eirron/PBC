@@ -19,12 +19,13 @@ class BatchEntry(Document):
 			frappe.throw(_("No Employee found"))
 
 	def validate_transaction_type(self):
-		is_bat, is_act = frappe.db.get_value("Transaction Type", self.transaction_type, ["is_batch", "is_active"])
-		if not is_bat:
-			frappe.throw(_("Transaction Type is not Allowed for Batch"))
+		if self.transaction_type:
+			is_bat, is_act = frappe.db.get_value("Transaction Type", self.transaction_type, ["is_batch", "is_active"])
+			if not is_bat:
+				frappe.throw(_("Transaction Type is not Allowed for Batch"))
 
-		if not is_act:
-			frappe.throw(_("Transaction Type is not Active"))
+			if not is_act:
+				frappe.throw(_("Transaction Type is not Active"))
 
 	def remove_duplicates(self):
 		existing_row = []
@@ -69,7 +70,7 @@ class BatchEntry(Document):
 
 		clist, conditions = [], ""
 		if frappe.session.user != "Administrator":
-			clist.append("TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s)")
+			clist.append("(TE.sensitivity IN (SELECT SL.`name` FROM `tabSensitivity Level` SL INNER JOIN `tabSensitivity Users` SU ON SU.parent = SL.`name` WHERE SU.allow_user = %(user)s) OR TE.sensitivity IS NULL)")
 
 		if self.sensitivity_level:
 			clist.append("TE.sensitivity = %(sensitivity)s")

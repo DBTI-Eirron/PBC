@@ -73,7 +73,7 @@ def get_data(filters):
 				`tabOfficial Business Application Table` OBT
 				JOIN `tabOfficial Business Application` OBA 
 			WHERE
-				OBT.`parent` = OBA.`name` AND OBA.`docstatus`=1 AND OBA.`employee` = %(employee)s AND OBT.`target_date` >= %(from)s AND OBT.`target_date` <= %(to)s """,{
+				OBT.`parent` = OBA.`name` AND OBA.`docstatus`=1 AND OBA.`employee` = %(employee)s AND OBT.`target_date` >= %(from)s AND OBT.`target_date` <= %(to)s Order by OBT.`target_date` ASC""",{
 			"to": filters.to_date,
 			"from": filters.from_date,
 			"employee": emp.name,
@@ -117,7 +117,7 @@ def convert_secs(filters, secs):
 
 def get_employees(filters):
 	register = frappe.db.sql("""SELECT `name`, full_name FROM `tabEmployee` 
-		WHERE company = %(company)s {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
+		WHERE company = %(company)s AND is_active = 1 {conditions}""".format(conditions=get_conditions(filters)), filters, as_dict=1)
 
 	return register
 

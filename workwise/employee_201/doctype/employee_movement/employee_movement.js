@@ -6,6 +6,7 @@ cur_frm.add_fetch('employee', 'sensitivity', 'sensitivity_level');
 cur_frm.add_fetch('employee', 'company', 'company');
 cur_frm.add_fetch('employee', 'position_title', 'current_position');
 cur_frm.add_fetch('employee', 'job_level', 'current_job_level');
+cur_frm.add_fetch('employee', 'job_level', 'current_job_level_promotion');
 cur_frm.add_fetch('employee', 'employment_status', 'current_employment_status');
 cur_frm.add_fetch('employee', 'employment_status', 'employment_status');
 cur_frm.add_fetch('employee', 'company', 'current_company');
@@ -15,12 +16,15 @@ cur_frm.add_fetch('employee', 'end_of_contract', 'current_end_of_contract');
 cur_frm.add_fetch('employee', 'date_hired', 'current_date_hired');
 cur_frm.add_fetch('employee', 'rate_type', 'current_rate_type');
 cur_frm.add_fetch('employee', 'cost_center', 'current_cost_center');
+cur_frm.add_fetch('employee', 'job_grade', 'emp_current_job_grade');
+cur_frm.add_fetch('employee', 'date_hired', 'date_hired');
 //cur_frm.add_fetch('employee', 'rate', 'current_rate');
 //cur_frm.add_fetch('employee', 'min_take_home', 'current_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'current_attendance_base');
-
+cur_frm.add_fetch('employee', 'job_grade', 'current_job_grade');
 cur_frm.add_fetch('employee', 'position_title', 'new_position');
 cur_frm.add_fetch('employee', 'job_level', 'new_job_level');
+
 cur_frm.add_fetch('employee', 'employment_status', 'change_employment_status');
 cur_frm.add_fetch('employee', 'position_title', 'current_position_title');
 cur_frm.add_fetch('employee', 'department', 'new_department');
@@ -28,16 +32,21 @@ cur_frm.add_fetch('employee', 'location', 'new_location');
 cur_frm.add_fetch('employee', 'end_of_contract', 'new_end_of_contract');
 cur_frm.add_fetch('employee', 'date_hired', 'new_date_hired');
 cur_frm.add_fetch('employee', 'rate_type', 'new_rate_type');
+cur_frm.add_fetch('employee', 'position_title', 'transfer_cur_position_title');
+cur_frm.add_fetch('employee', 'date_promoted', 'current_date_promoted');
 //cur_frm.add_fetch('employee', 'rate', 'new_rate');
 //cur_frm.add_fetch('employee', 'min_take_home', 'new_minimum_take_home');
 cur_frm.add_fetch('employee', 'is_attendance_base', 'new_attendance_base');
 cur_frm.add_fetch('employee', 'rate_class', 'current_rate_classification');
+cur_frm.add_fetch('employee', 'rate_class', 'new_rate_classification');
+cur_frm.add_fetch('employee', 'cost_center', 'new_cost_center');
+cur_frm.add_fetch('employee', 'job_grade', 'new_job_grade');
 
 frappe.ui.form.on('Employee Movement', {
 	onload: function(frm) {
-		if (frm.doc.__islocal){
-			frm.set_value("employee", "");
-		}
+		//if (frm.doc.__islocal){
+		//	frm.set_value("employee", "");
+		//}
 	},
 	
 	on_submit: function(frm) {
@@ -55,12 +64,45 @@ frappe.ui.form.on('Employee Movement', {
 					doctype_name: "Employee Movement"
 				},
 				callback: function(r) {
-					r.message.forEach(function(item) {
-						frm.add_custom_button(__(item.form_label),
-						function() {
-							window.open("http://"+ item.form_ip +":"+ item.form_port +"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2F"+ item.form_folder +"&reportUnit=%2FReports%2F"+ item.form_name +"&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+					if (r.message){
+						r.message.forEach(function(item) {
+							frm.add_custom_button(__(item.form_label),
+							function() {
+								window.open("http://"+ item.form_ip +":"+ item.form_port +"/jasperserver/flow.html?_flowId=viewReportFlow&_flowId=viewReportFlow&ParentFolderUri=%2F"+ item.form_folder +"&reportUnit=%2FReports%2F"+ item.form_name +"&standAlone=true&j_username=jasperadmin&j_password=jasperadmin&output=pdf&filter1="+frm.doc.name+"");
+							});
 						});
-					});
+					}
+				}
+			});
+		}
+
+		if(frm.doc.movement_type && frm.doc.docstatus != 2 && frm.doc.docstatus != 1){
+			frappe.call({
+				method: "get_custom_fields",
+				doc: frm.doc,
+				callback: function(r){
+					if (r.message){
+						r.message.forEach(function(item) {
+							cur_frm.add_fetch('employee', item.fieldname, item.custom_fieldname);
+						});
+					}
+				}
+			});
+
+			frappe.call({
+				method: "visible_additional_changes",
+				doc: frm.doc,
+				callback: function(r) {
+					if (r.message){
+						r.message['show'].forEach(function(item) {
+							frm.toggle_display(item, true);
+							frm.refresh_fields();
+						});
+						r.message['hide'].forEach(function(item) {
+							frm.toggle_display(item, false);
+							frm.refresh_fields();
+						});
+					}
 				}
 			});
 		}
@@ -90,7 +132,40 @@ frappe.ui.form.on('Employee Movement', {
 		if (frm.doc.movement_type == "Resignation"){
 			frm.trigger("get_resignation");
 		}
+
+	
 		frm.trigger("filter_employees");
+
+		if(frm.doc.movement_type){
+			frappe.call({
+				method: "get_custom_fields",
+				doc: frm.doc,
+				callback: function(r) {
+					if (r.message){
+						r.message.forEach(function(item) {
+							cur_frm.add_fetch('employee', item.fieldname, item.custom_fieldname);
+						});
+					}
+				}
+			});
+
+			frappe.call({
+				method: "visible_additional_changes",
+				doc: frm.doc,
+				callback: function(r) {
+					if (r.message){
+						r.message['show'].forEach(function(item) {
+							frm.toggle_display(item, true);
+							frm.refresh_fields();
+						});
+						r.message['hide'].forEach(function(item) {
+							frm.toggle_display(item, false);
+							frm.refresh_fields();
+						});
+					}
+				}
+			});
+		}
 	},
 
 	get_resignation: function(frm) {
@@ -125,7 +200,7 @@ frappe.ui.form.on('Employee Movement', {
 
 	filter_employees: function(frm) {
 		//Filter Employee
-		if (frm.doc.movement_type == "Job Rotation" || frm.doc.movement_type == "Retirement" || frm.doc.movement_type == "Resignation" || frm.doc.movement_type == "Regularization" || frm.doc.movement_type == "Transfer" || frm.doc.movement_type == "Termination" || frm.doc.movement_type == "Salary Adjustment" || frm.doc.movement_type == "Extension of Services" ){
+		if (frm.doc.movement_type == "Job Rotation" || frm.doc.movement_type == "Retirement" || frm.doc.movement_type == "Resignation" || frm.doc.movement_type == "Regularization" || frm.doc.movement_type == "Transfer" || frm.doc.movement_type == "Termination" || frm.doc.movement_type == "Salary Adjustment"|| frm.doc.movement_type == "Promotion" || frm.doc.movement_type == "Extension of Services" ){
 			cur_frm.set_query("employee", function() {
 				return {
 					"filters": {

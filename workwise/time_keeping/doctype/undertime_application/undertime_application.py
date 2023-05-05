@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import frappe, datetime
 from datetime import datetime
 from frappe import _
-from frappe.utils import nowdate, get_time, flt, add_days, get_datetime
+from frappe.utils import nowdate, get_time, flt, add_days, get_datetime, now, cstr
 from frappe.model.document import Document
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, 
 	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_approver_userperm, validate_cutoff_approval_date, get_employee_details )
@@ -20,6 +20,7 @@ class UndertimeApplication(Document):
 		change_owner(self)
 		self.get_targetdate()
 		self.get_totalhours()
+		self.get_recipients()
 
 	def on_submit(self):
 		validate_approve_own_application(self)
@@ -52,3 +53,17 @@ class UndertimeApplication(Document):
 		from_datetime = get_datetime( str(self.from_date)+" "+ str(self.from_time) )
 		to_datetime = get_datetime( str(self.to_date)+" "+ str(self.to_time) )
 		self.total_hrs = flt(((to_datetime - from_datetime).total_seconds() / 60.0 / 60.0),2)
+
+	def get_recipients(self):
+		recipients = []
+		managers = frappe.db.sql("""SELECT ES.employee, E.user_id FROM `tabEmployee Subordinates` ES 
+			INNER JOIN `tabSubordinates` S ON S.parent = ES.name
+			LEFT JOIN `tabEmployee` E ON ES.employee = E.name
+			WHERE S.subordinate = %s """,(self.employee), as_dict=True)
+		for d in managers:
+			if d.user_id:
+				recipients.append(d.user_id)
+
+		if recipients:
+			send_to = ', '.join(str(x) for x in recipients)
+			self.managers_list = send_to

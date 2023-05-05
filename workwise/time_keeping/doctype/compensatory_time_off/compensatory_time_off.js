@@ -2,6 +2,7 @@
 // For license information, please see license.txt
 cur_frm.add_fetch('employee','full_name','employee_name');
 cur_frm.add_fetch('employee','company','company');
+cur_frm.add_fetch('employee','department','department');
 
 frappe.ui.form.on('Compensatory Time Off', {
 	refresh: function(frm) {
@@ -20,7 +21,7 @@ frappe.ui.form.on('Compensatory Time Off', {
 					['Compensatory Time Off', 'docstatus', '=', 1],
 					['Compensatory Time Off', 'type', '=', 'File'],
 					['Compensatory Time Off', 'employee', '=', frm.doc.employee],
-					['Compensatory Time Off', 'balance', '>', 0],
+					['Compensatory Time Off', 'total_balance', '>', 0],
 					['Compensatory Time Off', 'to_date', '<=', frm.doc.to_date],
 				]
 			}

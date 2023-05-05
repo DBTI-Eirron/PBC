@@ -12,6 +12,12 @@ from workwise.time_keeping.application_utils import get_user_fullname
 
 class WorkScheduleAssignment(Document):
 	def assign_schedule(self):
+		enable_work_sched = frappe.db.get_single_value('Timekeeping Settings', 'enable_work_sched')
+		if enable_work_sched:
+			strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+			validation = self.validate_cutoff()
+			if validation:
+				frappe.throw(_(validation))
 		self.validate_fields()
 		self.validate_inactive_employee()
 		self.validate_self_scheduling()
@@ -21,22 +27,64 @@ class WorkScheduleAssignment(Document):
 		self.validate_schedule_with_csa()
 		return self.create_log(ss_list)
 
+	def validate_cutoff(self):
+		strict_period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+		conditions = []
+		validation_list = []
+		payroll_period = frappe.db.sql("""SELECT * FROM `tabPayroll Period` WHERE `company` = %s""",(self.company), as_dict=True)
+		if self.assignment == "Single":
+			for s_employee in self.single_employee:
+				payroll_schedule, company, period_group = frappe.db.get_value("Employee", s_employee.employee, ["payroll_schedule", "company", "period_group"])
+				for p in payroll_period:
+					if (getdate(p.attendance_from) <= getdate(s_employee.target_date) <= getdate(p.attendance_to)) and p.company == company and p.schedule == payroll_schedule:
+						if strict_period_group:
+							if p.period_group == period_group:
+								if getdate(nowdate()) > getdate(p.approval_cutoff):
+									validation_list.append(_("{0} The date {1} is Beyond Approval Cutoff of Payroll Period {2}").format(s_employee.employee, s_employee.target_date, p.name))
+						else:
+							if getdate(nowdate()) > getdate(p.approval_cutoff):
+								validation_list.append(_("{0} The date {1} is Beyond Approval Cutoff of Payroll Period {2}").format(s_employee.employee, s_employee.target_date, p.name))
+		else:
+			for emp in self.employees:
+				payroll_schedule, company, period_group = frappe.db.get_value("Employee", emp.employee, ["payroll_schedule", "company", "period_group"])
+				for p in payroll_period:
+					if not (getdate(self.from_date) > getdate(p.attendance_to) or getdate(self.to_date) < getdate(p.attendance_from)):
+						if strict_period_group:
+							if p.period_group == period_group:
+								if getdate(nowdate()) > getdate(p.approval_cutoff):
+									validation_list.append(_("{0} The Selected dates is Beyond Approval Cutoff of Payroll Period {1}").format(emp.employee, p.name))
+						else:
+							if getdate(nowdate()) > getdate(p.approval_cutoff):
+								validation_list.append(_("{0} The Selected dates is Beyond Approval Cutoff of Payroll Period {1}").format( emp.employee, p.name))
+
+		return "\n {}".format(" \n ".join(validation_list)) if validation_list else ""
+		
 	def validate_schedule_with_csa(self):
-		csa = frappe.db.sql("""SELECT CSA.name, CSA.employee, CSAT.target_date FROM `tabChange Schedule Application` CSA INNER JOIN `tabChange Schedule Application Table` CSAT ON CSA.name = CSAT.parent
-			WHERE CSA.`docstatus` = 1""", as_dict=True)
+		employees_selected = []
 		if self.assignment == "Single":
 			for s in self.single_employee:
-				for c in csa:
-					if s.employee == c['employee']:
-						if getdate(self.from_date) >= getdate(c['target_date']) >= getdate(self.to_date):
-							frappe.throw(_("Employee %s already have approved Change Schedule Application in %s",c['employee'], c['target_date'] ))
-		
+				employees_selected.append(s.employee)
 		else:
 			for s in self.employees:
-				for c in csa:
-					if s.employee == c['employee']:
-						if getdate(self.from_date) >= getdate(c['target_date']) >= getdate(self.to_date):
-							frappe.throw(_("Employee %s already have approved Change Schedule Application in %s",c['employee'], c['target_date'] ))
+				employees_selected.append(s.employee)
+
+		approved_csa = {}
+		csa = frappe.db.sql("""SELECT CSA.name, CSA.employee, CSAT.target_date FROM `tabChange Schedule Application` CSA INNER JOIN `tabChange Schedule Application Table` CSAT ON CSA.name = CSAT.parent
+			WHERE CSA.`docstatus` = 1 AND CSA.`workflow_state`='Approved'""", as_dict=True)
+		for c in csa:
+			if getdate(self.from_date) <= getdate(c.target_date) <= getdate(self.to_date):
+				if c.employee in employees_selected:
+					if c.employee not in approved_csa:
+						approved_csa[c.employee] = []
+					approved_csa[c.employee].append( str(c.target_date) )
+
+		message = ''
+		if employees_selected and approved_csa:
+			for emp in approved_csa:
+				for td in approved_csa[emp]:
+					message += 'Employee '+emp+' already have approved Change Schedule Application in '+str(td)+'<br>'
+		if message != '':
+			frappe.throw(_( message ))
 						
 	def assign_employee_schedule(self):
 		ss_list = []
@@ -298,6 +346,7 @@ class WorkScheduleAssignment(Document):
 			"date_assigned": getdate(nowdate()),
 			"assigned_by": frappe.session.user,
 			"assigned_by_name": get_user_fullname(self),
+			"user_ip": frappe.local.request_ip,
 		})
 
 		for d in self.employees:

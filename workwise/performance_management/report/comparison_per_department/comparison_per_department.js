@@ -15,6 +15,14 @@ frappe.query_reports["Comparison per Department"] = {
 			"label": __("Department"),
 			"fieldtype": "Link",
 			"options": "Department",
+			"get_query": function() {
+				var company = frappe.query_report_filters_by_name.company.get_value();
+				return{
+					filters: {
+						'company': company
+					}
+				};
+			},
 		},
 	]
 }

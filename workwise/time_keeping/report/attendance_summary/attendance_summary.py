@@ -3,12 +3,12 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
-from frappe.utils import cint, flt, getdate, cstr, add_to_date, get_datetime
+from frappe.utils import cint, flt, getdate, cstr, add_to_date, get_datetime, nowdate
 from frappe import _
 from workwise.time_keeping.timekeeping_utils import add_date, db_datetime_str
 from workwise.time_keeping.attendance_utils import (get_timecard_list, get_schedule, get_holiday_list, get_leave_list, get_shift_map, get_card_within, 
 get_attendance, get_defaults, get_ob_list, get_ot_list, get_ut_list, get_ext_list, get_cto_list, get_sorted_card, get_wss_list, insert_overtime, 
-init_employee_map, complete_sched, change_sched, processed_def_sched, get_template_map)
+init_employee_map, complete_sched, change_sched, processed_def_sched, get_template_map, get_multi_breaks)
 
 def execute(filters=None):
 	columns = get_columns(filters)
@@ -60,8 +60,17 @@ def get_columns(filters):
 			"label": _("Time Out"),
 			"fieldtype": "Data",
 			"width": 140
-		},
-		{
+		},]
+
+	if frappe.db.get_single_value('Timekeeping Settings', 'show_actual_work_hours'):
+		columns += [{
+			"fieldname": "actual_work",
+			"label": _("Actual Work"),
+			"fieldtype": "Float",
+			"width": 60
+		},]
+
+	columns += [{
 			"fieldname": "work",
 			"label": _("Work"),
 			"fieldtype": "Float",
@@ -97,6 +106,19 @@ def get_columns(filters):
 			"fieldtype": "Float",
 			"width": 60
 		},
+	] 
+ 
+	if frappe.db.get_single_value('Timekeeping Settings', 'enable_otndex'): 
+		columns += [ 
+			{ 
+				"fieldname": "overtime_ndex", 
+				"label": _("OTNDEX"), 
+				"fieldtype": "Float", 
+				"width": 60 
+			}, 
+		] 
+ 
+	columns += [ 
 		{
 			"fieldname": "nightdiff",
 			"label": _("ND"),
@@ -151,7 +173,7 @@ def get_columns(filters):
 	]
 
 	if filters.flt_precision:
-		precision_fields = ["work","break","late","overtime","overtime_ex","overtime_nd","nightdiff","cto","undertime"]
+		precision_fields = ["actual_work","work","break","late","overtime","overtime_ex","overtime_nd","overtime_ndex","nightdiff","cto","undertime"] 
 		for d in columns:
 			if d.get('fieldname') in precision_fields:
 				d['precision'] = cint(filters.flt_precision)	
@@ -192,6 +214,7 @@ def get_data(filters):
 	totals = {
 		'card_out': '<b> Totals </b>',
 		'break': 0,
+		'actual_work': 0,
 		'work': 0,
 		'late': 0,
 		'undertime': 0,
@@ -200,6 +223,7 @@ def get_data(filters):
 		'ot_early_nd': 0,
 		'ot_late_nd': 0,
 		'overtime_ex': 0, 
+		'overtime_ndex': 0, 
 		'nightdiff': 0,
 		'earlynightdiff': 0,
 		'latenightdiff': 0,
@@ -207,49 +231,57 @@ def get_data(filters):
 	}
 
 	if employees:
-		pay_from, pay_to, approval_cutoff = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "approval_cutoff"])
+		company = frappe.db.get_value("Employee", filters.employee, ["company"])
+		pay_from, pay_to, approval_cutoff, disable_straight_shift = frappe.db.get_value("Payroll Period", filters.payroll_period, ["attendance_from", "attendance_to", "approval_cutoff", "disable_straight_shift"])
 		employee_list = convert_to_list(employees)
 		template_map = get_template_map()
 		shift_map = get_shift_map()
-		emp_map = init_employee_map(employees, filters.employee, filters.company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		emp_map = init_employee_map(employees, filters.employee, company, pay_from, pay_to, approval_cutoff, filters.show_adjusted)
+		enable_work_sched = frappe.db.get_single_value('Timekeeping Settings', 'enable_work_sched')
 		for emp, emp_dict in sorted(emp_map.items(), key=lambda x: x[1]['employee_name']):
-			complete_sched(emp_dict, pay_from, pay_to, template_map)
+			complete_sched(emp_dict, pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1), template_map)
 			change_sched(emp_dict, emp_dict['schedules'], emp_dict.get('csa'))
-			if not filters.show_adjusted:
+			if not filters.show_adjusted and not (getdate(nowdate()) <= getdate(approval_cutoff) and enable_work_sched):
 				processed_def_sched(emp, pay_from, pay_to, emp_dict['schedules'])
 			for sched in emp_dict['schedules']:
-				entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
-				cards_in, cards_out = get_card_within(entry.get('pre_shift'), entry.get('end_preshift'), 
-					entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'))
-				get_sorted_card(entry, cards_in, cards_out)
-				get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
-					emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
+				if sched['target_date'] not in [pay_from - datetime.timedelta(days=1), pay_to + datetime.timedelta(days=1)]:
+					entry = get_defaults(emp_dict.get('employee_details'), sched, shift_map, emp_dict.get('overrides'))
+					cards_in, cards_out = get_card_within(entry, sched['target_date'], emp_dict['timelogs_map'], emp_dict['schedules'], shift_map, entry.get('pre_shift'), entry.get('end_preshift'), 
+						entry.get('post_shift'), entry.get('end_postshift'), emp_dict.get('timecards'), emp_dict.get('dtrp'), emp_dict.get('tla'), disable_straight_shift)
+					get_sorted_card(entry, cards_in, cards_out, emp_dict['timelogs_map'])
+					get_multi_breaks(entry, cards_in, cards_out)
+					get_attendance(entry, emp_dict.get('overrides'),emp_dict.get('lvs'), emp_dict.get('hls'), emp_dict.get('obs'), 
+						emp_dict.get('ots'), emp_dict.get('uts'), emp_dict.get('ext'), emp_dict.get('cto'), emp_dict.get('wss'), emp_dict.get('dtrp'), emp_dict.get('tla'))
 
-				entry['break'] = convert_secs(filters, entry['break'])
-				totals['break'] += entry['break']
-				entry['work'] = convert_secs(filters, entry['work'])
-				totals['work'] += entry['work']
-				entry['late'] = convert_secs(filters, entry['late'])
-				totals['late'] += entry['late']
-				entry['overtime'] = convert_secs(filters, entry['overtime'])
-				totals['overtime'] += entry['overtime']
-				entry['overtime_nd'] = convert_secs(filters, entry['overtime_nd'])
-				totals['overtime_nd'] += entry['overtime_nd']
-				entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
-				totals['overtime_ex'] += entry['overtime_ex']
-				entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
-				totals['nightdiff'] += entry['nightdiff']
-				if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
-					entry['earlynightdiff'] = convert_secs(filters, entry['earlynightdiff'])
-					totals['earlynightdiff'] += entry['earlynightdiff']
-					entry['latenightdiff'] = convert_secs(filters, entry['latenightdiff'])
-					totals['latenightdiff'] += entry['latenightdiff']
+					entry['break'] = convert_secs(filters, entry['break'])
+					totals['break'] += entry['break']
+					entry['work'] = convert_secs(filters, entry['work'])
+					totals['work'] += entry['work']
+					entry['actual_work'] = convert_secs(filters, entry['actual_work'])
+					totals['actual_work'] += entry['actual_work']
+					entry['late'] = convert_secs(filters, entry['late'])
+					totals['late'] += entry['late']
+					entry['overtime'] = convert_secs(filters, entry['overtime'])
+					totals['overtime'] += entry['overtime']
+					entry['overtime_nd'] = convert_secs(filters, entry['overtime_nd'])
+					totals['overtime_nd'] += entry['overtime_nd']
+					entry['overtime_ex'] = convert_secs(filters, entry['overtime_ex'])
+					totals['overtime_ex'] += entry['overtime_ex']
+					entry['overtime_ndex'] = convert_secs(filters, entry['overtime_ndex']) 
+					totals['overtime_ndex'] += entry['overtime_ndex'] 
+					entry['nightdiff'] = convert_secs(filters, entry['nightdiff'])
+					totals['nightdiff'] += entry['nightdiff']
+					if frappe.db.get_single_value('Payroll Settings', 'nd_rate_class'):
+						entry['earlynightdiff'] = convert_secs(filters, entry['earlynightdiff'])
+						totals['earlynightdiff'] += entry['earlynightdiff']
+						entry['latenightdiff'] = convert_secs(filters, entry['latenightdiff'])
+						totals['latenightdiff'] += entry['latenightdiff']
 
-				entry['undertime'] = convert_secs(filters, entry['undertime'])
-				totals['undertime'] += entry['undertime']			
-				entry['cto'] = convert_secs(filters, entry['cto'])
-				totals['cto'] += entry['cto']
-				data.append(entry)
+					entry['undertime'] = convert_secs(filters, entry['undertime'])
+					totals['undertime'] += entry['undertime']			
+					entry['cto'] = convert_secs(filters, entry['cto'])
+					totals['cto'] += entry['cto']
+					data.append(entry)
 		data.append(totals)
 
 	return data
@@ -280,6 +312,7 @@ def get_current_period():
 	if frappe.db.get_single_value('Timekeeping Settings', 'cur_period_attendance_summary'):
 		employee = frappe.db.sql(""" SELECT `name`, `user_id`, `company`, `payroll_schedule`, `period_group` FROM `tabEmployee` 
 			WHERE user_id = %s AND user_id != "" AND user_id is not null LIMIT 1""",( frappe.session.user ), as_dict=1)
+
 		if employee:
 			periods = frappe.db.sql("""SELECT `name`, `period_group` FROM `tabPayroll Period` WHERE `status` = 'Open'
 				AND (%(date_today)s BETWEEN `attendance_from` AND `attendance_to`) 
@@ -290,10 +323,11 @@ def get_current_period():
 					"period_group": employee[0].period_group
 				}, as_dict=True)
 			if periods:
-				if periods[0].period_group:
-					if employee[0].period_group and employee[0].period_group == periods[0].period_group:
-						period_today = periods[0].name
-				else:
-					period_today = periods[0].name
+				for per in periods:
+					if per.period_group:
+						if employee[0].period_group and employee[0].period_group == per.period_group:
+							period_today = per.name
+					else:
+						period_today = per.name
 
 	return period_today

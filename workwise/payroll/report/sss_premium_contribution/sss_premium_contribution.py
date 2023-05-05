@@ -13,27 +13,50 @@ import os
 def execute(filters=None):
 	columns = get_columns(filters)
 
-	if filters.mpf:
-		transaction_type = ['SSS', 'SSSE', 'SSSC', 'SSSEEMPF', 'SSSERMPF']
-	else: 
-		transaction_type = ['SSS', 'SSSE', 'SSSC']
-	employee_list, gov_map = get_employees(filters,transaction_type)
-	
+	#if filters.mpf:
+	transaction_type = ['SSS', 'SSSE', 'SSSC', 'SSSEEMPF', 'SSSERMPF']
+	#else: 
+	#	transaction_type = ['SSS', 'SSSE', 'SSSC']
+	employee_list, gov_map = get_employees(filters, transaction_type)
 
 	final_employee, final_employer, final_ec, final_total, final_eempf, final_ermpf = 0, 0, 0, 0, 0, 0
-
+	sep_name = frappe.db.get_single_value('Payroll Settings', 'separate_name')
 	data = []
 	for emp in gov_map:
-		row = [gov_map[emp]['employee'], gov_map[emp]['full_name'], gov_map[emp]['sss_no']]
+		if sep_name:
+			row = [gov_map[emp]['employee'], gov_map[emp]['last_name'], gov_map[emp]['first_name'], gov_map[emp]['middle_name'], gov_map[emp]['sss_no']]
+		else:
+			row = [gov_map[emp]['employee'], gov_map[emp]['full_name'], gov_map[emp]['sss_no']]
 		total_sss = 0
 		for trans in transaction_type:
+			to_append = 1
+
+			if not filters.mpf:
+				if trans == "SSS":
+					gov_map[emp][trans] += gov_map[emp]["SSSEEMPF"]
+				if trans == "SSSE":
+					gov_map[emp][trans] += gov_map[emp]["SSSERMPF"]
+
 			sss_amount = gov_map[emp][trans]
 			total_sss += sss_amount
-			row.append(format_precision(sss_amount, filters.value_precision))
+
+			if not filters.mpf:
+				if trans == "SSS":
+					total_sss -= gov_map[emp]["SSSEEMPF"]
+				if trans == "SSSE":
+					total_sss -= gov_map[emp]["SSSERMPF"]
+
+			if not filters.mpf:
+				if trans in ['SSSEEMPF', 'SSSERMPF']:
+					to_append = 0
+
+			if to_append:
+				row.append(format_precision(sss_amount, filters.value_precision))
 
 		if total_sss > 0:
 			final_employee += flt(gov_map[emp]["SSS"])
 			final_employer += flt(gov_map[emp]["SSSE"])
+
 			final_ec += flt(gov_map[emp]["SSSC"])
 			final_total += total_sss
 			if filters.mpf:
@@ -44,13 +67,20 @@ def execute(filters=None):
 		data.append(row)
 	data = sorted(data, key=itemgetter(1))
 	if filters.mpf:
-		final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_eempf, filters.value_precision), format_precision(final_ermpf, filters.value_precision),format_precision(final_total, filters.value_precision)]
+		if sep_name:
+			final = ["<b>Total: </b>","","","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_eempf, filters.value_precision), format_precision(final_ermpf, filters.value_precision),format_precision(final_total, filters.value_precision)]
+		else:
+			final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_eempf, filters.value_precision), format_precision(final_ermpf, filters.value_precision),format_precision(final_total, filters.value_precision)]
 	else:
-		final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_total, filters.value_precision)]
+		if sep_name:
+			final = ["<b>Total: </b>","","","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_total, filters.value_precision)]
+		else:
+			final = ["<b>Total: </b>","", "", format_precision(final_employee, filters.value_precision), format_precision(final_employer, filters.value_precision), format_precision(final_ec, filters.value_precision), format_precision(final_total, filters.value_precision)]
 	data.append(final)
 	return columns, data
 
 def get_columns(filters):
+	sep_name = frappe.db.get_single_value('Payroll Settings', 'separate_name')
 	columns = [
 		{
 			"fieldname": "employee",
@@ -59,12 +89,38 @@ def get_columns(filters):
 			"options": "Employee",
 			"width": 100
 		},
-		{
-			"fieldname": "employee_name",
-			"label": _("Employee Name"),
-			"fieldtype": "Data",
-			"width": 220
-		},
+	]
+	if sep_name:
+		columns += [
+			{
+				"fieldname": "last_name",
+				"label": _("Last Name"),
+				"fieldtype": "Data",
+				"width": 220
+			},
+			{
+				"fieldname": "first_name",
+				"label": _("First Name"),
+				"fieldtype": "Data",
+				"width": 220
+			},
+			{
+				"fieldname": "middle_name",
+				"label": _("Middle Name"),
+				"fieldtype": "Data",
+				"width": 220
+			},
+		]
+	else:
+		columns += [
+			{
+				"fieldname": "employee_name",
+				"label": _("Employee Name"),
+				"fieldtype": "Data",
+				"width": 220
+			},
+		]
+	columns += [
 		{
 			"fieldname": "sss_no",
 			"label": _("SSS Number"),
@@ -118,7 +174,7 @@ def get_columns(filters):
 	return columns
 
 def get_employees(filters,transaction_type):
-	employees = frappe.db.sql("""SELECT PRE.pay_code, PRE.amount, PR.posting_date, PR.employee as `name`, PR.employee_name as full_name, TE.sss_no
+	employees = frappe.db.sql("""SELECT PRE.pay_code, PRE.amount, PR.posting_date, PR.employee as `name`, PR.employee_name as full_name, TE.sss_no, TE.last_name, TE.first_name, TE.middle_name
 		FROM `tabPayroll Register Entries` PRE
 		INNER JOIN `tabPayroll Register` PR ON PRE.`parent` = PR.`name`
 		INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
@@ -141,7 +197,7 @@ def get_employees(filters,transaction_type):
 	gov_map = {}
 	for d in employees:
 		if d.name not in gov_map:
-			type_list.update({"full_name":d.full_name,"sss_no":d.sss_no,"employee":d.name})
+			type_list.update({"full_name":d.full_name,"last_name":d.last_name,"first_name":d.first_name,"middle_name":d.middle_name,"sss_no":d.sss_no,"employee":d.name})
 			gov_map.setdefault(d.name, frappe._dict(type_list))
 		gov_map[d.name][d.pay_code] += flt(d.amount)
 	return employees, gov_map
@@ -172,7 +228,7 @@ def print_txt_file(company,from_date,to_date,period_group):
 		if emp.name not in pr_dict:
 			pr_dict.setdefault(emp.name,frappe._dict({"comp":0.0}))
 
-	pr_entries = frappe.db.sql("""SELECT PR.govt_basic, PR.sss_inc, PR.sss_ded, PR.employee 
+	pr_entries = frappe.db.sql("""SELECT PR.govt_basic, PR.sss_inc, PR.sss_ded, PR.employee, TE.sss_mode
 		FROM `tabPayroll Register` PR
 		INNER JOIN `tabEmployee` TE ON PR.employee = TE.`name`
 		AND PR.company = %(company)s 
@@ -185,14 +241,23 @@ def print_txt_file(company,from_date,to_date,period_group):
 	}, as_dict=True)
 
 	for pr in pr_entries:
-		pr_dict[pr.employee]["comp"] += flt(pr.govt_basic) + (flt(pr.sss_inc) - flt(pr.sss_ded))
+		if pr.sss_mode == "ME Table":
+			pr_dict[pr.employee]["comp"] += flt(pr.govt_basic)
+		else:
+			pr_dict[pr.employee]["comp"] += flt(pr.govt_basic) + (flt(pr.sss_inc) - flt(pr.sss_ded))
+
 
 	f = open('site1.local/public/files/sss.txt','w+')
 	for emp in employees:
 		if emp.date_retired or emp.date_resigned or emp.date_terminated:
 			is_term  = 1
 			if emp.is_active == 0:
-				term_date = emp.date_retired if emp.date_retired else emp.date_resigned if emp.date_resigned else emp.date_terminated
+				if emp.date_retired:
+					term_date = emp.date_retired
+				elif emp.date_resigned:
+					term_date = emp.date_resigned
+				elif emp.date_terminated:
+					term_date = emp.date_terminated
 			else:
 				term_date = emp.date_hired
 		else:

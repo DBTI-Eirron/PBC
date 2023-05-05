@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import frappe, datetime
 from datetime import timedelta, datetime
 from frappe import _
-from frappe.utils import nowdate, cstr, getdate
+from frappe.utils import nowdate, cstr, getdate, get_time, get_datetime
 from frappe.model.document import Document
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, change_owner, get_levelled_approval, 
 	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, validate_approver_userperm, validate_cutoff_approval_date, get_employee_details )
@@ -16,12 +16,14 @@ class DTRProblemApplication(Document):
 		get_employee_details(self)
 		validate_inactive_employee(self)
 		clear_approval_history(self)
+		self.get_target_date()
 		self.update_card_type()
 		self.validate_application()
 		self.get_timekeeping_settings()
+		self.get_recipients()
 		grant_head_subordinate_access(self)
 		change_owner(self)
-		
+
 	def on_submit(self):
 		validate_approve_own_application(self)
 		#enable_employee_approvers = frappe.db.get_single_value('Timekeeping Settings', 'enable_employee_approvers')
@@ -47,6 +49,13 @@ class DTRProblemApplication(Document):
 		get_levelled_approval_rejection(self)
 		#self.revert_request()
 		get_cancelled_by_and_date(self)
+
+	def get_target_date(self):
+		self.target_date = self.dtr_date
+		if self.is_previous:
+			self.target_date = getdate(self.dtr_date) - timedelta(days=1)
+		if self.employee:
+			self.employee_name, self.company, self.department = frappe.db.get_value("Employee", self.employee, ["full_name","company","department"])
 
 	def validate_application(self):
 		if datetime.strptime(str(self.target_date), '%Y-%m-%d').date() > datetime.strptime(str(nowdate()), '%Y-%m-%d').date():
@@ -154,3 +163,20 @@ class DTRProblemApplication(Document):
 		new_timecard.insert(ignore_permissions = True)
 		new_timecard.save(ignore_permissions = True)
 		frappe.db.commit()
+
+	def enable_isprevious(self):
+		return 'true' if frappe.db.get_single_value('Timekeeping Settings', 'is_previous') else 'false'
+
+	def get_recipients(self):
+		recipients = []
+		managers = frappe.db.sql("""SELECT ES.employee, E.user_id FROM `tabEmployee Subordinates` ES 
+			INNER JOIN `tabSubordinates` S ON S.parent = ES.name
+			LEFT JOIN `tabEmployee` E ON ES.employee = E.name
+			WHERE S.subordinate = %s """,(self.employee), as_dict=True)
+		for d in managers:
+			if d.user_id:
+				recipients.append(d.user_id)
+
+		if recipients:
+			send_to = ', '.join(str(x) for x in recipients)
+			self.managers_list = send_to

@@ -11,7 +11,8 @@ from frappe.model.mapper import get_mapped_doc
 class WLDNeeds(Document):
 	def validate(self):
 		self.validate_duplicate_entry()
-		self.prompt_message()
+		if self.docstatus in [0, '0']:
+			self.prompt_message()
 
 	def prompt_message(self):
 		frappe.msgprint('If you are done with this please submit.')

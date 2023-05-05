@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta
 from frappe import _
 from frappe.utils import nowdate, get_time, flt, getdate, get_datetime, cstr
 from frappe.model.document import Document
-from workwise.time_keeping.attendance_utils import get_schedule, get_ob_list
+from workwise.time_keeping.attendance_utils import get_schedule, get_ob_list, get_actual_logs
 from workwise.time_keeping.timekeeping_utils import datetimediff_hrs
 from workwise.time_keeping.application_utils import ( grant_head_subordinate_access, get_approver_and_date, validate_approve_own_application, validate_reject_cancel_own_application, get_overrides, change_owner, get_levelled_approval, 
 	get_levelled_approval_rejection, clear_approval_history, validate_inactive_employee, get_approver_email_list, get_cancelled_by_and_date, get_current_logs, validate_approver_userperm, validate_cutoff_approval_date, get_employee_details)
@@ -22,6 +22,8 @@ class CompensatoryTimeOff(Document):
 		self.js_table_events()
 		self.validate_child_table()
 		self.validate_cto_sumary()
+		self.validate_days_before_filing()
+		self.get_recipients()
 		change_owner(self)
 
 	def on_update(self):
@@ -41,6 +43,7 @@ class CompensatoryTimeOff(Document):
 		validate_cutoff_approval_date(self)
 
 	def before_update_after_submit(self):
+		self.validate_child_table()
 		if self.cto_targets:
 			for d in self.cto_targets:
 				validate_strict_cto(target_date=d.target_date, employee=self.employee, from_time=d.from_time, to_time=d.to_time)
@@ -128,16 +131,21 @@ class CompensatoryTimeOff(Document):
 				from_datetime = None
 				to_datetime = None
 				#Validate Date
+
 				if d.from_date and d.from_time and d.to_date and d.to_time:
 					from_datetime = datetime.strptime(str(d.from_date) + ' ' + str(d.from_time), '%Y-%m-%d %H:%M:%S')
 					to_datetime = datetime.strptime(str(d.to_date) + ' ' + str(d.to_time), '%Y-%m-%d %H:%M:%S')
+					#frappe.throw(_(str(self.to_date)))
+
+
+				#frappe.throw(_(str("{0} {1}").format(from_datetime, to_datetime)))
 		
-				if from_datetime > to_datetime:
+				if self.from_date > self.to_date:
 					frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> File From must be less than File To").format(self.name))
 
 				#Get data
-				d.target_date = get_target_date(from_date=d.from_date, is_previous=d.is_previous)
-				d.cto_hours = get_cto_hours(from_date=d.from_date, to_date=d.to_date, from_time=d.from_time, to_time=d.to_time)
+				d.target_date = get_target_date(from_date=d.to_date, is_previous=d.is_previous)
+				d.cto_hours = get_cto_hours(from_date=d.from_date, to_date=d.to_date, from_time=d.from_time, to_time=d.to_time, todate=self.to_date)
 				d.break_hours = self.get_autobreak_hrs(employee=self.employee, target_date=d.target_date, cto_hours=d.cto_hours)
 				d.cto_hours = d.cto_hours - d.break_hours
 
@@ -176,6 +184,17 @@ class CompensatoryTimeOff(Document):
 		if frappe.db.get_single_value('Timekeeping Settings', 'cto_forfeit'):
 			result = 0
 		return result
+
+	def validate_days_before_filing(self):
+		cto_days_before_filing = frappe.db.get_single_value('Timekeeping Settings', 'cto_days_before_filing')
+		if self.type == 'Use' and cto_days_before_filing:
+			only_from_date = datetime.strptime(str(self.from_date), '%Y-%m-%d') - timedelta(days=flt(cto_days_before_filing, 2))
+			only_to_date = datetime.strptime(str(self.to_date), '%Y-%m-%d') - timedelta(days=flt(cto_days_before_filing, 2))
+			date_list = [only_from_date, only_to_date]
+			for dt in date_list:
+				if getdate(nowdate()) > getdate(dt):
+					frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> You can only file {1} day(s) before {2} ").format(self.name, cto_days_before_filing, self.from_date ))
+					break
 
 	def get_autobreak_hrs(self, **entry):
 		schedule, shifts, autobreak_setup = None, None, None
@@ -220,7 +239,7 @@ class CompensatoryTimeOff(Document):
 			nowyear = datetime.strptime(str(entry['target_date']), '%Y-%m-%d').year
 			year_start = getdate(cstr(nowyear)+'-01-'+'01')
 			year_end = getdate(cstr(nowyear)+'-12-'+'31')
-			cto_validity_condition += " AND (CTT.`target_date` BETWEEN '{0}' AND '{1}') ".format(cstr(year_start), cstr(year_end))
+			current_credits_condition += " AND (CTT.`target_date` BETWEEN '{0}' AND '{1}') ".format(cstr(year_start), cstr(year_end))
 
 		filed_cto = frappe.db.sql(""" SELECT CTT.`credits_earned` - CTT.`credits_used` as balance, CTT.`target_date`, CTT.`name`, 
 			CTT.`credits_earned`, CTT.`credits_used`, CTT.`target_date`, CTT.`parent`
@@ -327,15 +346,31 @@ class CompensatoryTimeOff(Document):
 			if update_cto_table_list:
 				update_cto_table_summary(update_cto_table_list, self.type)
 
+	def get_recipients(self):
+		recipients = []
+		managers = frappe.db.sql("""SELECT ES.employee, E.user_id FROM `tabEmployee Subordinates` ES 
+			INNER JOIN `tabSubordinates` S ON S.parent = ES.name
+			LEFT JOIN `tabEmployee` E ON ES.employee = E.name
+			WHERE S.subordinate = %s """,(self.employee), as_dict=True)
+		for d in managers:
+			if d.user_id:
+				recipients.append(d.user_id)
+
+		if recipients:
+			send_to = ', '.join(str(x) for x in recipients)
+			self.managers_list = send_to
+
 @frappe.whitelist()
 def generate_target_dates(**entry):
 	entries = []
 	dates = []
 	target_table = []
 
-	start = datetime.strptime(str(entry['from_date']), '%Y-%m-%d')
-	end = datetime.strptime(str(entry['to_date']), '%Y-%m-%d')
+	start = datetime.strptime(str(entry['from_date']) + ' ' +entry['from_time'], '%Y-%m-%d %H:%M:%S')
+	end = datetime.strptime(str(entry['to_date']) + ' ' +entry['to_time'], '%Y-%m-%d %H:%M:%S')
 	step = timedelta(days=1)
+	#frappe.throw(_(str("{0} {1}").format(start, end)))
+	#frappe.throw(_(str(start)))
 
 	if (end-start).days <= 30:
 		while start <= end:
@@ -370,7 +405,9 @@ def get_target_date(**entry):
 def get_cto_hours(**entry):
 	total_hrs = 0
 	from_date = datetime.strptime(str(entry['from_date']) + ' ' + str(entry['from_time']), '%Y-%m-%d %H:%M:%S')
-	to_date = datetime.strptime(str(entry['to_date']) + ' ' + str(entry['to_time']), '%Y-%m-%d %H:%M:%S')
+	#to_date = datetime.strptime(str(entry['to_date']) + ' ' + str(entry['to_time']), '%Y-%m-%d %H:%M:%S')
+	to_date = datetime.strptime(str(entry['todate']) + ' ' + str(entry['to_time']), '%Y-%m-%d %H:%M:%S')
+	#frappe.throw(_(str("{0} {1}").format(from_date, to_date)))
 	if from_date <= to_date:
 		total_hrs = (to_date - from_date).total_seconds() / 60 / 60
 
@@ -512,15 +549,21 @@ def file_validate_max_filing(**entry):
 		entry_filing = {}
 		from_date = None
 		to_date = None
+		monthly = None
 
 		for mxf in cto_max_filing:
 			if mxf.frequency == "Daily":
 				from_date = getdate( entry['target_date'] )
 				to_date = getdate( entry['target_date'] )
 
+			if mxf.frequency == "Weekly":
+				from_date = getdate( entry['target_date'] ) - timedelta(days = getdate( entry['target_date'] ).weekday())
+				to_date = getdate(from_date + timedelta(days=6))
+
 			if mxf.frequency == "Monthly":
-				month = int(datetime.strptime(entry['target_date'], "%Y-%m-%d").month)
-				year = int(datetime.strptime(entry['target_date'], "%Y-%m-%d").year)
+				monthly = str(entry['target_date'])
+				month = int(datetime.strptime(monthly, "%Y-%m-%d").month)
+				year = int(datetime.strptime(monthly, "%Y-%m-%d").year)
 
 				from_date = getdate( str(year)+"-"+str(month)+"-01" )
 				to_date = getdate( str(year)+"-"+str(month)+"-"+str(calendar.monthrange(int(year), int(month))[1]) )
@@ -534,10 +577,11 @@ def file_validate_max_filing(**entry):
 
 			if from_date and to_date:
 				filed_apps = frappe.db.sql("""SELECT COUNT(*) as filed_count FROM `tabCompensatory Time Off Targets` CTT JOIN `tabCompensatory Time Off` CTO ON CTT.`parent`=CTO.`name` 
-					WHERE CTO.`docstatus` != 2 AND CTO.`type` = "File" AND CTO.`employee` = %s AND CTT.`target_date` >= %s 
+					WHERE CTO.`docstatus` != 2 AND CTO.`workflow_state` = 'Approved' AND CTO.`type` = "File" AND CTO.`employee` = %s AND CTT.`target_date` >= %s 
 					AND CTT.`target_date` <= %s """,( entry['employee'], getdate(from_date), getdate(to_date) ), as_dict=1)
+				
 				if filed_apps:
-					if int(filed_apps[0].filed_count) > int(mxf.max_count):
+					if int(filed_apps[0].filed_count) >= int(mxf.max_count):
 						frappe.throw(_("<b>Compensatory Time Off: {0}</b><hr> Max {1} File Compensatory Time Off is {2}. You already have {3} filed.").format(entry['application_name'], mxf.frequency, mxf.max_count, filed_apps[0].filed_count))
 
 def file_validate_cto(**entry):

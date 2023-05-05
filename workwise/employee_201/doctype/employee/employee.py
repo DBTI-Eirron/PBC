@@ -51,17 +51,28 @@ class Employee(Document):
 		self.validate_salary()
 		self.validate_bank()
 		self.create_user()
+		self.update_user_role_profile()
 		self.validate_is_qualified_dependent()
 		self.validate_employee_approvers()
 		self.validate_user_status()
 		self.validate_cost_center()
+		self.set_default_name_and_company()
+		if not self.is_active:
+			self.disable_role()
 		if self.job_offer:
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
 			self.update_subordinates()
+		frappe.db.commit()
 
 	def after_insert(self):
 		self.update_subordinates()
+
+	def disable_role(self):
+		if self.user_id:
+			frappe.db.sql("""UPDATE `tabUser` SET `role_profile_name` = '' WHERE `name` = %s """, (self.user_id))
+			frappe.db.sql("""DELETE FROM `tabHas Role` WHERE parent = %s and parenttype = 'User'""", (self.user_id), as_dict=True)
+			frappe.db.commit()
 
 	def validate_cost_center(self):
 		if self.cost_center and self.company:
@@ -79,6 +90,20 @@ class Employee(Document):
 			us.update({ "enabled": 1, })
 			us.save()
 			
+	def update_user_role_profile(self):
+		if frappe.db.get_single_value('System Settings', 'enable_role_profile_setup'):
+			if self.user_id:
+				us = frappe.get_doc("User", self.user_id)
+				if self.role_profile:
+					if us.role_profile_name != self.role_profile:
+						us.update({ "role_profile_name":  self.role_profile, })
+				#else:
+				#	us.update({ 
+				#		"role_profile_name": "",
+				#		"roles": None,
+				#	})
+				us.save()
+			
 	def on_update(self):
 		if self.user_id:
 			self.update_user_permissions()
@@ -86,12 +111,32 @@ class Employee(Document):
 	def update_user_permissions(self):
 		frappe.permissions.add_user_permission("Employee", self.name, self.user_id)
 		frappe.permissions.set_user_permission_if_allowed("Company", self.company, self.user_id)
+		if self.department:
+			frappe.permissions.add_user_permission("Department", self.department, self.user_id)
+			parent_department = frappe.get_value("Department", self.department, "parent_department")
+			if parent_department:
+				frappe.permissions.add_user_permission("Department", parent_department, self.user_id)
+		if self.period_group and self.user_id:
+			exists = 0
+			user_perm = frappe.db.sql(""" SELECT `for_value` FROM `tabUser Permission` WHERE `user` = %s AND `allow` = "Period Group" """,(self.user_id) , as_dict=1)
+			if user_perm:
+				for perm in user_perm:
+					if perm.for_value == self.period_group:
+						exists = 1
+					if perm.for_value != self.period_group:
+						frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(self.user_id),as_dict=True)
+			if not user_perm or not exists:
+				frappe.permissions.add_user_permission("Period Group", self.period_group, self.user_id)
+		if not self.period_group:
+			frappe.db.sql("""DELETE FROM `tabUser Permission` WHERE `user` = %s AND allow = "Period Group" """,(self.user_id),as_dict=True)
 
 	def update_fullname(self):
 		if self.middle_name:
 			self.full_name = self.last_name + ', ' + self.first_name + ' ' + self.middle_name
 		else:
 			self.full_name = self.last_name + ', ' + self.first_name
+		if self.suffix:
+			self.full_name = self.full_name + ', ' + self.suffix + '.'
 
 	def validate_biometric_id(self):
 		if self.biometrics_id and self.is_active:
@@ -150,13 +195,22 @@ class Employee(Document):
 					"send_welcome_mail": 0,
 					"last_name": self.last_name,
 				})
+				if self.role_profile_setup_enabled():
+					user.update({ "role_profile_name": self.role_profile })
 				if user.insert():
 					self.user_id = self.email
 					user = frappe.get_doc("User", self.user_id)
 					user.flags.ignore_permissions = True
-					user.add_roles(self.role)
+					if not self.role_profile_setup_enabled():
+						user.add_roles(self.role)
 					user.save()
 					frappe.defaults.set_user_default("Employee", self.name, self.user_id)
+
+	def set_default_name_and_company(self):
+		if self.user_id:
+			frappe.defaults.set_user_default("Employee", self.name, self.user_id)
+			frappe.defaults.set_user_default("Company", self.company, self.user_id)
+			frappe.defaults.set_user_default("Department", self.department, self.user_id)
 
 	def update_user(self):
 		if self.user_id:
@@ -250,8 +304,10 @@ class Employee(Document):
 			serv_date = getdate(self.date_resigned)
 		if self.date_terminated:
 			serv_date = getdate(self.date_terminated)
-		yrs_in_serv = serv_date.year - dte_hired.year - ((serv_date.month, serv_date.day) < (dte_hired.month, dte_hired.day))
-		self.years_in_service = yrs_in_serv
+
+		if serv_date and dte_hired:
+			yrs_in_serv = serv_date.year - dte_hired.year - ((serv_date.month, serv_date.day) < (dte_hired.month, dte_hired.day))
+			self.years_in_service = yrs_in_serv
 
 	def validate_employee_approvers(self):
 		unique_emp = []
@@ -262,8 +318,8 @@ class Employee(Document):
 			if not is_active:
 				frappe.throw(_("Approver {0}: {1} is not active").format(d.approver, d.approver_name))
 
-			if str(d.approver+d.application+d.level) not in unique_emp:
-				unique_emp.append(str(d.approver+d.application+d.level));
+			if d.approver and d.application and d.level and str(d.approver)+str(d.application)+str(d.level) not in unique_emp:
+				unique_emp.append(str(d.approver)+str(d.application)+str(d.level));
 
 				i = {
 					"approver": d.approver,
@@ -328,6 +384,7 @@ class Employee(Document):
 						"created_from_employee": self.name,
 					})
 					insdoc.flags.ignore_validate = True
+					insdoc.flags.ignore_permissions = True
 					insdoc.save()			
 				else:
 					employee, employee_name, company = frappe.db.get_value("Employee", il, ["name", "full_name", "company"])
@@ -343,6 +400,7 @@ class Employee(Document):
 						"created_from_employee": self.name,
 					})
 					insdoc.flags.ignore_validate = True
+					insdoc.flags.ignore_permissions = True
 					insdoc.insert()
 				sub_list.append(il)
 
@@ -350,6 +408,10 @@ class Employee(Document):
 			if user_list[ch] not in ext_role_list:
 
 				user_perm = frappe.new_doc("User Permission")
+				
+				if not user_list[ch]:
+					frappe.throw(_(str('No user ID for {0}').format(ch)))
+
 				user_perm.update({
 					"allow": "Employee",
 					"for_value": self.name,
@@ -368,6 +430,7 @@ class Employee(Document):
 					if dd.created_from_employee == self.name:
 						deldoc.subordinates.remove(dd)
 			deldoc.flags.ignore_validate = True
+			deldoc.flags.ignore_permissions = True
 			deldoc.save()
 
 		user_deletion = self.convert_list(deletion_list,user_list)
@@ -388,6 +451,12 @@ class Employee(Document):
 			result.append(user_list[emp])
 		return result
 
+	def role_profile_setup_enabled(self):
+		if frappe.db.get_single_value('System Settings', 'enable_role_profile_setup'):
+			return 1
+		else:
+			return 0
+
 @frappe.whitelist()
 def update_user():
 	employees = frappe.db.sql("""SELECT user_id, is_active FROM `tabEmployee`""",as_dict=True)
@@ -400,4 +469,3 @@ def update_user():
 			us = frappe.get_doc("User", emp.user_id)
 			us.update({ "enabled": 1, })
 			us.save()
-

@@ -71,7 +71,12 @@ frappe.query_reports["Payroll Register Report"] = {
 			"fieldname": "hide_zero",
 			"label": __("Hide zero value"),
 			"fieldtype": "Check",
-		},	
+		},
+		{
+			"fieldname": "show_project",
+			"label": __("Show Project"),
+			"fieldtype": "Check",
+		},
 		{
 			"fieldname": "include_header",
 			"label": __("Include Header"),

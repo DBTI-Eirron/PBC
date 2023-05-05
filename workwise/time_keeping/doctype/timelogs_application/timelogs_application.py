@@ -3,7 +3,7 @@
 # For license information, please see license.txt
 
 from __future__ import unicode_literals
-import frappe
+import frappe, datetime
 from frappe import _
 from frappe.utils import nowdate, cstr, getdate
 from frappe.model.document import Document
@@ -20,6 +20,7 @@ class TimelogsApplication(Document):
 		self.get_current_timecard()
 		self.remove_duplicate_entry()
 		change_owner(self)
+		self.get_recipients()
 
 	def on_submit(self):
 		validate_approve_own_application(self)
@@ -112,3 +113,44 @@ class TimelogsApplication(Document):
 		for ue in unique_entries:
 			row = self.append('timelogs', {})
 			row.update(ue)
+
+	def daterange(self, start_date, end_date):
+		for n in range( int((end_date - start_date).days) + 1):
+			yield start_date + datetime.timedelta(n)
+
+	def populate_dates(self):
+		if getdate(self.from_date) > getdate(self.to_date):
+			self.set('timelogs', [])
+
+		if self.from_date and self.to_date and getdate(self.from_date) <= getdate(self.to_date):
+			entries = []
+			for target_date in self.daterange(getdate(self.from_date), getdate(self.to_date)):
+				i = {
+					"target_date": getdate(target_date),
+					"type": "Time In",
+				}
+				entries.append(i);
+				i = {
+					"target_date": getdate(target_date),
+					"type": "Time Out",
+				}
+				entries.append(i);
+
+			self.set('timelogs', [])
+			for ue in entries:
+				row = self.append('timelogs', {})
+				row.update(ue)
+
+	def get_recipients(self):
+		recipients = []
+		managers = frappe.db.sql("""SELECT ES.employee, E.user_id FROM `tabEmployee Subordinates` ES 
+			INNER JOIN `tabSubordinates` S ON S.parent = ES.name
+			LEFT JOIN `tabEmployee` E ON ES.employee = E.name
+			WHERE S.subordinate = %s """,(self.employee), as_dict=True)
+		for d in managers:
+			if d.user_id:
+				recipients.append(d.user_id)
+
+		if recipients:
+			send_to = ', '.join(str(x) for x in recipients)
+			self.managers_list = send_to

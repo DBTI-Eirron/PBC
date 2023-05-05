@@ -4,6 +4,7 @@
 
 from __future__ import unicode_literals
 import frappe, datetime
+from datetime import timedelta, date
 from frappe import msgprint, _
 from frappe.utils import cint, cstr, date_diff, flt, formatdate, getdate, get_link_to_form, comma_or, get_fullname, nowdate, data, add_days, get_time, get_datetime
 from workwise.time_keeping.timekeeping_utils import datediff_days_raw
@@ -62,6 +63,13 @@ class Blanket(Document):
 			self.validate_employee_company()
 			self.validate_duplicate_table_entries()
 
+		elif self.application_type == "Timelogs Application":
+			self.validate_mandatory_fields()
+			self.validate_employee_company()
+			self.validate_duplicate_table_entries()
+			self.validate_timelogs_application()
+			self.remove_tla_duplicate_entry()
+
 	def on_submit(self):
 		if self.application_type == "Leave Application":
 			self.make_leave_application()
@@ -86,6 +94,9 @@ class Blanket(Document):
 
 		elif self.application_type == "Compensatory Time Off":
 			self.make_compensatory_time_off_application()
+
+		elif self.application_type == "Timelogs Application":
+			self.make_timelogs_application()
 
 	#def on_cancel(self):
 	#	if self.application_type == "Leave Application":
@@ -357,6 +368,12 @@ class Blanket(Document):
 			if not self.bctod_table:
 				frappe.throw(_("No Employee"))
 
+		elif self.application_type == "Timelogs Application":
+			if not self.bad_table:
+				frappe.throw(_("No Employee(s)"))
+			if not self.timelogs_application_table:
+				frappe.throw(_("No Details Entered"))
+
 	def validate_employee_company(self):
 		if self.application_type == "Leave Application":
 			for emp in self.get("blad_table"):
@@ -564,20 +581,70 @@ class Blanket(Document):
 
 	def la_get_leave_balance(self):
 		for emp in self.get("blad_table"):
-			deduct = frappe.db.sql(""" SELECT `name`, `deduct_to` FROM `tabLeave Type` LT WHERE `name` = %s LIMIT 1 """, (self.la_leave_type), as_dict=True)
 
-			if deduct:
-				if deduct[0].deduct_to:
-					deduct_balance = deduct[0].deduct_to
+			valid_entry = {}
+			less_entry = {}
+			from_balance = ""
+			add, less, total_balance = 0, 0, 0
+			min_date = None
+			deduct_to = frappe.get_value("Leave Type", self.la_leave_type, "deduct_to")
+			if not deduct_to:
+				deduct_to = self.la_leave_type
+			lb_entries = frappe.db.sql(""" SELECT * FROM `tabLB Entry` WHERE `employee` = %s AND 
+				(`leave_type` = %s OR `deduct_credits_to` = %s) AND `company` = %s ORDER BY `from_date` 
+				ASC """, (emp.employee, deduct_to, deduct_to, self.company), as_dict=1)
+			
+			for d in lb_entries:
+				if d.balance_type == "Add":
+					if deduct_to == d.leave_type:
+						if d.name not in valid_entry:
+							valid_entry[d.name] = {
+								"credits": d.credits,
+								"from": getdate(d.from_date),
+								"to": getdate(d.to_date),
+								"used": 0,
+							}
 				else:
-					deduct_balance = deduct[0].name
-
-			bal = frappe.db.sql("""SELECT `name`, credits, used_credits, from_date, to_date FROM `tabLeave Balance` WHERE employee = %s 
-			AND leave_type = %s AND (%s BETWEEN from_date AND to_date) AND (%s BETWEEN from_date AND to_date) """, (emp.employee, deduct_balance, self.la_from_date, self.la_to_date), as_dict=True)
-
-			if bal:
-				emp.cur_leave_balance = flt(bal[0]['credits'], 2) - flt( bal[0]['used_credits'], 2)
-				emp.from_balance = bal[0]['name']
+					if d.deduct_credits_to == deduct_to:
+						if d.name not in less_entry:
+							less_entry[d.name] = {
+								"used": 0,
+								"credits": d.credits,
+								"from": getdate(d.from_date),
+								"to": getdate(d.to_date),
+							}
+			have_lbentry = 0
+			for vl in valid_entry:
+				for le in less_entry:
+					to_less = 0
+					if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
+						if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+							if less_entry[le]['credits'] > valid_entry[vl]['credits']:
+								to_less += valid_entry[vl]['credits']
+								less_entry[le]['credits'] -= valid_entry[vl]['credits']
+							else:
+								to_less += less_entry[le]['credits']
+								less_entry[le]['used'] = 1
+						valid_entry[vl]['credits'] -= to_less
+				if getdate(valid_entry[vl]['from']) <= getdate(self.la_from_date) and getdate(valid_entry[vl]['to']) >= getdate(self.la_to_date) and valid_entry[vl]['credits'] > 0:
+					if total_balance < self.la_total_leave_days:
+						from_balance += cstr(vl)
+					total_balance += valid_entry[vl]['credits']
+					valid_entry[vl]['used'] = 1
+					have_lbentry = 1
+					
+			if have_lbentry == 1:
+				for vl in valid_entry:
+					if valid_entry[vl]['used'] == 0 and valid_entry[vl]['credits'] > 0:
+						if ( valid_entry[vl]['from'] <= getdate(self.la_from_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.la_from_date) <= valid_entry[vl]['to'] )\
+						or ( getdate(self.la_from_date) <= valid_entry[vl]['from'] <= getdate(self.la_to_date) ) or ( getdate(self.la_from_date) <= valid_entry[vl]['to'] <= getdate(self.la_to_date) ):
+							if total_balance < self.la_total_leave_days:
+								from_balance += cstr(vl)
+							total_balance += valid_entry[vl]['credits']
+							valid_entry[vl]['used'] = 1
+			if total_balance > 0 :
+				emp.cur_leave_balance = total_balance
+				emp.from_balance = from_balance
 			else:
 				emp.cur_leave_balance = 0
 				emp.from_balance = ""
@@ -924,6 +991,10 @@ class Blanket(Document):
 	def make_dtr_problem_application(self):
 		#frappe.throw(_('req.type'))
 		timecard_info = {}
+		target_date = self.dtr_target_date
+		if self.is_previous:
+			target_date = getdate(self.dtr_target_date) - timedelta(days=1)
+		#frappe.throw(_(str(target_date)))
 		for d in self.get("bad_table"):
 			new_dtr_app = frappe.new_doc("DTR Problem Application")
 			new_dtr_app.update({
@@ -931,7 +1002,9 @@ class Blanket(Document):
 				"employee_name": d.full_name,
 				"posting_date": self.posting_date,
 				"company": self.company,
-				"target_date": self.dtr_target_date,
+				"dtr_date": self.dtr_target_date,
+				"target_date": target_date,
+				"is_previous": self.is_previous,
 				"reason": self.dtr_reason,
 				"attachment": self.dtr_attachment,
 				"approved_on": nowdate(),
@@ -1062,3 +1135,145 @@ class Blanket(Document):
 			new_cto.insert()
 			new_cto.save()
 			new_cto.submit()
+
+	def make_timelogs_application(self):
+		for d in self.get("bad_table"):
+			new_tla_app = frappe.new_doc("Timelogs Application")
+			new_tla_app.update({
+				"employee": d.employee,
+				"employee_name": d.full_name,
+				"posting_date": self.posting_date,
+				"company": self.company,
+				"location": self.timelogs_application_location,
+				"reason": self.dtr_reason,
+				"from_date": self.tla_fromdate,
+				"to_date": self.tla_todate,
+				"cost_center": self.timelogs_application_cost_center,
+				"approved_on": nowdate(),
+				"workflow_state": "Approved",
+				"is_blanket": 1,
+				"approved_by": frappe.session.user,
+				"owner": frappe.session.user,
+				"managers_list": self.get_recipients(d.employee),
+			})
+
+			for req in self.timelogs_application_table:
+				row = {
+					"target_date": req.target_date,
+					"type": req.type,
+					"request": req.request,
+					"location": req.location,
+					"cost_center": req.cost_center,
+				}
+				new_tla_app.append('timelogs', row)
+
+			new_tla_app.insert()
+			new_tla_app.save()
+			new_tla_app.submit()
+
+	def tla_fill_location_cost_center(self):
+		if self.get("timelogs_application_table"):
+			for t in self.timelogs_application_table:
+				t.location =  self.timelogs_application_location
+				t.cost_center = self.timelogs_application_cost_center
+
+	def validate_timelogs_application(self):
+		for d in self.bad_table:
+			location_list = []
+			cost_center_list = []
+
+			bio_id = frappe.get_value('Employee', d.employee, 'biometrics_id')
+			if not bio_id:
+				frappe.throw(_("<b>Timelogs Application: {0}</b><hr> Employee {1} has no Biometrics ID").format(d.employee, d.employee_name))
+
+			location = frappe.db.sql("""SELECT `name` FROM `tabLocation` WHERE `company` = %s """, (self.company), as_dict=True)
+			for loc in location:
+				location_list.append(loc.name)
+
+			cost_center = frappe.db.sql("""SELECT `name` FROM `tabCost Center` WHERE `company` = %s """, (self.company), as_dict=True)
+			for cos in cost_center:
+				cost_center_list.append(cos.name)
+
+			if self.timelogs_application_location and self.timelogs_application_location not in location_list:
+				frappe.throw(_( "Invalid Location: "+str(self.timelogs_application_location) ))
+			if self.timelogs_application_cost_center and self.timelogs_application_cost_center not in cost_center_list:
+				frappe.throw(_( "Invalid Cost Center: "+str(self.timelogs_application_cost_center) ))
+			for t in self.timelogs_application_table:
+				if t.location and t.location not in location_list:	
+					frappe.throw(_( "Invalid Location: "+str(t.location) ))
+				if t.location and t.location not in location_list:
+					frappe.throw(_( "Invalid Cost Center: "+str(t.cost_center) ))
+
+				#Get Current Time Card
+				if t.type == "Time In":
+					card_type = 0
+				if t.type == "Time Out":
+					card_type = 1
+				if t.type == "Break In":
+					card_type = 2
+				if t.type == "Break Out":
+					card_type = 3
+
+				current = frappe.db.sql("""SELECT TC.`name`, TC.`time` FROM `tabTime Card` TC INNER JOIN `tabEmployee` TE ON TC.biometrics_id = TE.biometrics_id
+					WHERE TC.`date` = %s AND TC.`card_type` = %s AND TE.`name` = %s LIMIT 1 """, (getdate(t.target_date), card_type, d.employee), as_dict=True)
+				if current:
+					t.current = current[0].time
+				else:
+					t.current = None
+
+				if not t.location:
+					t.location = self.timelogs_application_location
+				if not t.cost_center:
+					t.cost_center = self.timelogs_application_cost_center
+
+	def remove_tla_duplicate_entry(self):
+		unique_ent = []
+		unique_entries = []
+		for req in self.timelogs_application_table:
+			if str(req.target_date)+str(req.type) not in unique_ent:
+				unique_ent.append(str(req.target_date)+str(req.type));
+
+				i = {
+					"target_date": req.target_date,
+					"type": req.type,
+					"request": req.request,
+					"location": req.location,
+					"cost_center": req.cost_center,
+				}	
+				unique_entries.append(i);
+
+		self.set('timelogs_application_table', [])
+		for ue in unique_entries:
+			row = self.append('timelogs_application_table', {})
+			row.update(ue)
+
+	def daterange(self, start_date, end_date):
+		for n in range( int((end_date - start_date).days) + 1):
+			yield start_date + datetime.timedelta(n)
+
+	def tla_populate_dates(self):
+		if getdate(self.tla_fromdate) > getdate(self.tla_todate):
+			self.set('timelogs_application_table', [])
+
+		if self.tla_fromdate and self.tla_todate and getdate(self.tla_fromdate) <= getdate(self.tla_todate):
+			entries = []
+			for target_date in self.daterange(getdate(self.tla_fromdate), getdate(self.tla_todate)):
+				i = {
+					"target_date": getdate(target_date),
+					"type": "Time In",
+					"location":  self.timelogs_application_location,
+					"cost_center": self.timelogs_application_cost_center,
+				}
+				entries.append(i);
+				i = {
+					"target_date": getdate(target_date),
+					"type": "Time Out",
+					"location":  self.timelogs_application_location,
+					"cost_center": self.timelogs_application_cost_center,
+				}
+				entries.append(i);
+
+			self.set('timelogs_application_table', [])
+			for ue in entries:
+				row = self.append('timelogs_application_table', {})
+				row.update(ue)

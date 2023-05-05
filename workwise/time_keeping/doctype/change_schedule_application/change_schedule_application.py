@@ -17,7 +17,6 @@ class ChangeScheduleApplication(Document):
 		#if emp_app < 1:
 		#	self.change_sched()
 		validate_approve_own_application(self)
-		change_owner(self)
 		self.get_recipients()
 		get_approver_and_date(self)
 		get_approver_email_list(self, 'on_submit')
@@ -51,7 +50,10 @@ class ChangeScheduleApplication(Document):
 		clear_approval_history(self)
 		grant_head_subordinate_access(self)
 		self.validate_dates()
-		self.validate_existing_application()
+		if self.workflow_state not in ['Rejected']:
+			self.validate_existing_application()
+		self.get_recipients()
+		change_owner(self)
 
 	def validate_dates(self):
 		unique_ent = []
@@ -60,20 +62,12 @@ class ChangeScheduleApplication(Document):
 		for i in self.change_list:
 			if str(i.target_date) not in unique_ent:
 				unique_ent.append(str(i.target_date));
-
-				entries = {
-				    "target_date": i.target_date,
-			        "current_shift": i.current_shift,
-			        "new_shift": i.new_shift,
-			        "time_in": i.time_in,
-			        "time_out":i.time_out,
-			    }
-				unique_entries.append(entries);
+				unique_entries.append(i);
 
 		self.set('change_list', [])
 		for ue in unique_entries:
-			row = self.append('change_list', {})
-			row.update(ue)
+			self.append('change_list', ue)
+			#row.update(ue)
 		
 	def validate_existing_application(self):
 		for i in self.change_list:
@@ -218,8 +212,8 @@ class ChangeScheduleApplication(Document):
 		self.set('change_list', [])
 		
 		for d in entries:
-			row = self.append('change_list', {})
-			row.update(d)
+			self.append('change_list', d)
+			#row.update(d)
 
 		self.get_shift()
 

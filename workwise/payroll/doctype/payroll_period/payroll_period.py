@@ -12,7 +12,8 @@ from frappe.model.document import Document
 
 class PayrollPeriod(Document):
 	def autoname(self):
-		pay_year = getdate(self.payroll_date).strftime("%Y")
+		#pay_year = getdate(self.payroll_date).strftime("%Y")
+		pay_year = self.payroll_year
 		from_year = getdate(self.from_date).strftime("%Y")
 		from_month = getdate(self.from_date).strftime("%b")
 		from_day = getdate(self.from_date).strftime("%d")
@@ -30,13 +31,21 @@ class PayrollPeriod(Document):
 		self.validate_frequency()
 		self.validate_approval_cutoff()
 		self.validate_period_group()
+		self.validate_payroll_period()
+
+	def validate_payroll_period(self):
+		validate_payroll_date = frappe.db.get_single_value('Payroll Settings', 'validate_payroll_date')
+		if getdate(self.payroll_date) <= getdate(self.attendance_from) and validate_payroll_date:
+			frappe.throw(_("Payroll Date should be higher than the cut-off dates."))
+		if getdate(self.payroll_date) <= getdate(self.attendance_to) and validate_payroll_date:
+			frappe.throw(_("Payroll Date should be higher than the cut-off dates."))
 
 	def validate_approval_cutoff(self):
 		if getdate(self.approval_cutoff) <= getdate(self.attendance_to):
 			frappe.throw(_("Last Cutoff Date of Approval should be greater than To Date"))
 
 	def validate_frequency(self):
-		if self.schedule == "Monthly":
+		if self.schedule == "Monthly" and not self.is_special:
 			self.frequency = "2nd"
 			frappe.msgprint("Frequency Changed to ( 2nd ) because Schedule was set to Monthly")
 
@@ -52,7 +61,11 @@ class PayrollPeriod(Document):
 			self.validate_duplicate_set()
 
 		if self.is_special:
-			self.frequency = "Special"
+			if self.frequency != "Special":
+				frappe.throw(_(str("Frequency must be Special")))
+
+		if self.frequency == "Special":
+			self.is_special = 1
 
 	def validate_duplicate_set(self):
 		duplicate = frappe.db.sql(""" SELECT `name` FROM `tabPayroll Period` 
@@ -61,10 +74,24 @@ class PayrollPeriod(Document):
 			frappe.throw(_("{0} Frequency already exist in {1} Weekly Set").format(self.frequency ,self.weekly_set))
 
 	def validate_period_group(self):
-		period_group = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
-		if period_group:
+		strict_pg = frappe.db.get_single_value('Payroll Settings', 'strict_period_group')
+		if strict_pg:
 			if not self.period_group:
 				frappe.throw("Period Group is Required for Strict use of Period Group")
+
+		if self.period_group and self.schedule == "Weekly":
+			if self.weekly_set:
+				wkpg = frappe.db.get_value("Weekly Set", self.weekly_set, "period_group")
+				if not wkpg:
+					frappe.throw(_("Period Group for Weekly Set is required if Period Group is set"))
+				else:
+					if wkpg != self.period_group:
+						frappe.throw(_("Invalid Weekly Set {0}, Weekly Set is for Period Group {1}").format(self.weekly_set, wkpg))
+
+		if self.weekly_set and not self.period_group:
+			wkpg_x = frappe.db.get_value("Weekly Set", self.weekly_set, "period_group")
+			if wkpg_x:
+				frappe.throw(_("Period Group is required for Weekly Set with Period Group"))
 
 	def validate_days(self):
 		if not self.is_special:
@@ -125,11 +152,11 @@ class PayrollPeriod(Document):
 				to_less = 0
 				for le in less_entry:
 					if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
-						if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+						if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ) or (valid_entry[vl]['from'] <= getdate(self.from_date) <= getdate(self.to_date)):
 							to_less += less_entry[le]['credits']
 							less_entry[le]['used'] = 1
 				valid_entry[vl]['credits'] -= to_less
-				if ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ):
+				if ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] or (valid_entry[vl]['from'] <= getdate(self.from_date) <= getdate(self.to_date)) ):
 					total_balance += valid_entry[vl]['credits']
 
 			if total_balance <= 0:
@@ -176,12 +203,16 @@ class PayrollPeriod(Document):
 					if register:
 						letter_head = frappe.db.get_value("Company", emp.company, "default_letter_head")
 						
-						loan = frappe.db.sql("""SELECT LA.loan_type, LA.loan_amount, 
-							(SELECT COUNT(`name`) FROM `tabLoan Application Payments` WHERE parent = LA.`name` and payment_status = 'Paid' and payment_date <= %s) as count, 
-							(SELECT SUM(`payment_amount`) FROM `tabLoan Application Payments` WHERE parent = LA.`name` and payment_status = 'Paid' and payment_date <= %s) as paid_amount 
-							FROM `tabLoan Application` LA 
-							WHERE LA.docstatus = 1 and LA.employee = %s and LA.on_hold = 0 and (LA.unpaid_amount > 0 or paid_amount > 0)
-							""",(self.payroll_date,self.payroll_date,emp.name),as_dict=True)
+						loan = frappe.db.sql("""SELECT PRE.pay_code, LA.unpaid_amount, LA.total_loan, LA.paid_amount,
+						(SELECT COUNT(`name`) FROM `tabLoan Application Payments` WHERE parent = PRE.linked_document and payment_status = 'Paid' and payment_date <= %(pdate)s) as count
+						FROM `tabPayroll Register`  PR
+						INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
+						INNER JOIN `tabLoan Application` LA ON LA.name = PRE.linked_document
+		 				WHERE PRE.entry_type = 'Loan' AND PR.period = %(period)s and PR.employee = %(employee)s """,{
+							"pdate":self.payroll_date,
+							"period": self.name,
+							"employee": emp.name,
+						}, as_dict=True)
 
 						leaves = self.get_leave_balance(balances,leave_type,emp.name)
 
@@ -190,14 +221,15 @@ class PayrollPeriod(Document):
 							"owner": emp.user_id, "employee": emp.name, "payroll_period": self.name, 
 							"employee_name": emp.full_name, "company": emp.company,
 							"sss_no": emp.sss_no, "phic_no": emp.phic_no, "hdmf_no": emp.hdmf_no, "tin": emp.tin
-						});
+						})
 
 						for ln in loan:
 							ps.append("loan", {
-								"loan_type": ln.loan_type,
+								"loan_type": ln.pay_code,
 								"number_payment": ln.count,
 								"paid_amount":ln.paid_amount,
-								"loan_amount":ln.loan_amount,
+								"loan_amount":ln.total_loan,
+								"outstanding_balance":ln.unpaid_amount,
 							})
 
 						for lv in leaves:
@@ -212,11 +244,13 @@ class PayrollPeriod(Document):
 								ps.append("payslip_incomes", {
 									"description": d.pay_description,
 									"amount": d.amount,
+									"pay_time": d.pay_time,
 								})
 							elif d.pay_type == "Deduction":
 								ps.append("payslip_deductions", {
 									"description": d.pay_description,
 									"amount": d.amount,
+									"pay_time": d.pay_time,
 								})
 
 							payroll_date = d.posting_date
@@ -234,5 +268,3 @@ class PayrollPeriod(Document):
 						ps.insert()
 				
 				msgprint("Payslips Created")
-
-	
