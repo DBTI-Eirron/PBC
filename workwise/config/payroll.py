@@ -350,7 +350,7 @@ def get_data():
 					"name": "Government Certificate",	
 				},{
 					"type": "doctype",
-					"name": "BIR1601 C Form",	
+					"name": "BIR1601c Form",	
 				},{
 					"type": "doctype",
 					"name": "BIR2316 Generator",	
