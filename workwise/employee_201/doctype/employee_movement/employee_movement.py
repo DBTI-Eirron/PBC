@@ -53,6 +53,7 @@ class EmployeeMovement(Document):
 		cmd_move(process="validate")
 
 	def update_movement(self):
+		#frappe.trow(_(str('here')))
 
 		if getdate(self.effective_on) <= getdate(today()):
 
@@ -265,6 +266,8 @@ class EmployeeMovement(Document):
 					"rate_class": self.new_rate_classification,
 					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
 				})
+
+
 			self.save_employee(emp)
 
 		elif process == "revert":
@@ -299,6 +302,7 @@ class EmployeeMovement(Document):
 					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
 					"date_promoted": self.effective_on,
 				})
+			emp.save()
 			self.save_employee(emp)
 
 		elif process == "revert":
@@ -350,6 +354,7 @@ class EmployeeMovement(Document):
 
 		elif process == "update":
 			emp = frappe.get_doc("Employee", self.employee)
+
 			emp.update({
 					"is_active": 0,
 					"date_contract_ended": self.effective_on,
@@ -434,19 +439,22 @@ class EmployeeMovement(Document):
 	def save_employee(self, emp):
 		self.add_additional_changes(emp, actiontype='save')
 
-		if emp.save():
-			self.is_processed = 1
-			self.date_processed = today()
+		#if emp.save():
+		self.is_processed = 1
+		self.date_processed = today()
+			
 
-			if self.movement_type in ["Resignation", "Termination", "Retirement", "End of Contract"]:
-				frappe.db.commit()
-				self.remove_employee_subordinates()
-				self.remove_employee_as_approver()
+		if self.movement_type in ["Resignation", "Termination", "Retirement", "End of Contract"]:
+			frappe.db.commit()
+			self.remove_employee_subordinates()
+			self.remove_employee_as_approver()
 
 	def revert_employee(self, emp):
 		self.add_additional_changes(emp, actiontype='revert')
 
+
 		if emp.save():
+
 			self.is_processed = 0
 			self.date_processed = today()
 
@@ -617,6 +625,7 @@ class EmployeeMovement(Document):
 
 @frappe.whitelist()
 def run_effective_movement():
+
 	valid = 0
 	invalid = 0
 	movements = frappe.db.sql(""" SELECT `effective_on`, `name` FROM `tabEmployee Movement` WHERE effective_on<=%s AND is_processed!=1 AND docstatus=1 ORDER BY `modified` ASC """,(today()),as_dict=True)
