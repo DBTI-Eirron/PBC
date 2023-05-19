@@ -63,6 +63,10 @@ class Employee(Document):
 			frappe.db.sql(""" Update `tabOffer Letter` SET apply_type='Completed' where `name`=%s""", (self.job_offer))
 		if not self.is_new():
 			self.update_subordinates()
+		if self.ot_strict_logs:
+			time_ot_strict_logs = frappe.db.get_single_value('Timekeeping Settings', 'ot_strict_logs')
+			if time_ot_strict_logs:
+				frappe.throw(_(str("Overtime Strict Logs has been setup in Timekeeping Settings")))
 		frappe.db.commit()
 
 	def after_insert(self):
