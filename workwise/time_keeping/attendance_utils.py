@@ -11,7 +11,6 @@ def get_attendance(entry, overrides, leaves, holidays, obs, ots, uts, ext, cto, 
 #				entry['is_dtrp'] = 1
 #				if dt['name'] not in entry['dtrp_links']:
 #					entry['dtrp_links'].append(dt['name'])
-
 	if tla:
 		for tl in tla:
 			if tl['target_date'] == entry['target_date']:
@@ -329,6 +328,8 @@ def get_overtime(entry, ot_apps):
 	min_ot_mins = frappe.db.get_single_value('Timekeeping Settings', 'min_ot_mins')
 	enable_otndex = frappe.db.get_single_value('Timekeeping Settings', 'enable_otndex')
 	ded_brk_otreg = frappe.db.get_single_value('Timekeeping Settings', 'ded_brk_otreg')	
+	emp_ot_strict_logs = frappe.db.get_value("Employee", entry['employee'], "ot_strict_logs")
+	
 	to_hrs, from_hrs, break_mins = 0, 0, 0
 	entry["ot_card_in"], entry["ot_card_out"], entry["ot_ob_in"], entry["ot_ob_out"] = "","","",""
 
@@ -434,7 +435,8 @@ def get_overtime(entry, ot_apps):
 							entry['undertime'] = 0
 	
 				#Always follow whichever is lower between card_out and ot_out
-				if entry.get('ot_strict_logs'):
+				#frappe.throw(_(str(emp_ot_strict_logs)))
+				if entry.get('ot_strict_logs') or emp_ot_strict_logs:
 					if ot_in < entry.get('time_in') and ot_out >  entry.get('time_out') and not entry.get('is_restday') and not entry.get('is_holiday'):
 						ots = [{'ot_in': ot_in, 'ot_out': entry.get('time_in')}, {'ot_in': entry.get('time_out'), 'ot_out': ot_out}]
 					
@@ -545,19 +547,21 @@ def get_overtime(entry, ot_apps):
 
 								per_time_with_ot.append({"ot_in": ot_start, "ot_out": ot_end})
 
-				if not per_time_with_ot and entry.get('ot_strict_logs'):
+				if not per_time_with_ot and (entry.get('ot_strict_logs') or emp_ot_strict_logs):
 					if ot_in and ot_out:
 						per_time_with_ot.append({
 							"ot_in": ot_in,
 						 	"ot_out": ot_in
 						})
 
-				if not entry.get('ot_strict_logs'):
+
+				if not entry.get('ot_strict_logs') and not emp_ot_strict_logs:
 					if ot_in and ot_out:
 						per_time_with_ot.append({
 							"ot_in": ot_in,
 						 	"ot_out": ot_out
 						})
+				#frappe.throw(_(str(per_time_with_ot)))
 				for o in per_time_with_ot:
 					ot_in = o['ot_in']
 					ot_out = o['ot_out']

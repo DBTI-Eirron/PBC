@@ -11,6 +11,10 @@ class TimekeepingSettings(Document):
 	def validate(self):
 		self.validate_employee_approvers()
 		self.validate_section_cto()
+		if self.ot_strict_logs:
+			emp_ot_strict_logs = frappe.db.sql(""" SELECT `name` FROM `tabEmployee` WHERE `ot_strict_logs` = 1 """, as_dict=1)
+			if emp_ot_strict_logs:
+				frappe.throw(_(str("Overtime Strict Logs has been setup in Employee 201")))
 
 	#Enable Employee Approvers
 	def validate_employee_approvers(self):

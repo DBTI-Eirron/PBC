@@ -42,7 +42,6 @@ frappe.ui.form.on('Leave Application', {
 				doc: frm.doc,
 				callback: function(r) {
 					frm.refresh_field("leave_application_table");
-					frm.refresh_fields();
 				}
 			});
 		} 
