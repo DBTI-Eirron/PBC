@@ -168,6 +168,7 @@ class PayrollPeriod(Document):
 				FROM tabEmployee WHERE `name` IN (SELECT employee FROM `tabPayroll Register` WHERE period = %s ) AND on_hold != 1  ORDER BY last_name, first_name  """, self.name,as_dict=1)
 
 				for emp in employees:
+					
 					payroll_date, net_payroll, total_incomes, total_deductions = "", 0, 0, 0
 					register = frappe.db.sql(""" SELECT PRE.*, PR.on_hold, PR.posting_date, PR.net_payroll, PR.total_deduction, PR.total_income FROM `tabPayroll Register`  PR
 						INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
@@ -175,7 +176,6 @@ class PayrollPeriod(Document):
 							"period": self.name,
 							"employee": emp.name,
 						}, as_dict=True)
-
 
 
 					if register:
@@ -244,5 +244,7 @@ class PayrollPeriod(Document):
 							"total_deduction": total_deductions
 						});
 						ps.insert()
+
 				
 				msgprint("Payslips Created")
+
