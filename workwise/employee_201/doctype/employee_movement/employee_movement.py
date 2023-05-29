@@ -22,6 +22,7 @@ class EmployeeMovement(Document):
 			validate_inactive_employee(self)
 		if self.movement_type in ["Rehire"]:
 			validate_active_employee(self)
+
 		self.validate_movement()
 
 	def before_submit(self):
@@ -53,7 +54,6 @@ class EmployeeMovement(Document):
 		cmd_move(process="validate")
 
 	def update_movement(self):
-		#frappe.trow(_(str('here')))
 
 		if getdate(self.effective_on) <= getdate(today()):
 
@@ -64,7 +64,11 @@ class EmployeeMovement(Document):
 
 			if self.movement_type == 'Salary Adjustment':
 				self.cmd_salary_adjustment(process="update")
-			else:
+
+			elif self.movement_type == 'Regularization':
+				self.cmd_regularization(process="update")
+			
+			elif self.movement_type == 'Job Rotation':
 				self.cmd_job_rotation(process="update")
 
 	def revert_movement(self):
@@ -92,8 +96,8 @@ class EmployeeMovement(Document):
 					"position_title": self.change_position_title if self.change_position_title else self.current_position,
 					"job_level": self.new_job_level_promotion if self.new_job_level_promotion else self.current_job_level,
 					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
+					"rate": self.new_rate if self.new_rate else self.current_rate
 				})
-
 
 				self.cmd_salary_adjustment(process="update")
 			else:
@@ -101,9 +105,12 @@ class EmployeeMovement(Document):
 						"position_title": self.new_position if self.new_position else self.current_position,
 						"job_level": self.new_job_level if self.new_job_level else self.current_job_level,
 						"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
-					})
+						"rate": self.new_rate if self.new_rate else self.current_rate
+				})
+			emp.save()
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
+			
 
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)
@@ -112,6 +119,7 @@ class EmployeeMovement(Document):
 					"job_level": self.current_job_level,
 					"job_grade": self.current_job_grade,
 				})
+			emp.save()
 			self.revert_employee(emp)
 			self.cmd_salary_adjustment(process=process)
 
@@ -129,7 +137,7 @@ class EmployeeMovement(Document):
 				"reports_to": None,
 				"approvers": None,
 			})
-
+			emp.save()
 			self.save_employee(emp)
 
 		elif process == "revert":
@@ -139,6 +147,7 @@ class EmployeeMovement(Document):
 					"is_active": 1,
 					"date_retired": "",
 			})
+			emp.save()
 
 			self.revert_employee(emp)
 
@@ -156,7 +165,9 @@ class EmployeeMovement(Document):
 				"reports_to": None,
 				"approvers": None,
 			})
+			emp.save()
 			self.save_employee(emp)
+			
 
 		elif process == "revert":
 			emp = frappe.get_doc("Employee", self.employee)
@@ -165,7 +176,11 @@ class EmployeeMovement(Document):
 					"is_active": 1,
 					"date_resigned": "",
 				})
+			emp.save()
 			self.revert_employee(emp)
+			emp.save()
+
+
 
 	def cmd_regularization(self, process):
 		if process == "validate":			
@@ -177,8 +192,10 @@ class EmployeeMovement(Document):
 					"employment_status": self.change_employment_status if self.change_employment_status else self.current_employment_status,
 					"is_active": 1,
 					"position_title": self.change_position_title if self.change_position_title else self.current_position_title,
-					"date_regular": self.effective_on
+					"date_regular": self.effective_on,
+					"rate": self.new_rate if self.new_rate else self.current_rate
 				})
+			emp.save()
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
 			self.create_lb_entry()
@@ -191,6 +208,7 @@ class EmployeeMovement(Document):
 					"position_title": self.current_position_title,
 					"date_regular": ""
 				})
+			emp.save()
 			self.revert_employee(emp)
 			self.cmd_salary_adjustment(process=process)
 
@@ -208,8 +226,10 @@ class EmployeeMovement(Document):
 				"department": self.new_department if self.new_department else self.current_department,
 				"location": self.new_location if self.new_location else self.current_location,
 				"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
+				"cost_center": self.new_cost_center if self.new_cost_center else self.current_cost_center,
 			})
 
+			emp.save()
 			self.save_employee(emp)
 			self.cmd_salary_adjustment(process=process)
 
@@ -220,9 +240,12 @@ class EmployeeMovement(Document):
 				"company": self.current_company,
 				"department": self.current_department,
 				"location": self.current_location,
+				"cost_center":  self.current_cost_center,
 			})
+			emp.save()
 			self.revert_employee(emp)
 			self.cmd_salary_adjustment(process=process)
+
 
 	def cmd_termination(self, process):
 		if process == "validate":
@@ -238,6 +261,7 @@ class EmployeeMovement(Document):
 				"reports_to": None,
 				"approvers": None,
 			})
+			emp.save()
 			self.save_employee(emp)
 
 
@@ -248,6 +272,7 @@ class EmployeeMovement(Document):
 					"is_active": 1,
 					"date_terminated": "",
 				})
+			emp.save()
 			self.revert_employee(emp)
 
 	def cmd_salary_adjustment(self, process):
@@ -267,7 +292,7 @@ class EmployeeMovement(Document):
 					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
 				})
 
-
+			emp.save()
 			self.save_employee(emp)
 
 		elif process == "revert":
@@ -301,6 +326,7 @@ class EmployeeMovement(Document):
 					"rate_class": self.new_rate_classification,
 					"job_grade": self.new_job_grade if self.new_job_grade else self.current_job_grade,
 					"date_promoted": self.effective_on,
+					"job_level": self.new_job_level_promotion if self.new_job_level_promotion else self.current_job_level_promotion
 				})
 			emp.save()
 			self.save_employee(emp)
@@ -318,7 +344,9 @@ class EmployeeMovement(Document):
 					"rate_class": self.current_rate_classification,
 					"job_grade": self.current_job_grade,
 					"date_promoted": self.current_date_promoted,
+					"job_level": self.current_job_level_promotion
 				})
+			emp.save()
 			self.revert_employee(emp)
 
 	def cmd_extension_of_services(self, process):
@@ -336,6 +364,7 @@ class EmployeeMovement(Document):
 					"date_hired": self.new_date_hired if self.new_date_hired else self.current_date_hired,
 					"employment_status": self.new_employment_status if self.new_employment_status else self.employment_status,
 				})
+			emp.save()
 			self.save_employee(emp)
 
 		elif process == "revert":
@@ -345,6 +374,7 @@ class EmployeeMovement(Document):
 					"date_hired": self.current_date_hired,
 					"employment_status": self.employment_status,
 				})
+			emp.save()
 			self.revert_employee(emp)
 
 	def cmd_end_of_contract(self, process):
@@ -361,6 +391,7 @@ class EmployeeMovement(Document):
 					"reports_to": None,
 					"approvers": None,
 				})
+			emp.save()
 			self.save_employee(emp)
 
 		elif process == "revert":
@@ -369,6 +400,7 @@ class EmployeeMovement(Document):
 					"is_active": 1,
 					"date_contract_ended": None,
 				})
+			emp.save()
 			self.revert_employee(emp)
 
 	def cmd_rehire(self, process):
@@ -414,7 +446,7 @@ class EmployeeMovement(Document):
 			emp_entry['date_hired'] = self.effective_on
 			emp_entry['company'] = self.rh_new_company if self.rh_new_company else emp_data[0]['company']
 			emp_entry['job_grade'] = self.emp_new_job_grade if self.emp_current_job_grade else emp_data[0]['job_grade']
- 
+ 			
 			if emp_entry:
 				emp = frappe.get_doc("Employee", self.employee)
 				emp.update({
@@ -435,6 +467,12 @@ class EmployeeMovement(Document):
 		elif process == "revert":
 			frappe.db.sql("""DELETE FROM `tabEmployee` WHERE `name` = %s """,(self.created_employee))
 			frappe.db.commit()
+
+	def role_profile_setup_enabled(self):
+		if frappe.db.get_single_value('System Settings', 'enable_role_profile_setup'):
+			return 1
+		else:
+			return 0
 
 	def save_employee(self, emp):
 		self.add_additional_changes(emp, actiontype='save')
