@@ -124,24 +124,46 @@ class PayrollPeriod(Document):
 	def get_leave_balance(self,balances,leave_type,emp):
 		balance_dict = []
 		for lt in leave_type:
-			data_entry = {}
-			data_result = {}
-			leave_bal = 0
+			valid_entry = {}
+			less_entry = {}
+			add, less, total_balance = 0, 0, 0
+			min_date = None
+			for d in balances:
+				if d.employee == emp and (d.leave_type == lt.name or d.deduct_credits_to == lt.name):
+					if d.balance_type == "Add":
+						if lt.name == d.leave_type:
+							if d.name not in valid_entry:
+								valid_entry[d.name] = {
+									"credits": d.credits,
+									"from": getdate(d.from_date),
+									"to": getdate(d.to_date),
+								}
+					else:
+						if d.deduct_credits_to == lt.name:
+							if d.name not in less_entry:
+								less_entry[d.name] = {
+									"used": 0,
+									"credits": d.credits,
+									"from": getdate(d.from_date),
+									"to": getdate(d.to_date),
+								}
 
-			deduct_to = frappe.get_value("Leave Type", lt['leave_name'], "deduct_to")
-			if not deduct_to:
-				deduct_to = lt['leave_name']
-			#frappe.throw(_(str(lt)))
-			from workwise.time_keeping.report.detailed_leave_balance_report.detailed_leave_balance_report import get_leave_balance_via_detailed_balance_report
-			leave_balance_via_detailed_balance_report = get_leave_balance_via_detailed_balance_report(company=self.company, employee=emp, leave_type=deduct_to, as_of_date=nowdate())
-			if leave_balance_via_detailed_balance_report:
-				leave_bal = leave_balance_via_detailed_balance_report['balance']
+			for vl in valid_entry:
+				to_less = 0
+				for le in less_entry:
+					if valid_entry[vl]['credits'] > 0 and not less_entry[le]['used']:
+						if ( valid_entry[vl]['from'] <= less_entry[le]['from'] <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= less_entry[le]['to'] <= valid_entry[vl]['to'] ):
+							to_less += less_entry[le]['credits']
+							less_entry[le]['used'] = 1
+				valid_entry[vl]['credits'] -= to_less
+				if ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ) or ( valid_entry[vl]['from'] <= getdate(self.to_date) <= valid_entry[vl]['to'] ):
+					total_balance += valid_entry[vl]['credits']
 
-			if leave_balance_via_detailed_balance_report['balance'] <= 0:
-				leave_bal = 0
+			if total_balance <= 0:
+				total_balance = 0
 			balance_dict.append({
 				"leave_type":lt.name,
-				"balance":leave_bal
+				"balance":total_balance
 			})
 
 		return balance_dict
@@ -157,6 +179,7 @@ class PayrollPeriod(Document):
 				"remarks": "Payroll Period "+ self.name +" Created Payslips",
 			})
 			if log.insert():
+
 				frappe.db.sql(""" DELETE FROM `tabMy Payslip` WHERE payroll_period = %(period)s """,{ 
 						"period": self.name,
 					}, as_dict=True)
@@ -168,7 +191,6 @@ class PayrollPeriod(Document):
 				FROM tabEmployee WHERE `name` IN (SELECT employee FROM `tabPayroll Register` WHERE period = %s ) AND on_hold != 1  ORDER BY last_name, first_name  """, self.name,as_dict=1)
 
 				for emp in employees:
-					
 					payroll_date, net_payroll, total_incomes, total_deductions = "", 0, 0, 0
 					register = frappe.db.sql(""" SELECT PRE.*, PR.on_hold, PR.posting_date, PR.net_payroll, PR.total_deduction, PR.total_income FROM `tabPayroll Register`  PR
 						INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
@@ -244,7 +266,5 @@ class PayrollPeriod(Document):
 							"total_deduction": total_deductions
 						});
 						ps.insert()
-
 				
 				msgprint("Payslips Created")
-
