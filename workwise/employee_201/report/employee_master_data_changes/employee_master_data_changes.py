@@ -86,7 +86,7 @@ def get_columns(filters):
 			"width": 120
 		},
 		{
-			"fieldname": "created_by_name",
+			"fieldname": "prepared_by_name",
 			"label": _("Created By"),
 			"fieldtype": "Data",
 			"width": 200
@@ -145,10 +145,10 @@ def get_data(filters):
 							WHEN OBI.account_type = 'Primary' THEN CONCAT(OBI.bank_account, ' (Primary)')
 							ELSE OBI.bank_account
 						END SEPARATOR ', ') AS old_bank_accounts,
-					EM.created_by_name,
+					EM.prepared_by_name,
 					EM.checked_by_name,
 					EM.approved_by_name,
-					IFNULL(CONCAT(E.first_name, ' ', IFNULL(E.middle_name, ''), ' ', E.last_name), '') AS created_by_name,
+					IFNULL(CONCAT(E.first_name, ' ', IFNULL(E.middle_name, ''), ' ', E.last_name), '') AS prepared_by_name,
 					IFNULL(CONCAT(F.first_name, ' ', IFNULL(F.middle_name, ''), ' ', F.last_name), '') AS checked_by_name,
 					IFNULL(CONCAT(G.first_name, ' ', IFNULL(G.middle_name, ''), ' ', G.last_name), '') AS approved_by_name
 				FROM `tabEmployee Movement` EM
@@ -203,7 +203,7 @@ def get_data(filters):
 			if employee.get("movement_type") == "Add Bank Details":
 				new_bank_details = employee.get("new_bank_accounts")
 
-			created_by = employee.get("created_by_name")
+			created_by = employee.get("prepared_by_name")
 
 			if employee.get("movement_type") == "Salary Adjustment":
 				checked_by = employee.get("checked_by_name")
@@ -222,7 +222,7 @@ def get_data(filters):
 				"new_position": new_position,
 				"current_bank_details": current_bank_details,
 				"new_bank_details": new_bank_details,
-				"created_by_name": created_by,
+				"prepared_by_name": created_by,
 				"checked_by_name": checked_by,
 				"approved_by_name": approved_by
 			}
