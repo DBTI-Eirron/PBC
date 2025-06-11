@@ -18,10 +18,39 @@ class EmployeeMovement(Document):
 	def validate(self):
 		self.clear_fields()
 		self.get_sensitivity_level()
-		if self.movement_type in ["Job Rotation", "Retirement", "Resignation", "Regularization", "Transfer", "Termination", "Salary Adjustment", "Promotion", "Extension of Services"]:
+		# Added Change of Name, Change Bank Details, Add Bank Details (Aaron Labini)
+		if self.movement_type in ["Job Rotation", "Retirement", "Resignation", "Regularization", "Transfer", "Termination", "Salary Adjustment", "Promotion", "Extension of Services", "Change of Name", "Change Bank Details", "Add Bank Details"]:
 			validate_inactive_employee(self)
 		if self.movement_type in ["Rehire"]:
 			validate_active_employee(self)
+
+		# Added by Aaron Labini - For workflow logic and setting the checked by and approved by
+		if(self.workflow_state != "Draft"):
+			user = frappe.session.user
+			employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
+
+			# frappe.msgprint("workflow state {0}".format(self.workflow_state))
+
+			if self.movement_type == "Salary Adjustment":
+				if self.workflow_state == "Approval In Progress":
+					# frappe.msgprint(_("Checked by {0}").format(employee))
+					frappe.db.set_value(self.doctype, self.name, "checked_by_id", employee)
+					self.checked_by_id = frappe.db.get_value(self.doctype, self.name, "checked_by_id")
+
+				elif self.workflow_state == "Approved":
+					frappe.db.set_value(self.doctype, self.name, "approved_by_id", employee)
+					self.approved_by_id = frappe.db.get_value(self.doctype, self.name, "approved_by_id")
+
+			elif self.workflow_state == "Pending":
+			
+				frappe.db.set_value(self.doctype, self.name, "workflow_state", "Approved")
+				# set value 1 to docstatus
+				frappe.db.set_value(self.doctype, self.name, "docstatus", 1)
+
+				self.update_movement()
+
+				self.workflow_state = frappe.db.get_value(self.doctype, self.name, "workflow_state")
+				self.docstatus = frappe.db.get_value(self.doctype, self.name, "docstatus")
 
 		self.validate_movement()
 
@@ -82,6 +111,188 @@ class EmployeeMovement(Document):
 				fname = d.replace("_", " ").title()
 				frappe.throw(_(" {0} is Required ").format(fname))
 
+	# Added validation for Change of Name (Aaron Labini)
+	def cmd_change_of_name(self, process):
+		
+		if process == "validate":
+			fields = ["new_first_name", "new_last_name"]
+			self.validate_fields(fields)
+			self.cmd_salary_adjustment(process=process)
+		elif process == "update":
+			emp = frappe.get_doc("Employee", self.employee)
+			emp.update({
+				"first_name": self.new_first_name if self.new_first_name else self.old_first_name,
+				"last_name": self.new_last_name if self.new_last_name else self.old_last_name,
+				"middle_name": self.new_middle_name if self.new_middle_name else self.old_middle_name,
+				"civil_status": self.new_civil_status if self.new_civil_status else self.old_civil_status,
+				"spouse": self.new_spouse if self.new_spouse else self.old_spouse
+			})
+			emp.save()
+			self.save_employee(emp)
+			self.cmd_salary_adjustment(process=process)
+
+		elif process == "revert":
+			emp = frappe.get_doc("Employee", self.employee)
+			emp.update({
+				"first_name": self.old_first_name,
+				"last_name": self.old_last_name,
+				"middle_name": self.old_middle_name,
+				"civil_status": self.old_civil_status,
+				"spouse": self.old_spouse
+			})
+			emp.save()
+			self.revert_employee(emp)
+	
+	# Added validation for Change of Bank Details (Aaron Labini)
+	def cmd_change_bank_details(self, process):
+		# Validate the bank details before processing if movement type is Change Bank Details
+		if self.movement_type == "Change Bank Details":
+			if process == "validate":
+				self.validate_bank_details()
+				
+			elif process == "update":
+				# Get the employee document
+				emp = frappe.get_doc("Employee", self.employee)
+				
+				# Get combined and validated bank accounts
+				combined_banks = self.get_combined_bank_accounts()
+				
+				# Clear existing bank setup in employee
+				emp.bank_setup = []
+				
+				# Add the combined bank accounts to employee
+				for bank in combined_banks:
+					emp.append("bank_setup", {
+						"bank_name": bank.get("bank_name"),
+						"bank_type": bank.get("bank_type"), 
+						"bank_account": bank.get("bank_account"),
+						"account_type": bank.get("account_type"),
+						"branch_code": bank.get("branch_code")
+					})
+				
+				# Save the employee document
+				emp.save()
+				self.save_employee(emp)
+				
+			elif process == "revert":
+				# Revert to original bank setup
+				emp = frappe.get_doc("Employee", self.employee)
+				
+				# Clear current bank setup
+				emp.bank_setup = []
+				
+				# Restore original bank info from old_bank_info
+				if hasattr(self, 'old_bank_info') and self.old_bank_info:
+					for bank in self.old_bank_info:
+						emp.append("bank_setup", {
+							"bank_name": bank.bank_name,
+							"bank_type": bank.bank_type,
+							"bank_account": bank.bank_account, 
+							"account_type": bank.account_type,
+							"branch_code": bank.branch_code
+						})
+				
+				emp.save()
+				self.revert_employee(emp)
+
+	def validate_bank_details(self):
+		"""Validate bank account details before processing"""
+		combined_banks = self.get_combined_bank_accounts()
+		bank_accounts = []
+		primary_count = 0
+		
+		# Check each bank account
+		for bank in combined_banks:
+			if bank.get("bank_account"):
+				bank_accounts.append(bank.get("bank_account"))
+				
+				if bank.get("account_type") == "Primary":
+					primary_count += 1
+		
+		# Check for duplicate bank accounts
+		if len(bank_accounts) != len(set(bank_accounts)):
+			frappe.throw(_("Duplicate bank account numbers are not allowed. Please check your bank account entries."))
+		
+		# Check for exactly one primary account
+		if primary_count == 0 and self.movement_type in ["Change Bank Details", "Add Bank Details"]:
+			frappe.throw(_("At least one bank account must be marked as 'Primary'."))
+		
+		if primary_count > 1:
+			frappe.throw(_("Only one bank account can be marked as 'Primary'. Please check your account types."))
+
+	def get_combined_bank_accounts(self):
+		"""Combine bank accounts from old_bank_info and new_bank_info tables"""
+		combined_banks = []
+		
+		# Add banks from old_bank_info (existing unchanged accounts)
+		if hasattr(self, 'old_bank_info') and self.old_bank_info:
+			for bank in self.old_bank_info:
+				if bank.bank_account:  # Only add if bank account exists
+					combined_banks.append({
+						"bank_name": bank.bank_name,
+						"bank_type": bank.bank_type,
+						"bank_account": bank.bank_account,
+						"account_type": bank.account_type,
+						"branch_code": bank.branch_code
+					})
+		
+		# Add banks from new_bank_info (new or modified accounts)
+		if hasattr(self, 'new_bank_info') and self.new_bank_info:
+			for bank in self.new_bank_info:
+				if bank.bank_account:  # Only add if bank account exists
+					combined_banks.append({
+						"bank_name": bank.bank_name,
+						"bank_type": bank.bank_type,
+						"bank_account": bank.bank_account,
+						"account_type": bank.account_type,
+						"branch_code": bank.branch_code
+					})
+		
+		return combined_banks
+
+	# Add bank details (Aaron labini)
+	def cmd_add_bank_details(self, process):
+		
+		if self.movement_type == "Add Bank Details":
+			if process == "validate":
+				self.validate_bank_details()
+
+			elif process == "update":
+				emp = frappe.get_doc("Employee", self.employee)
+				
+				combined_banks = self.get_combined_bank_accounts()
+
+				emp.bank_setup = []
+
+				for bank in combined_banks:
+					emp.append("bank_setup", {
+						"bank_name": bank.get("bank_name"),
+						"bank_type": bank.get("bank_type"), 
+						"bank_account": bank.get("bank_account"),
+						"account_type": bank.get("account_type"),
+						"branch_code": bank.get("branch_code")
+					})
+				
+				emp.save()
+				self.save_employee(emp)
+
+			elif process == "revert":
+				emp = frappe.get_doc("Employee", self.employee)
+				emp.bank_setup = []
+			
+				if hasattr(self, 'old_bank_info') and self.old_bank_info:
+					for bank in self.old_bank_info:
+						emp.append("bank_setup", {
+							"bank_name": bank.bank_name,
+							"bank_type": bank.bank_type,
+							"bank_account": bank.bank_account, 
+							"account_type": bank.account_type,
+							"branch_code": bank.branch_code
+						})
+				
+				emp.save()
+				self.revert_employee(emp)
+				
 	def cmd_job_rotation(self, process):
 
 		if process == "validate":
