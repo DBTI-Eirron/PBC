@@ -189,7 +189,7 @@ def get_data(filters):
 			LEFT JOIN `tabEmployee` G ON EM.approved_by = G.name
 			LEFT JOIN `tabEmployee` EMP ON EM.employee = EMP.name
 			WHERE {where_clause}
-			GROUP BY EM.movement_type
+			GROUP BY EM.name
 			ORDER BY EM.effective_on ASC
 		""".format(where_clause=where_clause), {
 			"from_date": from_date,
@@ -198,7 +198,7 @@ def get_data(filters):
 		}, as_dict=True)
 
 		grouped_employees = {}
-		
+
 		for employee in employees:
 			movement_type = employee.get("movement_type")
 			if movement_type not in grouped_employees:
