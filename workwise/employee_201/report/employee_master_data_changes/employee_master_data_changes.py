@@ -102,7 +102,13 @@ def get_columns(filters):
 			"label": _("Approved By"),
 			"fieldtype": "Data",
 			"width": 200
-		}
+		},
+		{
+        "fieldname": "is_header",
+        "label": _("Is Header"),
+        "fieldtype": "Check",
+        "width": 0 
+    	},
 	]
 	return columns
 
@@ -137,6 +143,7 @@ def get_data(filters):
 		frappe.msgprint(_("Payroll Period: {0}").format(payroll_period.name))
 		frappe.msgprint(_("From Date: {0}").format(from_date))
 		frappe.msgprint(_("To Date: {0}").format(to_date))
+		frappe.msgprint(_("movement_type: {0}").format(movement_type))
 
 		employees = frappe.db.sql("""
 			SELECT 
@@ -182,7 +189,7 @@ def get_data(filters):
 			LEFT JOIN `tabEmployee` G ON EM.approved_by = G.name
 			LEFT JOIN `tabEmployee` EMP ON EM.employee = EMP.name
 			WHERE {where_clause}
-			GROUP BY EM.name
+			GROUP BY EM.movement_type
 			ORDER BY EM.effective_on ASC
 		""".format(where_clause=where_clause), {
 			"from_date": from_date,
@@ -190,69 +197,102 @@ def get_data(filters):
 			"period_group": period_group
 		}, as_dict=True)
 
+		grouped_employees = {}
+		
 		for employee in employees:
-			display_name = ""
-			transfer_type = ""
-			current_rate = ""
-			new_rate = ""
-			current_position = ""
-			new_position = ""
-			current_bank_details = ""
-			new_bank_details = ""
-			created_by = ""
-			checked_by = ""
-			approved_by = ""
-			
-			# Special handling for "Change of Name" movement type
-			if employee.get("movement_type") == "Change of Name":
-				display_name = get_change_of_name_display(employee)
-			
-			if employee.get("movement_type") == "Transfer":
-				transfer_type = employee.get("transfer_type")
-				current_position = employee.get("transfer_cur_position_title")
-				new_position = employee.get("transfer_new_position_title")
-			
-			if employee.get("movement_type") == "Salary Adjustment" or employee.get("movement_type") == "Job Rotation" or employee.get("movement_type") == "Transfer" or employee.get("movement_type") == "Regularization" or employee.get("Promotion"):
-				current_rate = employee.get("current_rate")
-				new_rate = employee.get("new_rate")
-			
-			if employee.get("movement_type") == "Job Rotation":
-				current_position = employee.get("current_position")
-				new_position = employee.get("new_position")
-			
-			# if movement type is "Change Bank Details" do comma separate the bank accounts
-			if employee.get("movement_type") == "Change Bank Details":
-				new_bank_details = employee.get("new_bank_accounts")
-				current_bank_details = employee.get("old_bank_accounts")
+			movement_type = employee.get("movement_type")
+			if movement_type not in grouped_employees:
+				grouped_employees[movement_type] = []
+			grouped_employees[movement_type].append(employee)
 
-			if employee.get("movement_type") == "Add Bank Details":
-				new_bank_details = employee.get("new_bank_accounts")
-
-			created_by = employee.get("prepared_by_name")
-
-			if employee.get("movement_type") == "Salary Adjustment":
-				checked_by = employee.get("checked_by_name")
-				approved_by = employee.get("approved_by_name")
-			
-			entry = {
-				"movement_type": employee.get("movement_type"),
-				"employee": employee.get("employee"),
-				"employee_name": employee.get("employee_name"),
-				"effective_on": employee.get("effective_on"),
-				"new_employee_name": display_name,
-				"transfer_type": transfer_type,
-				"current_rate": current_rate,
-				"new_rate": new_rate,
-				"current_position": current_position,
-				"new_position": new_position,
-				"current_bank_details": current_bank_details,
-				"new_bank_details": new_bank_details,
-				"prepared_by_name": created_by,
-				"checked_by_name": checked_by,
-				"approved_by_name": approved_by
+		# Process each movement type group
+		for movement_type, employee_list in grouped_employees.items():
+			# Add header row for movement type
+			header_entry = {
+				"movement_type": movement_type,
+				"employee": "",
+				"employee_name": "",
+				"effective_on": "",
+				"new_employee_name": "",
+				"transfer_type": "",
+				"current_rate": "",
+				"new_rate": "",
+				"current_position": "",
+				"new_position": "",
+				"current_bank_details": "",
+				"new_bank_details": "",
+				"prepared_by_name": "",
+				"checked_by_name": "",
+				"approved_by_name": "",
+				"is_header": True  # Flag to identify header rows
 			}
+			data.append(header_entry)
+			
+			# Process each employee in this movement type
+			for employee in employee_list:
+				display_name = ""
+				transfer_type = ""
+				current_rate = ""
+				new_rate = ""
+				current_position = ""
+				new_position = ""
+				current_bank_details = ""
+				new_bank_details = ""
+				created_by = ""
+				checked_by = ""
+				approved_by = ""
+				
+				# Special handling for "Change of Name" movement type
+				if employee.get("movement_type") == "Change of Name":
+					display_name = get_change_of_name_display(employee)
+				
+				if employee.get("movement_type") == "Transfer":
+					transfer_type = employee.get("transfer_type")
+					current_position = employee.get("transfer_cur_position_title")
+					new_position = employee.get("transfer_new_position_title")
+				
+				if employee.get("movement_type") == "Salary Adjustment" or employee.get("movement_type") == "Job Rotation" or employee.get("movement_type") == "Transfer" or employee.get("movement_type") == "Regularization" or employee.get("movement_type") == "Promotion":
+					current_rate = employee.get("current_rate")
+					new_rate = employee.get("new_rate")
+				
+				if employee.get("movement_type") == "Job Rotation":
+					current_position = employee.get("current_position")
+					new_position = employee.get("new_position")
+				
+				# if movement type is "Change Bank Details" do comma separate the bank accounts
+				if employee.get("movement_type") == "Change Bank Details":
+					new_bank_details = employee.get("new_bank_accounts")
+					current_bank_details = employee.get("old_bank_accounts")
 
-			data.append(entry)
+				if employee.get("movement_type") == "Add Bank Details":
+					new_bank_details = employee.get("new_bank_accounts")
+
+				created_by = employee.get("prepared_by_full_name")
+
+				if employee.get("movement_type") == "Salary Adjustment":
+					checked_by = employee.get("checked_by_full_name")
+					approved_by = employee.get("approved_by_full_name")
+				
+				entry = {
+					"movement_type": employee.get("movement_type"),
+					"employee": employee.get("employee"),
+					"employee_name": employee.get("employee_name"),
+					"effective_on": employee.get("effective_on"),
+					"new_employee_name": display_name,
+					"transfer_type": transfer_type,
+					"current_rate": current_rate,
+					"new_rate": new_rate,
+					"current_position": current_position,
+					"new_position": new_position,
+					"current_bank_details": current_bank_details,
+					"new_bank_details": new_bank_details,
+					"prepared_by_name": created_by,
+					"checked_by_name": checked_by,
+					"approved_by_name": approved_by,
+					"is_header": False  # Flag to identify data rows
+				}
+
+				data.append(entry)
 
 	except Exception as e:
 		frappe.msgprint("Error in SQL query: {0}".format(str(e)))
