@@ -4,6 +4,24 @@
 
 frappe.query_reports["Employee Master Data Changes"] = {
 	"filters": [
-
+		{
+			fieldname: "company",
+			label: __("Company"),
+			fieldtype: "Link",
+			options: "Company",
+			reqd: 1
+		},
+		{
+			fieldname: "from_date",
+			label: __("From Date"),
+			fieldtype: "Date",
+			"reqd": 1
+		},
+		{
+			fieldname: "to_date",
+			label: __("To Date"),
+			fieldtype: "Date",
+			"reqd": 1
+		}
 	]
 }
