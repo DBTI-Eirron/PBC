@@ -133,7 +133,7 @@ def get_data(filters):
 		frappe.msgprint(_("From Date: {0}").format(from_date))
 		frappe.msgprint(_("To Date: {0}").format(to_date))
 
-		employees = frappe.db.sql(f"""
+		employees = frappe.db.sql("""
 			SELECT 
 				EM.docstatus,
 				EM.movement_type,
@@ -179,7 +179,7 @@ def get_data(filters):
 			WHERE {where_clause}
 			GROUP BY EM.name
 			ORDER BY EM.effective_on ASC
-		""", {
+		""".format(where_clause=where_clause), {
 			"from_date": from_date,
 			"to_date": to_date,
 			"period_group": period_group
