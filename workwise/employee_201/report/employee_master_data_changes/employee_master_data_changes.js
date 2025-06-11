@@ -29,21 +29,7 @@ frappe.query_reports["Employee Master Data Changes"] = {
 			fieldname: "movement_type",
 			label: __("Movement Type"),
 			fieldtype: "Select",
-			options: `
-					Job Rotation
-					Retirement
-					Resignation
-					Regularization
-					Rehire
-					Transfer
-					Termination
-					Salary Adjustment
-					Extension of Services
-					End of Contract
-					Promotion
-					Change of Name
-					Add Bank Details
-					Change Bank Details`,
+			options: "\nJob Rotation\nRetirement\nResignation\nRegularization\nRehire\nTransfer\nTermination\nSalary Adjustment\nExtension of Services\nEnd of Contract\nPromotion\nChange of Name\nAdd Bank Details\nChange Bank Details"
 		}
 
 		// {
