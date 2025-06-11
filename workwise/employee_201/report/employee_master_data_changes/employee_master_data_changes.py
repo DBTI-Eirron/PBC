@@ -198,7 +198,6 @@ def get_data(filters):
 		}, as_dict=True)
 
 		grouped_employees = {}
-
 		for employee in employees:
 			movement_type = employee.get("movement_type")
 			if movement_type not in grouped_employees:
@@ -209,7 +208,7 @@ def get_data(filters):
 		for movement_type, employee_list in grouped_employees.items():
 			# Add header row for movement type
 			header_entry = {
-				"movement_type": movement_type,
+				"movement_type": "<b>" + movement_type + "</b>",  # Make header bold
 				"employee": "",
 				"employee_name": "",
 				"effective_on": "",
@@ -293,6 +292,27 @@ def get_data(filters):
 				}
 
 				data.append(entry)
+			
+			# Add empty row at the end of each group for spacing
+			spacer_entry = {
+				"movement_type": "",
+				"employee": "",
+				"employee_name": "",
+				"effective_on": "",
+				"new_employee_name": "",
+				"transfer_type": "",
+				"current_rate": "",
+				"new_rate": "",
+				"current_position": "",
+				"new_position": "",
+				"current_bank_details": "",
+				"new_bank_details": "",
+				"prepared_by_name": "",
+				"checked_by_name": "",
+				"approved_by_name": "",
+				"is_spacer": True  # Flag to identify spacer rows
+			}
+			data.append(spacer_entry)
 
 	except Exception as e:
 		frappe.msgprint("Error in SQL query: {0}".format(str(e)))
