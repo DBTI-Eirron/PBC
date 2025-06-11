@@ -116,8 +116,8 @@ def get_data(filters):
 	try:
 
 		payroll_period = frappe.get_doc("Payroll Period", filters.get("payroll_period"))
-		from_date = payroll_period.start_date
-		to_date = payroll_period.end_date
+		from_date = payroll_period.from_date
+		to_date = payroll_period.to_date
 
 		employees = frappe.db.sql("""
 				SELECT 
