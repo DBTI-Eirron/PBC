@@ -121,6 +121,8 @@ def get_data(filters):
 
 		period_group = filters.get("period_group")
 
+		movement_type = filters.get("movement_type")
+
 		# Build WHERE clause conditionally
 		where_clause = """
 			EM.effective_on BETWEEN %(from_date)s AND %(to_date)s
@@ -128,6 +130,9 @@ def get_data(filters):
 		"""
 		if period_group:
 			where_clause += " AND EMP.period_group = %(period_group)s"
+
+		if movement_type:
+			where_clause += " AND EM.movement_type = %(movement_type)s"
 
 		frappe.msgprint(_("Payroll Period: {0}").format(payroll_period.name))
 		frappe.msgprint(_("From Date: {0}").format(from_date))
