@@ -8,7 +8,7 @@ from frappe import _
 def execute(filters=None):
 	columns = get_columns(filters)
 	results = get_result(filters)
-	
+	 
 	return columns, results
 
 def get_columns(filters):
