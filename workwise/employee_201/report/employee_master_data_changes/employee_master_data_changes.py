@@ -119,11 +119,20 @@ def get_data(filters):
 		from_date = payroll_period.from_date
 		to_date = payroll_period.to_date
 
+		period_group = filters.get("period_group")
+
+		where_clause = """
+			EM.effective_on BETWEEN %(from_date)s AND %(to_date)s
+			AND EM.docstatus = 1
+			"""
+		if period_group:
+			where_clause += " AND EM.period_group = %(period_group)s"
+
 		frappe.msgprint(_("Payroll Period: {0}").format(payroll_period.name))
 		frappe.msgprint(_("From Date: {0}").format(from_date))
 		frappe.msgprint(_("To Date: {0}").format(to_date))
 
-		employees = frappe.db.sql("""
+		employees = frappe.db.sql(f"""
 				SELECT 
 					EM.docstatus,
 					EM.movement_type,
@@ -143,6 +152,7 @@ def get_data(filters):
 					EM.transfer_new_position_title,
 					EM.current_position,
 					EM.new_position,
+							
 					GROUP_CONCAT(DISTINCT 
 						CASE 
 							WHEN NBI.account_type = 'Primary' THEN CONCAT(NBI.bank_account, ' (Primary)')
@@ -154,6 +164,7 @@ def get_data(filters):
 							WHEN OBI.account_type = 'Primary' THEN CONCAT(OBI.bank_account, ' (Primary)')
 							ELSE OBI.bank_account
 						END SEPARATOR ', ') AS old_bank_accounts,
+							
 					EM.prepared_by_name,
 					EM.checked_by_name,
 					EM.approved_by_name,
@@ -166,12 +177,14 @@ def get_data(filters):
 				LEFT JOIN `tabEmployee` E ON EM.created_by = E.name
 				LEFT JOIN `tabEmployee` F ON EM.checked_by = F.name
 				LEFT JOIN `tabEmployee` G ON EM.approved_by = G.name
-				WHERE EM.effective_on BETWEEN %(from_date)s AND %(to_date)s AND EM.docstatus = 1
+				LEFT JOIN `tabEmployee` EMP ON EM.employee = EMP.name
+				WHERE {where_clause}
 				GROUP BY EM.name
 				ORDER BY EM.effective_on ASC
 			""", {
 				"from_date": from_date,
     			"to_date": to_date,
+				"period_group": period_group
 			}, as_dict=True)
 	
 		for employee in employees:
