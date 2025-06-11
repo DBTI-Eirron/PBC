@@ -121,72 +121,70 @@ def get_data(filters):
 
 		period_group = filters.get("period_group")
 
+		# Build WHERE clause conditionally
 		where_clause = """
 			EM.effective_on BETWEEN %(from_date)s AND %(to_date)s
 			AND EM.docstatus = 1
-			"""
+		"""
 		if period_group:
-			where_clause += " AND EM.period_group = %(period_group)s"
+			where_clause += " AND EMP.period_group = %(period_group)s"
 
 		frappe.msgprint(_("Payroll Period: {0}").format(payroll_period.name))
 		frappe.msgprint(_("From Date: {0}").format(from_date))
 		frappe.msgprint(_("To Date: {0}").format(to_date))
 
 		employees = frappe.db.sql(f"""
-				SELECT 
-					EM.docstatus,
-					EM.movement_type,
-					EM.employee,
-					EM.employee_name,
-					EM.effective_on,
-					EM.new_first_name,
-					EM.new_middle_name,
-					EM.new_last_name,
-					EM.old_first_name,
-					EM.old_middle_name,
-					EM.old_last_name,
-					EM.transfer_type,
-					EM.current_rate,
-					EM.new_rate,
-					EM.transfer_cur_position_title,
-					EM.transfer_new_position_title,
-					EM.current_position,
-					EM.new_position,
-							
-					GROUP_CONCAT(DISTINCT 
-						CASE 
-							WHEN NBI.account_type = 'Primary' THEN CONCAT(NBI.bank_account, ' (Primary)')
-							ELSE NBI.bank_account
-						END SEPARATOR ', ') AS new_bank_accounts,
+			SELECT 
+				EM.docstatus,
+				EM.movement_type,
+				EM.employee,
+				EM.employee_name,
+				EM.effective_on,
+				EM.new_first_name,
+				EM.new_middle_name,
+				EM.new_last_name,
+				EM.old_first_name,
+				EM.old_middle_name,
+				EM.old_last_name,
+				EM.transfer_type,
+				EM.current_rate,
+				EM.new_rate,
+				EM.transfer_cur_position_title,
+				EM.transfer_new_position_title,
+				EM.current_position,
+				EM.new_position,
+				GROUP_CONCAT(DISTINCT 
+					CASE 
+						WHEN NBI.account_type = 'Primary' THEN CONCAT(NBI.bank_account, ' (Primary)')
+						ELSE NBI.bank_account
+					END SEPARATOR ', ') AS new_bank_accounts,
+				GROUP_CONCAT(DISTINCT 
+					CASE 
+						WHEN OBI.account_type = 'Primary' THEN CONCAT(OBI.bank_account, ' (Primary)')
+						ELSE OBI.bank_account
+					END SEPARATOR ', ') AS old_bank_accounts,
+				EM.prepared_by_name,
+				EM.checked_by_name,
+				EM.approved_by_name,
+				IFNULL(CONCAT(E.first_name, ' ', IFNULL(E.middle_name, ''), ' ', E.last_name), '') AS prepared_by_name,
+				IFNULL(CONCAT(F.first_name, ' ', IFNULL(F.middle_name, ''), ' ', F.last_name), '') AS checked_by_name,
+				IFNULL(CONCAT(G.first_name, ' ', IFNULL(G.middle_name, ''), ' ', G.last_name), '') AS approved_by_name
+			FROM `tabEmployee Movement` EM
+			LEFT JOIN `tabNew Bank Information` NBI ON EM.name = NBI.parent
+			LEFT JOIN `tabOld Bank Information` OBI ON EM.name = OBI.parent
+			LEFT JOIN `tabEmployee` E ON EM.created_by = E.name
+			LEFT JOIN `tabEmployee` F ON EM.checked_by = F.name
+			LEFT JOIN `tabEmployee` G ON EM.approved_by = G.name
+			LEFT JOIN `tabEmployee` EMP ON EM.employee = EMP.name
+			WHERE {where_clause}
+			GROUP BY EM.name
+			ORDER BY EM.effective_on ASC
+		""", {
+			"from_date": from_date,
+			"to_date": to_date,
+			"period_group": period_group
+		}, as_dict=True)
 
-					GROUP_CONCAT(DISTINCT 
-						CASE 
-							WHEN OBI.account_type = 'Primary' THEN CONCAT(OBI.bank_account, ' (Primary)')
-							ELSE OBI.bank_account
-						END SEPARATOR ', ') AS old_bank_accounts,
-							
-					EM.prepared_by_name,
-					EM.checked_by_name,
-					EM.approved_by_name,
-					IFNULL(CONCAT(E.first_name, ' ', IFNULL(E.middle_name, ''), ' ', E.last_name), '') AS prepared_by_name,
-					IFNULL(CONCAT(F.first_name, ' ', IFNULL(F.middle_name, ''), ' ', F.last_name), '') AS checked_by_name,
-					IFNULL(CONCAT(G.first_name, ' ', IFNULL(G.middle_name, ''), ' ', G.last_name), '') AS approved_by_name
-				FROM `tabEmployee Movement` EM
-				LEFT JOIN `tabNew Bank Information` NBI ON EM.name = NBI.parent
-				LEFT JOIN `tabOld Bank Information` OBI ON EM.name = OBI.parent
-				LEFT JOIN `tabEmployee` E ON EM.created_by = E.name
-				LEFT JOIN `tabEmployee` F ON EM.checked_by = F.name
-				LEFT JOIN `tabEmployee` G ON EM.approved_by = G.name
-				LEFT JOIN `tabEmployee` EMP ON EM.employee = EMP.name
-				WHERE {where_clause}
-				GROUP BY EM.name
-				ORDER BY EM.effective_on ASC
-			""", {
-				"from_date": from_date,
-    			"to_date": to_date,
-				"period_group": period_group
-			}, as_dict=True)
-	
 		for employee in employees:
 			display_name = ""
 			transfer_type = ""
