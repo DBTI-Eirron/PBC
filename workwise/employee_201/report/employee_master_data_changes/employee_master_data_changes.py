@@ -102,13 +102,13 @@ def get_columns(filters):
 			"label": _("Approved By"),
 			"fieldtype": "Data",
 			"width": 200
-		},
-		{
-        "fieldname": "is_header",
-        "label": _("Is Header"),
-        "fieldtype": "Check",
-        "width": 0 
-    	},
+		}
+		# {
+        # "fieldname": "is_header",
+        # "label": _("Is Header"),
+        # "fieldtype": "Check",
+        # "width": 0 
+    	# },
 	]
 	return columns
 
@@ -138,12 +138,7 @@ def get_data(filters):
 			where_clause += " AND EMP.period_group = %(period_group)s"
 
 		if movement_type:
-			where_clause += " AND EM.movement_type = %(movement_type)s"
-
-		frappe.msgprint(_("Payroll Period: {0}").format(payroll_period.name))
-		frappe.msgprint(_("From Date: {0}").format(from_date))
-		frappe.msgprint(_("To Date: {0}").format(to_date))
-		frappe.msgprint(_("movement_type: {0}").format(movement_type))
+			where_clause += " AND TRIM(EM.movement_type) = %(movement_type)s"
 
 		employees = frappe.db.sql("""
 			SELECT 
@@ -194,7 +189,8 @@ def get_data(filters):
 		""".format(where_clause=where_clause), {
 			"from_date": from_date,
 			"to_date": to_date,
-			"period_group": period_group
+			"period_group": period_group,
+			"movement_type": movement_type
 		}, as_dict=True)
 
 		grouped_employees = {}
@@ -208,7 +204,7 @@ def get_data(filters):
 		for movement_type, employee_list in grouped_employees.items():
 			# Add header row for movement type
 			header_entry = {
-				"movement_type": "<b>" + movement_type + "</b>",  # Make header bold
+				"movement_type": "<b>" + movement_type + "</b>",  
 				"employee": "",
 				"employee_name": "",
 				"effective_on": "",
