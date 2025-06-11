@@ -119,6 +119,10 @@ def get_data(filters):
 		from_date = payroll_period.from_date
 		to_date = payroll_period.to_date
 
+		frappe.msgprint(_("Payroll Period: {0}").format(payroll_period.name))
+		frappe.msgprint(_("From Date: {0}").format(from_date))
+		frappe.msgprint(_("To Date: {0}").format(to_date))
+
 		employees = frappe.db.sql("""
 				SELECT 
 					EM.docstatus,
