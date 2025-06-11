@@ -114,6 +114,11 @@ def get_data(filters):
 	data = []
 	
 	try:
+
+		payroll_period = frappe.get_doc("Payroll Period", filters.get("payroll_period"))
+		from_date = payroll_period.start_date
+		to_date = payroll_period.end_date
+
 		employees = frappe.db.sql("""
 				SELECT 
 					EM.docstatus,
@@ -158,11 +163,13 @@ def get_data(filters):
 				LEFT JOIN `tabEmployee` F ON EM.checked_by = F.name
 				LEFT JOIN `tabEmployee` G ON EM.approved_by = G.name
 				WHERE EM.effective_on BETWEEN %(from_date)s AND %(to_date)s AND EM.docstatus = 1
+				AND EM.movement_type = %(movement_type)s
 				GROUP BY EM.name
 				ORDER BY EM.effective_on ASC
 			""", {
-				"from_date": filters.get("from_date"),
-				"to_date": filters.get("to_date")
+				"from_date": from_date,
+    			"to_date": to_date,
+				"movement_type": filters.get("movement_type")
 			}, as_dict=True)
 	
 		for employee in employees:

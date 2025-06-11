@@ -23,7 +23,7 @@ frappe.query_reports["Employee Master Data Changes"] = {
 			label: __("Period Group"),
 			fieldtype: "Link",
 			options: "Period Group",
-			reqd: 1
+			// reqd: 1
 		},
 		{
 			fieldname: "movement_type",
