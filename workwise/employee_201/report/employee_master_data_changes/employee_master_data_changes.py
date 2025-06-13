@@ -312,33 +312,11 @@ def get_data(filters):
 			}
 			data.append(spacer_entry)
 
-		    	# Add signatory section at the bottom of the report
-			if data:  # Only add signatories if there's data
-				# Add extra spacing before signatories
-				for i in range(3):  # Add 3 empty rows for spacing
-					spacing_entry = {
-						"movement_type": "",
-						"employee": "",
-						"employee_name": "",
-						"effective_on": "",
-						"new_employee_name": "",
-						"transfer_type": "",
-						"current_rate": "",
-						"new_rate": "",
-						"current_position": "",
-						"new_position": "",
-						"current_bank_details": "",
-						"new_bank_details": "",
-						"prepared_by_name": "",
-						"checked_by_name": "",
-						"approved_by_name": "",
-						"is_signature_spacing": True,
-						"_style": "border: none !important; background-color: transparent; height: 25px;"
-					}
-					data.append(spacing_entry)
-
-				# Add signature lines
-				signature_line_entry = {
+			# Add signatory section at the bottom of the report
+		if data:  # Only add signatories if there's data
+			# Add extra spacing before signatories
+			for i in range(2):  # Add 3 empty rows for spacing
+				spacing_entry = {
 					"movement_type": "",
 					"employee": "",
 					"employee_name": "",
@@ -351,35 +329,57 @@ def get_data(filters):
 					"new_position": "",
 					"current_bank_details": "",
 					"new_bank_details": "",
-					"prepared_by_name": "________________________",
-					"checked_by_name": "________________________",
-					"approved_by_name": "________________________",
-					"is_signature_line": True,
-					"_style": "border: none !important; background-color: transparent; text-align: center;"
+					"prepared_by_name": "",
+					"checked_by_name": "",
+					"approved_by_name": "",
+					"is_signature_spacing": True,
+					"_style": "border: none !important; background-color: transparent; height: 25px;"
 				}
-				data.append(signature_line_entry)
+				data.append(spacing_entry)
 
-				# Add signatory labels
-				signatory_labels_entry = {
-					"movement_type": "",
-					"employee": "",
-					"employee_name": "",
-					"effective_on": "",
-					"new_employee_name": "",
-					"transfer_type": "",
-					"current_rate": "",
-					"new_rate": "",
-					"current_position": "",
-					"new_position": "",
-					"current_bank_details": "",
-					"new_bank_details": "",
-					"prepared_by_name": "<b>Prepared By</b>",
-					"checked_by_name": "<b>Checked By</b>",
-					"approved_by_name": "<b>Approved By</b>",
-					"is_signatory_label": True,
-					"_style": "border: none !important; background-color: transparent; text-align: center; font-weight: bold;"
-				}
-				data.append(signatory_labels_entry)
+			# Add signature lines
+			signature_line_entry = {
+				"movement_type": "",
+				"employee": "",
+				"employee_name": "",
+				"effective_on": "",
+				"new_employee_name": "",
+				"transfer_type": "",
+				"current_rate": "",
+				"new_rate": "",
+				"current_position": "",
+				"new_position": "",
+				"current_bank_details": "",
+				"new_bank_details": "",
+				"prepared_by_name": "________________________",
+				"checked_by_name": "________________________",
+				"approved_by_name": "________________________",
+				"is_signature_line": True,
+				"_style": "border: none !important; background-color: transparent; text-align: center;"
+			}
+			data.append(signature_line_entry)
+
+			# Add signatory labels
+			signatory_labels_entry = {
+				"movement_type": "",
+				"employee": "",
+				"employee_name": "",
+				"effective_on": "",
+				"new_employee_name": "",
+				"transfer_type": "",
+				"current_rate": "",
+				"new_rate": "",
+				"current_position": "",
+				"new_position": "",
+				"current_bank_details": "",
+				"new_bank_details": "",
+				"prepared_by_name": "<b>Prepared By</b>",
+				"checked_by_name": "<b>Checked By</b>",
+				"approved_by_name": "<b>Approved By</b>",
+				"is_signatory_label": True,
+				"_style": "border: none !important; background-color: transparent; text-align: center; font-weight: bold;"
+			}
+			data.append(signatory_labels_entry)
 
 
 	except Exception as e:
