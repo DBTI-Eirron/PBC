@@ -339,9 +339,9 @@ def get_data(filters):
 
 			# Add signature lines
 			signature_line_entry = {
-				"movement_type": "",
-				"employee": "",
-				"employee_name": "",
+				"movement_type": "________________________",
+				"employee": "________________________",
+				"employee_name": "________________________",
 				"effective_on": "",
 				"new_employee_name": "",
 				"transfer_type": "",
@@ -351,9 +351,9 @@ def get_data(filters):
 				"new_position": "",
 				"current_bank_details": "",
 				"new_bank_details": "",
-				"prepared_by_name": "________________________",
-				"checked_by_name": "________________________",
-				"approved_by_name": "________________________",
+				"prepared_by_name": "",
+				"checked_by_name": "",
+				"approved_by_name": "",
 				"is_signature_line": True,
 				"_style": "border: none !important; background-color: transparent; text-align: center;"
 			}
@@ -361,9 +361,9 @@ def get_data(filters):
 
 			# Add signatory labels
 			signatory_labels_entry = {
-				"movement_type": "",
-				"employee": "",
-				"employee_name": "",
+				"movement_type": "<b>Prepared By</b>",
+				"employee": "<b>Checked By</b>",
+				"employee_name": "<b>Approved By</b>",
 				"effective_on": "",
 				"new_employee_name": "",
 				"transfer_type": "",
@@ -373,9 +373,9 @@ def get_data(filters):
 				"new_position": "",
 				"current_bank_details": "",
 				"new_bank_details": "",
-				"prepared_by_name": "<b>Prepared By</b>",
-				"checked_by_name": "<b>Checked By</b>",
-				"approved_by_name": "<b>Approved By</b>",
+				"prepared_by_name": "",
+				"checked_by_name": "",
+				"approved_by_name": "",
 				"is_signatory_label": True,
 				"_style": "border: none !important; background-color: transparent; text-align: center; font-weight: bold;"
 			}
