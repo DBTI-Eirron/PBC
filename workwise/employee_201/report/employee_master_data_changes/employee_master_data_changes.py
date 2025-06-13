@@ -85,24 +85,24 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 120
 		},
-		{
-			"fieldname": "prepared_by_name",
-			"label": _("Created By"),
-			"fieldtype": "Data",
-			"width": 200
-		},
-		{
-			"fieldname": "checked_by_name",
-			"label": _("Checked By"),
-			"fieldtype": "Data",
-			"width": 200
-		},
-		{
-			"fieldname": "approved_by_name",
-			"label": _("Approved By"),
-			"fieldtype": "Data",
-			"width": 200
-		}
+		# {
+		# 	"fieldname": "prepared_by_name",
+		# 	"label": _("Created By"),
+		# 	"fieldtype": "Data",
+		# 	"width": 200
+		# },
+		# {
+		# 	"fieldname": "checked_by_name",
+		# 	"label": _("Checked By"),
+		# 	"fieldtype": "Data",
+		# 	"width": 200
+		# },
+		# {
+		# 	"fieldname": "approved_by_name",
+		# 	"label": _("Approved By"),
+		# 	"fieldtype": "Data",
+		# 	"width": 200
+		# }
 		# {
         # "fieldname": "is_header",
         # "label": _("Is Header"),
@@ -305,9 +305,9 @@ def get_data(filters):
 				"new_position": "",
 				"current_bank_details": "",
 				"new_bank_details": "",
-				"prepared_by_name": "",
-				"checked_by_name": "",
-				"approved_by_name": "",
+				# "prepared_by_name": "",
+				# "checked_by_name": "",
+				# "approved_by_name": "",
 				"is_spacer": True  # Flag to identify spacer rows
 			}
 			data.append(spacer_entry)
@@ -329,9 +329,9 @@ def get_data(filters):
 					"new_position": "",
 					"current_bank_details": "",
 					"new_bank_details": "",
-					"prepared_by_name": "",
-					"checked_by_name": "",
-					"approved_by_name": "",
+					# "prepared_by_name": "",
+					# "checked_by_name": "",
+					# "approved_by_name": "",
 					"is_signature_spacing": True,
 					"_style": "border: none !important; background-color: transparent; height: 25px;"
 				}
@@ -351,9 +351,9 @@ def get_data(filters):
 				"new_position": "",
 				"current_bank_details": "",
 				"new_bank_details": "",
-				"prepared_by_name": "",
-				"checked_by_name": "",
-				"approved_by_name": "",
+				# "prepared_by_name": "",
+				# "checked_by_name": "",
+				# "approved_by_name": "",
 				"is_signature_line": True,
 				"_style": "border: none !important; background-color: transparent; text-align: center;"
 			}
@@ -373,9 +373,9 @@ def get_data(filters):
 				"new_position": "",
 				"current_bank_details": "",
 				"new_bank_details": "",
-				"prepared_by_name": "",
-				"checked_by_name": "",
-				"approved_by_name": "",
+				# "prepared_by_name": "",
+				# "checked_by_name": "",
+				# "approved_by_name": "",
 				"is_signatory_label": True,
 				"_style": "border: none !important; background-color: transparent; text-align: center; font-weight: bold;"
 			}
