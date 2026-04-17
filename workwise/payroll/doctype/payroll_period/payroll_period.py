@@ -214,15 +214,6 @@ class PayrollPeriod(Document):
             period_name=self.name,
         )
 
-        # Return immediate feedback to the user
-        frappe.msgprint(
-            _("Payslip generation has been queued and will run in the background. "
-              "You will receive a notification when the process completes. "
-              "Check Payroll Process Logs for progress details."),
-            title="Payslip Generation Started",
-            indicator="blue"
-        )
-
 
 def run_make_payslips(period_name):
     # ── Initialize logger for this background job ────────────────────────────────
