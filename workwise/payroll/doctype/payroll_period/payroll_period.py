@@ -121,7 +121,7 @@ class PayrollPeriod(Document):
 
 			msgprint("Payslips DELETED")
 
-	def get_leave_balance(self,balances,leave_type,emp):
+	def get_leave_balance(self, balances, leave_type, emp):
 		balance_dict = []
 		for lt in leave_type:
 			valid_entry = {}
@@ -162,109 +162,227 @@ class PayrollPeriod(Document):
 			if total_balance <= 0:
 				total_balance = 0
 			balance_dict.append({
-				"leave_type":lt.name,
-				"balance":total_balance
+				"leave_type": lt.name,
+				"balance": total_balance
 			})
 
 		return balance_dict
 
 	def make_payslips(self):
+		"""Validates period status, logs the request, and enqueues payslip generation as a background job."""
 		if self.status == "Open":
 			frappe.throw("Please Close Period Before Creating Payslips")
-		else:
-			log = frappe.new_doc("Payroll Process Logs")
-			log.update({
-				"user_id": frappe.session.user, 
-				"datetime": frappe.utils.now(), 
-				"remarks": "Payroll Period "+ self.name +" Created Payslips",
-			})
-			if log.insert():
 
-				frappe.db.sql(""" DELETE FROM `tabMy Payslip` WHERE payroll_period = %(period)s """,{ 
-						"period": self.name,
-					}, as_dict=True)
+		log = frappe.new_doc("Payroll Process Logs")
+		log.update({
+			"user_id": frappe.session.user,
+			"datetime": frappe.utils.now(),
+			"remarks": "Payroll Period " + self.name + " — Payslip generation queued",
+		})
+		log.insert(ignore_permissions=True)
+		frappe.db.commit()
 
-				leave_type = frappe.db.sql("""SELECT * FROM `tabLeave Type`""",as_dict=True)
-				balances = frappe.db.sql(""" SELECT * FROM `tabLB Entry`""", as_dict=True)
-
-				employees = frappe.db.sql(""" SELECT `name`, full_name, location, company, sss_no, phic_no, hdmf_no, tin, user_id
-				FROM tabEmployee WHERE `name` IN (SELECT employee FROM `tabPayroll Register` WHERE period = %s ) AND on_hold != 1  ORDER BY last_name, first_name  """, self.name,as_dict=1)
-
-				for emp in employees:
-					payroll_date, net_payroll, total_incomes, total_deductions = "", 0, 0, 0
-					register = frappe.db.sql(""" SELECT PRE.*, PR.on_hold, PR.posting_date, PR.net_payroll, PR.total_deduction, PR.total_income FROM `tabPayroll Register`  PR
-						INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
-		 				WHERE period = %(period)s and employee = %(employee)s """,{ 
-							"period": self.name,
-							"employee": emp.name,
-						}, as_dict=True)
+		frappe.enqueue(
+			"workwise.payroll.doctype.payroll_period.payroll_period.run_make_payslips",
+			queue="long",
+			timeout=3600,
+			period_name=self.name,
+		)
 
 
-					if register:
-						letter_head = frappe.db.get_value("Company", emp.company, "default_letter_head")
-						
-						loan = frappe.db.sql("""SELECT PRE.pay_code, LA.unpaid_amount, LA.total_loan, LA.paid_amount,
-						(SELECT COUNT(`name`) FROM `tabLoan Application Payments` WHERE parent = PRE.linked_document and payment_status = 'Paid' and payment_date <= %(pdate)s) as count
-						FROM `tabPayroll Register`  PR
-						INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
-						INNER JOIN `tabLoan Application` LA ON LA.name = PRE.linked_document
-		 				WHERE PRE.entry_type = 'Loan' AND PR.period = %(period)s and PR.employee = %(employee)s """,{
-							"pdate":self.payroll_date,
-							"period": self.name,
-							"employee": emp.name,
-						}, as_dict=True)
+def run_make_payslips(period_name):
+	"""
+	Background job entry point. Loads the PayrollPeriod document and generates
+	My Payslip records for all eligible employees in the given payroll period.
 
-						leaves = self.get_leave_balance(balances,leave_type,emp.name)
+	:param period_name: Name of the Payroll Period document.
+	"""
+	logger = frappe.logger("payroll_period", allow_site=True, max_size=5, file_count=20)
+	logger.info("=== run_make_payslips START | period: {0} ===".format(period_name))
 
-						ps = frappe.new_doc("My Payslip")
-						ps.update({
-							"owner": emp.user_id, "employee": emp.name, "payroll_period": self.name, 
-							"employee_name": emp.full_name, "company": emp.company,
-							"sss_no": emp.sss_no, "phic_no": emp.phic_no, "hdmf_no": emp.hdmf_no, "tin": emp.tin
+	try:
+		period = frappe.get_doc("Payroll Period", period_name)
+
+		# ── Delete existing payslips for this period ──────────────────────────
+		logger.info("Deleting existing payslips for period: {0}".format(period_name))
+		frappe.db.sql(
+			"DELETE FROM `tabMy Payslip` WHERE payroll_period = %(period)s",
+			{"period": period_name},
+		)
+		frappe.db.commit()
+		logger.info("Existing payslips deleted.")
+
+		# ── Fetch reference data once to avoid repeated full-table scans ───────
+		leave_type = frappe.db.sql("SELECT `name` FROM `tabLeave Type`", as_dict=True)
+		# Load LB Entry scoped to the period's date range to reduce dataset size
+		balances = frappe.db.sql(
+			"""SELECT * FROM `tabLB Entry`
+			   WHERE (from_date <= %(to_date)s AND to_date >= %(from_date)s)
+				  OR from_date IS NULL OR to_date IS NULL""",
+			{"from_date": period.from_date, "to_date": period.to_date},
+			as_dict=True,
+		)
+
+		# ── Fetch eligible employees ───────────────────────────────────────────
+		employees = frappe.db.sql(
+			"""SELECT `name`, full_name, location, company, sss_no, phic_no, hdmf_no, tin, user_id
+			   FROM `tabEmployee`
+			   WHERE `name` IN (
+				   SELECT employee FROM `tabPayroll Register` WHERE period = %s
+			   ) AND on_hold != 1
+			   ORDER BY last_name, first_name""",
+			period_name,
+			as_dict=True,
+		)
+		logger.info("Employees found: {0}".format(len(employees)))
+
+		created_count = 0
+		error_count = 0
+
+		for idx, emp in enumerate(employees, start=1):
+			logger.info("Processing employee {0}/{1}: {2} — {3}".format(
+				idx, len(employees), emp.name, emp.full_name
+			))
+
+			try:
+				register = frappe.db.sql(
+					"""SELECT PRE.*, PR.on_hold, PR.posting_date, PR.net_payroll,
+							  PR.total_deduction, PR.total_income
+					   FROM `tabPayroll Register` PR
+					   INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
+					   WHERE PR.period = %(period)s AND PR.employee = %(employee)s""",
+					{"period": period_name, "employee": emp.name},
+					as_dict=True,
+				)
+
+				if not register:
+					logger.info("No register entries for employee {0}, skipping.".format(emp.name))
+					continue
+
+				letter_head = frappe.db.get_value("Company", emp.company, "default_letter_head")
+
+				loan = frappe.db.sql(
+					"""SELECT PRE.pay_code, LA.unpaid_amount, LA.total_loan, LA.paid_amount,
+					   (SELECT COUNT(`name`) FROM `tabLoan Application Payments`
+						WHERE parent = PRE.linked_document
+						  AND payment_status = 'Paid'
+						  AND payment_date <= %(pdate)s) AS count
+					   FROM `tabPayroll Register` PR
+					   INNER JOIN `tabPayroll Register Entries` PRE ON PRE.parent = PR.`name`
+					   INNER JOIN `tabLoan Application` LA ON LA.name = PRE.linked_document
+					   WHERE PRE.entry_type = 'Loan'
+						 AND PR.period = %(period)s
+						 AND PR.employee = %(employee)s""",
+					{"pdate": period.payroll_date, "period": period_name, "employee": emp.name},
+					as_dict=True,
+				)
+
+				leaves = period.get_leave_balance(balances, leave_type, emp.name)
+
+				ps = frappe.new_doc("My Payslip")
+				ps.update({
+					"owner": emp.user_id,
+					"employee": emp.name,
+					"payroll_period": period_name,
+					"employee_name": emp.full_name,
+					"company": emp.company,
+					"sss_no": emp.sss_no,
+					"phic_no": emp.phic_no,
+					"hdmf_no": emp.hdmf_no,
+					"tin": emp.tin,
+				})
+
+				for ln in loan:
+					ps.append("loan", {
+						"loan_type": ln.pay_code,
+						"number_payment": ln.count,
+						"paid_amount": ln.paid_amount,
+						"loan_amount": ln.total_loan,
+						"outstanding_balance": ln.unpaid_amount,
+					})
+
+				for lv in leaves:
+					if lv['balance'] > 0:
+						ps.append("leave", {
+							"leave_type": lv['leave_type'],
+							"leave_balance": lv['balance'],
 						})
 
-						for ln in loan:
-							ps.append("loan", {
-								"loan_type": ln.pay_code,
-								"number_payment": ln.count,
-								"paid_amount":ln.paid_amount,
-								"loan_amount":ln.total_loan,
-								"outstanding_balance":ln.unpaid_amount,
-							})
+				payroll_date = ""
+				net_payroll = 0
+				total_incomes = 0
+				total_deductions = 0
 
-						for lv in leaves:
-							if lv['balance'] > 0:
-								ps.append("leave", {
-									"leave_type": lv['leave_type'],
-									"leave_balance": lv['balance'],
-								})
+				for d in register:
+					if d.pay_type == "Income":
+						ps.append("payslip_incomes", {
+							"description": d.pay_description,
+							"amount": d.amount,
+							"pay_time": d.pay_time,
+						})
+					elif d.pay_type == "Deduction":
+						ps.append("payslip_deductions", {
+							"description": d.pay_description,
+							"amount": d.amount,
+							"pay_time": d.pay_time,
+						})
 
-						for d in register:
-							if d.pay_type == "Income":
-								ps.append("payslip_incomes", {
-									"description": d.pay_description,
-									"amount": d.amount,
-									"pay_time": d.pay_time,
-								})
-							elif d.pay_type == "Deduction":
-								ps.append("payslip_deductions", {
-									"description": d.pay_description,
-									"amount": d.amount,
-									"pay_time": d.pay_time,
-								})
+					payroll_date = d.posting_date
+					net_payroll = d.net_payroll
+					total_incomes = d.total_income
+					total_deductions = d.total_deduction
 
-							payroll_date = d.posting_date
-							net_payroll = d.net_payroll
-							total_incomes = d.total_income
-							total_deductions = d.total_deduction
+				ps.update({
+					"payroll_date": payroll_date,
+					"letter_head": letter_head,
+					"net_payroll": net_payroll,
+					"total_income": total_incomes,
+					"total_deduction": total_deductions,
+				})
 
-						ps.update({
-							"payroll_date": payroll_date,
-							"letter_head": letter_head,
-							"net_payroll": net_payroll,
-							"total_income": total_incomes,
-							"total_deduction": total_deductions
-						});
-						ps.insert()
-				
-				msgprint("Payslips Created")
+				ps.insert(ignore_permissions=True)
+				# Commit every 10 employees to keep transactions manageable
+				if idx % 10 == 0:
+					frappe.db.commit()
+
+				created_count += 1
+				logger.info("Payslip inserted for employee {0}.".format(emp.name))
+
+			except Exception:
+				error_count += 1
+				logger.error(
+					"Error processing employee {0}:\n{1}".format(
+						emp.name, frappe.get_traceback()
+					)
+				)
+				# Continue to next employee rather than aborting the entire batch
+				continue
+
+		frappe.db.commit()
+
+		summary = (
+			"=== run_make_payslips COMPLETE | period: {0} | "
+			"created: {1} | errors: {2} ==="
+		).format(period_name, created_count, error_count)
+		logger.info(summary)
+
+		# Write a final completion log entry
+		finish_log = frappe.new_doc("Payroll Process Logs")
+		finish_log.update({
+			"user_id": "Administrator",
+			"datetime": frappe.utils.now(),
+			"remarks": (
+				"Payroll Period {0} — Payslips Created: {1}, Errors: {2}"
+			).format(period_name, created_count, error_count),
+		})
+		finish_log.insert(ignore_permissions=True)
+		frappe.db.commit()
+
+	except Exception:
+		logger.error(
+			"Fatal error in run_make_payslips for period {0}:\n{1}".format(
+				period_name, frappe.get_traceback()
+			)
+		)
+		frappe.db.rollback()
+		raise
