@@ -217,9 +217,8 @@ class PayrollPeriod(Document):
 
 def run_make_payslips(period_name):
     # ── Initialize logger for this background job ────────────────────────────────
-    # Logger file goes to site-logs; max 5 log files rotating when each hits default size
-    logger = frappe.logger(
-        "payroll_period", allow_site=True, max_size=5, file_count=20)
+    # Note: allow_site/max_size/file_count not supported in older Frappe versions
+    logger = frappe.logger("payroll_period")
     logger.info(
         "=== run_make_payslips START | period: {0} ===".format(period_name))
 
